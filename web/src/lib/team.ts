@@ -1,22 +1,14 @@
-// Team page renderers: ratings and four factors from team and opponent totals, the rank strips
-// (every club's dot, this club's in orange), both shot charts, the bands and the roster.
+// Team page renderers: ratings and four factors from team and opponent totals, the Four Factors
+// rows (club value, rank, rail against the league, delta), both shot charts, the bands and the roster.
 // Pure (types only from ./stats), so the build and the in-page season switch share them.
 
 import { hexChart, type HexCell } from "./court";
-import { esc } from "./format";
-import { dataTip, linkTip, tip } from "./tip";
+import { deltaHtml, type BetterIs } from "./delta";
+import { esc, signed } from "./format";
+import { dataTip, tip } from "./tip";
 import { SEASON_COLS, bandRows, totalsOf, type Totals } from "./player";
-import { teamHref } from "./players";
 import type { ClubLine, TeamSeason } from "./stats";
 import type { ClubCells } from "./clubs";
-
-/** A strip mark's tip read back (the touch list on the team page builds its rows from the marks):
- * "<b>CODE</b> name<br>measure: value[, rank]" as strips() writes it, and "League average: value". */
-export const stripTipParts = (html: string) => {
-  const [, code = "", name = "", value = ""] = /^<b>(.*?)<\/b> (.*?)<br>[^:]*: ([^,]*)/.exec(html) ?? [];
-  return { code, name, value };
-};
-export const avgTipValue = (html: string) => html.split(": ")[1] ?? "";
 
 /** Ratings and four factors of one side, from its totals and its opponents'. */
 export function factors(fields: string[], own: number[], against: number[]) {
@@ -45,96 +37,144 @@ export function factors(fields: string[], own: number[], against: number[]) {
 type Factors = ReturnType<typeof factors>;
 type Key = keyof Factors;
 
+/** One measure of the Four Factors layout. `better` is the single place that says whether a
+ * higher or a lower figure is good for the club (the arrow's colour and the rail's direction). */
 interface Metric {
   key: Key;
   name: string;
   about: string;
-  high: boolean; // is a higher value better for this club?
+  better: BetterIs;
 }
 
 export const OFFENSE: Metric[] = [
-  { key: "ortg", name: "Offensive rating", about: "Points scored per 100 possessions", high: true },
-  { key: "efg", name: "Effective FG%", about: "(FGM + 0.5 × 3PM) / FGA", high: true },
-  { key: "tov", name: "Turnover rate", about: "Turnovers per 100 plays: TOV / (FGA + 0.44 × FTA + TOV)", high: false },
-  { key: "oreb", name: "Offensive rebound %", about: "Share of its own misses the club rebounded", high: true },
-  { key: "ftr", name: "Free-throw rate", about: "Free throws made per 100 field-goal attempts", high: true },
+  { key: "ortg", name: "Offensive rating", about: "Points scored per 100 possessions", better: "higher" },
+  { key: "efg", name: "Effective FG%", about: "(FGM + 0.5 × 3PM) / FGA", better: "higher" },
+  { key: "tov", name: "Turnover rate", about: "Turnovers per 100 plays: TOV / (FGA + 0.44 × FTA + TOV)", better: "lower" },
+  { key: "oreb", name: "Offensive rebound %", about: "Share of its own misses the club rebounded", better: "higher" },
+  { key: "ftr", name: "Free-throw rate", about: "Free throws made per 100 field-goal attempts", better: "higher" },
 ];
 export const DEFENSE: Metric[] = [
-  { key: "drtg", name: "Defensive rating", about: "Points allowed per 100 opponent possessions", high: false },
-  { key: "oefg", name: "Opponent eFG%", about: "Opponents' effective FG%", high: false },
-  { key: "otov", name: "Turnovers forced", about: "Opponent turnovers per 100 opponent plays", high: true },
-  { key: "dreb", name: "Defensive rebound %", about: "Share of opponents' misses the club rebounded", high: true },
-  { key: "oftr", name: "Opponent free-throw rate", about: "Opponent free throws made per 100 of their field-goal attempts", high: false },
+  { key: "drtg", name: "Defensive rating", about: "Points allowed per 100 opponent possessions", better: "lower" },
+  { key: "oefg", name: "Opponent eFG%", about: "Opponents' effective FG%", better: "lower" },
+  { key: "otov", name: "Turnovers forced", about: "Opponent turnovers per 100 opponent plays", better: "higher" },
+  { key: "dreb", name: "Defensive rebound %", about: "Share of opponents' misses the club rebounded", better: "higher" },
+  { key: "oftr", name: "Opponent free-throw rate", about: "Opponent free throws made per 100 of their field-goal attempts", better: "lower" },
 ];
 
 export const ordinal = (n: number) => {
   const tail = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
   return `${n}${tail}`;
 };
-export const signed = (x: number, digits = 1) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(digits)}`;
+export { signed };
 
+const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
 
-export interface Strip {
+export interface FactorRow {
   key: Key;
   name: string;
   about: string;
   value: string;
   rank: string;
-  me: number; // position on the track, 0-100
-  tip: string;
-  field: string; // the other clubs' dots and the league line
+  delta: string; // deltaHtml of the club minus the league average
+  /** rail positions, 0-100, right = better on every row */
+  me: number;
+  avg: number;
+  med: number;
+  meTip: string;
+  avgTip: string;
+  medTip: string;
 }
 
-/** Where the club sits among every club that season, one strip per measure. */
-export function strips(t: TeamSeason, metrics: Metric[], base: string): Strip[] {
-  const all = t.clubs.map((c) => ({ c, f: factors(t.fields, c.totals, c.opp) }));
+/** Where the club sits among every club that season, one row per measure. */
+export function factorRows(t: TeamSeason, metrics: Metric[]): FactorRow[] {
+  const all = t.clubs.map((c) => factors(t.fields, c.totals, c.opp));
   const league = factors(t.fields, t.league, t.league);
   const me = factors(t.fields, t.totals, t.opp);
-  return metrics.map(({ key, name, about, high }) => {
-    const values = all.map((x) => x.f[key]);
+  return metrics.map(({ key, name, about, better }) => {
+    const values = all.map((f) => f[key]);
+    const mid = median(values);
     const lo = Math.min(...values, league[key]);
     const hi = Math.max(...values, league[key]);
     const pad = (hi - lo) * 0.06 || 1;
-    const at = (v: number) => (100 * (v - lo + pad)) / (hi - lo + 2 * pad);
-    const better = values.filter((v) => (high ? v > me[key] : v < me[key])).length;
-    const rank = `${ordinal(better + 1)} of ${values.length}`;
+    const along = (v: number) => (100 * (v - lo + pad)) / (hi - lo + 2 * pad);
+    const at = (v: number) => (better === "higher" ? along(v) : 100 - along(v));
+    const ahead = values.filter((v) => (better === "higher" ? v > me[key] : v < me[key])).length;
+    const rank = `${ordinal(ahead + 1)} of ${values.length}`;
     const text = (v: number) => v.toFixed(1);
-    const dots = all
-      .filter((x) => x.c.code !== t.code)
-      .map(({ c, f }) => {
-        const dotTip = tip`<b>${c.code}</b> ${c.name}<br>${name}: ${text(f[key])}`;
-        // The tip and its plain twin sit side by side (and the style last) so the page gzips small.
-        return `<a class="s-dot" href="${teamHref(base, c.code, t.season)}"${linkTip(dotTip)} style="left:${at(f[key]).toFixed(2)}%"></a>`;
-      })
-      .join("");
-    const avgTip = tip`League average: ${text(league[key])}`;
     return {
       key,
       name,
       about,
       value: text(me[key]),
       rank,
+      delta: deltaHtml(me[key] - league[key], { better }),
       me: at(me[key]),
-      tip: tip`<b>${t.code}</b> ${t.name}<br>${name}: ${text(me[key])}, ${rank}`,
-      field: `<span class="s-avg" style="left:${at(league[key]).toFixed(2)}%"${dataTip(avgTip)}></span>${dots}`,
+      avg: at(league[key]),
+      med: at(mid),
+      meTip: tip`<b>${t.code}</b> ${t.name}<br>${name}: ${text(me[key])}, ${rank}`,
+      avgTip: tip`League average: ${text(league[key])}`,
+      medTip: tip`League median: ${text(mid)}`,
     };
   });
 }
 
-export const stripHtml = (s: Strip) =>
-  `<div class="strip" data-key="${s.key}"><span class="s-name"><span${dataTip(tip`<b>${s.name}</b><br>${s.about}`)} tabindex="0">${s.name}</span></span><span class="s-val">${s.value}</span><span class="s-rank">${s.rank}</span><span class="s-track"><span class="s-field">${s.field}</span><span class="s-me" style="left:${s.me.toFixed(2)}%"${dataTip(s.tip)}></span></span></div>`;
+/** The orange bar runs from the league average to the club. */
+const barStyle = (r: FactorRow) =>
+  `left:${Math.min(r.me, r.avg).toFixed(2)}%;width:${Math.abs(r.me - r.avg).toFixed(2)}%`;
+
+export const factorRowHtml = (r: FactorRow) =>
+  `<div class="ff-row" data-key="${r.key}"><span class="ff-name"><span${dataTip(tip`<b>${r.name}</b><br>${r.about}`)} tabindex="0">${esc(r.name)}</span></span>` +
+  `<span class="ff-val">${r.value}</span><span class="ff-rank">${r.rank}</span>` +
+  `<span class="ff-rail"><span class="ff-bar" style="${barStyle(r)}"></span>` +
+  `<span class="ff-med" style="left:${r.med.toFixed(2)}%"${dataTip(r.medTip)} tabindex="0"></span>` +
+  `<span class="ff-avg" style="left:${r.avg.toFixed(2)}%"${dataTip(r.avgTip)} tabindex="0"></span>` +
+  `<span class="ff-me" style="left:${r.me.toFixed(2)}%"${dataTip(r.meTip)} tabindex="0"></span></span>` +
+  `<span class="ff-delta">${r.delta}</span></div>`;
+
+/** Patch a rendered row in place so its marks slide to the new season's places. */
+export function patchFactorRow(row: HTMLElement, r: FactorRow) {
+  row.querySelector(".ff-val")!.textContent = r.value;
+  row.querySelector(".ff-rank")!.textContent = r.rank;
+  row.querySelector(".ff-delta")!.innerHTML = r.delta;
+  row.querySelector<HTMLElement>(".ff-bar")!.setAttribute("style", barStyle(r));
+  for (const [cls, at, text] of [
+    [".ff-med", r.med, r.medTip],
+    [".ff-avg", r.avg, r.avgTip],
+    [".ff-me", r.me, r.meTip],
+  ] as const) {
+    const mark = row.querySelector<HTMLElement>(cls)!;
+    mark.style.left = `${at.toFixed(2)}%`;
+    mark.dataset.tip = text;
+  }
+}
 
 // ---- Head ----------------------------------------------------------------------------------
 
-export function facts(t: TeamSeason) {
+/** The header's cells for one club-season. Values may carry Delta markup, so each is HTML. */
+export function headCells(t: TeamSeason) {
   const f = factors(t.fields, t.totals, t.opp);
+  const pace = t.clubs
+    .map((c) => factors(t.fields, c.totals, c.opp).pace)
+    .filter((p) => p > f.pace).length;
+  const place = ordinal(t.standing);
   return {
-    record: `${t.w}–${t.l}`,
-    net: signed(f.net),
+    record: `${t.w}–${t.l} <span class="muted">${esc(t.label)}</span>`,
+    net: deltaHtml(f.net, { better: "higher" }),
+    netSub: `${f.ortg.toFixed(1)} off · ${f.drtg.toFixed(1)} def`,
     pace: f.pace.toFixed(1),
-    lede: `${t.w} wins and ${t.l} losses in ${t.label}, scoring ${f.ortg.toFixed(1)} points per 100 possessions and allowing ${f.drtg.toFixed(1)}.`,
+    paceSub: `per 40 min · ${ordinal(pace + 1)} fastest`,
+    seasons: String(t.elSeasons),
+    seasonsSub: "since 2007-08",
+    rank: `${place} <span class="muted">in the league</span>`,
+    playoff: t.playoff ?? "Season in progress",
+    playoffSub: t.playoff ? "" : `${place} now`,
   };
 }
+export type HeadCells = ReturnType<typeof headCells>;
 
 // ---- Shots ---------------------------------------------------------------------------------
 

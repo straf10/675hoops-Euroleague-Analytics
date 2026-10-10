@@ -57,6 +57,12 @@ export interface TeamRow {
   opp: number[];
   bands: Bands;
   bands_allowed: Bands;
+  /** regular-season place, 1 = top */
+  standing: number;
+  /** how the season ended; null while the season is live */
+  playoff: { result: string } | null;
+  /** EuroLeague seasons played from 2007-08 up to and including this one */
+  el_seasons: number;
 }
 
 export interface SeasonTeams {
@@ -385,6 +391,7 @@ export interface ClubLine {
   l: number;
   totals: number[];
   opp: number[];
+  standing: number;
 }
 
 export interface RosterLine {
@@ -404,6 +411,13 @@ export interface TeamSeason {
   name: string;
   w: number;
   l: number;
+  /** regular-season place, 1 = top */
+  standing: number;
+  /** how the season ended; null while the season is live */
+  playoff: string | null;
+  live: boolean;
+  /** EuroLeague seasons played since 2007-08, up to and including this one */
+  elSeasons: number;
   fields: string[];
   totals: number[];
   opp: number[];
@@ -436,7 +450,7 @@ export function seasonShared(year: number): Promise<SeasonShared> {
     sharedCache.set(
       year,
       season(year, "teams").then((teams) => ({
-        clubs: teams.teams.map(({ code, name, w, l, totals, opp }) => ({ code, name, w, l, totals, opp })),
+        clubs: teams.teams.map(({ code, name, w, l, totals, opp, standing }) => ({ code, name, w, l, totals, opp, standing })),
         bands: teams.league.bands,
       })),
     );
@@ -494,6 +508,10 @@ export async function teamOwn(code: string, year: number): Promise<TeamOwn | nul
     name: row.name,
     w: row.w,
     l: row.l,
+    standing: row.standing,
+    playoff: row.playoff?.result ?? null,
+    live: info?.live ?? false,
+    elSeasons: row.el_seasons,
     fields: teams.fields,
     totals: row.totals,
     opp: row.opp,
