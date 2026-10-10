@@ -1,0 +1,171 @@
+---
+// Shot chart (attempts or frequency) beside the zone chart against the league, then Shot quality
+// (the distance table and shot-making). One season switch drives both sections; the page script
+// swaps the charts in place (#court-*, #bands).
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
+import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
+import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
+import ProjectionShotMaking from "../ProjectionShotMaking.astro";
+import { GROUPS, colsHtml } from "../../lib/cols";
+import { bandsHtml, shotChart } from "../../lib/player";
+import { countLine, dotLabel, freqChart, markChart } from "../../lib/shotmarks";
+import type { PlayerIndex } from "../../lib/m6";
+import type { PlayerSeason } from "../../lib/stats";
+
+interface Props {
+  shotSeason: PlayerSeason | undefined;
+  options: { value: number; label: string; selected: boolean }[];
+  radius: number;
+  index: PlayerIndex | null;
+}
+const { shotSeason, options, radius, index } = Astro.props;
+const hasShotMaking = (index?.shot_making?.seasons.length ?? 0) > 0;
+const s = shotSeason;
+---
+
+{
+  s && (
+    <section class="wrap band" id="shots" aria-labelledby="shots-title">
+      <header class="sec-head split">
+        <div>
+          <h2 id="shots-title">Shot chart</h2>
+          <p>Where he shot from, and how that compares with the league spot by spot.</p>
+        </div>
+        <div class="controls">
+          <fieldset class="seg" aria-label="Shot chart view" style="--seg-w:11.4rem">
+            <input type="radio" name="shot-view" id="sv-dots" value="dots" checked />
+            <label for="sv-dots" data-tip="One mark per shot">Attempts</label>
+            <input type="radio" name="shot-view" id="sv-freq" value="freq" />
+            <label for="sv-freq" data-tip="Shaded by how often he shot from each spot">Frequency</label>
+          </fieldset>
+          {
+            options.length > 1 && (
+              <label class="pick">
+                <span class="sr-only">Season</span>
+                <span class="select">
+                  <select data-view="shots">
+                    {options.map((o) => (
+                      <option value={o.value} selected={o.selected}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span class="caret" set:html={caret} />
+                </span>
+              </label>
+            )
+          }
+        </div>
+      </header>
+      <div class="shots busy-fade">
+        <figure class="chart-box shot-main">
+          <h3 class="fig-title">Where he shoots</h3>
+          <div id="court-dots" class="v-dots" set:html={markChart(s.dots, dotLabel(s.label, s.dots))} />
+          <div id="court-freq" class="v-freq" set:html={freqChart(s.hex, radius, `${s.label} shot frequency: ${countLine(s.dots)}`)} />
+          <div class="key v-dots">
+            <span class="dots" aria-hidden="true">
+              <i class="made" />
+            </span>
+            <span>Made</span>
+            <span class="dots" aria-hidden="true">
+              <svg viewBox="0 0 10 10" class="xm"><path d="M2 2l6 6M2 8l6-6" /></svg>
+            </span>
+            <span>Missed</span>
+          </div>
+          <div class="key v-freq">
+            <span class="scale" aria-hidden="true">
+              <i class="f1" />
+              <i class="f2" />
+              <i class="f3" />
+              <i class="f4" />
+              <i class="f5" />
+            </span>
+            <span>Shaded by how often he shot from the spot, fewer to more</span>
+          </div>
+          <p class="note" data-f="count">{countLine(s.dots)}</p>
+          <p class="note" data-f="approx" hidden={s.validated}>Shot locations before 2011-12 are approximate.</p>
+        </figure>
+        <figure class="chart-box shot-league">
+          <h3 class="fig-title">Against the league</h3>
+          <div id="court-fg" set:html={shotChart(s, radius)} />
+          <div class="key">
+            <span class="scale" aria-hidden="true">
+              <i class="t-2" />
+              <i class="t-1" />
+              <i class="t0" />
+              <i class="t1" />
+              <i class="t2" />
+            </span>
+            <span>His FG% against the league's from that spot, below to above</span>
+            <span class="sizes" aria-hidden="true">
+              <i class="s1" />
+              <i class="s2" />
+              <i class="s3" />
+            </span>
+            <span>Size: how often he shot from there</span>
+          </div>
+        </figure>
+      </div>
+    </section>
+  )
+}
+
+{
+  (s || hasShotMaking) && (
+    <section class="wrap band" id="quality" aria-labelledby="quality-title">
+      <header class="sec-head split">
+        <div>
+          <h2 id="quality-title">Shot quality</h2>
+          <p>His FG% by distance against the league, and the points per 100 shots he adds over what his shot mix predicts.</p>
+        </div>
+        {
+          s && options.length > 1 && (
+            <label class="pick">
+              <span class="sr-only">Season</span>
+              <span class="select">
+                <select data-view="shots">
+                  {options.map((o) => (
+                    <option value={o.value} selected={o.selected}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <span class="caret" set:html={caret} />
+              </span>
+            </label>
+          )
+        }
+      </header>
+      <div class="quality busy-fade">
+        {
+          s && (
+            <div class="bands">
+              <Fragment set:html={colsHtml("bc", GROUPS.bands)} />
+              <div class="scroll">
+                <table class="grid bands">
+                  <caption class="sr-only">Shots by distance against the league</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Distance</th>
+                      <th scope="col" class="num">Shots</th>
+                      <th scope="col" class="num">Share</th>
+                      <th scope="col" class="num">League</th>
+                      <th scope="col" class="num">FG%</th>
+                      <th scope="col" class="num">League</th>
+                      <th scope="col" class="num">
+                        <span data-tip="His FG% minus the league's, in points, from 10 attempts up" tabindex="0">Diff</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="bands" set:html={bandsHtml(s, up, down)} />
+                </table>
+              </div>
+              <p class="note">Distances are from the basket. Share is his part of attempts from each distance; League is every EuroLeague shot that season.</p>
+            </div>
+          )
+        }
+        <ProjectionShotMaking index={index} />
+      </div>
+    </section>
+  )
+}

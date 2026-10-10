@@ -28,9 +28,10 @@ interface Props {
 }
 const { data, name, base } = Astro.props;
 
-const windows = data?.windows ?? [];
-const start = windows.find((w) => w.key === "last10") ?? windows[0];
+// A window shows only with as many located attempts as the twin pool needs (owner decision).
 const prof = (counts: number[]) => profile(data!.fields, data!.zones, data!.bands, counts);
+const windows = (data?.windows ?? []).filter((w) => prof(w.counts).att >= data!.minPool);
+const start = windows.find((w) => w.key === "last10") ?? windows[0];
 const every = windows.flatMap((w) => [prof(w.counts), ...w.twins.map((t) => prof(t.counts))]);
 const zoneTop = axisTop(every.flatMap((p) => p.zones));
 const rateTop = axisTop(every.flatMap((p) => p.rates.map((r) => r ?? 0)));
@@ -53,6 +54,7 @@ const payload = data && {
 };
 ---
 
+{start && (
 <section class="wrap band" id="twin" aria-labelledby="twin-title">
   <header class="sec-head split">
     <div>
@@ -63,33 +65,28 @@ const payload = data && {
       </p>
     </div>
     {
-      start && (
+      windows.length > 1 && (
         <fieldset class="seg" aria-label="Games matched">
-          {Object.entries(WINDOW_NAMES).map(([key, [label, about]]) => {
-            const w = windows.find((x) => x.key === key);
-            return (
-              <>
-                <input
-                  type="radio"
-                  name="twin-window"
-                  id={`tw-${key}`}
-                  value={key}
-                  checked={w === start}
-                  disabled={!w}
-                />
-                <label for={`tw-${key}`} data-tip={w ? tip`Match ${about}` : "Too few shots or games to match"}>
-                  {key === "season" && w ? w.from : label}
-                </label>
-              </>
-            );
-          })}
+          {Object.entries(WINDOW_NAMES)
+            .filter(([key]) => windows.some((x) => x.key === key))
+            .map(([key, [label, about]]) => {
+              const w = windows.find((x) => x.key === key)!;
+              return (
+                <>
+                  <input type="radio" name="twin-window" id={`tw-${key}`} value={key} checked={w === start} />
+                  <label for={`tw-${key}`} data-tip={tip`Match ${about}`}>
+                    {key === "season" ? w.from : label}
+                  </label>
+                </>
+              );
+            })}
         </fieldset>
       )
     }
   </header>
 
   {
-    start && him && first && twin ? (
+    him && first && twin && (
       <div class="twin" data-twin={JSON.stringify(payload)}>
         <fieldset class="picks">
           <legend class="sr-only">Twin to compare</legend>
@@ -216,21 +213,14 @@ const payload = data && {
         </table>
 
         <p class="note">
-          Match weighs where he shoots (60%), how well against the league (25%) and his three-point and
-          free-throw rates (15%) against every player-season with {data!.minPool} or more located shots
-          ({data!.pool.toLocaleString("en-GB")} of them). 100 is an identical profile; two seasons picked at
-          random score about 37. Twins are always other players. Shares run
-          to {Math.round(100 * zoneTop)}% at the bar's full length; left and right are as drawn on the shot
-          chart.
+          Match: 100 is an identical profile, two seasons picked at random score about 37. Twins are other
+          players with {data!.minPool} or more located shots. Bars run to {Math.round(100 * zoneTop)}% at full length.
         </p>
       </div>
-    ) : (
-      <p class="note">
-        Too few located shots to match: a window needs 25, and twins come from seasons with 150 or more.
-      </p>
     )
   }
 </section>
+)}
 
 <script>
   import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";

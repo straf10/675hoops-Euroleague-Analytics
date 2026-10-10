@@ -1,0 +1,56 @@
+---
+// On/off: his team's net rating with him on court and off it, and the difference.
+import { signed } from "../../lib/format";
+import { versusHtml, type OnOffView } from "../../lib/onoff";
+import { tip } from "../../lib/tip";
+
+interface Props {
+  view: OnOffView;
+  label: string;
+}
+const { view, label } = Astro.props;
+const { on, off } = view;
+const fixed = (x: number | null) => (x === null ? "–" : x.toFixed(1));
+const rows = [
+  { name: "Net rating", about: "Points scored minus points allowed per 100 possessions", on: on.net, off: off.net, better: "higher" as const, net: true },
+  { name: "Scored", about: "Points scored per 100 possessions", on: on.off, off: off.off, better: "higher" as const, net: false },
+  { name: "Allowed", about: "Points allowed per 100 possessions", on: on.def, off: off.def, better: "lower" as const, net: false },
+];
+const shown = (r: (typeof rows)[number], v: number | null) => (v === null ? "–" : r.net ? signed(v) : v.toFixed(1));
+---
+
+<section class="wrap band" id="onoff" aria-labelledby="onoff-title">
+  <header class="sec-head">
+    <h2 id="onoff-title">On/off</h2>
+    <p>{label}: his team per 100 possessions with him on court and with him off it. {Math.round(on.minutes)} minutes on, {Math.round(off.minutes)} off.</p>
+  </header>
+  <div class="scroll">
+    <table class="grid onoff">
+      <caption class="sr-only">His team's rating with him on and off court</caption>
+      <thead>
+        <tr>
+          <th scope="col">Per 100 possessions</th>
+          <th scope="col" class="num">On</th>
+          <th scope="col" class="num">Off</th>
+          <th scope="col" class="num">
+            <span data-tip="On minus off" tabindex="0">Difference</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          rows.map((r) => (
+            <tr>
+              <th scope="row" data-tip={tip`${r.about}`} tabindex="0">{r.name}</th>
+              <td class="num strong">{shown(r, r.on)}</td>
+              <td class="num">{shown(r, r.off)}</td>
+              <td class="num diff">
+                {r.on !== null && r.off !== null ? <Fragment set:html={versusHtml(r.on - r.off, "when he is off", { better: r.better })} /> : "–"}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

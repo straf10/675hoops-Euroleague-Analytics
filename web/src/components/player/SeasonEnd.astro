@@ -1,0 +1,48 @@
+---
+// Projection: where his points per game should end the season (lib/season_end.ts), with the
+// full projected rates folded below.
+import ProjectionBlock from "../ProjectionBlock.astro";
+import type { ProjectionReport } from "../../lib/m6";
+import { seasonLabel } from "../../lib/m6";
+import type { SeasonEnd } from "../../lib/season_end";
+
+interface Props {
+  end: SeasonEnd;
+  report: ProjectionReport;
+  gamesPlayed: number;
+  total: number;
+}
+const { end, report, gamesPlayed, total } = Astro.props;
+---
+
+<section class="wrap band" id="projection" aria-labelledby="projection-title">
+  <header class="sec-head">
+    <h2 id="projection-title">Projection</h2>
+    <p>Where his points per game should stand when the {seasonLabel(report.season)} regular season ends.</p>
+  </header>
+  <dl class="strip narrow">
+    <div>
+      <dt>Projected at season end</dt>
+      <dd>{end.seasonEnd.toFixed(1)}</dd>
+    </div>
+    <div>
+      <dt>Points a game so far</dt>
+      <dd>{gamesPlayed ? end.soFar.toFixed(1) : "–"}</dd>
+    </div>
+    <div>
+      <dt>Games played</dt>
+      <dd>{gamesPlayed}</dd>
+    </div>
+    <div>
+      <dt>Games left, team</dt>
+      <dd>{end.gamesLeft}</dd>
+    </div>
+  </dl>
+  <p class="note">
+    Points a game: his projected scoring rate, his share of team minutes and his team's pace, over all {total} games.
+  </p>
+  <details class="more">
+    <summary>All projected rates</summary>
+    <ProjectionBlock report={report} />
+  </details>
+</section>

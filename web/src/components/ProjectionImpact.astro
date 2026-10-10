@@ -34,13 +34,7 @@ for (const s of past) {
 {
   rows.length > 0 ? (
     <figure class="proj-fig" data-figure>
-      <figcaption>
-        <h3>Impact</h3>
-        <p class="proj-sub">Net points per 100 possessions against an average player, offence plus defence. Dashed line: average.</p>
-      </figcaption>
       <ProjectionRail rows={rows} />
     </figure>
-  ) : (
-    <p class="note">No impact rating or projection for this player.</p>
-  )
+  ) : null
 }

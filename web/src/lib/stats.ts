@@ -37,6 +37,8 @@ export interface PlayerRow {
   slug: string;
   teams: string[];
   dorsal: string;
+  /** "G" | "F" | "C" from the EuroLeague people listing; absent when he has no listing (lib/position.ts). */
+  pos?: string;
   totals: Record<string, number[]>; // "season", "last5", "last10", "last20"
   bands: Bands;
 }
@@ -144,10 +146,14 @@ export interface PlayerSeason {
   validated: boolean;
   teams: string[];
   dorsal: string;
+  /** His position listing that season ("G" | "F" | "C"), when the export has one. */
+  pos?: string;
   fields: string[];
   totals: number[];
   bands: Bands;
   leagueBands: Bands;
+  /** Every located attempt, flat [x, y, made] in court centimetres (basket at the origin). */
+  dots: number[];
   /** [q, r, att, made, league FG% in the cell x10] per occupied cell */
   hex: [number, number, number, number, number][];
   logFields: string[];
@@ -182,6 +188,39 @@ async function league(year: number) {
   return leagueCells.get(year)!;
 }
 
+interface RawDots {
+  bits: Attempts["bits"];
+  players: string[];
+  x: number[];
+  y: number[];
+  flags: number[];
+  player: number[];
+}
+
+const dotCache = new Map<number, Promise<Map<string, number[]>>>();
+
+/** One season's attempts grouped by shooter: id -> flat [x, y, made] in court centimetres. */
+function playerDots(year: number): Promise<Map<string, number[]>> {
+  if (!dotCache.has(year))
+    dotCache.set(
+      year,
+      (async () => {
+        const raw = await load<RawDots>(`seasons/${year}/attempts.json`);
+        const by = new Map<string, number[]>();
+        if (!raw) return by;
+        for (let i = 0; i < raw.player.length; i++) {
+          const id = raw.players[raw.player[i]];
+          if (id === undefined) continue;
+          const list = by.get(id) ?? [];
+          list.push(raw.x[i], raw.y[i], (raw.flags[i] >> raw.bits.made) & 1);
+          by.set(id, list);
+        }
+        return by;
+      })(),
+    );
+  return dotCache.get(year)!;
+}
+
 /** Everything one player page shows, season by season (oldest first). */
 export async function playerData(p: PlayerIndexRow): Promise<PlayerData> {
   const m = (await meta())!;
@@ -204,10 +243,12 @@ export async function playerData(p: PlayerIndexRow): Promise<PlayerData> {
       validated: labels.get(year)?.coords_validated ?? true,
       teams: row.teams,
       dorsal: row.dorsal,
+      pos: row.pos,
       fields,
       totals: row.totals.season,
       bands: row.bands,
       leagueBands: teams.league.bands,
+      dots: (await playerDots(year)).get(p.id) ?? [],
       hex: (shots.players[p.id] ?? []).map(([q, r, att, made]) => {
         const [la, lm] = cells.get(`${q},${r}`) ?? [0, 0];
         return [q, r, att, made, la ? Math.round((1000 * lm) / la) : -1];
@@ -669,4 +710,36 @@ export async function cardData(slug: string): Promise<CardData | null> {
 /** [slug, name, first season, last season] for every player: Compare's search. */
 export async function nameIndex(): Promise<[string, string, number, number][]> {
   return (await playerIndex()).map((p) => [p.slug, p.name, Math.min(...p.seasons), Math.max(...p.seasons)]);
+}
+
+// ---- On/off and clutch ----------------------------------------------------------------------
+
+/** Raw totals for his team over the stretches counted. */
+export interface OnOffSide {
+  sec: number;
+  poss: number;
+  pf: number;
+  pa: number;
+}
+
+export interface OnOffSeason {
+  /** His team while he is on court. */
+  on: OnOffSide;
+  /** His team while he is off, in the games he played. */
+  off: OnOffSide;
+  /** On court in clutch time; pts is his own points. */
+  clutch: OnOffSide & { pts: number };
+}
+
+/** stats/onoff.json (from the stints): present only after the exporter has run it. */
+export interface OnOffFile {
+  /** Seasons whose stints are processed; the others get no on/off or clutch section. */
+  seasons: number[];
+  clutch: { last_seconds: number; margin: number };
+  /** player id -> season -> totals */
+  players: Record<string, Record<string, OnOffSeason>>;
+}
+
+export async function onOffData(): Promise<OnOffFile | null> {
+  return (await load<OnOffFile>("onoff.json")) ?? null;
 }

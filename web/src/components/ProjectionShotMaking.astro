@@ -27,7 +27,5 @@ const rows: RailRow[] = [...(index?.shot_making?.seasons ?? [])].reverse().slice
       </figcaption>
       <ProjectionRail rows={rows} />
     </figure>
-  ) : (
-    <p class="note">No shot-making rating for this player.</p>
-  )
+  ) : null
 }

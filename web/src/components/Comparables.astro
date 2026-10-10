@@ -15,19 +15,13 @@ const top = (report?.similar ?? []).slice(0, 5);
 const query = top[0]?.query_season ?? report?.season;
 ---
 
-<section class="wrap band" id="plays-like" aria-labelledby="plays-like-title">
-  <header class="sec-head">
-    <h2 id="plays-like-title">Plays like</h2>
-    <p>
-      {
-        report && top.length > 0
-          ? `His ${seasonLabel(query!)} season is closest to these EuroLeague player-seasons.`
-          : `The player-seasons closest to ${name}'s latest season, in the EuroLeague.`
-      }
-    </p>
-  </header>
-  {
-    report && top.length > 0 ? (
+{
+  report && top.length > 0 && (
+    <section class="wrap band" id="plays-like" aria-labelledby="plays-like-title">
+      <header class="sec-head">
+        <h2 id="plays-like-title">Plays like</h2>
+        <p>{`His ${seasonLabel(query!)} season is closest to these EuroLeague player-seasons.`}</p>
+      </header>
       <figure class="proj-fig" data-figure>
         <ol class="proj-like">
           {top.map((r) => (
@@ -47,8 +41,6 @@ const query = top[0]?.query_season ?? report?.season;
           ))}
         </ol>
       </figure>
-    ) : (
-      <p class="note">No similar players found.</p>
-    )
-  }
-</section>
+    </section>
+  )
+}

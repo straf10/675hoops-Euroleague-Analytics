@@ -1,0 +1,68 @@
+---
+// Season by season: per game, with the career line from summed totals. Last on the page.
+import { SEASON_COLS, type Totals } from "../../lib/player";
+import { GROUPS, colsHtml } from "../../lib/cols";
+import { tip } from "../../lib/tip";
+import type { PlayerSeason } from "../../lib/stats";
+
+interface Props {
+  rows: { s: PlayerSeason; t: Totals }[];
+  career: Totals;
+  teamHref: (code: string, year?: number) => string;
+}
+const { rows, career, teamHref } = Astro.props;
+---
+
+<section class="wrap band" id="seasons" aria-labelledby="seasons-title">
+  <header class="sec-head">
+    <h2 id="seasons-title">Season by season</h2>
+    <p>Per game. The career line adds up every season's totals.</p>
+  </header>
+  <Fragment set:html={colsHtml("sc", GROUPS.line)} />
+  <div class="scroll">
+    <table class="grid seasons">
+      <thead>
+        <tr>
+          <th scope="col">Season</th>
+          <th scope="col">Team</th>
+          {
+            SEASON_COLS.map((c) => (
+              <th scope="col" class="num">
+                <span data-tip={tip`<b>${c.head}</b><br>${c.about}`} tabindex="0">{c.head}</span>
+              </th>
+            ))
+          }
+        </tr>
+      </thead>
+      <tbody>
+        {
+          [...rows].reverse().map(({ s, t }) => (
+            <tr>
+              <th scope="row">{s.label}</th>
+              <td class="team">
+                {s.teams.map((code, i) => (
+                  <>
+                    {i > 0 && " · "}
+                    <a href={teamHref(code, s.season)}>{code}</a>
+                  </>
+                ))}
+              </td>
+              {SEASON_COLS.map((c) => <td class="num">{c.cell(t)}</td>)}
+            </tr>
+          ))
+        }
+      </tbody>
+      {
+        rows.length > 1 && (
+          <tfoot>
+            <tr>
+              <th scope="row">Career</th>
+              <td class="team" />
+              {SEASON_COLS.map((c) => <td class="num">{c.cell(career)}</td>)}
+            </tr>
+          </tfoot>
+        )
+      }
+    </table>
+  </div>
+</section>

@@ -1,0 +1,36 @@
+---
+// Clutch: last five minutes of the fourth quarter or overtime, score within five.
+import { signed } from "../../lib/format";
+import type { Clutch } from "../../lib/onoff";
+import { tip } from "../../lib/tip";
+
+interface Props {
+  clutch: Clutch;
+  label: string;
+  minutes: number;
+  margin: number;
+}
+const { clutch, label, minutes, margin } = Astro.props;
+const cells: [string, string, string][] = [
+  ["Minutes", clutch.minutes.toFixed(1), "Minutes on court in clutch time"],
+  ["Points", String(clutch.pts), "His own points in clutch time"],
+  ["Net rating", clutch.net === null ? "–" : signed(clutch.net), "His team's points scored minus allowed per 100 possessions while he was on court in clutch time"],
+];
+---
+
+<section class="wrap band" id="clutch" aria-labelledby="clutch-title">
+  <header class="sec-head">
+    <h2 id="clutch-title">Clutch</h2>
+    <p>{label}: the last {minutes} minutes of the fourth quarter or overtime with the score within {margin}.</p>
+  </header>
+  <dl class="strip narrow">
+    {
+      cells.map(([head, value, about]) => (
+        <div>
+          <dt data-tip={tip`<b>${head}</b><br>${about}`} tabindex="0">{head}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))
+    }
+  </dl>
+</section>
