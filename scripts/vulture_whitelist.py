@@ -227,3 +227,9 @@ from eurohoops.stats.validate import SeasonReport, Special  # noqa: E402
 
 Special.note
 SeasonReport.games_scheduled
+
+# playoff result strings: the exporter writes them, tests and docs list them
+from eurohoops.stats.export import OTHER_RESULTS, RESULTS  # noqa: E402
+
+RESULTS
+OTHER_RESULTS
