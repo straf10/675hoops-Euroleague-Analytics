@@ -122,7 +122,7 @@ from eurohoops.eval.tracking import (
     log_m7_backtest,
 )
 from eurohoops.ingest import euroleague, gbl
-from eurohoops.ingest.bios import build_bios, ingest_bios
+from eurohoops.ingest.bios import build_bios, ingest_bios, refresh_people
 from eurohoops.ingest.http import Fetcher, make_client
 from eurohoops.injuries import InjuryPaths, record_injuries, team_name_map
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
@@ -388,6 +388,19 @@ def ingest_bios_command() -> None:
         f"fetched {fetched[0]} ESAKE pages, {fetched[1]} EuroLeague seasons; "
         f"{len(bios)} bios, with a birth date: {dated.to_dict()}; wrote {PLAYER_BIOS}"
     )
+
+
+@app.command()
+def people() -> None:
+    """Refetch the live season's EuroLeague people listing (one call; positions for the stats
+    site). Overwrites ``people/E{LIVE_SEASON}.json.gz`` atomically; older seasons stay cached."""
+    with make_client() as client:
+        count = refresh_people(
+            Fetcher(client, euroleague.MIN_INTERVAL_S),
+            el_raw=EUROLEAGUE.raw_dir,
+            season=LIVE_SEASON,
+        )
+    typer.echo(f"people E{LIVE_SEASON}: {count} rows")
 
 
 @app.command()

@@ -80,6 +80,7 @@ from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.box import BoxGames, build_box_games
 from eurohoops.stats.export import Inputs, build_payloads, load_cached_games
+from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.shots import build_shots
 
 T = TypeVar("T")
@@ -416,13 +417,15 @@ def stats_inputs(store: Store) -> Inputs:
 
     def make() -> Inputs:
         games, teams = _el_games(store)
+        box = _el_box(store)
         return Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
-            box=_el_box(store),
+            box=box,
             shots=build_shots(store.path(EUROLEAGUE.raw_dir), games),
             codes=DISPLAY_CODES[EUROLEAGUE.name],
             live_season=LIVE_SEASON,
+            positions=season_positions(store.path(EUROLEAGUE.raw_dir), games_by_club(box.players)),
         )
 
     return store.memo("stats_inputs", make)

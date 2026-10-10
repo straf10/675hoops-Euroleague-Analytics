@@ -27,7 +27,7 @@ import re
 import shutil
 import unicodedata
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -62,6 +62,9 @@ class Inputs:
     shots: Shots
     codes: Mapping[str, str]  # source team code -> display code
     live_season: int
+    positions: Mapping[str, Mapping[int, str]] = field(
+        default_factory=dict
+    )  # id -> season -> G/F/C
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -146,6 +149,7 @@ def _players_payload(
     bands = band_table(shots, "player_id")
     for key, lines in frame.groupby("player_id", sort=False):
         pid = str(key)
+        pos = inputs.positions.get(pid, {}).get(season)
         rows.append(
             {
                 "id": pid,
@@ -155,6 +159,7 @@ def _players_payload(
                 "dorsal": str(lines["dorsal"].iloc[-1]),
                 "totals": _windows(lines[list(PLAYER_FIELDS)].to_numpy(dtype=float)),
                 "bands": bands.get(pid, {b: [0, 0] for b in BANDS}),
+                **({"pos": pos} if pos else {}),
             }
         )
     rows.sort(key=lambda r: (-r["totals"]["season"][PLAYER_FIELDS.index("pts")], r["id"]))
