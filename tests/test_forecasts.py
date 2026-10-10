@@ -185,3 +185,72 @@ def test_empty_and_missing_logs(tmp_path: Path) -> None:
     assert fc["season"][0]["n"] == 0 and fc["season"][0]["log_loss"] is None
     assert fc["shared"] == {"n": 0, "rows": []}
     assert fc["rounds"] == [] and fc["games"] == []
+
+
+def odds_file(tmp_path: Path) -> Path:
+    """Bookmaker fetches: G1 has an early and a closing fetch, G2 only one stamped after tip-off,
+    G3 has none, G4 and G5 one each; G9 is a game the model never called."""
+    cols = ["game_id", "season", "round", "tipoff_utc", "fetched_at_utc", "p_home"]
+    rows = [
+        ["G1", 2026, 1, EARLY, "2026-09-30T08:00:00Z", 0.60],
+        ["G1", 2026, 1, EARLY, "2026-10-01T16:00:00Z", 0.90],  # the closing line
+        ["G2", 2026, 1, EARLY, "2026-10-01T19:00:00Z", 0.30],  # after tip-off: no call
+        ["G4", 2026, 2, MID, "2026-10-07T12:00:00Z", 0.5],  # exactly 50%: no pick
+        ["G5", 2026, 3, LATE, "2026-10-14T12:00:00Z", 0.20],  # wrong
+    ]
+    path = tmp_path / "odds.csv"
+    pd.DataFrame(rows, columns=cols).to_csv(path, index=False)
+    return path
+
+
+def test_market_is_the_closing_line_scored_on_finished_games(
+    logs: dict[str, Path | None], tmp_path: Path
+) -> None:
+    fc = build_forecasts(logs, LABELS, games(), 2026, odds_log=odds_file(tmp_path))
+    assert fc["published"] == "elo"
+    market = fc["market"]
+    assert market["label"] == "Bookmakers"
+    season = market["season"]
+    assert (season["n"], season["picks"], season["right"]) == (3, 2, 1)  # G1 right, G5 wrong
+    assert season["right_pct"] == 0.5
+    assert season["brier"] == pytest.approx((0.01 + 0.25 + 0.64) / 3, abs=1e-6)  # closing 0.90
+    assert season["log_loss"] == pytest.approx(ll(0.9, 0.5, 0.2), abs=1e-6)
+
+
+def test_accuracy_compares_both_on_the_games_both_called(
+    logs: dict[str, Path | None], tmp_path: Path
+) -> None:
+    fc = build_forecasts(logs, LABELS, games(), 2026, odds_log=odds_file(tmp_path))
+    acc = fc["accuracy"]
+    assert [(a["phase"], a["round"], a["games"]) for a in acc] == [
+        ("RS", 1, 1),  # G1 only: G2's only fetch came after tip-off
+        ("RS", 2, 1),  # G4
+        ("PO", None, 1),  # G5
+    ]
+    r1, r2, po = acc
+    assert r1["model"]["right_pct"] == 1.0 and r1["market"]["right_pct"] == 1.0
+    assert r1["model"]["brier"] == pytest.approx(0.04, abs=1e-6)  # Elo 0.8 on G1
+    assert r1["market"]["brier"] == pytest.approx(0.01, abs=1e-6)
+    assert r2["model"]["right_pct"] == 1.0  # Elo 0.7 on G4: right
+    assert r2["market"]["picks"] == 0 and r2["market"]["right_pct"] is None
+    assert po["model"]["brier"] == pytest.approx(0.16, abs=1e-6)  # Elo 0.6 on G5
+    assert po["market"]["brier"] == pytest.approx(0.64, abs=1e-6)
+    last = acc[-1]["to_date"]
+    assert last["games"] == 3
+    assert last["model"]["brier"] == pytest.approx((0.04 + 0.09 + 0.16) / 3, abs=1e-6)
+    assert last["market"]["brier"] == pytest.approx((0.01 + 0.25 + 0.64) / 3, abs=1e-6)
+    assert acc[0]["to_date"]["games"] == 1 and acc[1]["to_date"]["games"] == 2
+
+
+def test_no_odds_means_no_market(logs: dict[str, Path | None], tmp_path: Path) -> None:
+    for odds in (None, tmp_path / "missing.csv"):
+        fc = build_forecasts(logs, LABELS, games(), 2026, odds_log=odds)
+        assert fc["market"] is None and fc["accuracy"] == []
+
+
+def test_published_defaults_to_the_first_model_and_must_be_present(
+    logs: dict[str, Path | None],
+) -> None:
+    assert build_forecasts(logs, LABELS, games(), 2026)["published"] == "elo"
+    assert build_forecasts(logs, LABELS, games(), 2026, published="m1")["published"] == "m1"
+    assert build_forecasts(logs, LABELS, games(), 2026, published="m5")["published"] == "elo"

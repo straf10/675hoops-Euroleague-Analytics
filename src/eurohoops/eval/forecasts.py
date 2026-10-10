@@ -21,6 +21,7 @@ from eurohoops.logs import TIME_FORMAT
 
 REGULAR_SEASON = "RS"
 WITHIN_POINTS = (5, 10)  # margin error bands, in points
+MARKET_LABEL = "Bookmakers"
 _NUMERIC = ("p_home", "exp_margin", "exp_total")
 
 
@@ -34,6 +35,13 @@ def _provable(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.DataFr
     return kept.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
 
 
+def _finished(games: pd.DataFrame, season: int) -> pd.DataFrame:
+    return games.loc[
+        games["played"] & ~games["forfeit"] & (games["season"] == season),
+        ["game_id", "round", "phase", "tipoff_utc", "home", "away", "home_score", "away_score"],
+    ]
+
+
 def _calls(
     log_path: Path, games: pd.DataFrame, season: int, manual_pushes: Sequence[datetime]
 ) -> tuple[pd.DataFrame, int | None]:
@@ -44,14 +52,44 @@ def _calls(
     rows = _provable(log, manual_pushes)
     rows = rows[rows["season"] == season]
     first_round = int(rows["round"].min()) if len(rows) else None
-    finished = games.loc[
-        games["played"] & ~games["forfeit"] & (games["season"] == season),
-        ["game_id", "round", "phase", "tipoff_utc", "home", "away", "home_score", "away_score"],
-    ]
+    finished = _finished(games, season)
     scored = rows[["game_id", *_NUMERIC]].astype(dict.fromkeys(_NUMERIC, "float64"))
     scored = scored.merge(finished, on="game_id")
     scored = scored.assign(margin=(scored["home_score"] - scored["away_score"]).astype("float64"))
     return scored.sort_values(["tipoff_utc", "game_id"], ignore_index=True), first_round
+
+
+def _market_calls(odds_path: Path, games: pd.DataFrame, season: int) -> pd.DataFrame:
+    """The bookmakers' closing line per finished game: the last fetch stamped before tip-off.
+
+    ``p_home`` is the median de-vigged probability of the books (``odds.py``). A game with no
+    fetch before tip-off, or no odds row at all, has no call. ``exp_margin`` is not a market
+    quantity and stays NaN.
+    """
+    if not odds_path.exists():
+        return _market_empty()
+    odds = pd.read_csv(odds_path, dtype={"game_id": str})
+    odds = odds[(odds["season"] == season) & odds["p_home"].notna()]
+    before = pd.to_datetime(odds["fetched_at_utc"], utc=True) < pd.to_datetime(
+        odds["tipoff_utc"], utc=True
+    )
+    closing = (
+        odds[before]
+        .sort_values("fetched_at_utc")
+        .drop_duplicates("game_id", keep="last")[["game_id", "p_home"]]
+    )
+    scored = closing.astype({"p_home": "float64"}).merge(_finished(games, season), on="game_id")
+    scored = scored.assign(
+        margin=(scored["home_score"] - scored["away_score"]).astype("float64"),
+        exp_margin=np.nan,
+        exp_total=np.nan,
+    )
+    return scored.sort_values(["tipoff_utc", "game_id"], ignore_index=True)
+
+
+def _market_empty() -> pd.DataFrame:
+    cols = ["game_id", "p_home", "exp_margin", "exp_total", "margin", "round", "phase"]
+    return pd.DataFrame(columns=[*cols, "tipoff_utc", "home_score", "away_score"])
 
 
 def _pick_right(p_home: pd.Series, margin: pd.Series) -> pd.Series:
@@ -99,6 +137,47 @@ def metrics(calls: pd.DataFrame) -> dict[str, Any]:
         total = (calls["home_score"] + calls["away_score"]).to_numpy(dtype=np.float64)
         out["totals_mae"] = _round(
             np.abs(calls["exp_total"].to_numpy(dtype=np.float64) - total).mean()
+        )
+    return out
+
+
+def _headline(calls: pd.DataFrame) -> dict[str, Any]:
+    """Hit rate, Brier and log loss of the calls: what the page compares with the bookmakers."""
+    m = metrics(calls.assign(exp_margin=0.0))
+    return {k: m[k] for k in ("n", "picks", "right", "right_pct", "brier", "log_loss")}
+
+
+def _accuracy(model: pd.DataFrame, market: pd.DataFrame) -> list[dict[str, Any]]:
+    """Per round, the published model and the bookmakers on the games both called.
+
+    ``to_date`` is the same pair over every group up to and including this one. Regular-season
+    games group by round, each postseason phase is one group, in order of first tip-off.
+    """
+    both = model.merge(market[["game_id", "p_home"]], on="game_id", suffixes=("", "_market"))
+    if both.empty:
+        return []
+    ours = both.drop(columns="p_home_market")
+    theirs = both.assign(p_home=both["p_home_market"]).drop(columns="p_home_market")
+    keys = [_group_key(p, int(r)) for p, r in zip(both["phase"], both["round"], strict=True)]
+    both = both.assign(group=pd.Series(keys, index=both.index, dtype=object))
+    order = list(both.groupby("group")["tipoff_utc"].min().sort_values().index)
+    out = []
+    for i, group in enumerate(order):
+        here = (both["group"] == group).to_numpy()
+        so_far = both["group"].isin(order[: i + 1]).to_numpy()
+        out.append(
+            {
+                "phase": group[0],
+                "round": group[1],
+                "games": int(here.sum()),
+                "model": _headline(ours[here]),
+                "market": _headline(theirs[here]),
+                "to_date": {
+                    "model": _headline(ours[so_far]),
+                    "market": _headline(theirs[so_far]),
+                    "games": int(so_far.sum()),
+                },
+            }
         )
     return out
 
@@ -181,11 +260,16 @@ def build_forecasts(
     games: pd.DataFrame,
     season: int,
     manual_pushes: Sequence[datetime] = (),
+    *,
+    odds_log: Path | None = None,
+    published: str | None = None,
 ) -> dict[str, Any]:
     """The season record of the models in ``logs`` (key -> log path; ``None`` skips a model).
 
     ``labels`` fixes the models' order and names. Games are newest first; ``shared`` scores
-    the models that have scored games on the games all of them logged.
+    the models that have scored games on the games all of them logged. ``published`` is the key
+    of the model the site leads with (default: the first); ``odds_log`` is the bookmaker log,
+    whose closing line is scored beside the published model on the games both called.
     """
     per_model: dict[str, pd.DataFrame] = {}
     first_round: dict[str, int | None] = {}
@@ -199,7 +283,16 @@ def build_forecasts(
     shared_ids = (
         set.intersection(*(set(per_model[k]["game_id"]) for k in compared)) if compared else set()
     )
+    lead = published if published in per_model else next(iter(per_model), None)
+    market_calls = _market_calls(odds_log, games, season) if odds_log else _market_empty()
+    market = (
+        {"label": MARKET_LABEL, "season": _headline(market_calls)} if len(market_calls) else None
+    )
+    shown = per_model[lead] if lead else market_calls.iloc[0:0]
     return {
+        "published": lead,
+        "market": market,
+        "accuracy": _accuracy(shown, market_calls) if market else [],
         "models": [{"key": k, "label": v, "first_round": first_round[k]} for k, v in used.items()],
         "season": [{"model": k, **metrics(per_model[k])} for k in used],
         "shared": {

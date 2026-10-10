@@ -57,6 +57,7 @@ from eurohoops.config import (
     MART_PATH,
     PLAYER_XWALK_FILE,
     SIM_UNGATED,
+    SITE_FORECAST_MODEL,
     Competition,
 )
 from eurohoops.eval.backtest import TunedModel, load_tuned_model
@@ -349,8 +350,12 @@ def _elo(store: Store, comp: Competition, season: int) -> dict[str, tuple[float,
 
 # ---- site ----
 
-# The site shows the published forecast only; the team models keep logging, unshown.
-FORECAST_MODELS = {"elo": "Our forecast"}
+# The page leads with SITE_FORECAST_MODEL; the team models appear only in its small comparison.
+FORECAST_MODELS = {"elo": "Our forecast", "m1": "M1", "m5": "M5"}
+
+
+def _path_or_none(store: Store, relative: Path | None) -> Path | None:
+    return None if relative is None else store.path(relative)
 
 
 def site(store: Store, now: datetime) -> dict[str, Any]:
@@ -379,11 +384,17 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                 season=LIVE_SEASON,
                 replay_from=comp.live_backtest.warmup[0],
                 forecasts=build_forecasts(
-                    {"elo": store.path(comp.prediction_log)},
+                    {
+                        "elo": store.path(comp.prediction_log),
+                        "m1": _path_or_none(store, comp.m1_prediction_log),
+                        "m5": _path_or_none(store, comp.m5_prediction_log),
+                    },
                     FORECAST_MODELS,
                     games,
                     LIVE_SEASON,
                     comp.manual_pushes,
+                    odds_log=_path_or_none(store, comp.odds_log),
+                    published=SITE_FORECAST_MODEL,
                 ),
             )
         )
