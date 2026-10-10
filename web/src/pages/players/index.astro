@@ -1,19 +1,24 @@
 ---
 import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
-import search from "@phosphor-icons/core/assets/regular/magnifying-glass.svg?raw";
 import Base from "../../layouts/Base.astro";
 import {
-  DEFAULT_VIEW,
-  MIN_MINUTES,
-  RATES,
-  WINDOWS,
+  BY_KEY,
+  METRIC_GROUPS,
+  MIN_MAX,
+  MIN_PRESETS,
+  POSITION_CHOICES,
+  TOPS,
   bodyHtml,
   chart,
   chartHtml,
+  countText,
+  DEFAULT_VIEW,
   gridHtml,
   headHtml,
   lines,
+  shown,
   ticksHtml,
+  topLabel,
   type View,
 } from "../../lib/players";
 import { defaultSeason, meta, season } from "../../lib/stats";
@@ -25,26 +30,23 @@ const first = m ? defaultSeason(m) : null;
 const data = first ? await season(first.season, "players") : null;
 const view: View = { ...DEFAULT_VIEW, season: first?.season ?? 0 };
 const ls = data ? lines(data, view) : [];
+const rows = shown(ls, view);
 const c = chart(ls, view);
-const teams = data ? [...new Set(data.players.flatMap((p) => p.teams))].sort() : [];
 const seasons = m ? [...m.seasons].reverse() : [];
 const early = seasons.filter((s) => !s.coords_validated).map((s) => s.label);
 const cfg = {
   base,
   defaultSeason: first?.season ?? 0,
   seasons: seasons.map((s) => s.season),
-  teamNames: m?.teams ?? {},
 };
 const description =
-  "Every EuroLeague player since 2007-08, ranked on any measure: season or last 5, 10 or 20 games, per game, per 36 or per 100 possessions.";
+  "Every EuroLeague player of the season ranked on any measure, per game, by position and minutes.";
 ---
 
 <Base title="Players" description={description} current="players">
   <section class="wrap head" aria-labelledby="players-title">
     <h1 id="players-title">Players</h1>
-    <p>
-      Every EuroLeague player since 2007-08, ranked on any measure. Click a column to re-rank.
-    </p>
+    <p>Every EuroLeague player, ranked on any measure. Click a column to re-rank.</p>
   </section>
 
   {
@@ -58,6 +60,24 @@ const description =
     ) : (
       <section class="wrap" id="players" data-cfg={JSON.stringify(cfg)}>
         <form class="filters" id="filters" aria-label="Filters">
+          <label class="field">
+            <span>Metric</span>
+            <span class="select">
+              <select name="metric" style="--select-w: 11.5rem">
+                {METRIC_GROUPS.map((g) => (
+                  <optgroup label={g.label}>
+                    {g.keys.map((k) => (
+                      <option value={k} selected={k === view.metric}>
+                        {BY_KEY[k].name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <span class="caret" set:html={caret} />
+            </span>
+          </label>
+
           <label class="field">
             <span>Season</span>
             <span class="select">
@@ -73,49 +93,36 @@ const description =
           </label>
 
           <fieldset class="field">
-            <legend>Games</legend>
-            <div class="seg" style="--seg-w: 16.652rem">
-              {WINDOWS.map((w) => (
-                <>
-                  <input type="radio" name="window" id={`w-${w.key}`} value={w.key} checked={w.key === view.window} />
-                  <label for={`w-${w.key}`}>{w.label}</label>
-                </>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset class="field">
-            <legend>Rate</legend>
-            <div class="seg" style="--seg-w: 13.39rem">
-              {RATES.map((r) => (
-                <>
-                  <input type="radio" name="rate" id={`r-${r.key}`} value={r.key} checked={r.key === view.rate} />
-                  <label for={`r-${r.key}`}>{r.label}</label>
-                </>
-              ))}
-            </div>
-          </fieldset>
-
-          <label class="field">
-            <span>Team</span>
-            <span class="select">
-              <select name="team">
-                <option value="">All teams</option>
-                {teams.map((t) => (
-                  <option value={t}>{t} · {m.teams[t] ?? t}</option>
+            <legend>Min/game</legend>
+            <div class="minutes">
+              <input
+                type="number"
+                name="minMin"
+                min="0"
+                max={MIN_MAX}
+                step="1"
+                inputmode="numeric"
+                value={view.minMin}
+                aria-label="Minutes per game, at least"
+              />
+              <div class="seg" role="radiogroup" aria-label="Minutes per game presets">
+                {MIN_PRESETS.map((n) => (
+                  <>
+                    <input type="radio" name="minPreset" id={`mp-${n}`} value={n} checked={n === view.minMin} />
+                    <label for={`mp-${n}`}>{n}</label>
+                  </>
                 ))}
-              </select>
-              <span class="caret" set:html={caret} />
-            </span>
-          </label>
+              </div>
+            </div>
+          </fieldset>
 
           <label class="field">
-            <span>Minutes</span>
+            <span>Show top</span>
             <span class="select">
-              <select name="minMin">
-                {MIN_MINUTES.map((n) => (
-                  <option value={n} selected={n === view.minMin}>
-                    {n === 0 ? "Any" : `${n}+ a game`}
+              <select name="top" style="--select-w: 5.5rem">
+                {TOPS.map((n) => (
+                  <option value={n} selected={n === view.top}>
+                    {topLabel(n)}
                   </option>
                 ))}
               </select>
@@ -123,13 +130,17 @@ const description =
             </span>
           </label>
 
-          <label class="field grow">
-            <span>Search</span>
-            <span class="search">
-              <span class="glass" set:html={search} />
-              <input type="search" name="q" placeholder="Player name" autocomplete="off" spellcheck="false" />
-            </span>
-          </label>
+          <fieldset class="field">
+            <legend>Position</legend>
+            <div class="seg">
+              {POSITION_CHOICES.map((p) => (
+                <>
+                  <input type="radio" name="pos" id={`pos-${p.label}`} value={p.key} checked={p.key === view.pos} />
+                  <label for={`pos-${p.label}`}>{p.label}</label>
+                </>
+              ))}
+            </div>
+          </fieldset>
         </form>
 
         <div class="board">
@@ -162,7 +173,7 @@ const description =
               </fieldset>
               <Fragment set:html={colsHtml("cols", GROUPS.players)} />
               <p class="count" id="count" aria-live="polite">
-                {ls.length} players
+                {countText(rows.length, ls.length)}
               </p>
             </div>
             <div class="scroll" id="scroll">
@@ -171,19 +182,16 @@ const description =
                   Players, sorted by the chosen measure
                 </caption>
                 <thead id="thead" set:html={headHtml(view)} />
-                <tbody id="tbody" set:html={bodyHtml(ls, view, base)} />
+                <tbody id="tbody" set:html={bodyHtml(rows, view, base)} />
               </table>
             </div>
-            <button type="button" class="more" id="more" hidden>Show all {ls.length} players</button>
+            <button type="button" class="more" id="more" hidden>Show all {rows.length} players</button>
           </div>
         </div>
 
         <p class="note">
-          Qualifying players average at least the chosen minutes and, over a full season, played a
-          quarter of the most games anyone did. Shooting percentages rank only players with enough
-          attempts. Per 100 uses possessions estimated from
-          the box score while he was on court.
-          {early.length > 0 && ` Shot locations for ${early[early.length - 1]} to ${early[0]} are approximate.`}
+          Players need at least a quarter of the most games played; a percentage ranks only players with enough
+          attempts.{early.length > 0 && ` Shot locations for ${early[early.length - 1]} to ${early[0]} are approximate.`}
         </p>
       </section>
     )
@@ -192,14 +200,18 @@ const description =
 
 <script>
   import {
-    CHART_ROWS,
-    chart,
     bodyHtml,
+    chart,
+    chartHtml,
+    countText,
     fromQuery,
-    PHONE_GROUPS,
     gridHtml,
     headHtml,
     lines,
+    MIN_MAX,
+    PHONE_GROUPS,
+    setOf,
+    shown,
     slotTip,
     ticksHtml,
     toQuery,
@@ -213,11 +225,9 @@ const description =
       base: string;
       defaultSeason: number;
       seasons: number[];
-      teamNames: Record<string, string>;
     };
     const form = document.getElementById("filters") as HTMLFormElement;
     const rows = document.getElementById("rows") as HTMLOListElement;
-    const slots = [...rows.children] as HTMLLIElement[];
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
     const cache = new Map<number, Promise<SeasonPlayers>>();
     const root = cfg.base.replace(/\/$/, "");
@@ -235,54 +245,57 @@ const description =
     };
 
     let view: View = fromQuery(location.search, cfg.seasons, cfg.defaultSeason);
-    let shownSeason = cfg.defaultSeason;
 
     const setField = (name: string, value: string) => {
       const el = form.elements.namedItem(name);
       if (el instanceof RadioNodeList) el.value = value;
       else if (el instanceof HTMLSelectElement || el instanceof HTMLInputElement) el.value = value;
     };
-    const syncForm = () => {
-      for (const [k, v] of Object.entries(view)) if (k !== "sort" && k !== "dir") setField(k, String(v));
+    // The typed minutes and the preset buttons are one value: a preset lights when it matches.
+    const syncMinutes = (typed: boolean) => {
+      const box = form.elements.namedItem("minMin") as HTMLInputElement;
+      if (typed) box.value = String(view.minMin);
+      for (const r of form.querySelectorAll<HTMLInputElement>('input[name="minPreset"]')) {
+        r.checked = Number(r.value) === view.minMin;
+      }
     };
-
-    const teamOptions = (data: SeasonPlayers) => {
-      const select = form.elements.namedItem("team") as HTMLSelectElement;
-      const teams = [...new Set(data.players.flatMap((p) => p.teams))].sort();
-      if (view.team && !teams.includes(view.team)) view.team = "";
-      select.replaceChildren(
-        new Option("All teams", ""),
-        ...teams.map((t) => new Option(`${t} · ${cfg.teamNames[t] ?? t}`, t)),
-      );
-      select.value = view.team;
+    const syncForm = () => {
+      setField("season", String(view.season));
+      setField("metric", view.metric);
+      setField("top", String(view.top));
+      setField("pos", view.pos);
+      setField("set", view.set);
+      syncMinutes(true);
     };
 
     const paint = (data: SeasonPlayers) => {
       const ls = lines(data, view);
+      const top = shown(ls, view);
       const c = chart(ls, view);
       $("rank-title").textContent = c.title;
       $("avg-text").textContent = c.avg ? `Average of the ${c.avg.n} players ranked, ${c.avg.text}` : "No players ranked";
       $("ticks").innerHTML = ticksHtml(c);
       $("gridlines").innerHTML = gridHtml(c);
       rows.style.setProperty("--avg", c.avg ? c.avg.x.toFixed(2) : "-10");
-      // Retarget the 25 slots in place: dots slide, names and values swap.
-      for (let i = 0; i < CHART_ROWS; i++) {
-        const slot = slots[i];
-        const s = c.rows[i];
-        slot.hidden = !s;
-        if (!s) continue;
-        const { row } = s.line;
-        slot.style.setProperty("--x", s.x.toFixed(2));
-        const name = slot.querySelector(".nm") as HTMLAnchorElement;
-        name.textContent = row.name;
-        name.href = `${root}/players/${row.slug}/`;
-        (slot.querySelector(".val") as HTMLElement).textContent = s.text;
-        (slot.querySelector(".track") as HTMLElement).dataset.tip = slotTip(row, c, s.text);
+      if (rows.children.length !== c.rows.length) {
+        // A new Show top: rebuild the slots (dots only slide while the row count stays).
+        rows.innerHTML = chartHtml(c, cfg.base);
+      } else {
+        c.rows.forEach((s, i) => {
+          const slot = rows.children[i] as HTMLLIElement;
+          const { row } = s.line;
+          slot.style.setProperty("--x", s.x.toFixed(2));
+          const name = slot.querySelector(".nm") as HTMLAnchorElement;
+          name.textContent = row.name;
+          name.href = `${root}/players/${row.slug}/`;
+          (slot.querySelector(".val") as HTMLElement).textContent = s.text;
+          (slot.querySelector(".track") as HTMLElement).dataset.tip = slotTip(row, c, s.text);
+        });
       }
       $("thead").innerHTML = headHtml(view);
-      $("tbody").innerHTML = bodyHtml(ls, view, cfg.base);
-      $("count").textContent = `${ls.length} player${ls.length === 1 ? "" : "s"}`;
-      shorten(ls.length);
+      $("tbody").innerHTML = bodyHtml(top, view, cfg.base);
+      $("count").textContent = countText(top.length, ls.length);
+      shorten(top.length);
       syncCols(false);
       history.replaceState(null, "", location.pathname + toQuery(view, cfg.defaultSeason));
     };
@@ -317,10 +330,6 @@ const description =
       try {
         const data = await loadSeason(view.season);
         if (ticket !== pending) return;
-        if (view.season !== shownSeason) {
-          teamOptions(data);
-          shownSeason = view.season;
-        }
         paint(data);
       } catch {
         $("count").textContent = "Could not load this season. Reload the page to try again.";
@@ -329,17 +338,50 @@ const description =
       }
     };
 
+    // A new metric starts from its best end and shows in a column set that has it.
+    const choose = (metric: string) => {
+      view = { ...view, metric, dir: "desc", set: setOf(metric) };
+      setField("set", view.set);
+    };
+
     let typing = 0;
     host.addEventListener("input", (e) => {
       const el = e.target as HTMLInputElement;
       if (el.form !== form) return;
-      const key = el.name as keyof View;
-      const value = el.value;
-      if (key === "season" || key === "minMin") view = { ...view, [key]: Number(value) };
-      else view = { ...view, [key]: value } as View;
-      clearTimeout(typing);
-      if (key === "q") typing = window.setTimeout(update, 120);
-      else update();
+      switch (el.name) {
+        case "season":
+          view = { ...view, season: Number(el.value) };
+          break;
+        case "metric":
+          choose(el.value);
+          break;
+        case "top":
+          view = { ...view, top: Number(el.value) };
+          break;
+        case "pos":
+          view = { ...view, pos: el.value as View["pos"] };
+          break;
+        case "set":
+          view = { ...view, set: el.value as View["set"] };
+          break;
+        case "minPreset":
+          view = { ...view, minMin: Number(el.value) };
+          syncMinutes(true);
+          break;
+        case "minMin": {
+          // Typing: wait for a whole number in range (an empty or half-typed box changes nothing).
+          const n = Number(el.value);
+          clearTimeout(typing);
+          if (el.value === "" || !Number.isInteger(n) || n < 0 || n > MIN_MAX) return;
+          view = { ...view, minMin: n };
+          syncMinutes(false);
+          typing = window.setTimeout(update, 200);
+          return;
+        }
+        default:
+          return;
+      }
+      update();
     });
     form.addEventListener("submit", (e) => e.preventDefault());
 
@@ -347,17 +389,18 @@ const description =
       const button = (e.target as Element).closest<HTMLButtonElement>("button[data-sort]");
       if (!button) return;
       const key = button.dataset.sort!;
-      view = { ...view, sort: key, dir: view.sort === key && view.dir === "desc" ? "asc" : "desc" };
+      view = { ...view, metric: key, dir: view.metric === key && view.dir === "desc" ? "asc" : "desc" };
+      setField("metric", key);
       update().then(() => ($("thead").querySelector(`[data-sort="${key}"]`) as HTMLElement)?.focus());
     });
 
     // Phones pick one of four column groups (PHONE_GROUPS), two per column set: a group of the
-    // other set switches the set. The sorted column shows in every group.
+    // other set switches the set. The ranked column shows in every group.
     const cols = [...host.querySelectorAll<HTMLInputElement>('input[name="cols"]')];
     const syncCols = (toSort: boolean) => {
       const at = cols.findIndex((c) => c.checked);
       if (!toSort && PHONE_GROUPS[at]?.set === view.set) return;
-      const own = PHONE_GROUPS.findIndex((g) => g.set === view.set && g.keys.includes(view.sort));
+      const own = PHONE_GROUPS.findIndex((g) => g.set === view.set && g.keys.includes(view.metric));
       cols[own >= 0 ? own : PHONE_GROUPS.findIndex((g) => g.set === view.set)].checked = true;
     };
     cols.forEach((c, i) =>
@@ -422,18 +465,14 @@ const description =
   .field legend {
     margin-bottom: 6px;
   }
-  .grow {
-    flex: 1 1 120px;
-    max-width: 260px;
-  }
   .select,
-  .search {
+  .minutes {
     position: relative;
     display: flex;
     align-items: center;
   }
   select,
-  input[type="search"] {
+  input[type="number"] {
     appearance: none;
     height: 32px;
     border: 0;
@@ -452,29 +491,32 @@ const description =
     cursor: pointer;
     text-overflow: ellipsis;
   }
-  input[type="search"] {
-    width: 100%;
-    padding: 0 10px 0 32px;
+  /* Min/game: the typed number, then the presets. */
+  .minutes {
+    gap: 8px;
   }
-  input[type="search"]::placeholder {
-    color: var(--muted);
+  input[type="number"] {
+    width: 3.75rem;
+    padding: 0 8px 0 10px;
+    -moz-appearance: textfield;
   }
-  input[type="search"]::-webkit-search-cancel-button {
-    display: none;
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   @media (hover: hover) and (pointer: fine) {
     select:hover,
-    input[type="search"]:hover {
+    input[type="number"]:hover {
       box-shadow: inset 0 0 0 1px var(--ink-2);
     }
   }
   select:focus-visible,
-  input[type="search"]:focus-visible {
+  input[type="number"]:focus-visible {
     outline: 2px solid var(--data-1);
     outline-offset: 1px;
   }
-  .caret,
-  .glass {
+  .caret {
     position: absolute;
     display: grid;
     pointer-events: none;
@@ -484,12 +526,7 @@ const description =
     right: 10px;
     font-size: 11px;
   }
-  .glass {
-    left: 10px;
-    font-size: 15px;
-  }
-  .caret :global(svg),
-  .glass :global(svg) {
+  .caret :global(svg) {
     width: 1em;
     height: 1em;
     fill: currentColor;
@@ -597,9 +634,6 @@ const description =
     height: 27px;
     font-size: 0.8125rem;
     border-radius: 4px;
-  }
-  .rows :global(.slot[hidden]) {
-    display: none;
   }
   .rows :global(.rk) {
     color: var(--muted);
@@ -910,10 +944,6 @@ const description =
     tbody :global(.tm) {
       display: block;
       margin-left: 0;
-    }
-    .grow {
-      max-width: none;
-      flex-basis: 100%;
     }
   }
 </style>
