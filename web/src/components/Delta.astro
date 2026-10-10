@@ -8,8 +8,9 @@ interface Props {
   better?: BetterIs;
   digits?: number;
   unit?: string;
+  versus?: string;
 }
-const { value, better = "higher", digits = 1, unit = "" } = Astro.props;
+const { value, better = "higher", digits = 1, unit = "", versus = "the league" } = Astro.props;
 ---
 
-<Fragment set:html={deltaHtml(value, { better, digits, unit })} />
+<Fragment set:html={deltaHtml(value, { better, digits, unit, versus })} />
