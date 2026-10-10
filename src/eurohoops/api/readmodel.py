@@ -79,7 +79,12 @@ from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.box import BoxGames, build_box_games
-from eurohoops.stats.export import Inputs, build_payloads, load_cached_games
+from eurohoops.stats.export import (
+    Inputs,
+    build_payloads,
+    load_cached_games,
+    load_cached_standings,
+)
 from eurohoops.stats.shots import build_shots
 
 T = TypeVar("T")
@@ -423,6 +428,7 @@ def stats_inputs(store: Store) -> Inputs:
             shots=build_shots(store.path(EUROLEAGUE.raw_dir), games),
             codes=DISPLAY_CODES[EUROLEAGUE.name],
             live_season=LIVE_SEASON,
+            official_standings=load_cached_standings(store.path(EUROLEAGUE.raw_dir)),
         )
 
     return store.memo("stats_inputs", make)

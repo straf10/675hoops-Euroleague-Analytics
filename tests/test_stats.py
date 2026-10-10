@@ -28,7 +28,9 @@ from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.box import build_box_games, game_lines, seconds
 from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
 from eurohoops.stats.export import (
+    OTHER_RESULTS,
     PLAYER_FIELDS,
+    RESULTS,
     TEAM_FIELDS,
     Inputs,
     _player_frame,
@@ -36,6 +38,8 @@ from eurohoops.stats.export import (
     display_name,
     load_cached_games,
     player_slugs,
+    playoff_results,
+    regular_season_standings,
     season_label,
     slugify,
     write_stats,
@@ -503,3 +507,91 @@ def test_downloads_window_follows_site_seasons(
     monkeypatch.setattr("eurohoops.stats.downloads.SITE_SEASONS", 1)
     manifest = json.loads(build_downloads(inputs, NOW)["manifest.json"])
     assert {e["season"] for e in manifest["files"]} == {2024}
+
+
+def test_team_rows_carry_standing_playoff_and_club_seasons(
+    inputs: Inputs, files: dict[str, dict[str, Any]]
+) -> None:
+    for season in (2010, 2024):
+        rows = files[f"seasons/{season}/teams.json"]["teams"]
+        assert sorted(r["standing"] for r in rows) == list(range(1, len(rows) + 1))
+        assert all(isinstance(r["standing"], int) for r in rows)
+        assert all(r["playoff"]["result"] in RESULTS + OTHER_RESULTS for r in rows)
+        assert all(isinstance(r["el_seasons"], int) and r["el_seasons"] >= 1 for r in rows)
+    by_code = {r["code"]: r for r in files["seasons/2024/teams.json"]["teams"]}
+    old = {r["code"]: r for r in files["seasons/2010/teams.json"]["teams"]}
+    for code, row in by_code.items():
+        if code in old:  # a club in both seasons has one more season in the later one
+            assert row["el_seasons"] >= old[code]["el_seasons"] + 1
+
+
+def test_live_season_has_no_playoff_result(inputs: Inputs) -> None:
+    live = build_payloads(replace(inputs, live_season=2024), NOW)["seasons/2024/teams.json"]
+    assert all(r["playoff"] is None and r["standing"] >= 1 for r in live["teams"])
+
+
+def _games(rows: list[tuple[str, str, str, int, int]]) -> pd.DataFrame:
+    """(phase, home, away, home points, away points) in tip-off order."""
+    return pd.DataFrame(
+        [
+            {
+                "game_id": f"g{i}",
+                "phase": phase,
+                "home": home,
+                "away": away,
+                "home_score": hs,
+                "away_score": a_s,
+                "played": True,
+                "tipoff_utc": pd.Timestamp("2025-01-01", tz="UTC") + pd.Timedelta(hours=i),
+            }
+            for i, (phase, home, away, hs, a_s) in enumerate(rows)
+        ]
+    )
+
+
+def test_playoff_results_read_the_phases() -> None:
+    games = _games(
+        [
+            ("RS", "A", "B", 80, 70),
+            ("PI", "G", "H", 80, 70),
+            ("PO", "A", "F", 80, 70),
+            ("PO", "B", "E", 80, 70),
+            ("FF", "A", "B", 80, 70),  # semifinals
+            ("FF", "C", "D", 70, 80),
+            ("FF", "B", "C", 80, 70),  # third place
+            ("FF", "A", "D", 80, 70),  # final
+        ]
+    )
+    result = playoff_results(games, list("ABCDEFGHI"))
+    assert result == {
+        "A": "Champions",
+        "D": "Runners-up",
+        "B": "Third place",
+        "C": "Fourth place",
+        "E": "Lost in the playoffs",
+        "F": "Lost in the playoffs",
+        "G": "Lost in the play-in",
+        "H": "Lost in the play-in",
+        "I": "Did not qualify",
+    }
+    no_third = playoff_results(games.drop(index=[6]), list("ABCD"))
+    assert no_third["B"] == no_third["C"] == "Lost in the semifinals"
+    cancelled = playoff_results(games[games["phase"] == "RS"], ["A", "B"])
+    assert set(cancelled.values()) == {"Season cancelled"}
+
+
+def test_standing_prefers_the_official_table_and_breaks_ties_head_to_head() -> None:
+    games = _games(
+        [
+            ("RS", "A", "B", 80, 70),
+            ("RS", "B", "A", 80, 70),
+            ("RS", "A", "C", 90, 60),
+            ("RS", "C", "A", 60, 70),
+            ("RS", "B", "C", 80, 70),
+            ("RS", "C", "B", 70, 80),
+        ]
+    )
+    assert regular_season_standings(games, None) == {"A": 1, "B": 2, "C": 3}
+    assert regular_season_standings(games, {"B": 1, "A": 2, "C": 3}) == {"B": 1, "A": 2, "C": 3}
+    # an official table that disagrees with the wins is ignored
+    assert regular_season_standings(games, {"C": 1, "A": 2, "B": 3}) == {"A": 1, "B": 2, "C": 3}
