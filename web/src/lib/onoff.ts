@@ -1,6 +1,5 @@
 // On/off and clutch figures from the raw totals in stats/onoff.json (lib/stats.ts).
 
-import { deltaHtml, type DeltaOptions } from "./delta";
 import type { OnOffSide, OnOffSeason } from "./stats";
 
 export const per100 = (x: number, poss: number): number | null => (poss > 0 ? (100 * x) / poss : null);
@@ -29,10 +28,6 @@ export function onOffView(r: OnOffSeason): OnOffView | null {
   const off = rates(r.off);
   return on.net === null || off.net === null ? null : { on, off };
 }
-
-/** The Delta arrow for a difference that is not against the league: the screen-reader phrase names the other side. */
-export const versusHtml = (diff: number, versus: string, o: DeltaOptions = {}): string =>
-  deltaHtml(diff, o).replace(/ (above|below) the league, /, ` $1 ${versus}, `).replace("level with the league", `level with ${versus}`);
 
 export interface Clutch {
   minutes: number;

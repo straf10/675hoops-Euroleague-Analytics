@@ -6,13 +6,13 @@ import type { BetterIs } from "./delta";
 import { BY_KEY, rated, type Measure } from "./players";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 
-/** The six metrics, in order. Usage counts higher as better: more of the offence runs through him. */
+/** The six metrics, in order. Usage is a style measure: its arrow stays ink. */
 export const KEY_METRICS: { key: string; better: BetterIs }[] = [
   { key: "pts", better: "higher" },
   { key: "reb", better: "higher" },
   { key: "ast", better: "higher" },
   { key: "ts", better: "higher" },
-  { key: "usg", better: "higher" },
+  { key: "usg", better: "neither" },
   { key: "pir", better: "higher" },
 ];
 

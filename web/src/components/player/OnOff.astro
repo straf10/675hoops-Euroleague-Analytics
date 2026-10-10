@@ -1,7 +1,8 @@
 ---
 // On/off: his team's net rating with him on court and off it, and the difference.
 import { signed } from "../../lib/format";
-import { versusHtml, type OnOffView } from "../../lib/onoff";
+import { deltaHtml } from "../../lib/delta";
+import type { OnOffView } from "../../lib/onoff";
 import { tip } from "../../lib/tip";
 
 interface Props {
@@ -45,7 +46,7 @@ const shown = (r: (typeof rows)[number], v: number | null) => (v === null ? "–
               <td class="num strong">{shown(r, r.on)}</td>
               <td class="num">{shown(r, r.off)}</td>
               <td class="num diff">
-                {r.on !== null && r.off !== null ? <Fragment set:html={versusHtml(r.on - r.off, "when he is off", { better: r.better })} /> : "–"}
+                {r.on !== null && r.off !== null ? <Fragment set:html={deltaHtml(r.on - r.off, { better: r.better, versus: "off the floor" })} /> : "–"}
               </td>
             </tr>
           ))

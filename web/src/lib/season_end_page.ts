@@ -17,15 +17,16 @@ const clubOf = (t: SeasonTeams, code: string): Club | null => {
   return row ? { gp: row.totals[at("gp")], poss: row.totals[at("poss")], sec: row.totals[at("game_sec")] } : null;
 };
 
-/** His share of team minutes in one season of his. A season with two clubs is read per game. */
+/** His share of team minutes per game in one season of his. */
 function shareOf(row: PlayerSeason | undefined, t: SeasonTeams | null): number | null {
   if (!row || !t) return null;
   const mine = totalsOf(row.fields, row.totals);
   const clubs = row.teams.map((c) => clubOf(t, c)).filter((c): c is Club => c !== null && c.gp > 0);
   if (!clubs.length || !mine.gp) return null;
-  if (clubs.length === 1) return minutesShare({ sec: mine.sec, teamSec: clubs[0].sec });
-  const perGame = clubs.reduce((a, c) => a + c.sec / c.gp, 0) / clubs.length;
-  return minutesShare({ sec: mine.sec / mine.gp, teamSec: perGame });
+  // A season with two clubs reads the clubs' average game seconds and games.
+  const teamSec = clubs.reduce((x, c) => x + c.sec, 0) / clubs.length;
+  const teamGp = clubs.reduce((x, c) => x + c.gp, 0) / clubs.length;
+  return minutesShare({ sec: mine.sec, gp: mine.gp, teamSec, teamGp });
 }
 
 export interface SeasonEndPage {
