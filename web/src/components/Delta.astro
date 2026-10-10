@@ -1,0 +1,15 @@
+---
+// A metric's difference from the league average under the Delta Rule (lib/delta.ts).
+import { deltaHtml, type BetterIs } from "../lib/delta";
+
+interface Props {
+  /** Subject minus league. */
+  value: number;
+  better?: BetterIs;
+  digits?: number;
+  unit?: string;
+}
+const { value, better = "higher", digits = 1, unit = "" } = Astro.props;
+---
+
+<Fragment set:html={deltaHtml(value, { better, digits, unit })} />

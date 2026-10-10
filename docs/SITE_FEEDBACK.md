@@ -192,3 +192,14 @@ Report: what each model (Elo, M1, M5, M6, M7) does, what is live, logged or show
 2. Orange is the data accent (#d9590b light, #e2691f dark) and the logo colour; blue is the opposite pole (red fails beside orange). Green/red only as the arrow glyph on vs-league deltas; the figure stays ink (`docs/DESIGN.md`, Delta Rule).
 3. Downloads use the site's display codes (e.g. FBT), stated on the page; they fit the free tier.
 4. Contact: GitHub (github.com/straf10) only, no email.
+
+### Decided (2026-10-10, Phase C, before launch)
+1. Shot twin: a window shows only with at least 150 located attempts (the twin pool floor); windows under it leave the switch; no window qualifies, no section.
+2. Positions from the EuroLeague people listing (Guard / Forward / Center, shown Guard / Wing / Big). Two listings in one season: the club he played most games for. Each season uses its own listing; none that season: his latest listing; none at all: only under "All". The live season's people file is refetched daily (one call).
+3. Forecasts: hit rate leads; the chart is Brier per round against the bookmaker (de-vigged odds); log loss in the table. Elo leads; M1/M5/M7 in one small table lower down, on shared games.
+4. Design review: Opus reviews screenshots of the four pages (light/dark, desktop/390 px), then the owner signs off before merge.
+5. Team header: one row of cells split by hairline rules (no fill, no shadow; the Flat Page Rule holds). Net rating follows the Delta Rule (arrow only).
+6. Projected season-end PPG = (points so far + projected PPG x games left) / total games; projected PPG = M6 per-100 points x minutes share x team pace; minutes share from this season after 5 games, last season before.
+7. Clutch: last 5 minutes of the 4th quarter or overtime, score within 5; on-court minutes, net rating, his points. Glossary entry.
+8. Players list: per game only; Window, Rate, Team and name search removed; the Box score / Shooting column switch stays.
+9. Player page: game log under Form (last 10, full log expandable); shot-making joins Shot quality; Impact and Comparables sit above the season table at the bottom.

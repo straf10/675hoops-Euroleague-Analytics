@@ -198,6 +198,30 @@ svg.icon {
   flex: none;
 }
 
+/* Delta Rule (lib/delta.ts): only the arrow wears green or red; the figure stays ink. */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.delta-arrow {
+  display: inline-flex;
+}
+.delta-arrow svg {
+  width: 0.75em;
+  height: 0.75em;
+  fill: currentColor;
+}
+.delta[data-verdict="better"] .delta-arrow {
+  color: var(--delta-up);
+}
+.delta[data-verdict="worse"] .delta-arrow {
+  color: var(--delta-down);
+}
+
 /* Shared chart chrome */
 .chart {
   display: block;
