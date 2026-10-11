@@ -1,9 +1,8 @@
-# 6.75 Analytics (EuroHoops)
+# 6.75 Analytics
 
 **EuroLeague game forecasts for the 2026-27 season, committed to a public log before tip-off and scored afterwards.** The pipeline ingests official EuroLeague data, builds team, shot, player and roster models, and publishes the forecasts with their scorecards. Forecasts are append-only, so a result cannot be tuned after the fact. Every model is measured against a home-team baseline and Elo, and for the EuroLeague also against bookmaker odds recorded before each game. Misses and weak weeks stay on the scorecard.
 
-- Live site: [TODO: URL]
-- Demo video (3 min): [TODO: URL]
+- Live site: https://675hoops.com/
 
 The repository also contains a Greek Basket League (GBL) pipeline, and its forecasts are logged in `predictions/`. The public site shows EuroLeague only.
 
