@@ -41,6 +41,15 @@ def store(root: Path) -> rm.Store:
     return rm.Store(root)
 
 
+@pytest.fixture(scope="module")
+def finished_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    # The live season is left out: it changes daily, and the cache has no copy of it to match.
+    tree = tmp_path_factory.mktemp("api_finished") / "tree"
+    tree.mkdir()
+    build_tree(tree, live_season=False)
+    return tree
+
+
 @pytest.fixture
 def fresh(tmp_path: Path) -> Path:
     """A tree a test may damage."""
@@ -98,18 +107,17 @@ def test_site_without_its_inputs_is_not_found(fresh: Path) -> None:
         rm.site(rm.Store(fresh), NOW)
 
 
-def test_stats_come_from_the_marts_and_from_the_cache_identically(
-    store: rm.Store, root: Path
-) -> None:
-    cached = rm.Store(root, from_cache=True)
+def test_stats_come_from_the_marts_and_from_the_cache_identically(finished_root: Path) -> None:
+    cached = rm.Store(finished_root, from_cache=True)
+    marts = rm.Store(finished_root)
     stats_now = datetime(2026, 9, 26, 8, tzinfo=UTC)
-    assert rm.stats_payloads(cached, stats_now) == rm.stats_payloads(store, stats_now)
-    index = rm.stats_index(store, stats_now)["files"]
+    assert rm.stats_payloads(cached, stats_now) == rm.stats_payloads(marts, stats_now)
+    index = rm.stats_index(marts, stats_now)["files"]
     committed = sorted(
         p.relative_to(FIXTURES / "stats").as_posix() for p in (FIXTURES / "stats").rglob("*.json")
     )
     assert index == committed  # the file list of the committed export of the same raw slice
-    meta = rm.stats_file(store, "meta.json", stats_now)
+    meta = rm.stats_file(marts, "meta.json", stats_now)
     assert [s["season"] for s in meta["seasons"]] == [2010, 2024]
     assert meta["generated_at"] == "2026-09-26T08:00Z"  # the build time, stamped once per Store
 

@@ -33,8 +33,10 @@ EL_PERSON = "P:P013382"  # Levi Randolph: EuroLeague id P013382, GBL id FC6A957C
 GBL_ONLY_PERSON = "G:02211B0A"
 
 
-def _euroleague_games(cached: pd.DataFrame) -> pd.DataFrame:
+def _euroleague_games(cached: pd.DataFrame, *, live_season: bool = True) -> pd.DataFrame:
     """The cached 2010 and 2024 games plus the live season on six clubs; round 1 is played."""
+    if not live_season:
+        return conform(cached)
     live = make_games({2026: False})
     live = live.assign(home=live["home"].map(EL_CLUBS), away=live["away"].map(EL_CLUBS))
     first = live["round"] == 1
@@ -95,8 +97,11 @@ def _gbl_team_games() -> pd.DataFrame:
     return TEAM_GAMES_SCHEMA.validate(frame[list(TEAM_GAMES_SCHEMA.columns)])
 
 
-def build_tree(root: Path, *, ungated: bool = True) -> None:
-    """Write the tree under ``root`` (the marts, the raw caches, reports, prediction logs)."""
+def build_tree(root: Path, *, ungated: bool = True, live_season: bool = True) -> None:
+    """Write the tree under ``root`` (the marts, the raw caches, reports, prediction logs).
+
+    ``live_season=False`` leaves the synthetic 2026 games out of the marts (finished seasons only).
+    """
     raw = root / EUROLEAGUE.raw_dir
     shutil.copytree(FIXTURES / "stats_raw", raw)
     write_atomic(
@@ -111,7 +116,7 @@ def build_tree(root: Path, *, ungated: bool = True) -> None:
         (root / "reports" / "sim_ungated_euroleague.json").unlink()
 
     cached, cached_teams = load_cached_games(raw)
-    el_games, gbl_games = _euroleague_games(cached), _gbl_games()
+    el_games, gbl_games = _euroleague_games(cached, live_season=live_season), _gbl_games()
     el_teams = pd.concat([cached_teams, teams_table(el_games)]).drop_duplicates("team")
     teams = pd.concat(
         [

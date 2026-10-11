@@ -151,7 +151,8 @@ def _seasons(first: int, last: int) -> tuple[int, ...]:
 
 EUROLEAGUE = Competition(
     name="euroleague",
-    default_seasons=_seasons(2023, LIVE_SEASON),
+    # From 2007: live M5 needs the history; past seasons come from the raw cache only
+    default_seasons=_seasons(2007, LIVE_SEASON),
     live_backtest=Backtest(Path("reports/backtest_elo.json"), (2023,), (2024,), (2025,)),
     history_backtests=(
         Backtest(

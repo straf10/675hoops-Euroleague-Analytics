@@ -308,8 +308,18 @@ def ingest(
         int | None,
         typer.Option(help="Stage every season from this start year to the live one"),
     ] = None,
+    current_only: Annotated[
+        bool,
+        typer.Option(
+            help="Stage only the live season (fast local runs). The staged tables then lack the "
+            "history: run a plain ingest before build, or M5 cannot run"
+        ),
+    ] = False,
 ) -> None:
     """Fetch results into the raw cache and rebuild the competition's staging tables.
+
+    With no season options the default seasons are staged (EuroLeague: 2007 to the live one).
+    Past seasons are read from the raw cache only; the live season goes to the network.
 
     With ``--pbp`` the chosen seasons only select which games get play-by-play; the staging
     tables still cover every default season.
@@ -320,7 +330,12 @@ def ingest(
         raise typer.BadParameter(f"unexpected arguments {ctx.args}") from exc
     comp = COMPETITIONS[competition]
     history = range(from_season, LIVE_SEASON + 1) if from_season is not None else ()
-    chosen = sorted({*(seasons or []), *extra, *history}) or list(comp.default_seasons)
+    if current_only and (seasons or extra or from_season is not None):
+        raise typer.BadParameter("--current-only cannot be combined with season options")
+    if current_only:
+        chosen = [LIVE_SEASON]
+    else:
+        chosen = sorted({*(seasons or []), *extra, *history}) or list(comp.default_seasons)
     if pbp and comp is not GBL:
         raise typer.BadParameter("--pbp is for --competition gbl (EuroLeague PBP: --details)")
     with make_client() as client:
@@ -346,9 +361,13 @@ def ingest(
                 write_table(build_pbp_table(comp.raw_dir, games), GBL_PBP)
         else:
             fetcher = Fetcher(client, euroleague.MIN_INTERVAL_S)
-            schedules = euroleague.ingest_seasons(
-                fetcher, comp.raw_dir, chosen, details, LIVE_SEASON
-            )
+            try:
+                schedules = euroleague.ingest_seasons(
+                    fetcher, comp.raw_dir, chosen, details, LIVE_SEASON
+                )
+            except euroleague.PastSeasonNotCachedError as exc:
+                log.error("%s", exc)
+                raise typer.Exit(code=1) from exc
             games, teams = build_games_table(schedules), build_teams_table(schedules)
             team_seasons = build_team_seasons(schedules)
     write_table(games, comp.staging_games)

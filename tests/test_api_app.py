@@ -51,6 +51,15 @@ def root(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="module")
+def finished_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    # The live season is left out: it changes daily, and the cache has no copy of it to match.
+    tree = tmp_path_factory.mktemp("api_finished") / "tree"
+    tree.mkdir()
+    build_tree(tree, live_season=False)
+    return tree
+
+
+@pytest.fixture(scope="module")
 def client(root: Path) -> TestClient:
     return make_client(root)
 
@@ -210,11 +219,11 @@ def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
 
 @pytest.mark.parametrize("from_cache", [True, False], ids=["from-cache", "marts"])
 def test_stats_responses_are_the_bytes_write_stats_writes(
-    root: Path, tmp_path: Path, from_cache: bool
+    finished_root: Path, tmp_path: Path, from_cache: bool
 ) -> None:
-    client = make_client(root, from_cache=from_cache, now=STATS_NOW)
+    client = make_client(finished_root, from_cache=from_cache, now=STATS_NOW)
     written = tmp_path / "written"
-    write_stats(written, _independent_stats(root / EUROLEAGUE.raw_dir, STATS_NOW))
+    write_stats(written, _independent_stats(finished_root / EUROLEAGUE.raw_dir, STATS_NOW))
     paths = sorted(p.relative_to(written).as_posix() for p in written.rglob("*.json"))
     assert client.get("/stats").json()["files"] == paths and len(paths) == 13
     for path in paths:

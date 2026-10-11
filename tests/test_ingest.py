@@ -4,7 +4,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from eurohoops.ingest.euroleague import MIN_INTERVAL_S, ingest_seasons
+from eurohoops.ingest.euroleague import MIN_INTERVAL_S, PastSeasonNotCachedError, ingest_seasons
 from eurohoops.ingest.http import MAX_ATTEMPTS, Fetcher
 from tests.conftest import FIXTURES
 
@@ -34,7 +34,8 @@ def fetcher_for(api: FakeApi) -> Fetcher:
 @pytest.mark.usefixtures("no_sleep")
 def test_second_ingest_of_completed_season_makes_zero_http_calls(tmp_path: Path) -> None:
     first = FakeApi()
-    schedules = ingest_seasons(fetcher_for(first), tmp_path, [2024], details=True, live_season=LIVE)
+    # 2024 counts as live for the cold fetch: a finished season is never fetched (see below)
+    schedules = ingest_seasons(fetcher_for(first), tmp_path, [2024], details=True, live_season=2024)
     assert len(schedules[2024]) == 3
     assert len(first.calls) == 1 + 3 * 3  # schedule + 3 endpoints x 3 played games
 
@@ -57,7 +58,7 @@ def test_live_season_schedule_is_refreshed_and_unplayed_games_get_no_details(
 
 @pytest.mark.usefixtures("no_sleep")
 def test_raw_cache_layout_is_gzip_and_file_existence_based(tmp_path: Path) -> None:
-    ingest_seasons(fetcher_for(FakeApi()), tmp_path, [2024], details=True, live_season=LIVE)
+    ingest_seasons(fetcher_for(FakeApi()), tmp_path, [2024], details=True, live_season=2024)
     assert (tmp_path / "schedule" / "E2024.json.gz").exists()
     detail = tmp_path / "playbyplay" / "E2024" / "327.json.gz"
     assert detail.read_bytes()[:2] == b"\x1f\x8b"
@@ -67,7 +68,7 @@ def test_raw_cache_layout_is_gzip_and_file_existence_based(tmp_path: Path) -> No
 @pytest.mark.usefixtures("no_sleep")
 def test_empty_detail_bodies_are_not_cached(tmp_path: Path) -> None:
     ingest_seasons(
-        fetcher_for(FakeApi(empty_details=True)), tmp_path, [2024], details=True, live_season=LIVE
+        fetcher_for(FakeApi(empty_details=True)), tmp_path, [2024], details=True, live_season=2024
     )
     assert not (tmp_path / "boxscore").exists()
 
@@ -75,7 +76,7 @@ def test_empty_detail_bodies_are_not_cached(tmp_path: Path) -> None:
 @pytest.mark.usefixtures("no_sleep")
 def test_schedules_only_without_details_flag(tmp_path: Path) -> None:
     api = FakeApi()
-    ingest_seasons(fetcher_for(api), tmp_path, [2024], details=False, live_season=LIVE)
+    ingest_seasons(fetcher_for(api), tmp_path, [2024], details=False, live_season=2024)
     assert len(api.calls) == 1
 
 
@@ -132,7 +133,14 @@ def test_fetcher_does_not_retry_client_errors(no_sleep: list[float]) -> None:
 @pytest.mark.usefixtures("no_sleep")
 def test_past_season_is_final_even_with_unplayed_games(tmp_path: Path) -> None:
     """2019-20 (COVID) and 2021-22 (voided games) keep unplayed games forever."""
-    ingest_seasons(fetcher_for(FakeApi()), tmp_path, [2026], details=False, live_season=2027)
+    ingest_seasons(fetcher_for(FakeApi()), tmp_path, [2026], details=False, live_season=2026)
     api = FakeApi()
     ingest_seasons(fetcher_for(api), tmp_path, [2026], details=False, live_season=2027)
+    assert api.calls == []
+
+
+def test_a_finished_season_missing_from_the_cache_is_an_error_not_a_fetch(tmp_path: Path) -> None:
+    api = FakeApi()
+    with pytest.raises(PastSeasonNotCachedError):
+        ingest_seasons(fetcher_for(api), tmp_path, [2024], details=False, live_season=LIVE)
     assert api.calls == []

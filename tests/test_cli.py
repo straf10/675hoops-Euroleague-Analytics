@@ -27,9 +27,10 @@ from eurohoops.config import (
     TEAM_CONTINUITY_REPORT,
 )
 from eurohoops.eval.backtest import load_tuned_model
+from eurohoops.ingest.cache import write_atomic
 from eurohoops.marts import read_games, write_tables
 from eurohoops.parse.games import write_table
-from tests.conftest import make_games, make_team_games, write_pipeline
+from tests.conftest import FIXTURES, make_games, make_team_games, write_pipeline
 from tests.test_gbl_ingest import FakeEsake
 from tests.test_gbl_pbp import GAME, FakeBasketHotel, export
 from tests.test_ingest import FakeApi
@@ -64,13 +65,25 @@ def invoke(*args: str) -> str:
     return result.output
 
 
+def seed_schedule(season: int) -> None:
+    """A finished season's schedule in the raw cache: the 2024 fixture with its game ids renamed."""
+    payload = (FIXTURES / "schedule_E2024.json").read_bytes()
+    write_atomic(
+        EUROLEAGUE.raw_dir / "schedule" / f"E{season}.json.gz",
+        payload.replace(b"E2024_", f"E{season}_".encode()),
+    )
+
+
 @pytest.mark.usefixtures("workdir", "no_sleep")
 def test_ingest_both_competitions_then_build(monkeypatch: pytest.MonkeyPatch) -> None:
     el_api, esake = FakeApi(), FakeEsake()
     transports = iter([httpx.MockTransport(el_api), httpx.MockTransport(esake)])
     monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=next(transports)))
+    seed_schedule(2024)
     invoke("ingest", "--seasons", "2024", "2026", "--details")
-    assert len(el_api.calls) == 2 + 3 * 3
+    # the finished season comes from the cache; only the live schedule is fetched
+    schedules = [c for c in el_api.calls if c.endswith("/games")]
+    assert len(schedules) == 1 and schedules[0].endswith("/seasons/E2026/games")
     invoke("ingest", "--competition", "gbl", "--seasons", "2018", "--details")
     assert len(esake.calls) == 4 + 4
     output = invoke("build")
@@ -96,8 +109,53 @@ def test_ingest_from_season_adds_the_range_to_the_chosen_seasons(
     monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
     invoke("ingest", "--from-season", "2026")
     assert list(pd.read_parquet(EUROLEAGUE.staging_games)["season"].unique()) == [2026]
+    seed_schedule(2024)
     invoke("ingest", "--seasons", "2024", "--from-season", "2026")
     assert sorted(pd.read_parquet(EUROLEAGUE.staging_games)["season"].unique()) == [2024, 2026]
+
+
+@pytest.mark.usefixtures("workdir", "no_sleep")
+def test_default_ingest_keeps_the_2007_history(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Every finished season is cached (the 2024 fixture under each name; only the season label
+    # matters here), so the only network call a default ingest may make is the live season.
+    for season in range(2007, 2026):
+        seed_schedule(season)
+    api = FakeApi()
+    transport = httpx.MockTransport(api)
+    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    invoke("ingest")
+    assert len(api.calls) == 1 and api.calls[0].endswith("/seasons/E2026/games")
+    staged = pd.read_parquet(EUROLEAGUE.staging_games)
+    assert sorted(staged["season"].unique()) == list(range(2007, 2027))
+
+
+@pytest.mark.usefixtures("workdir", "no_sleep")
+def test_current_only_stages_the_live_season_and_rejects_season_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    api = FakeApi()
+    transport = httpx.MockTransport(api)
+    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    invoke("ingest", "--current-only")
+    assert len(api.calls) == 1
+    assert list(pd.read_parquet(EUROLEAGUE.staging_games)["season"].unique()) == [2026]
+    result = runner.invoke(cli.app, ["ingest", "--current-only", "--seasons", "2024"])
+    assert result.exit_code != 0
+
+
+@pytest.mark.usefixtures("workdir", "no_sleep")
+def test_ingest_stops_with_an_error_when_a_finished_season_is_not_cached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    api = FakeApi()
+    transport = httpx.MockTransport(api)
+    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    result = runner.invoke(cli.app, ["ingest"])
+    assert result.exit_code == 1
+    assert api.calls == []
 
 
 @pytest.mark.usefixtures("workdir")

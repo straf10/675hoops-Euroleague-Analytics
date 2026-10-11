@@ -25,6 +25,11 @@ log = logging.getLogger(__name__)
 RawGame = dict[str, Any]
 
 
+class PastSeasonNotCachedError(RuntimeError):
+    """A finished season's schedule is not in the raw cache. Past seasons are read from the cache
+    only, so the cache must be restored (the seed workflow) instead of refetched."""
+
+
 @dataclass
 class CacheStats:
     schedule_hits: int = 0
@@ -49,9 +54,17 @@ def _schedule_games(payload: bytes) -> list[RawGame]:
 def _load_schedule(
     fetcher: Fetcher, root: Path, season: int, live_season: int, stats: CacheStats
 ) -> list[RawGame]:
-    """Past seasons are final even with unplayed games (2019-20 cancelled, 2021-22 voided)."""
+    """Past seasons are final even with unplayed games (2019-20 cancelled, 2021-22 voided).
+
+    Only the live season goes to the network: a finished season missing from the cache is an
+    error, never a fetch.
+    """
     path = root / "schedule" / f"E{season}.json.gz"
-    if path.exists() and season < live_season:
+    if season < live_season:
+        if not path.exists():
+            raise PastSeasonNotCachedError(
+                f"EuroLeague {season} schedule is not in the raw cache ({path}): restore the cache"
+            )
         stats.schedule_hits += 1
         return _schedule_games(read_cached(path))
     payload = fetcher.get(SCHEDULE_URL.format(season=season))
