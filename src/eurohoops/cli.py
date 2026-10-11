@@ -113,6 +113,7 @@ from eurohoops.eval.m6_backtest import (
 )
 from eurohoops.eval.m7_backtest import M7Inputs, format_m7_table, run_m7_backtest, scored_splits
 from eurohoops.eval.m7_gate_v2 import format_gate_v2, run_gate_v2
+from eurohoops.eval.promotion import LookNotDueError, run_look
 from eurohoops.eval.scorecard import build_scorecard
 from eurohoops.eval.tracking import (
     default_tracking_uri,
@@ -1588,6 +1589,36 @@ def score(competition: CompetitionOption = CompetitionName.euroleague) -> None:
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))
+
+
+@app.command("promote-check")
+def promote_check(
+    competition: CompetitionOption = CompetitionName.euroleague,
+    look: Annotated[
+        int, typer.Option(help="Pre-registered look: 1 (mid-season), 2 (season end)")
+    ] = 1,
+) -> None:
+    """Flagship promotion test (PLAN R1); refuses before the look's checkpoint is complete."""
+    comp = COMPETITIONS[competition]
+    flagship_log = comp.m5_prediction_log if competition == "euroleague" else comp.m1_prediction_log
+    if look not in (1, 2) or flagship_log is None:
+        raise typer.BadParameter("look must be 1 or 2")
+    live = _live(comp)
+    try:
+        verdict, _ = run_look(
+            competition,
+            look,
+            live.games,
+            live.season,
+            flagship_log,
+            comp.prediction_log,
+            comp.manual_pushes,
+            Path("reports"),
+        )
+    except LookNotDueError as exc:
+        typer.echo(f"{exc}. Nothing computed.", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(json.dumps(verdict.as_dict(), indent=2))
 
 
 @app.command()
