@@ -29,7 +29,7 @@ const s = shotSeason;
       <header class="sec-head split">
         <div>
           <h2 id="shots-title">Shot chart</h2>
-          <p>Where he shot from, and how that compares with the league spot by spot.</p>
+          <p>Where he shot from, and how that compares with the league spot by spot.{options.length < 2 ? ` ${s.label}.` : ""}</p>
         </div>
         <div class="controls">
           <fieldset class="seg" aria-label="Shot chart view" style="--seg-w:11.4rem">
@@ -116,7 +116,7 @@ const s = shotSeason;
       <header class="sec-head split">
         <div>
           <h2 id="quality-title">Shot quality</h2>
-          <p>His FG% by distance against the league, and the points per 100 shots he adds over what his shot mix predicts.</p>
+          <p>His FG% by distance against the league, and the points per 100 shots he adds over what his shot mix predicts.{s && options.length < 2 ? ` ${s.label}.` : ""}</p>
         </div>
         {
           s && options.length > 1 && (

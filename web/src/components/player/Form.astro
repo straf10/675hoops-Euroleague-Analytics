@@ -61,7 +61,10 @@ const cells: [string, (g: (typeof games)[number]) => number, string][] = [
         <LogTable rows={logHtml(season, 10)} name="fc" />
       </div>
       <details class="more" id="full-log" data-view-root>
-        <summary>Full game log</summary>
+        <summary>
+          Full game log
+          <span class="chev" aria-hidden="true" set:html={caret} />
+        </summary>
         {
           options.length > 1 && (
             <div class="more-pick">

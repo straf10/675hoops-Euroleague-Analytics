@@ -18,6 +18,8 @@ export const KEY_METRICS: { key: string; better: BetterIs }[] = [
 
 /** Minutes a game to be counted, and a quarter of the most games anyone played (the dashboard's rule). */
 export const FLOOR_MINUTES = 10;
+/** Whatever the quarter-of-the-most rule gives, a line needs at least this many games. */
+export const MIN_FLOOR_GAMES = 5;
 
 export interface BoardRow {
   rank: number;
@@ -67,8 +69,8 @@ function niceBounds(measure: Measure, values: number[]): [number, number] {
 export function leagueBoard(data: SeasonPlayers, id: string, topN = 10): LeagueBoard | null {
   const lines = data.players.map((row: PlayerRow) => ({ row, t: totalsOf(data.fields, row.totals.season) }));
   const most = Math.max(0, ...lines.map((l) => l.t.gp));
-  const floorGames = Math.ceil(most / 4);
-  const pool = lines.filter((l) => l.t.gp >= Math.max(1, floorGames) && l.t.sec / l.t.gp / 60 >= FLOOR_MINUTES);
+  const floorGames = Math.max(MIN_FLOOR_GAMES, Math.ceil(most / 4));
+  const pool = lines.filter((l) => l.t.gp >= floorGames && l.t.sec / l.t.gp / 60 >= FLOOR_MINUTES);
   if (!pool.some((l) => l.row.id === id)) return null;
 
   const boards: MetricBoard[] = [];

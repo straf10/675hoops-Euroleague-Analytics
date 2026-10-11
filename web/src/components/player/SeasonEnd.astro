@@ -1,6 +1,7 @@
 ---
 // Projection: where his points per game should end the season (lib/season_end.ts), with the
 // full projected rates folded below.
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import ProjectionBlock from "../ProjectionBlock.astro";
 import type { ProjectionReport } from "../../lib/m6";
 import { seasonLabel } from "../../lib/m6";
@@ -42,7 +43,10 @@ const { end, report, gamesPlayed, total } = Astro.props;
     Points a game: his projected scoring rate, his share of team minutes and his team's pace, over the games he has left.
   </p>
   <details class="more">
-    <summary>All projected rates</summary>
+    <summary>
+      All projected rates
+      <span class="chev" aria-hidden="true" set:html={caret} />
+    </summary>
     <ProjectionBlock report={report} />
   </details>
 </section>
