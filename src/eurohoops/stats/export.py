@@ -26,9 +26,11 @@ import json
 import re
 import shutil
 import unicodedata
+import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +41,7 @@ from eurohoops.config import SITE_SEASONS
 from eurohoops.ingest.cache import read_cached
 from eurohoops.ingest.euroleague import RawGame
 from eurohoops.parse.games import ATHENS, build_games_table, build_teams_table
+from eurohoops.standings import Result, rank
 from eurohoops.stats.box import STATS, BoxGames
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
 from eurohoops.stats.twins import twins_payload
@@ -62,6 +65,8 @@ class Inputs:
     shots: Shots
     codes: Mapping[str, str]  # source team code -> display code
     live_season: int
+    # Official final regular-season tables from the cached standings feed: season -> code -> place
+    official_standings: Mapping[int, Mapping[str, int]] = field(default_factory=dict)
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -71,6 +76,22 @@ def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
         for path in sorted((raw_dir / "schedule").glob("E*.json.gz"))
     }
     return build_games_table(schedules), build_teams_table(schedules)
+
+
+def load_cached_standings(raw_dir: Path) -> dict[int, dict[str, int]]:
+    """Season -> source team code -> place, from the latest cached regular-season standings."""
+    latest: dict[int, tuple[int, Path]] = {}
+    for path in sorted((raw_dir / "standings").glob("E*_r*.xml")):
+        year, _, rounds = path.stem.removeprefix("E").partition("_r")
+        if int(year) not in latest or int(rounds) > latest[int(year)][0]:
+            latest[int(year)] = (int(rounds), path)
+    out: dict[int, dict[str, int]] = {}
+    for year_at, (_, path) in latest.items():
+        group = ET.fromstring(path.read_text(encoding="utf-8")).find("group")
+        if group is not None:
+            places = {str(t.findtext("code")): int(t.findtext("ranking") or 0) for t in group}
+            out[year_at] = {code: place for code, place in places.items() if place > 0}
+    return out
 
 
 def display_name(raw: str) -> str:
@@ -179,6 +200,91 @@ def _splits_payload(frame: pd.DataFrame, inputs: Inputs) -> dict[str, Any]:
     return {"fields": list(PLAYER_FIELDS), "rows": rows}
 
 
+RESULTS = (
+    "Champions",
+    "Runners-up",
+    "Third place",
+    "Fourth place",
+    "Lost in the playoffs",
+    "Lost in the play-in",
+    "Did not qualify",
+)
+# Not in RESULTS because the data cannot tell: a Final Four without its third-place game, a
+# Top 16 exit (2007-08 to 2015-16) and a season with no playoff games at all (2019-20).
+OTHER_RESULTS = ("Lost in the semifinals", "Lost in the Top 16", "Season cancelled")
+
+
+def regular_season_standings(
+    games: pd.DataFrame, official: Mapping[str, int] | None
+) -> dict[str, int]:
+    """Team -> place (1 = top): the official final table when it matches the games' records,
+    else ``standings.rank`` (wins, then head-to-head, point difference...) on the played games."""
+    played = games[(games["phase"] == "RS") & games["played"]]
+    results = [
+        Result(str(g["home"]), str(g["away"]), int(g["home_score"]), int(g["away_score"]))
+        for g in played.to_dict("records")
+    ]
+    order = rank(results)
+    computed = {team: place for place, team in enumerate(order, start=1)}
+    if official and set(official) == set(computed):
+        wins: dict[str, int] = {}
+        for r in results:
+            wins[r.winner] = wins.get(r.winner, 0) + 1
+        # a stale or partial table is rejected: places must be consistent with the wins
+        by_place = sorted(official, key=lambda t: official[t])
+        if all(wins.get(a, 0) >= wins.get(b, 0) for a, b in pairwise(by_place)):
+            return dict(official)
+    return computed
+
+
+def playoff_results(games: pd.DataFrame, teams: Iterable[str]) -> dict[str, str]:
+    """Team -> how its season ended, from the games' phases (PI play-in, PO playoffs, FF Final
+    Four; TS is the old Top 16). The Final Four's two earliest games are the semifinals; of the
+    rest the later is the final and the earlier the third-place game."""
+    played = games[games["played"]].sort_values(["tipoff_utc", "game_id"], kind="stable")
+    phases = {p: played[played["phase"] == p] for p in ("PI", "PO", "FF", "TS")}
+    in_phase = {p: {str(t) for t in (*df["home"], *df["away"])} for p, df in phases.items()}
+    out = {t: "Did not qualify" for t in teams}
+    if not in_phase["PO"] and not in_phase["FF"]:
+        return dict.fromkeys(out, "Season cancelled")
+    for team in in_phase["TS"]:
+        out[team] = "Lost in the Top 16"
+    for team in in_phase["PI"]:
+        out[team] = "Lost in the play-in"
+    for team in in_phase["PO"]:
+        out[team] = "Lost in the playoffs"
+    final_four = phases["FF"]
+    if len(final_four) >= 3:
+        semis, rest = final_four.iloc[:2], final_four.iloc[2:]
+
+        def loser(g: Any) -> str:
+            return str(g.away if g.home_score > g.away_score else g.home)
+
+        def winner(g: Any) -> str:
+            return str(g.home if g.home_score > g.away_score else g.away)
+
+        for g in semis.itertuples(index=False):
+            out[loser(g)] = "Lost in the semifinals"
+        final = rest.iloc[-1]
+        out[winner(final)], out[loser(final)] = "Champions", "Runners-up"
+        if len(rest) > 1:
+            third = rest.iloc[0]
+            out[winner(third)], out[loser(third)] = "Third place", "Fourth place"
+    return out
+
+
+def seasons_played(games: pd.DataFrame, season: int) -> dict[str, int]:
+    """Team -> number of seasons up to ``season`` in which it played a game (data from 2007-08)."""
+    played = games[games["played"] & (games["season"] <= season)]
+    pairs = pd.concat(
+        [
+            played[["season", "home"]].set_axis(["season", "team"], axis=1),
+            played[["season", "away"]].set_axis(["season", "team"], axis=1),
+        ]
+    ).drop_duplicates()
+    return {str(t): int(n) for t, n in pairs.groupby("team")["season"].nunique().items()}
+
+
 def _teams_payload(
     season: int, teams: pd.DataFrame, shots: pd.DataFrame, inputs: Inputs
 ) -> dict[str, Any]:
@@ -191,7 +297,11 @@ def _teams_payload(
     taken, allowed = band_table(shots, "team"), band_table(shots, "opponent")
     zero = {b: [0, 0] for b in BANDS}
     # The W-L is the regular-season record; the totals below still cover every game played.
-    regular_ids = set(inputs.games.loc[inputs.games["phase"] == "RS", "game_id"])
+    season_games = inputs.games[inputs.games["season"] == season]
+    regular_ids = set(season_games.loc[season_games["phase"] == "RS", "game_id"])
+    places = regular_season_standings(season_games, inputs.official_standings.get(season))
+    ended = None if season == inputs.live_season else playoff_results(season_games, places)
+    seasons_in = seasons_played(inputs.games, season)
     for key, lines in paired.groupby("team"):
         code = str(key)
         regular = lines[lines["game_id"].isin(regular_ids)]
@@ -201,6 +311,11 @@ def _teams_payload(
                 "name": inputs.names.get(code, code),
                 "w": int(regular["won"].sum()),
                 "l": int((~regular["won"]).sum()),
+                "standing": places.get(code, len(places) + 1),
+                "playoff": None
+                if ended is None
+                else {"result": ended.get(code, "Did not qualify")},
+                "el_seasons": seasons_in.get(code, 1),
                 "totals": _row(lines[list(TEAM_FIELDS)].to_numpy(dtype=float).sum(axis=0)),
                 "opp": _row(
                     lines[[f"{f}_opp" for f in TEAM_FIELDS]].to_numpy(dtype=float).sum(axis=0)
