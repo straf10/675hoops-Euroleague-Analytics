@@ -294,7 +294,7 @@ Flagship model: **M5 for the EuroLeague, M1 for the GBL** (M5 failed its GBL gat
 - R8: done (all-time titles since 1958, seed + data).
 
 **Later / to think about:**
-- **R7 rule v3** (owner, 2026-10-09): under v2 nobody is "likely real". Consider a v3 that can name real over-performers (e.g. pool several seasons per player, a lower bar on the lasting part, or a different stability estimate). Must be declared as v3, stating that it follows v2's empty result; never edit v2 in place.
+- **R7 rule v3** (owner, 2026-10-09): under v2 nobody is "likely real". Consider a v3 that can name real over-performers (e.g. pool several seasons per player, a lower bar on the lasting part, or a different stability estimate). Must be declared as v3, stating that it follows v2's empty result; never edit v2 in place. **Dropped** (owner, 2026-10-11): v2 and its empty "likely real" result stand; M6's per-player shrinkage (`persist = n/(n+k)`) stays. Reason: the board feeds no game model, its useful part (shrinkage) is already in M6, and Scouting is hidden on the site.
 
 ---
 
