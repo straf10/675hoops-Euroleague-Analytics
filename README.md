@@ -26,8 +26,8 @@ Status: **Published** means the forecast shown on the site. **Shadow** means log
 
 | Model | What it does | Status | Headline result |
 |---|---|---|---|
-| **Elo** | MOV-adjusted Elo after FiveThirtyEight ([R5](#references)): margin of victory, home advantage, season-start reversion | Published (EuroLeague; GBL logged) | Test log loss 0.6246 (2024-25 and 2025-26, 732 games) |
-| **M1** | Possession-based team model: offense, defense and pace ratings give margin and total distributions ([card](docs/models/m1.md)) | Shadow (EuroLeague); GBL flagship candidate | Test log loss 0.6232, against Elo 0.6246; the difference is not significant. Validation gate passed. |
+| **Elo** | MOV-adjusted Elo after FiveThirtyEight ([R5](#references)): margin of victory, home advantage, season-start reversion | Published (EuroLeague; GBL logged) ([card](docs/models/elo.md)) | Test log loss 0.6292 (2024-25 and 2025-26, 732 games) |
+| **M1** | Possession-based team model: offense, defense and pace ratings give margin and total distributions ([card](docs/models/m1.md)) | Shadow (EuroLeague); GBL flagship candidate | Test log loss 0.6232, against a comparison Elo re-tuned on M1's seasons 0.6246; the difference is not significant. Validation gate passed. |
 | **M2** | Shot-quality model (xPTS): make probability for each field-goal attempt from location and game state, never shooter identity ([card](docs/models/m2.md)) | Research; no live forecast | Validation log loss 0.6333 against 0.6353 for the spline baseline. Gate failed: chosen model misses its calibration target (ECE 0.0104 against 0.01). |
 | **M3** | Player impact: regularised adjusted plus-minus shrunk toward a box-score prior, with 90% intervals for every player-season ([card](docs/models/m3.md)) | Research; feeds M5 | Validation RMSE 11.48, best of its set; test RMSE 11.68, level with the box-score-only model. Validation gate passed by a narrow margin. |
 | **M4** | League translation between GBL and EuroLeague for box-score rates ([card](docs/models/m4.md)) | Reported; not live | Gate failed. Difference −0.14 against same-stats baseline, 95% CI [−0.43, +0.02], six movers only. |
@@ -37,7 +37,7 @@ Status: **Published** means the forecast shown on the site. **Shadow** means log
 
 Phase D audit ([`docs/models/audit_phase_d.md`](docs/models/audit_phase_d.md)): no model beats Elo on win probability yet, since every M1 and M5 comparison with Elo has a 95% CI that includes 0 (M5 minus Elo on test log loss: −0.001351, CI [−0.011383, 0.008787]). M5's totals gain is the clear one: CRPS against Elo on test is −0.914002, CI [−1.220227, −0.576823].
 
-Test-season context for the EuroLeague: home-team baseline 0.6600, Elo 0.6246, M1 0.6232 and M5 0.6232 log loss ([M1 card](docs/models/m1.md), [M3 card](docs/models/m3.md)). [TODO: check that the baseline row covers the same 732 games.]
+Test-season context for the EuroLeague: home-team baseline 0.6600, comparison Elo (re-tuned on M1's seasons; the published Elo scores 0.6292) 0.6246, M1 0.6232 and M5 0.6232 log loss ([M1 card](docs/models/m1.md), [M3 card](docs/models/m3.md)). [TODO: check that the baseline row covers the same 732 games.]
 
 Each model card lists its code, report files and every number it quotes. A test checks the quoted numbers against the committed reports.
 
@@ -61,7 +61,7 @@ Each model card lists its code, report files and every number it quotes. A test 
 | backtest | Re-runs a model's walk-forward backtest and rewrites its report. Not part of the daily run; the committed reports are pre-registration evidence. | `reports/*.json` |
 | predict | Logs the live forecasts | `predictions/*_2026-27.csv` |
 | score | Scores logged forecasts against results and baselines | `reports/live_scorecard*.json` |
-| publish | Exports JSON and builds the static site | `web/` (Astro), deployed to [TODO: host] |
+| publish | Exports JSON and builds the static site | `web/` (Astro), deployed daily to Cloudflare |
 
 **Daily run.** [`.github/workflows/daily.yml`](.github/workflows/daily.yml) runs at 08:00 UTC and can also be started by hand. It ingests both leagues, builds the marts, records odds and injuries, logs forecasts and simulations, scores, publishes and commits the logs back to `main`. The workflow replays its commit on top of `main` if the branch has moved.
 
@@ -123,7 +123,7 @@ reports/           backtests, scorecards, screenshots (pre-registration evidence
 
 - [`docs/PLAN.md`](docs/PLAN.md): roadmap, data inventory, references and review backlog.
 - [`docs/PRODUCT.md`](docs/PRODUCT.md): product brief and principles.
-- [`docs/models/`](docs/models/): model cards (Elo card: [TODO: link docs/models/elo.md once merged])
+- [`docs/models/`](docs/models/): model cards, including [Elo](docs/models/elo.md)
 - [`docs/history/`](docs/history/): build record cited as pre-registration evidence.
 
 ## References
