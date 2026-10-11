@@ -10,7 +10,7 @@
     "euroleague": 0.0,
     "gbl": 0.0
   },
-  "data_sha256": "abdfbdfe046771fc2575f75ac4efb00b62d40a92a1bde078086e37db1d9fb56f",
+  "data_sha256": "2c4c55205fe4a0ab8ee8a01d668ca846d5cf9fcdaf0fa4c717f3c852cf9983e6",
   "stats": [
     "pts",
     "fg3a",
@@ -23146,6 +23146,78 @@
       ]
     },
     {
+      "person_id": "G:21C5ED0D",
+      "competition": "gbl",
+      "team": "2A25C696",
+      "name": "Periklis Kouroupakis",
+      "debut_season": 2019,
+      "stats": {
+        "pts": {
+          "mean": 19.4122,
+          "lo80": 13.6331,
+          "hi80": 25.1914
+        },
+        "fg3a": {
+          "mean": 0.1079,
+          "lo80": 0.0,
+          "hi80": 1.7327
+        },
+        "fta": {
+          "mean": 11.855,
+          "lo80": 8.8491,
+          "hi80": 14.8609
+        },
+        "ast": {
+          "mean": 0.4285,
+          "lo80": 0.0,
+          "hi80": 2.1527
+        },
+        "tov": {
+          "mean": 3.0767,
+          "lo80": 1.3737,
+          "hi80": 4.7796
+        },
+        "oreb": {
+          "mean": 2.9329,
+          "lo80": 1.4043,
+          "hi80": 4.4615
+        },
+        "dreb": {
+          "mean": 4.8109,
+          "lo80": 2.3434,
+          "hi80": 7.2783
+        },
+        "stl": {
+          "mean": 1.0992,
+          "lo80": 0.187,
+          "hi80": 2.0114
+        },
+        "blk": {
+          "mean": 0.379,
+          "lo80": 0.0,
+          "hi80": 0.9648
+        },
+        "ts": {
+          "mean": 0.5541,
+          "lo80": 0.4505,
+          "hi80": 0.6577
+        },
+        "fg3": {
+          "mean": 0.3444,
+          "lo80": 0.0,
+          "hi80": 0.9748
+        },
+        "ft": {
+          "mean": 0.76,
+          "lo80": 0.6477,
+          "hi80": 0.8723
+        }
+      },
+      "exposure": 155.5645,
+      "n_seasons": 4,
+      "flags": []
+    },
+    {
       "person_id": "G:265441F3",
       "competition": "gbl",
       "team": "00000005",
@@ -28386,6 +28458,80 @@
       "flags": []
     },
     {
+      "person_id": "G:C5820A1E",
+      "competition": "gbl",
+      "team": "00000001",
+      "name": "Brancou Badio",
+      "debut_season": 2026,
+      "stats": {
+        "pts": {
+          "mean": 22.1603,
+          "lo80": 14.5275,
+          "hi80": 29.7931
+        },
+        "fg3a": {
+          "mean": 6.9185,
+          "lo80": 1.5382,
+          "hi80": 12.2988
+        },
+        "fta": {
+          "mean": 5.6131,
+          "lo80": 2.6367,
+          "hi80": 8.5896
+        },
+        "ast": {
+          "mean": 4.9409,
+          "lo80": 0.0,
+          "hi80": 9.9151
+        },
+        "tov": {
+          "mean": 3.3934,
+          "lo80": 1.5134,
+          "hi80": 5.2734
+        },
+        "oreb": {
+          "mean": 2.47,
+          "lo80": 0.3246,
+          "hi80": 4.6153
+        },
+        "dreb": {
+          "mean": 6.2977,
+          "lo80": 2.9405,
+          "hi80": 9.655
+        },
+        "stl": {
+          "mean": 1.932,
+          "lo80": 0.9409,
+          "hi80": 2.9231
+        },
+        "blk": {
+          "mean": 0.6567,
+          "lo80": 0.0,
+          "hi80": 1.5975
+        },
+        "ts": {
+          "mean": 0.5691,
+          "lo80": 0.472,
+          "hi80": 0.6662
+        },
+        "fg3": {
+          "mean": 0.3444,
+          "lo80": 0.2283,
+          "hi80": 0.4604
+        },
+        "ft": {
+          "mean": 0.7292,
+          "lo80": 0.5674,
+          "hi80": 0.891
+        }
+      },
+      "exposure": 0.0,
+      "n_seasons": 0,
+      "flags": [
+        "no_history"
+      ]
+    },
+    {
       "person_id": "G:C64AED82",
       "competition": "gbl",
       "team": "00000002",
@@ -30936,6 +31082,78 @@
       "flags": []
     },
     {
+      "person_id": "P:P002867",
+      "competition": "gbl",
+      "team": "00000010",
+      "name": "Dimitrios Katsivelis",
+      "debut_season": 2010,
+      "stats": {
+        "pts": {
+          "mean": 17.5985,
+          "lo80": 11.8425,
+          "hi80": 23.3545
+        },
+        "fg3a": {
+          "mean": 6.8096,
+          "lo80": 4.5136,
+          "hi80": 9.1056
+        },
+        "fta": {
+          "mean": 5.8473,
+          "lo80": 3.4528,
+          "hi80": 8.2418
+        },
+        "ast": {
+          "mean": 7.04,
+          "lo80": 4.6339,
+          "hi80": 9.4461
+        },
+        "tov": {
+          "mean": 4.6291,
+          "lo80": 3.2334,
+          "hi80": 6.0248
+        },
+        "oreb": {
+          "mean": 1.6211,
+          "lo80": 0.7219,
+          "hi80": 2.5203
+        },
+        "dreb": {
+          "mean": 5.7816,
+          "lo80": 3.9333,
+          "hi80": 7.6299
+        },
+        "stl": {
+          "mean": 2.408,
+          "lo80": 1.5479,
+          "hi80": 3.2682
+        },
+        "blk": {
+          "mean": 0.299,
+          "lo80": 0.0,
+          "hi80": 0.696
+        },
+        "ts": {
+          "mean": 0.4688,
+          "lo80": 0.3879,
+          "hi80": 0.5498
+        },
+        "fg3": {
+          "mean": 0.2889,
+          "lo80": 0.1905,
+          "hi80": 0.3873
+        },
+        "ft": {
+          "mean": 0.6469,
+          "lo80": 0.5236,
+          "hi80": 0.7702
+        }
+      },
+      "exposure": 681.7481,
+      "n_seasons": 13,
+      "flags": []
+    },
+    {
       "person_id": "P:P003210",
       "competition": "gbl",
       "team": "00000010",
@@ -31005,6 +31223,78 @@
       },
       "exposure": 684.2676,
       "n_seasons": 13,
+      "flags": []
+    },
+    {
+      "person_id": "P:P003240",
+      "competition": "gbl",
+      "team": "00000005",
+      "name": "Eleftherios Bochoridis",
+      "debut_season": 2014,
+      "stats": {
+        "pts": {
+          "mean": 14.6981,
+          "lo80": 9.0442,
+          "hi80": 20.352
+        },
+        "fg3a": {
+          "mean": 7.2968,
+          "lo80": 5.0467,
+          "hi80": 9.5469
+        },
+        "fta": {
+          "mean": 2.6393,
+          "lo80": 0.3724,
+          "hi80": 4.9062
+        },
+        "ast": {
+          "mean": 5.4452,
+          "lo80": 3.25,
+          "hi80": 7.6404
+        },
+        "tov": {
+          "mean": 3.7299,
+          "lo80": 2.4921,
+          "hi80": 4.9678
+        },
+        "oreb": {
+          "mean": 1.8912,
+          "lo80": 0.9943,
+          "hi80": 2.7881
+        },
+        "dreb": {
+          "mean": 7.3321,
+          "lo80": 5.4429,
+          "hi80": 9.2214
+        },
+        "stl": {
+          "mean": 1.9051,
+          "lo80": 1.1606,
+          "hi80": 2.6495
+        },
+        "blk": {
+          "mean": 0.4578,
+          "lo80": 0.0352,
+          "hi80": 0.8804
+        },
+        "ts": {
+          "mean": 0.5454,
+          "lo80": 0.46,
+          "hi80": 0.6309
+        },
+        "fg3": {
+          "mean": 0.3327,
+          "lo80": 0.2415,
+          "hi80": 0.4238
+        },
+        "ft": {
+          "mean": 0.7213,
+          "lo80": 0.572,
+          "hi80": 0.8705
+        }
+      },
+      "exposure": 748.3842,
+      "n_seasons": 14,
       "flags": []
     },
     {
@@ -31509,6 +31799,78 @@
       },
       "exposure": 787.207,
       "n_seasons": 12,
+      "flags": []
+    },
+    {
+      "person_id": "P:P004451",
+      "competition": "gbl",
+      "team": "00000001",
+      "name": "Ioannis Kouzeloglou",
+      "debut_season": 2018,
+      "stats": {
+        "pts": {
+          "mean": 18.3693,
+          "lo80": 12.2512,
+          "hi80": 24.4873
+        },
+        "fg3a": {
+          "mean": 3.0872,
+          "lo80": 0.9275,
+          "hi80": 5.2469
+        },
+        "fta": {
+          "mean": 4.4402,
+          "lo80": 1.947,
+          "hi80": 6.9334
+        },
+        "ast": {
+          "mean": 2.2969,
+          "lo80": 0.1778,
+          "hi80": 4.4161
+        },
+        "tov": {
+          "mean": 2.5341,
+          "lo80": 1.2374,
+          "hi80": 3.8308
+        },
+        "oreb": {
+          "mean": 3.9986,
+          "lo80": 2.6852,
+          "hi80": 5.3121
+        },
+        "dreb": {
+          "mean": 8.8609,
+          "lo80": 6.457,
+          "hi80": 11.2648
+        },
+        "stl": {
+          "mean": 1.0526,
+          "lo80": 0.3192,
+          "hi80": 1.7859
+        },
+        "blk": {
+          "mean": 0.6378,
+          "lo80": 0.0898,
+          "hi80": 1.1857
+        },
+        "ts": {
+          "mean": 0.5561,
+          "lo80": 0.4626,
+          "hi80": 0.6495
+        },
+        "fg3": {
+          "mean": 0.3297,
+          "lo80": 0.1564,
+          "hi80": 0.503
+        },
+        "ft": {
+          "mean": 0.7114,
+          "lo80": 0.5605,
+          "hi80": 0.8623
+        }
+      },
+      "exposure": 543.0212,
+      "n_seasons": 9,
       "flags": []
     },
     {
@@ -32304,6 +32666,78 @@
       "flags": []
     },
     {
+      "person_id": "P:P008811",
+      "competition": "gbl",
+      "team": "00000001",
+      "name": "Moustapha Fall",
+      "debut_season": 2020,
+      "stats": {
+        "pts": {
+          "mean": 19.5132,
+          "lo80": 6.9928,
+          "hi80": 32.0335
+        },
+        "fg3a": {
+          "mean": 0.0088,
+          "lo80": 0.0,
+          "hi80": 2.2668
+        },
+        "fta": {
+          "mean": 5.7109,
+          "lo80": 0.0,
+          "hi80": 11.4406
+        },
+        "ast": {
+          "mean": 6.8439,
+          "lo80": 0.0,
+          "hi80": 14.7389
+        },
+        "tov": {
+          "mean": 3.0792,
+          "lo80": 0.0,
+          "hi80": 7.6005
+        },
+        "oreb": {
+          "mean": 4.1746,
+          "lo80": 0.0,
+          "hi80": 8.73
+        },
+        "dreb": {
+          "mean": 7.5872,
+          "lo80": 0.0,
+          "hi80": 15.3358
+        },
+        "stl": {
+          "mean": 1.2565,
+          "lo80": 0.0,
+          "hi80": 3.9328
+        },
+        "blk": {
+          "mean": 2.4915,
+          "lo80": 0.0,
+          "hi80": 6.0392
+        },
+        "ts": {
+          "mean": 0.7153,
+          "lo80": 0.4189,
+          "hi80": 1.0117
+        },
+        "fg3": {
+          "mean": 0.3426,
+          "lo80": 0.0,
+          "hi80": 0.9722
+        },
+        "ft": {
+          "mean": 0.4923,
+          "lo80": 0.0,
+          "hi80": 1.0175
+        }
+      },
+      "exposure": 772.1369,
+      "n_seasons": 10,
+      "flags": []
+    },
+    {
       "person_id": "P:P008962",
       "competition": "gbl",
       "team": "00000001",
@@ -32661,6 +33095,78 @@
       },
       "exposure": 762.1484,
       "n_seasons": 12,
+      "flags": []
+    },
+    {
+      "person_id": "P:P011085",
+      "competition": "gbl",
+      "team": "00000001",
+      "name": "Nikolaos Rogkavopoulos",
+      "debut_season": 2018,
+      "stats": {
+        "pts": {
+          "mean": 26.4455,
+          "lo80": 21.2056,
+          "hi80": 31.6855
+        },
+        "fg3a": {
+          "mean": 11.4408,
+          "lo80": 9.29,
+          "hi80": 13.5916
+        },
+        "fta": {
+          "mean": 3.5912,
+          "lo80": 1.5183,
+          "hi80": 5.6641
+        },
+        "ast": {
+          "mean": 2.7745,
+          "lo80": 1.0147,
+          "hi80": 4.5342
+        },
+        "tov": {
+          "mean": 1.8736,
+          "lo80": 0.9627,
+          "hi80": 2.7844
+        },
+        "oreb": {
+          "mean": 3.2933,
+          "lo80": 2.4077,
+          "hi80": 4.1788
+        },
+        "dreb": {
+          "mean": 6.5818,
+          "lo80": 5.0252,
+          "hi80": 8.1384
+        },
+        "stl": {
+          "mean": 1.6275,
+          "lo80": 1.0317,
+          "hi80": 2.2234
+        },
+        "blk": {
+          "mean": 0.2642,
+          "lo80": 0.0,
+          "hi80": 0.591
+        },
+        "ts": {
+          "mean": 0.6162,
+          "lo80": 0.5497,
+          "hi80": 0.6828
+        },
+        "fg3": {
+          "mean": 0.3842,
+          "lo80": 0.3222,
+          "hi80": 0.4462
+        },
+        "ft": {
+          "mean": 0.8182,
+          "lo80": 0.7188,
+          "hi80": 0.9176
+        }
+      },
+      "exposure": 1013.8534,
+      "n_seasons": 8,
       "flags": []
     },
     {
@@ -33096,6 +33602,78 @@
       "flags": []
     },
     {
+      "person_id": "P:P012712",
+      "competition": "gbl",
+      "team": "00000001",
+      "name": "Juancho Hernangomez",
+      "debut_season": 2023,
+      "stats": {
+        "pts": {
+          "mean": 19.3766,
+          "lo80": 14.2931,
+          "hi80": 24.4602
+        },
+        "fg3a": {
+          "mean": 7.7268,
+          "lo80": 5.9253,
+          "hi80": 9.5283
+        },
+        "fta": {
+          "mean": 3.9043,
+          "lo80": 1.8553,
+          "hi80": 5.9533
+        },
+        "ast": {
+          "mean": 2.2375,
+          "lo80": 0.5786,
+          "hi80": 3.8964
+        },
+        "tov": {
+          "mean": 1.4233,
+          "lo80": 0.613,
+          "hi80": 2.2337
+        },
+        "oreb": {
+          "mean": 3.7891,
+          "lo80": 3.0065,
+          "hi80": 4.5717
+        },
+        "dreb": {
+          "mean": 10.4586,
+          "lo80": 8.98,
+          "hi80": 11.9373
+        },
+        "stl": {
+          "mean": 1.7628,
+          "lo80": 1.245,
+          "hi80": 2.2805
+        },
+        "blk": {
+          "mean": 0.8875,
+          "lo80": 0.5242,
+          "hi80": 1.2508
+        },
+        "ts": {
+          "mean": 0.6032,
+          "lo80": 0.5384,
+          "hi80": 0.6679
+        },
+        "fg3": {
+          "mean": 0.3615,
+          "lo80": 0.3062,
+          "hi80": 0.4168
+        },
+        "ft": {
+          "mean": 0.7113,
+          "lo80": 0.6226,
+          "hi80": 0.8
+        }
+      },
+      "exposure": 2026.5854,
+      "n_seasons": 6,
+      "flags": []
+    },
+    {
       "person_id": "P:P013380",
       "competition": "gbl",
       "team": "00000002",
@@ -33260,7 +33838,7 @@
         "stl": 1.5774,
         "blk": 1.6078
       },
-      "reason": "translated EuroLeague SPM +2.9 (GBL rotation top quarter: >= -0.6) at 19.2 minutes per game in 2025, 2 season(s) since his debut"
+      "reason": "translated EuroLeague SPM +2.9 (GBL rotation top quarter: >= -0.5) at 19.2 minutes per game in 2025, 2 season(s) since his debut"
     },
     {
       "person_id": "G:9DBC8FE2",
@@ -33281,7 +33859,7 @@
         "stl": 1.2965,
         "blk": 1.11
       },
-      "reason": "translated EuroLeague SPM +1.8 (GBL rotation top quarter: >= -0.6) at 15.8 minutes per game in 2025, 2 season(s) since his debut"
+      "reason": "translated EuroLeague SPM +1.8 (GBL rotation top quarter: >= -0.5) at 15.8 minutes per game in 2025, 2 season(s) since his debut"
     },
     {
       "person_id": "G:4C3E0D1F",
@@ -33302,7 +33880,7 @@
         "stl": 1.8125,
         "blk": 0.7515
       },
-      "reason": "translated EuroLeague SPM +1.5 (GBL rotation top quarter: >= -0.6) at 16.0 minutes per game in 2025, 3 season(s) since his debut"
+      "reason": "translated EuroLeague SPM +1.5 (GBL rotation top quarter: >= -0.5) at 16.0 minutes per game in 2025, 3 season(s) since his debut"
     }
   ]
 }

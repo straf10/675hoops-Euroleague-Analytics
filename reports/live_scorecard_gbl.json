@@ -4,12 +4,12 @@
   "rows_not_provable": 0,
   "games_not_provable": [],
   "elo": {
-    "n": 11,
-    "log_loss": 0.43374,
-    "brier": 0.139187,
-    "accuracy": 0.818182,
-    "margin_mae": 7.091818,
-    "ece": 0.102845,
+    "n": 13,
+    "log_loss": 0.418486,
+    "brier": 0.131112,
+    "accuracy": 0.846154,
+    "margin_mae": 9.0,
+    "ece": 0.129746,
     "reliability": [
       {
         "low": 0.0,
@@ -21,8 +21,8 @@
       {
         "low": 0.1,
         "high": 0.2,
-        "n": 1,
-        "mean_p": 0.1142,
+        "n": 2,
+        "mean_p": 0.147,
         "observed": 0.0
       },
       {
@@ -56,9 +56,9 @@
       {
         "low": 0.6,
         "high": 0.7,
-        "n": 3,
-        "mean_p": 0.652367,
-        "observed": 0.666667
+        "n": 4,
+        "mean_p": 0.645375,
+        "observed": 0.75
       },
       {
         "low": 0.7,
@@ -82,15 +82,15 @@
         "observed": 1.0
       }
     ],
-    "margin_crps": 4.76372
+    "margin_crps": 6.12179
   },
   "b0": {
-    "n": 11,
-    "log_loss": 0.65551,
-    "brier": 0.231418,
-    "accuracy": 0.636364,
-    "margin_mae": 10.106636,
-    "ece": 0.003636,
+    "n": 13,
+    "log_loss": 0.667581,
+    "brier": 0.237292,
+    "accuracy": 0.615385,
+    "margin_mae": 12.782538,
+    "ece": 0.024615,
     "reliability": [
       {
         "low": 0.0,
@@ -137,9 +137,9 @@
       {
         "low": 0.6,
         "high": 0.7,
-        "n": 11,
+        "n": 13,
         "mean_p": 0.64,
-        "observed": 0.636364
+        "observed": 0.615385
       },
       {
         "low": 0.7,
@@ -163,20 +163,20 @@
         "observed": null
       }
     ],
-    "margin_crps": 6.805281
+    "margin_crps": 8.951181
   },
   "totals": {
-    "n": 11,
-    "mae": 10.51738
+    "n": 13,
+    "mae": 12.159502
   },
   "all_rows": {
     "elo": {
-      "n": 11,
-      "log_loss": 0.43374,
-      "brier": 0.139187,
-      "accuracy": 0.818182,
-      "margin_mae": 7.091818,
-      "ece": 0.102845,
+      "n": 13,
+      "log_loss": 0.418486,
+      "brier": 0.131112,
+      "accuracy": 0.846154,
+      "margin_mae": 9.0,
+      "ece": 0.129746,
       "reliability": [
         {
           "low": 0.0,
@@ -188,8 +188,8 @@
         {
           "low": 0.1,
           "high": 0.2,
-          "n": 1,
-          "mean_p": 0.1142,
+          "n": 2,
+          "mean_p": 0.147,
           "observed": 0.0
         },
         {
@@ -223,9 +223,9 @@
         {
           "low": 0.6,
           "high": 0.7,
-          "n": 3,
-          "mean_p": 0.652367,
-          "observed": 0.666667
+          "n": 4,
+          "mean_p": 0.645375,
+          "observed": 0.75
         },
         {
           "low": 0.7,
@@ -249,15 +249,15 @@
           "observed": 1.0
         }
       ],
-      "margin_crps": 4.76372
+      "margin_crps": 6.12179
     },
     "b0": {
-      "n": 11,
-      "log_loss": 0.65551,
-      "brier": 0.231418,
-      "accuracy": 0.636364,
-      "margin_mae": 10.106636,
-      "ece": 0.003636,
+      "n": 13,
+      "log_loss": 0.667581,
+      "brier": 0.237292,
+      "accuracy": 0.615385,
+      "margin_mae": 12.782538,
+      "ece": 0.024615,
       "reliability": [
         {
           "low": 0.0,
@@ -304,9 +304,9 @@
         {
           "low": 0.6,
           "high": 0.7,
-          "n": 11,
+          "n": 13,
           "mean_p": 0.64,
-          "observed": 0.636364
+          "observed": 0.615385
         },
         {
           "low": 0.7,
@@ -330,11 +330,11 @@
           "observed": null
         }
       ],
-      "margin_crps": 6.805281
+      "margin_crps": 8.951181
     },
     "totals": {
-      "n": 11,
-      "mae": 10.51738
+      "n": 13,
+      "mae": 12.159502
     }
   },
   "rolling": {
@@ -347,12 +347,12 @@
     "rows_in_log": 14,
     "rows_excluded_late": 0,
     "m1": {
-      "n": 11,
-      "log_loss": 0.42228,
-      "brier": 0.135955,
-      "accuracy": 0.818182,
-      "margin_mae": 7.103636,
-      "ece": 0.2277,
+      "n": 13,
+      "log_loss": 0.41106,
+      "brier": 0.131063,
+      "accuracy": 0.846154,
+      "margin_mae": 8.976154,
+      "ece": 0.234954,
       "reliability": [
         {
           "low": 0.0,
@@ -364,9 +364,9 @@
         {
           "low": 0.1,
           "high": 0.2,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.1057,
+          "observed": 0.0
         },
         {
           "low": 0.2,
@@ -392,8 +392,8 @@
         {
           "low": 0.5,
           "high": 0.6,
-          "n": 1,
-          "mean_p": 0.5369,
+          "n": 2,
+          "mean_p": 0.54645,
           "observed": 1.0
         },
         {
@@ -425,14 +425,14 @@
           "observed": 1.0
         }
       ],
-      "margin_crps": 4.833589,
-      "totals_mae": 12.39,
-      "totals_crps": 8.267837
+      "margin_crps": 6.229278,
+      "totals_mae": 14.107692,
+      "totals_crps": 9.420448
     },
     "same_games_as_elo": {
-      "n": 11,
-      "m1_log_loss": 0.42228,
-      "elo_log_loss": 0.43374
+      "n": 13,
+      "m1_log_loss": 0.41106,
+      "elo_log_loss": 0.418486
     },
     "rolling": {
       "window": 50,
