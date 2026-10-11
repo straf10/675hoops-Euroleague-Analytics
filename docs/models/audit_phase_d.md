@@ -159,8 +159,8 @@ whole of that is a handful of results. The pre-registered looks are the judge.
 
 ## 5. Recommendation (owner decides)
 
-**(a) Retune M5**, as the EuroLeague flagship candidate, under the protocol proposed in
-`docs/models/m5.md` ("Retune protocol v1", PROPOSED). Reasons:
+**(a) Retune M5**, as the EuroLeague flagship candidate, under the protocol declared in
+`docs/models/m5.md` ("Retune protocol v1", declared 2026-10-11). Reasons:
 - It is the only model with a structural place for new information (projected minutes ->
   availability), and the §2 oracle gap bounds that upside as real but small and concentrated.
 - It already carries M1's totals and M3's ratings, so one retune covers the whole stack.
