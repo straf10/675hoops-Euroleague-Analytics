@@ -271,7 +271,7 @@ export const TERMS: GlossaryTerm[] = [
   },
   {
     id: "picks-right",
-    term: "Picks right",
+    term: "Picks right, Picked the winner",
     group: "Forecasts",
     def: "How often the favourite won. A forecast is right when the side given more than a 50% chance wins the game.",
     shownOn: [FC],
@@ -321,6 +321,27 @@ export const TERMS: GlossaryTerm[] = [
     group: "Player projections",
     def: "The EuroLeague player-season since 2007-08 whose shooting looks most like a player's: where the shots come from, how well they go in against the league, and how often he shoots threes and free throws. A match of 100 is identical; two random seasons score about 37. Shown only when the games compared hold at least 150 located shots.",
     shownOn: [PP],
+  },
+  {
+    id: "position",
+    term: "Position, Guard, Wing, Big",
+    group: "Box score",
+    def: "The position the EuroLeague lists for a player that season: guard, forward (shown as Wing) or centre (shown as Big). A player listed by two clubs in a season takes the listing of the club he played most games for; one with no listing that season keeps his latest.",
+    shownOn: [PL, PP],
+  },
+  {
+    id: "min-per-game",
+    term: "Min/game",
+    group: "Rates and samples",
+    def: "The fewest minutes a game a player needs to be listed. Type a number or pick a preset.",
+    shownOn: [PL],
+  },
+  {
+    id: "distance-bands",
+    term: "At the rim, Short, Mid-range, Long two, Three, Deep three",
+    group: "Shooting",
+    def: "Shots grouped by distance from the basket: at the rim (under 1.5 m), short (to 3 m), mid-range (to 5 m), long two, three-pointer, and deep three (8 m and beyond). The shot twin splits these further by side of the floor.",
+    shownOn: [TP, PP],
   },
   {
     id: "season-end-ppg",
