@@ -159,6 +159,42 @@ function notes(s: ValidationSeason) {
           the maps and bands but stay in the player's totals.
         </dd>
       </div>
+      <div>
+        <dt>On court, off court and clutch</dt>
+        <dd>
+          Built from the lineup on the floor at every moment of a game, rebuilt from the play-by-play. Games whose
+          lineups do not add up (five a side, minutes and points matching the box score) are left out, and a season
+          is shown only when at least 90% of its games pass. Clutch time is the last 5 minutes of the fourth quarter
+          or any overtime with the score within 5: a lineup counts when the margin is within 5 as it comes on, for
+          the part of its time inside those 5 minutes. A player's clutch points come from the play-by-play itself.
+        </dd>
+      </div>
+      <div>
+        <dt>Points per game at season end</dt>
+        <dd>
+          The player projection gives points per 100 possessions. It becomes points per game by multiplying by his
+          share of the minutes (his minutes per game played over a fifth of his team's minutes per game, from this
+          season once he has played 5 games, otherwise from last season) and by his team's pace. The season-end
+          figure averages his points so far with that rate for every game his club has left, as if he plays them
+          all. It is a derivation from the projection, not a separate model.
+        </dd>
+      </div>
+      <div>
+        <dt>Positions</dt>
+        <dd>
+          Each season's EuroLeague player listing, which gives guard, forward or centre, shown as Guard, Wing and
+          Big. A player listed twice in a season takes the position from the club he played most games for; one
+          with no listing that season keeps his latest listing.
+        </dd>
+      </div>
+      <div>
+        <dt>Bookmakers' chance</dt>
+        <dd>
+          For each game, every bookmaker's two prices are turned into chances and scaled so they add up to one,
+          removing the bookmaker's margin. The page uses the median across books from the last reading taken before
+          tip-off; games with no reading before tip-off are not compared.
+        </dd>
+      </div>
     </dl>
   </section>
 
