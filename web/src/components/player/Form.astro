@@ -1,0 +1,88 @@
+---
+// Form: his last ten games as a trend of points and a table, with the full log folded below.
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
+import LogTable from "./LogTable.astro";
+import { logHtml, perGame, totalsOf } from "../../lib/player";
+import { mean, recentGames, trendHtml } from "../../lib/form";
+import type { PlayerSeason } from "../../lib/stats";
+
+interface Props {
+  season: PlayerSeason;
+  /** Every season with a log, newest first, for the full log's switch. */
+  options: { value: number; label: string; selected: boolean }[];
+}
+const { season, options } = Astro.props;
+const games = recentGames(season, 10);
+const t = totalsOf(season.fields, season.totals);
+const seasonAvg = t.gp ? t.pts / t.gp : 0;
+const cells: [string, (g: (typeof games)[number]) => number, string][] = [
+  ["PTS", (g) => g.pts, perGame(t, t.pts)],
+  ["REB", (g) => g.reb, perGame(t, t.oreb + t.dreb)],
+  ["AST", (g) => g.ast, perGame(t, t.ast)],
+  ["PIR", (g) => g.pir, perGame(t, t.pir)],
+];
+---
+
+{
+  games.length > 0 && (
+    <section class="wrap band" id="form" aria-labelledby="form-title">
+      <header class="sec-head">
+        <h2 id="form-title">Form</h2>
+        <p>
+          His last {games.length} game{games.length === 1 ? "" : "s"} in {season.label}, oldest to newest. Bars are points; the dashed line is his season average.
+        </p>
+      </header>
+      <div class="form-top">
+        <figure class="form-trend">
+          <Fragment set:html={trendHtml(games, seasonAvg)} />
+          <figcaption class="sr-only">Points in each of his last {games.length} games</figcaption>
+        </figure>
+        <table class="form-avg grid">
+          <caption class="sr-only">Last {games.length} games against the season, per game</caption>
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              {cells.map(([head]) => <th scope="col" class="num">{head}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Last {games.length}</th>
+              {cells.map(([, pick]) => <td class="num strong">{mean(games.map(pick)).toFixed(1)}</td>)}
+            </tr>
+            <tr>
+              <th scope="row">Season</th>
+              {cells.map(([, , all]) => <td class="num">{all}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="log-recent">
+        <LogTable rows={logHtml(season, 10)} name="fc" />
+      </div>
+      <details class="more" id="full-log" data-view-root>
+        <summary>Full game log</summary>
+        {
+          options.length > 1 && (
+            <div class="more-pick">
+              <label class="pick">
+                <span class="sr-only">Season</span>
+                <span class="select">
+                  <select data-view="log">
+                    {options.map((o) => (
+                      <option value={o.value} selected={o.selected}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span class="caret" set:html={caret} />
+                </span>
+              </label>
+            </div>
+          )
+        }
+        <LogTable rows={logHtml(season)} name="lc" bodyId="log-body" />
+      </details>
+    </section>
+  )
+}

@@ -1,0 +1,98 @@
+---
+// Against the league: six key metrics as dots on a rail with the league average, each with its
+// Delta, beside the season's top ten in the metric you pick (build-time, lib/league.ts).
+import Delta from "../Delta.astro";
+import { ordinal, type LeagueBoard } from "../../lib/league";
+import { playerHref } from "../../lib/players";
+import { tip } from "../../lib/tip";
+
+interface Props {
+  board: LeagueBoard;
+  slug: string;
+  label: string;
+  base: string;
+}
+const { board, slug, label, base } = Astro.props;
+const shown = board.boards.filter((b) => b.mine !== null);
+const at = (b: (typeof shown)[number], v: number) => Math.max(0, Math.min(100, (100 * (v - b.lo)) / (b.hi - b.lo))).toFixed(1);
+const text = (b: (typeof shown)[number], v: number) => v.toFixed(b.digits) + (b.pct ? "%" : "");
+const first = board.boards[0].key;
+---
+
+<section class="wrap band" id="league" aria-labelledby="league-title">
+  <header class="sec-head">
+    <h2 id="league-title">Against the league</h2>
+    <p>{`${label}, per game, against the ${board.boards[0].of} players with ${board.floorMinutes}+ minutes a game and at least ${board.floorGames} game${board.floorGames === 1 ? "" : "s"}.`}</p>
+  </header>
+  <div class="lg">
+    <figure class="lg-graph">
+      <ul class="lg-rows">
+        {
+          shown.map((b) => (
+            <li
+              tabindex="0"
+              data-tip={tip`<b>${b.name}</b> ${text(b, b.mine!)}<br>League ${text(b, b.league)}${b.rank ? ` · ${ordinal(b.rank)} of ${b.of}` : ""}`}
+            >
+              <span class="nm">{b.head}</span>
+              <span class="rail" aria-hidden="true">
+                <i class="avg" style={`--x:${at(b, b.league)}`} />
+                <i class="dot" style={`--x:${at(b, b.mine!)}`} />
+              </span>
+              <span class="val">
+                <b>{text(b, b.mine!)}</b>
+                <Delta value={b.mine! - b.league} better={b.better} unit={b.pct ? "%" : ""} />
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+      <figcaption class="key">
+        <span class="swatch dot" aria-hidden="true"></span><span>Him</span>
+        <span class="swatch avg" aria-hidden="true"></span><span>League average</span>
+      </figcaption>
+    </figure>
+
+    <div class="lg-board">
+      <fieldset class="seg" aria-label="Leaderboard metric">
+        {
+          board.boards.map((b) => (
+            <>
+              <input type="radio" name="lb" id={`lb-${b.key}`} value={b.key} checked={b.key === first} />
+              <label for={`lb-${b.key}`} data-tip={tip`<b>${b.name}</b><br>${b.about}`}>
+                {b.head}
+              </label>
+            </>
+          ))
+        }
+      </fieldset>
+      {
+        board.boards.map((b) => (
+          <ol class="lb" data-m={b.key} aria-label={`Top ${b.top.length} in ${b.name}`}>
+            {b.top.map((r) => (
+              <li class:list={{ me: r.slug === slug }}>
+                <span class="rk">{r.rank}</span>
+                <a href={playerHref(base, r.slug)}>{r.name}</a>
+                <span class="tm">{r.team}</span>
+                <span class="v">{text(b, r.value)}</span>
+              </li>
+            ))}
+            {b.extra && (
+              <>
+                <li class="gap" aria-hidden="true">
+                  <span class="rk"></span>
+                  <span>···</span>
+                </li>
+                <li class="me">
+                  <span class="rk">{b.extra.rank}</span>
+                  <a href={playerHref(base, b.extra.slug)}>{b.extra.name}</a>
+                  <span class="tm">{b.extra.team}</span>
+                  <span class="v">{text(b, b.extra.value)}</span>
+                </li>
+              </>
+            )}
+          </ol>
+        ))
+      }
+    </div>
+  </div>
+</section>

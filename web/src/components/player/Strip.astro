@@ -1,0 +1,26 @@
+---
+// The latest season's per-game line, as one row of cells split by hairlines.
+import { SEASON_COLS, type Totals } from "../../lib/player";
+import { tip } from "../../lib/tip";
+
+interface Props {
+  totals: Totals;
+  label: string;
+}
+const { totals, label } = Astro.props;
+const shown = ["GP", "MIN", "PTS", "REB", "AST", "STL", "BLK", "PIR", "FG%", "3P%", "FT%", "TS%"];
+const cols = SEASON_COLS.filter((c) => shown.includes(c.head));
+---
+
+<section class="wrap strip-wrap" aria-label={`${label} per game`}>
+  <dl class="strip">
+    {
+      cols.map((c) => (
+        <div>
+          <dt data-tip={tip`<b>${c.head}</b><br>${c.about}`} tabindex="0">{c.head}</dt>
+          <dd>{c.cell(totals)}</dd>
+        </div>
+      ))
+    }
+  </dl>
+</section>

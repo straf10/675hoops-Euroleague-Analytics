@@ -108,10 +108,11 @@ export const bandsHtml = (s: PlayerSeason, up: string, down: string) =>
 
 // ---- Game log ------------------------------------------------------------------------------
 
-export function logHtml(s: PlayerSeason): string {
+/** Rows newest first; `limit` keeps only the latest games (the Form block). */
+export function logHtml(s: PlayerSeason, limit?: number): string {
   const at = (name: string) => s.logFields.indexOf(name);
   const g = (name: string) => s.gameFields.indexOf(name);
-  const lines = [...s.log].reverse();
+  const lines = [...s.log].reverse().slice(0, limit);
   if (!lines.length) return `<tr class="empty"><td colspan="15">No box-score lines this season.</td></tr>`;
   return lines
     .map((line) => {

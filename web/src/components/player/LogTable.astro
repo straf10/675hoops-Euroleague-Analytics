@@ -1,0 +1,38 @@
+---
+// A game-log table (lib/player.ts logHtml rows) with its phone column groups.
+import { GROUPS, colsHtml } from "../../lib/cols";
+
+interface Props {
+  rows: string;
+  /** Radio group name of the column control; unique per table on the page. */
+  name: string;
+  bodyId?: string;
+}
+const { rows, name, bodyId } = Astro.props;
+---
+
+<Fragment set:html={colsHtml(name, GROUPS.line)} />
+<div class="scroll busy-fade">
+  <table class="grid log">
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Opponent</th>
+        <th scope="col">Result</th>
+        <th scope="col" class="num">MIN</th>
+        <th scope="col" class="num">PTS</th>
+        <th scope="col" class="num">REB</th>
+        <th scope="col" class="num">AST</th>
+        <th scope="col" class="num">STL</th>
+        <th scope="col" class="num">BLK</th>
+        <th scope="col" class="num">TOV</th>
+        <th scope="col" class="num">FG</th>
+        <th scope="col" class="num">3P</th>
+        <th scope="col" class="num">FT</th>
+        <th scope="col" class="num">PIR</th>
+        <th scope="col" class="num">+/-</th>
+      </tr>
+    </thead>
+    <tbody id={bodyId} set:html={rows} />
+  </table>
+</div>
