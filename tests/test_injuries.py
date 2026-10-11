@@ -7,10 +7,12 @@ import httpx
 import pandas as pd
 import pytest
 
+from eurohoops.ingest.http import USER_AGENT
 from eurohoops.injuries import (
     INJURY_COLUMNS,
     InjuryPaths,
     InjuryReportError,
+    fetch_report,
     parse_report,
     record_injuries,
     team_name_map,
@@ -152,6 +154,7 @@ def test_new_page_update_time_with_same_rows_is_a_new_snapshot(tmp_path: Path) -
             200,
             b'<table class="table_02"><tr class="injury_reports__head"><th>P</th></tr></table>',
         ),
+        (200, b"<html><title>Just a moment...</title></html>"),
     ],
 )
 def test_failures_warn_and_write_nothing(
@@ -192,3 +195,78 @@ def test_a_torn_log_is_refused(tmp_path: Path) -> None:
     p.log.write_bytes(b"snapshot_utc,page_updated_utc")  # no trailing newline
     with pytest.raises(ValueError, match="newline"):
         record_injuries(client(), NAMES, p, lambda: T1)
+
+
+def test_cloudflare_block_message_names_the_status_and_the_cdn_headers() -> None:
+    def block(request: httpx.Request) -> httpx.Response:
+        headers = {"server": "cloudflare", "cf-mitigated": "challenge"}
+        return httpx.Response(403, headers=headers, content=b"blocked")
+
+    with pytest.raises(InjuryReportError) as info:
+        fetch_report(httpx.Client(transport=httpx.MockTransport(block)))
+    assert str(info.value) == "fetch failed: HTTP 403 (server=cloudflare, cf-mitigated=challenge)"
+
+
+def test_status_without_cdn_headers_reports_the_status_alone() -> None:
+    with pytest.raises(InjuryReportError) as info:
+        fetch_report(client(500, b"error"))
+    assert str(info.value) == "fetch failed: HTTP 500"
+
+
+def test_transport_error_message_names_the_exception_type() -> None:
+    def boom(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(InjuryReportError) as info:
+        fetch_report(httpx.Client(transport=httpx.MockTransport(boom)))
+    assert str(info.value) == "fetch failed: ConnectError"
+
+
+def test_challenge_header_on_a_200_is_a_challenge_not_a_report() -> None:
+    def interstitial(request: httpx.Request) -> httpx.Response:
+        headers = {"server": "cloudflare", "cf-mitigated": "challenge"}
+        return httpx.Response(200, headers=headers, content=HTML)
+
+    with pytest.raises(InjuryReportError) as info:
+        fetch_report(httpx.Client(transport=httpx.MockTransport(interstitial)))
+    assert str(info.value) == "fetch failed: Cloudflare challenge page"
+
+
+def test_real_report_passes_the_fetch_and_parses() -> None:
+    assert fetch_report(client()) == HTML
+    assert len(parse_report(fetch_report(client()))[1]) == 5
+
+
+def test_real_report_with_a_cloudflare_script_still_records(tmp_path: Path) -> None:
+    # Cloudflare puts its challenge-platform script on normal pages too: not a challenge.
+    script = b'<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>'
+    injected = HTML.replace(b"</body>", script + b"</body>")
+    assert injected != HTML
+    p = paths(tmp_path)
+    summary = record_injuries(client(body=injected), NAMES, p, lambda: T1)
+    assert (summary["status"], summary["rows"]) == ("appended", 5)
+
+
+def test_title_challenge_message_names_the_interstitial() -> None:
+    page = b"<html><head><title>Just a moment...</title></head></html>"
+    with pytest.raises(InjuryReportError) as info:
+        fetch_report(client(body=page))
+    assert str(info.value) == "fetch failed: Cloudflare challenge page"
+
+
+def test_report_request_sends_browser_accept_headers_and_keeps_the_project_agent() -> None:
+    seen: list[httpx.Headers] = []
+
+    def capture(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers)
+        return httpx.Response(200, content=HTML)
+
+    with httpx.Client(
+        transport=httpx.MockTransport(capture), headers={"User-Agent": USER_AGENT}
+    ) as c:
+        fetch_report(c)
+        assert "accept-language" not in c.headers  # the shared client is left as it was
+    [headers] = seen
+    assert headers["accept"] == "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    assert headers["accept-language"] == "en-US,en;q=0.9"
+    assert headers["user-agent"] == USER_AGENT
