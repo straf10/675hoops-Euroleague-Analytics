@@ -76,7 +76,7 @@ export const GROUPS: { name: string; keys: string[] }[] = [
   { name: "Scoring", keys: ["pts", "ts", "efg", "fg2_pct", "fg3_pct", "fg3a", "ft_pct", "fta"] },
   { name: "Playmaking", keys: ["ast", "tov", "ast_tov", "usg"] },
   { name: "Rebounding", keys: ["reb", "oreb", "dreb"] },
-  { name: "Defence", keys: ["stl", "blk"] },
+  { name: "Defense", keys: ["stl", "blk"] },
   { name: "Overall", keys: ["pir", "pm"] },
 ];
 
