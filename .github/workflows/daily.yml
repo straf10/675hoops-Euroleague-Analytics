@@ -53,6 +53,13 @@ jobs:
         run: |
           uv run --no-dev eurohoops ingest --details
           uv run --no-dev eurohoops ingest --competition gbl --details --pbp --seasons 2018 2019
+      # Positions on the Players filter and player pages: the live season's people listing is
+      # refetched once a day (one call; owner, Phase C) so new signings get one. A failure keeps
+      # the cached listing and is only a warning.
+      - name: Refresh the live season's people listing
+        run: |
+          uv run --no-dev eurohoops people \
+            || echo "::warning::people refresh failed; the cached listing stays"
       - name: Save GBL raw cache
         if: always()
         uses: actions/cache/save@v4

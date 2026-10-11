@@ -139,9 +139,40 @@ def test_people_command_refetches_only_the_live_season(
     monkeypatch.setattr(
         cli, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(api))
     )
+    raw = cli.EUROLEAGUE.raw_dir
+    for season in (2022, 2023, 2024, 2025):  # earlier site seasons already cached
+        write_people(raw, season, [person("000001", "Guard", "AAA")])
     result = runner.invoke(cli.app, ["people"])
     assert result.exit_code == 0, result.output
     assert "E2026: 1 rows" in result.output
     assert len(urls) == 1 and "seasons/E2026/people" in urls[0]
+
+
+@pytest.mark.usefixtures("no_sleep")
+def test_people_command_fills_missing_earlier_seasons_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(cli, "SITE_SEASONS", 3)
+    body = json.dumps({"data": [person("000001", "Forward", "AAA")]}).encode()
+    urls: list[str] = []
+
+    def api(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(200, content=body)
+
+    monkeypatch.setattr(
+        cli, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(api))
+    )
     raw = cli.EUROLEAGUE.raw_dir
-    assert [p.name for p in (raw / "people").iterdir()] == ["E2026.json.gz"]
+    write_people(raw, 2025, [person("000001", "Guard", "AAA")])
+    result = runner.invoke(cli.app, ["people"])
+    assert result.exit_code == 0, result.output
+    assert "1 missing earlier season(s) cached" in result.output
+    assert [u.split("/seasons/")[1].split("/")[0] for u in urls] == ["E2024", "E2026"]
+    assert sorted(p.name for p in (raw / "people").iterdir()) == [
+        "E2024.json.gz",
+        "E2025.json.gz",
+        "E2026.json.gz",
+    ]

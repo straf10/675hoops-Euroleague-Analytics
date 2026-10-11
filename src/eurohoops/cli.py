@@ -69,6 +69,7 @@ from eurohoops.config import (
     SIM_LOGS,
     SIM_UNGATED,
     SITE_DATA,
+    SITE_SEASONS,
     SQL_DIR,
     STINT_REPORT,
     STINTS_MART_REPORT,
@@ -394,13 +395,22 @@ def ingest_bios_command() -> None:
 @app.command()
 def people() -> None:
     """Refetch the live season's EuroLeague people listing (one call; positions for the stats
-    site). Overwrites ``people/E{LIVE_SEASON}.json.gz`` atomically; older seasons stay cached."""
+    site). Overwrites ``people/E{LIVE_SEASON}.json.gz`` atomically. Earlier site seasons are
+    fetched once if missing from the cache (a cold CI cache) and never refetched."""
     with make_client() as client:
-        count = refresh_people(
-            Fetcher(client, euroleague.MIN_INTERVAL_S),
+        fetcher = Fetcher(client, euroleague.MIN_INTERVAL_S)
+        past = range(LIVE_SEASON - SITE_SEASONS + 1, LIVE_SEASON)
+        _, filled = ingest_bios(
+            fetcher,
+            fetcher,
+            gbl_raw=GBL.raw_dir,
             el_raw=EUROLEAGUE.raw_dir,
-            season=LIVE_SEASON,
+            gbl_ids=(),
+            el_seasons=past,
         )
+        count = refresh_people(fetcher, el_raw=EUROLEAGUE.raw_dir, season=LIVE_SEASON)
+    if filled:
+        typer.echo(f"people: {filled} missing earlier season(s) cached")
     typer.echo(f"people E{LIVE_SEASON}: {count} rows")
 
 
