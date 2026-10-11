@@ -311,7 +311,7 @@ export const TERMS: GlossaryTerm[] = [
     id: "impact",
     term: "Impact",
     group: "Player projections",
-    def: "The net points per 100 possessions a player adds against an average player, offence and defence together. Zero is average.",
+    def: "The net points per 100 possessions a player adds against an average player, offence and defence together. Zero is average. The projection is shown two ways: from his box score alone, and with his on/off record added (the same rating as the past-season rows).",
     shownOn: [PP],
   },
   {
