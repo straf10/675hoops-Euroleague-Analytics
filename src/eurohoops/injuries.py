@@ -47,6 +47,15 @@ NAME_ALIASES = {"Fenerbahce Beko Istanbul": "ULK"}
 _PLAYER_ID = re.compile(r"/players/(\d+)-")
 _SPACES = re.compile(r"\s+")
 
+# Browser-like Accept headers for the one report request only; the project User-Agent stays.
+REPORT_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+# Cloudflare's bot interstitial comes back as a 200 page: it must never parse as "no rows".
+_CHALLENGE_MARKERS = (b"Just a moment...", b"challenge-platform")
+_EVIDENCE_HEADERS = ("server", "cf-mitigated")
+
 log = logging.getLogger(__name__)
 
 
@@ -147,12 +156,31 @@ def latest_snapshot(path: Path) -> list[tuple[str, ...]]:
     return sorted(_content(r) for r in rows if r["snapshot_utc"] == stamp)
 
 
+def _status_evidence(response: httpx.Response) -> str:
+    """``HTTP 403 (server=cloudflare, cf-mitigated=challenge)``: the CDN headers present."""
+    seen = [
+        f"{name}={response.headers[name]}" for name in _EVIDENCE_HEADERS if name in response.headers
+    ]
+    detail = f" ({', '.join(seen)})" if seen else ""
+    return f"HTTP {response.status_code}{detail}"
+
+
+def _is_challenge(response: httpx.Response) -> bool:
+    if response.headers.get("cf-mitigated", "").lower() == "challenge":
+        return True
+    return any(marker in response.content for marker in _CHALLENGE_MARKERS)
+
+
 def fetch_report(client: httpx.Client) -> bytes:
     try:
-        response = client.get(REPORT_URL)
+        response = client.get(REPORT_URL, headers=REPORT_HEADERS)
         response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        raise InjuryReportError(f"fetch failed: {_status_evidence(exc.response)}") from None
     except httpx.HTTPError as exc:
         raise InjuryReportError(f"fetch failed: {type(exc).__name__}") from None
+    if _is_challenge(response):
+        raise InjuryReportError("fetch failed: Cloudflare challenge page")
     return response.content
 
 

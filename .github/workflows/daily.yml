@@ -101,9 +101,16 @@ jobs:
             uv run --no-dev eurohoops odds
           fi
       # Forward injury recorder: one BasketNews request, appended only when the report changed.
-      # A fetch or parse failure is a warning, never a failed run.
+      # A fetch or parse failure is a warning, never a failed run; the warning is also a
+      # GitHub annotation, since the log alone is easy to miss.
       - name: Record EuroLeague injuries
-        run: uv run --no-dev eurohoops injuries
+        run: |
+          out=$(uv run --no-dev eurohoops injuries) || true
+          echo "$out"
+          case "$out" in
+            *"injuries: appended"* | *"injuries: unchanged"*) ;;
+            *) echo "::warning::injury report not recorded (see log)" ;;
+          esac
       - name: Predict upcoming games
         run: |
           uv run --no-dev eurohoops predict
