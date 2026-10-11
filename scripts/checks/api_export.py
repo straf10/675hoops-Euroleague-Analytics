@@ -48,7 +48,7 @@ from eurohoops.api.export import (
 )
 from eurohoops.api.readmodel import FORECAST_MODELS, Store
 from eurohoops.cli import _live, utc_now
-from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH
+from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH, SITE_FORECAST_MODEL
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_teams
@@ -92,6 +92,9 @@ def legacy_site(out: Path, now: datetime) -> None:
                     live.games,
                     live.season,
                     comp.manual_pushes,
+                    odds_log=comp.odds_log,
+                    published=SITE_FORECAST_MODEL,
+                    baseline=live.model,
                 ),
             )
         )

@@ -28,6 +28,8 @@ export interface Meta {
   player_fields: string[];
   team_fields: string[];
   teams: Record<string, string>;
+  /** Every club that played a game since 2007-08, with all the seasons it played (not only the published). */
+  clubs: { code: string; name: string; seasons: number[] }[];
   seasons: SeasonMeta[];
 }
 
@@ -269,139 +271,6 @@ export async function playerData(p: PlayerIndexRow): Promise<PlayerData> {
   return { id: p.id, name: p.name, slug: p.slug, seasons };
 }
 
-// ---- Shot Profile Twin ----------------------------------------------------------------------
-
-type Counts = number[]; // twins.json count_fields
-
-interface TwinsFile {
-  zones: string[];
-  bands: string[];
-  count_fields: string[];
-  windows: string[];
-  min_pool_att: number;
-  min_window_att: number;
-  pool: [id: string, season: number, team: string, games: number, counts: Counts][];
-  players: Record<string, Record<string, { from: number; to: number; games: number; counts: Counts; twins: [number, number][] }>>;
-}
-
-export interface TwinSeason {
-  index: number; // its row in twins.json's pool (and data/twins.json)
-  name: string;
-  slug: string;
-  season: number;
-  label: string;
-  team: string;
-  club: string;
-  games: number;
-  validated: boolean;
-  match: number;
-  counts: Counts;
-}
-
-export interface TwinWindow {
-  key: string; // last5, last10, last20, season
-  from: string; // season labels
-  to: string;
-  games: number;
-  counts: Counts;
-  twins: TwinSeason[];
-}
-
-export interface TwinData {
-  fields: string[];
-  zones: string[];
-  bands: string[];
-  pool: number;
-  minPool: number;
-  windows: TwinWindow[]; // in twins.json order; windows he has too few shots for are absent
-}
-
-/** twins.json with a resolver for its pool rows: the player's name and slug, the season's label
- * and whether its locations are approximate, the club's name. */
-let twinsCache: ReturnType<typeof readTwins> | null = null;
-const twinsFile = () => (twinsCache ??= readTwins());
-
-async function readTwins() {
-  const file = await load<TwinsFile>("twins.json");
-  if (!file) return null;
-  const m = (await meta())!;
-  const labels = new Map(m.seasons.map((s) => [s.season, s]));
-  const people = new Map((await playerIndex()).map((p) => [p.id, p]));
-  const label = (year: number) => labels.get(year)?.label ?? String(year);
-  const row = (i: number) => {
-    const [pid, season, team, games, counts] = file.pool[i];
-    const who = people.get(pid);
-    return {
-      name: who?.name ?? pid,
-      slug: who?.slug ?? "",
-      season,
-      label: label(season),
-      team,
-      club: m.teams[team] ?? team,
-      games,
-      validated: labels.get(season)?.coords_validated ?? true,
-      counts,
-    };
-  };
-  return { file, label, row };
-}
-
-/** His windows and their five closest player-seasons, names and labels resolved. */
-export async function twinData(id: string): Promise<TwinData | null> {
-  const twins = await twinsFile();
-  const mine = twins?.file.players[id];
-  if (!twins || !mine) return null;
-  const { file, label, row } = twins;
-  return {
-    fields: file.count_fields,
-    zones: file.zones,
-    bands: file.bands,
-    pool: file.pool.length,
-    minPool: file.min_pool_att,
-    windows: file.windows
-      .filter((key) => mine[key])
-      .map((key) => {
-        const w = mine[key];
-        return {
-          key,
-          from: label(w.from),
-          to: label(w.to),
-          games: w.games,
-          counts: w.counts,
-          twins: w.twins.map(([i, match]) => ({ index: i, ...row(i), match })),
-        };
-      }),
-  };
-}
-
-/** A pool row as the twin switch reads it: [name, slug, season label, team, games, approximate
- * locations (1) or not (0), counts]. */
-export type TwinPoolRow = [string, string, string, string, number, number, Counts];
-
-export interface TwinPool {
-  fields: string[];
-  zones: string[];
-  bands: string[];
-  clubs: Record<string, string>;
-  pool: TwinPoolRow[];
-}
-
-/** Every pool player-season, names resolved: one shared file (data/twins.json) the player pages
- * fetch for the twins and windows they do not render. */
-export async function twinPool(): Promise<TwinPool | null> {
-  const twins = await twinsFile();
-  if (!twins) return null;
-  const { file, row } = twins;
-  const rows = file.pool.map((_, i) => row(i));
-  return {
-    fields: file.count_fields,
-    zones: file.zones,
-    bands: file.bands,
-    clubs: Object.fromEntries([...new Map(rows.map((r) => [r.team, r.club]))].sort()),
-    pool: rows.map((r): TwinPoolRow => [r.name, r.slug, r.label, r.team, r.games, r.validated ? 0 : 1, r.counts]),
-  };
-}
-
 // ---- Team pages ---------------------------------------------------------------------------
 
 export interface TeamIndexRow {
@@ -410,21 +279,27 @@ export interface TeamIndexRow {
   seasons: number[];
 }
 
-/** Every club that played a EuroLeague season, by display code (oldest season first). */
+/** Every club since 2007-08, with all the seasons it played (the club list; some have no published season). */
+export async function clubIndex(): Promise<TeamIndexRow[]> {
+  const m = await meta();
+  if (!m) return [];
+  return m.clubs.map((c) => ({ code: c.code, name: c.name, seasons: c.seasons }));
+}
+
+/** The clubs with a published season, by display code, with only their published seasons. Team pages,
+ * the season files and the leaders' club filter use these. */
 export async function teamIndex(): Promise<TeamIndexRow[]> {
   const m = await meta();
   if (!m) return [];
-  const clubs = new Map<string, TeamIndexRow>();
-  for (const s of m.seasons) {
-    for (const t of (await season(s.season, "teams")).teams) {
-      const row = clubs.get(t.code) ?? { code: t.code, name: t.name, seasons: [] };
-      row.name = t.name;
-      row.seasons.push(s.season);
-      clubs.set(t.code, row);
-    }
-  }
-  return [...clubs.values()].sort((a, b) => a.code.localeCompare(b.code));
+  const shown = new Set(m.seasons.map((s) => s.season));
+  return m.clubs
+    .map((c) => ({ code: c.code, name: c.name, seasons: c.seasons.filter((s) => shown.has(s)) }))
+    .filter((c) => c.seasons.length > 0);
 }
+
+/** Whether a club has a season the site publishes, so it has a team page. */
+export const published = (club: TeamIndexRow, m: Meta) =>
+  club.seasons.some((s) => m.seasons.some((x) => x.season === s));
 
 export interface ClubLine {
   code: string;

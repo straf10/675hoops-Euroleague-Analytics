@@ -1,0 +1,210 @@
+---
+// Win chances over a season: the model's running log-loss edge over the baseline (home-win rate),
+// one game at a time in tip-off order. Above zero the model is ahead.
+import { tip } from "../lib/tip";
+import type { TrendPoint } from "../lib/forecasts";
+
+interface Props {
+  id: string;
+  title: string;
+  caption: string;
+  /** Unit word for the axis, e.g. "log loss, summed". */
+  unit: string;
+  /** Decimal places for the values. */
+  digits: number;
+  /** The first point is the origin (0, 0). */
+  points: TrendPoint[];
+}
+const { id, title, caption, unit, digits, points } = Astro.props;
+const capId = `${id}-cap`;
+
+const games = points.at(-1)?.n ?? 0;
+const values = points.map((p) => p.baseline);
+const low = Math.min(0, ...values);
+const high = Math.max(0, ...values);
+const span = Math.max(high - low, 0.5 * 10 ** -digits);
+const pad = span * 0.08;
+const yMin = low - pad;
+const yMax = high + pad;
+const step = niceStep((yMax - yMin) / 4);
+const ticks: number[] = [];
+for (let v = Math.ceil(yMin / step) * step; v <= yMax + 1e-9; v += step) ticks.push(round(v));
+
+const S = 640;
+const H = 300;
+const PAD = { left: 52, right: 84, top: 14, bottom: 40 };
+const innerW = S - PAD.left - PAD.right;
+const innerH = H - PAD.top - PAD.bottom;
+const px = (n: number) => PAD.left + (games ? n / games : 0) * innerW;
+const py = (v: number) => PAD.top + ((yMax - v) / (yMax - yMin)) * innerH;
+const path = points.map((p, i) => `${i ? "L" : "M"}${px(p.n).toFixed(1)},${py(p.baseline).toFixed(1)}`).join("");
+const last = points.at(-1);
+const sign = (v: number) => (v > 0 ? `+${v.toFixed(digits)}` : v.toFixed(digits).replace("-", "−"));
+const xTicks = [0, 10, 20, 30, 40, 50].filter((t) => t <= games);
+if (!xTicks.includes(games)) xTicks.push(games);
+
+function niceStep(raw: number): number {
+  const exp = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / exp;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * exp;
+}
+function round(v: number): number {
+  return Number(v.toFixed(Math.max(0, digits + 2)));
+}
+---
+
+<figure class="panel">
+  <figcaption class="cap">
+    <h3 id={id}>{title}</h3>
+    <p id={capId}>{caption}</p>
+  </figcaption>
+  {
+    games === 0 ? (
+      <p class="empty">No finished games yet.</p>
+    ) : (
+      <svg viewBox={`0 0 ${S} ${H}`} role="img" aria-labelledby={`${id} ${capId}`} class="chart">
+        <rect class="plot" x={PAD.left} y={PAD.top} width={innerW} height={innerH} />
+        {ticks.map((v) => (
+          <g class="grid">
+            <line x1={PAD.left} x2={PAD.left + innerW} y1={py(v)} y2={py(v)} class={v === 0 ? "zero" : ""} />
+            <text class="tick" x={PAD.left - 8} y={py(v) + 4} text-anchor="end">
+              {sign(v)}
+            </text>
+          </g>
+        ))}
+        {xTicks.map((t) => (
+          <text class="tick" x={px(t)} y={PAD.top + innerH + 18} text-anchor="middle">
+            {t}
+          </text>
+        ))}
+        <text class="axis-label" x={PAD.left + innerW / 2} y={H - 4} text-anchor="middle">
+          Games played, in tip-off order · {unit}
+        </text>
+        <path class="series" d={path} />
+        {points.slice(1).map((p) => (
+          <g class="hit" tabindex="0" data-tip={tip`<b>Game ${p.n}</b><br>${p.label}<br>Ahead of the baseline by ${sign(p.baseline)}`}>
+            <circle class="target" cx={px(p.n)} cy={py(p.baseline)} r="9" />
+            <circle class="dot" cx={px(p.n)} cy={py(p.baseline)} r="2.5" />
+          </g>
+        ))}
+        {last && (
+          <text class="end" x={px(last.n) + 8} y={py(last.baseline) + 4}>
+            {sign(last.baseline)}
+          </text>
+        )}
+      </svg>
+    )
+  }
+  <table class="sr-only">
+    <caption>{title}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Games played</th>
+        <th scope="col">Ahead of the baseline by</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        points.slice(1).map((p) => (
+          <tr>
+            <td>{p.n}</td>
+            <td>{sign(p.baseline)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</figure>
+
+<style>
+  .panel {
+    margin: 0;
+    min-width: 0;
+  }
+  .cap {
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .cap h3 {
+    font-size: 1.0625rem;
+  }
+  .cap p {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    max-width: 70ch;
+  }
+  .chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .plot {
+    fill: var(--surface);
+  }
+  .grid line {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .grid line.zero {
+    stroke: var(--ink-2);
+    stroke-dasharray: 4 4;
+    opacity: 0.7;
+  }
+  .tick {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .axis-label {
+    fill: var(--muted);
+    font-size: 11px;
+  }
+  .end {
+    fill: var(--data-1);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .series {
+    fill: none;
+    stroke: var(--data-1);
+    stroke-width: 2.25;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .dot {
+    fill: var(--data-1);
+    transition: transform 160ms var(--ease-out);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .target {
+    fill: transparent;
+  }
+  .hit {
+    cursor: default;
+    outline: none;
+  }
+  .hit:hover .dot,
+  .hit:focus-visible .dot {
+    transform: scale(2.4);
+  }
+  .hit:focus-visible .target {
+    stroke: var(--data-1);
+    stroke-width: 1.5;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  @media (max-width: 520px) {
+    .tick,
+    .axis-label,
+    .end {
+      font-size: 13px;
+    }
+  }
+</style>

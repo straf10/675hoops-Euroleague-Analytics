@@ -1,7 +1,7 @@
 """M6 "plays like": a player-season embedding and a k-nearest-neighbour search (weeks 16-18 L4).
 
-Not ``entity/similarity.py`` (the cross-league name matcher) and not ``stats/twins.py`` (the
-shot-profile twin, untouched).
+Not ``entity/similarity.py`` (the cross-league name matcher) and not the shot-only twin that
+``stats/zones.py`` once fed (removed).
 
 Features, one vector per player-season (``raw_features``):
 
@@ -9,7 +9,7 @@ Features, one vector per player-season (``raw_features``):
   tov, pf; the percentages ts, fg3, ft (as in ``player_seasons.rate_table``); and usage =
   100 * (fg2a + fg3a + 0.44 fta + tov) / poss.
 - ``SHOT_FEATURES`` (EuroLeague, needs the shot frame): the share of located attempts in each of
-  ``stats.twins.ZONES`` (square roots, as the twins do, to steady small shares) and shot-making =
+  ``stats.zones.ZONES`` (square roots, to steady small shares) and shot-making =
   100 * mean(made * value - xPTS), points above M2's expected points per 100 FGA. A player-season
   with fewer than ``MIN_SHOTS`` located shots has no shot features (NaN).
 
@@ -51,7 +51,7 @@ import pandera.pandas as pa
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.player_seasons import COMPETITIONS, TS_FTA_WEIGHT, rate_table
 from eurohoops.parse.schemas import validated
-from eurohoops.stats.twins import ZONES, shot_zones
+from eurohoops.stats.zones import ZONES, shot_zones
 
 BoolArray = npt.NDArray[np.bool_]
 IntArray = npt.NDArray[np.intp]

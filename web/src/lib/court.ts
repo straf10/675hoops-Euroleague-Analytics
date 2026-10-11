@@ -10,9 +10,10 @@ export type HexCell = [q: number, r: number, att: number, made: number, league: 
 
 const SQRT3 = Math.sqrt(3);
 const BASELINE = 1.575;
-export const DEPTH = 9.3; // metres from the basket shown; deeper heaves are left off the chart
+export const DEPTH = 10; // metres from the basket shown (the original 9.3 plus a little more height)
 const MIDCOURT = 14 - BASELINE; // metres from the basket to the halfway line
-const toY = (y: number) => y + BASELINE;
+/** Court metres from the basket to the layer's y (the baseline sits at BASELINE below the basket). */
+export const toY = (y: number) => y + BASELINE;
 
 function courtLines(depth: number, closed: boolean): string {
   const arcY = Math.sqrt(6.75 ** 2 - 6.6 ** 2); // where the corner lines meet the arc
@@ -31,14 +32,20 @@ function courtLines(depth: number, closed: boolean): string {
 // Backboard and rim sit above the marks, so the basket stays legible under the busiest cells.
 const BASKET = `<path class="line" d="M-0.9 ${toY(-0.375)}H0.9"/><circle class="rim" cx="0" cy="${toY(0)}" r="0.225"/>`;
 
+/** The court is drawn this much narrower than it is long (the sides are squeezed, the depth kept),
+ * so the floor fills more of the chart. Every chart uses it. */
+export const SQUEEZE = 0.84;
+
 /** The court with a mark layer clipped to the floor. `closed` draws it to the halfway line. */
 export const court = (layer: string, label: string, closed = false) => {
   const depth = closed ? MIDCOURT : DEPTH;
   const h = toY(depth).toFixed(3);
   const marks = layer ? `<svg x="-7.5" y="0" width="15" height="${h}" viewBox="-7.5 0 15 ${h}">${layer}</svg>` : "";
+  const width = (15.4 * SQUEEZE).toFixed(3);
+  const left = (-7.7 * SQUEEZE).toFixed(3);
   return (
-    `<svg class="court" viewBox="-7.7 -0.2 15.4 ${(toY(depth) + 0.4).toFixed(2)}" role="img" aria-label="${esc(label)}">` +
-    `<rect class="floor" x="-7.5" y="0" width="15" height="${h}"/>${courtLines(depth, closed)}${marks}${BASKET}</svg>`
+    `<svg class="court" viewBox="${left} -0.2 ${width} ${(toY(depth) + 0.4).toFixed(2)}" role="img" aria-label="${esc(label)}">` +
+    `<g transform="scale(${SQUEEZE} 1)"><rect class="floor" x="-7.5" y="0" width="15" height="${h}"/>${courtLines(depth, closed)}${marks}${BASKET}</g></svg>`
   );
 };
 

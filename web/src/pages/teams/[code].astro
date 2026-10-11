@@ -9,9 +9,11 @@ import { defaultSeason, meta, teamIndex, teamSeason, type TeamIndexRow } from ".
 import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, teamBands, teamCharts } from "../../lib/team";
 import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
+import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
 
 export async function getStaticPaths() {
+  // A club gets a page only when it has a published season (teamIndex keeps published seasons only).
   return (await teamIndex()).map((t) => ({ params: { code: t.code.toLowerCase() }, props: { club: t } }));
 }
 
@@ -20,6 +22,9 @@ const m = (await meta())!;
 const open = defaultSeason(m).season;
 const year = [...club.seasons].reverse().find((s) => s <= open) ?? club.seasons[club.seasons.length - 1];
 const t = (await teamSeason(club.code, year))!;
+// The club's orange details take its make colour, the same as the players' shot charts.
+const pair = shotPair(club.code);
+const accentStyle = `--data-1: ${pair.make}; --data-1-wash: color-mix(in srgb, ${pair.make} 12%, transparent); --make: ${pair.make}; --miss: ${pair.miss}`;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const radius = m.hex_radius_m;
 const head = headCells(t);
@@ -42,6 +47,7 @@ const bandHead = [
 ---
 
 <Base title={club.name} description={description} current="teams">
+  <div class="accented" style={accentStyle}>
   <script is:inline define:vars={{ shown: String(t.season) }}>
     // A link to another season: hide the season's numbers until they arrive, so they never flash.
     const asked = new URLSearchParams(location.search).get("season");
@@ -158,48 +164,48 @@ const bandHead = [
     <header class="sec-head split">
       <div>
         <h2 id="shots-title">Shots taken and allowed</h2>
-        <p>Where the club shot from and where it let opponents shoot, against the league from the same spot.</p>
+        <p>Where the club shot from and where it let opponents shoot, and how the shots scored against the league from the same spot.</p>
+      </div>
+      <div class="controls">
+        <fieldset class="seg" aria-label="Shot view" style="--seg-w:14rem">
+          <input type="radio" name="team-shot-view" id="tv-freq" value="freq" checked />
+          <label for="tv-freq" data-tip="Shaded by how often the club shot from each spot">Frequency</label>
+          <input type="radio" name="team-shot-view" id="tv-quality" value="quality" />
+          <label for="tv-quality" data-tip="Points per shot above or below the league's from each spot">Shot making</label>
+        </fieldset>
       </div>
     </header>
     <div class="pair busy-fade seasonal">
       {
         (["taken", "allowed"] as const).map((side) => (
           <div class="half">
-            <figure class="chart-box">
+            <figure class="chart-box" style={`--team: ${teamColour(t.code)}`}>
               <figcaption class="half-title">
                 <h3>{side === "taken" ? "Taken" : "Allowed"}</h3>
               </figcaption>
-              <div id={`court-${side}`} set:html={charts[side]} />
-              <p class="key">
-                {side === "taken" ? (
-                  <>
-                    <span class="scale" aria-hidden="true">
-                      <i class="t-2" />
-                      <i class="t-1" />
-                      <i class="t0" />
-                      <i class="t1" />
-                      <i class="t2" />
-                    </span>
-                    <span>Colour: FG% against the league's from that spot, below to above</span>
-                  </>
-                ) : (
-                  <>
-                    <span class="scale" aria-hidden="true">
-                      <i class="t2" />
-                      <i class="t1" />
-                      <i class="t0" />
-                      <i class="t-1" />
-                      <i class="t-2" />
-                    </span>
-                    <span>Colour: opponents' FG% against the league's, below to above</span>
-                  </>
-                )}
-                <span class="sizes" aria-hidden="true">
-                  <i class="s1" />
-                  <i class="s2" />
-                  <i class="s3" />
+              <div id={`court-${side}`} class="v-freq" set:html={charts.freq[side]} />
+              <div id={`court-${side}-q`} class="v-quality" set:html={charts.quality[side]} />
+              <p class="key v-freq">
+                <span class="scale">
+                  <span>FEWER</span>
+                  <span class="ramp freq" aria-hidden="true" />
+                  <span>MORE</span>
                 </span>
-                <span>Size: how often {side === "taken" ? "the club" : "opponents"} shot from there</span>
+                <span>
+                  up to <b data-peak={side}>{peakShots(t[side], radius)}</b> per area
+                </span>
+              </p>
+              <p class="key v-quality">
+                <span class="scale">
+                  <span>-{FULL.toFixed(1)}</span>
+                  <span class="ramp quality" aria-hidden="true" />
+                  <span>+{FULL.toFixed(1)}</span>
+                </span>
+                <span>
+                  {side === "taken"
+                    ? "Points per shot against the league's from the same spot: red-orange below, teal above"
+                    : "Opponents' points per shot against the league's from the same spot: red-orange below, teal above"}
+                </span>
               </p>
             </figure>
             <div>
@@ -261,6 +267,7 @@ const bandHead = [
       </table>
     </div>
   </section>
+  </div>
 </Base>
 
 <script>
@@ -268,6 +275,7 @@ const bandHead = [
   import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
   import type { SeasonShared, TeamOwn, TeamSeason } from "../../lib/stats";
   import { DEFENSE, OFFENSE, factorRows, headCells, patchFactorRow, rosterHtml, teamBands, teamCharts } from "../../lib/team";
+  import { peakShots } from "../../lib/heat";
 
   const head = document.getElementById("team");
   const select = document.getElementById("season") as HTMLSelectElement | null;
@@ -321,7 +329,9 @@ const bandHead = [
         const charts = teamCharts(t, Number(radius));
         const bands = teamBands(t, up, down);
         for (const side of ["taken", "allowed"] as const) {
-          document.getElementById(`court-${side}`)!.innerHTML = charts[side];
+          document.getElementById(`court-${side}`)!.innerHTML = charts.freq[side];
+          document.getElementById(`court-${side}-q`)!.innerHTML = charts.quality[side];
+          document.querySelector<HTMLElement>(`[data-peak="${side}"]`)!.textContent = String(peakShots(t[side], Number(radius)));
           document.getElementById(`bands-${side}`)!.innerHTML = bands[side];
         }
         document.getElementById("roster-body")!.innerHTML = rosterHtml(t, base!);
@@ -354,6 +364,11 @@ const bandHead = [
 </script>
 
 <style>
+  /* One shot view at a time: the switch hides the other one on both sides. */
+  #shots:has(#tv-freq:checked) .v-quality,
+  #shots:has(#tv-quality:checked) .v-freq {
+    display: none !important;
+  }
   :global(.season-pending) .seasonal {
     visibility: hidden;
   }

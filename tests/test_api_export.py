@@ -162,7 +162,7 @@ def test_the_new_export_is_byte_identical_to_the_old_one(tree: Path, from_cache:
     web = tree / "web"
     assert script.tree_differences(old, web) == []
     old_files = _written(old)
-    assert len(old_files) == 15  # site.json and the 14 stats files
+    assert len(old_files) == 14  # site.json and the 13 stats files
     new_files = _written(web)
     assert set(old_files) < set(new_files)  # the new export adds the api/ and openapi files
     assert all(new_files[name] == body for name, body in old_files.items())
@@ -225,7 +225,7 @@ def test_export_stats_replaces_stale_season_files_and_honours_raw_dir(tree: Path
     result = runner.invoke(cli.app, args)
     assert result.exit_code == 0, result.output
     assert not (out / "seasons" / "1999").exists()
-    assert "wrote 14 files" in result.output and "2 seasons" in result.output
+    assert "wrote 13 files" in result.output and "2 seasons" in result.output
     assert (out / "meta.json").read_bytes().endswith(b"}\n")
 
 

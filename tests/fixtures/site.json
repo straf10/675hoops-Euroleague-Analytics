@@ -2457,7 +2457,8 @@
               }
             }
           }
-        ]
+        ],
+        "trend": []
       }
     },
     {
@@ -4002,7 +4003,8 @@
               }
             }
           }
-        ]
+        ],
+        "trend": []
       }
     }
   ],
@@ -4025,6 +4027,28 @@
       "MTA": 5,
       "VIR": 2,
       "ZAL": 1
-    }
+    },
+    "uncoded": [
+      {
+        "club": "Pallacanestro Varese",
+        "titles": 5
+      },
+      {
+        "club": "R\u012bgas ASK",
+        "titles": 3
+      },
+      {
+        "club": "Split",
+        "titles": 3
+      },
+      {
+        "club": "Bosna Sarajevo",
+        "titles": 1
+      },
+      {
+        "club": "Dinamo Tbilisi",
+        "titles": 1
+      }
+    ]
   }
 }

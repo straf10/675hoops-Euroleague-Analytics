@@ -23,6 +23,12 @@
   --data-2: #8f8d86; /* neutral series: baselines, away share */
   --data-neg: #2a78d6;
   --data-neg-wash: rgb(42 120 214 / 0.1);
+  /* fixed pair for made/above average (hi) and missed/below average (lo): the player accent never overrides them */
+  --hi: var(--data-1);
+  --lo: var(--data-neg);
+  /* shot making: points above (teal) and below (red-orange) the league from the same spot */
+  --make-up: #1d8a7e;
+  --make-down: #d2552b;
   /* vs-league deltas only: the arrow glyph, never the figure, never a chart series (Delta Rule) */
   --delta-up: #1f8a4c;
   --delta-down: #d23c3c;
@@ -60,6 +66,8 @@
     --data-2: #6a6862;
     --data-neg: #3987e5;
     --data-neg-wash: rgb(57 135 229 / 0.14);
+    --make-up: #4cc3b3;
+    --make-down: #ee7b52;
     --delta-up: #3fae6a;
     --delta-down: #e66767;
     --freq-1: #8c3a0c;
@@ -86,6 +94,8 @@
   --data-2: #6a6862;
   --data-neg: #3987e5;
   --data-neg-wash: rgb(57 135 229 / 0.14);
+  --make-up: #4cc3b3;
+  --make-down: #ee7b52;
   --delta-up: #3fae6a;
   --delta-down: #e66767;
   --freq-1: #8c3a0c;

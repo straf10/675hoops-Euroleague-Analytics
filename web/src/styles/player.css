@@ -28,7 +28,7 @@
   border-top: 1px solid var(--rule-strong);
 }
 .strip.narrow {
-  max-width: 48rem;
+  max-width: none;
 }
 .strip > div {
   min-width: 0;
@@ -111,8 +111,11 @@
   height: 10px;
   translate: -50% -50%;
   border-radius: 50%;
-  background: var(--data-1);
+  background: var(--make, var(--hi));
   box-shadow: 0 0 0 2px var(--page);
+}
+.lg-rows .dot.lo {
+  background: var(--miss, var(--lo));
 }
 .lg-rows .val {
   display: flex;
@@ -146,7 +149,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--data-1);
+  background: var(--hi);
 }
 .swatch.avg {
   width: 0;
@@ -428,13 +431,15 @@
   letter-spacing: -0.01em;
   line-height: 1.15;
 }
-#shots:has(#sv-freq:checked) .v-dots,
-#shots:not(:has(#sv-freq:checked)) .v-freq {
-  display: none;
+/* One shot view at a time: the switch hides the other two. */
+#shots:has(#sv-dots:checked) :is(.v-freq, .v-quality),
+#shots:has(#sv-freq:checked) :is(.v-dots, .v-quality),
+#shots:has(#sv-quality:checked) :is(.v-dots, .v-freq) {
+  display: none !important;
 }
 .court .xmiss {
   fill: none;
-  stroke: var(--data-neg);
+  stroke: var(--miss, var(--data-neg));
   stroke-width: 0.06;
   stroke-linecap: round;
   stroke-opacity: 0.85;
@@ -450,13 +455,16 @@
 .shot-main .key {
   margin-top: 14px;
 }
+.shots:has(> :only-child) {
+  grid-template-columns: minmax(0, 40rem);
+}
 .shot-main .note {
   margin-top: 8px;
 }
 .quality {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 32px 56px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
   align-items: start;
 }
 .quality:has(> :only-child) {
@@ -468,7 +476,7 @@
 
 /* On/off */
 .onoff {
-  max-width: 44rem;
+  max-width: none;
 }
 .onoff td.strong {
   color: var(--ink);
@@ -509,5 +517,56 @@
   }
   .trend {
     gap: 3px;
+  }
+}
+
+/* Shot quality headline: actual and expected eFG% and the shot-making gap, above the distance table. */
+.qstrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--rule-strong);
+  margin-bottom: 0;
+}
+.qcell {
+  padding: 14px 16px 16px 0;
+  min-width: 0;
+}
+.qcell + .qcell {
+  padding-left: 16px;
+  border-left: 1px solid var(--rule);
+}
+.qcell span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.qcell b {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.875rem;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.qcell b.up {
+  color: var(--make-up);
+}
+.qcell b.down {
+  color: var(--make-down);
+}
+.qcell small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+@media (max-width: 620px) {
+  .qcell b {
+    font-size: 1.4375rem;
+  }
+  .qcell small {
+    font-size: 0.75rem;
   }
 }

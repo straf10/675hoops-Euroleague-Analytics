@@ -77,18 +77,14 @@ export function careers(lines: Entry[]): Entry[] {
   return [...by.values()].map((own) => {
     const t: Totals = {};
     for (const e of own) for (const [k, v] of Object.entries(e.t)) t[k] = (t[k] ?? 0) + v;
-    const most = (pick: (e: Entry) => string) => {
-      const gp = new Map<string, number>();
-      for (const e of own) gp.set(pick(e), (gp.get(pick(e)) ?? 0) + e.t.gp);
-      return [...gp].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
-    };
-    const last = own[own.length - 1];
+    // The club and number are his latest, not the club he played most games for.
+    const latest = [...own].sort((x, y) => x.season - y.season).at(-1)!;
     return {
-      key: `${last.slug}:0`,
-      slug: last.slug,
-      name: last.name,
-      team: most((e) => e.team),
-      dorsal: most((e) => e.dorsal),
+      key: `${latest.slug}:0`,
+      slug: latest.slug,
+      name: latest.name,
+      team: latest.team,
+      dorsal: latest.dorsal,
       season: 0,
       first: Math.min(...own.map((e) => e.first)),
       last: Math.max(...own.map((e) => e.last)),

@@ -132,7 +132,7 @@ export const TERMS: GlossaryTerm[] = [
     id: "ft-rate",
     term: "Free-throw rate",
     group: "Shooting",
-    def: "How often a side gets to the line compared with how often it shoots from the floor. The team rankings count free throws made per 100 field-goal attempts. The four-factors table and the shot-twin comparison count free-throw attempts per field-goal attempt.",
+    def: "How often a side gets to the line compared with how often it shoots from the floor. The team rankings count free throws made per 100 field-goal attempts. The four-factors table counts free-throw attempts per field-goal attempt.",
     shownOn: [TP, PP],
   },
   {
@@ -316,10 +316,9 @@ export const TERMS: GlossaryTerm[] = [
   },
   {
     id: "shot-twin",
-    term: "Shot twin",
-    name: "Match",
+    term: "Shot twins",
     group: "Player projections",
-    def: "The EuroLeague player-season since 2007-08 whose shooting looks most like a player's: where the shots come from, how well they go in against the league, and how often he shoots threes and free throws. A match of 100 is identical; two random seasons score about 37. Shown only when the games compared hold at least 150 located shots.",
+    def: "The five EuroLeague player-seasons since 2007-08 closest to his latest season across his whole profile: box-score rates, shooting and shot zones. Similarity is a percentage: 100% is an identical profile.",
     shownOn: [PP],
   },
   {
@@ -335,6 +334,13 @@ export const TERMS: GlossaryTerm[] = [
     group: "Rates and samples",
     def: "The fewest minutes a game a player needs to be listed. Type a number or pick a preset.",
     shownOn: [PL],
+  },
+  {
+    id: "shot-making",
+    term: "Shot making",
+    group: "Shooting",
+    def: "Points per shot above or below what the league scores from the same spot, shown as a heatmap: teal above, red-orange below. Each shot counts 2 or 3 points, and the league's rate is its field-goal percentage from that spot. Spots with few shots fade toward zero.",
+    shownOn: [PP, TP],
   },
   {
     id: "distance-bands",

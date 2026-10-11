@@ -1,7 +1,8 @@
 ---
-// "Plays like": the five closest player-seasons to the player's own latest
-// season, by cosine similarity of box-score rates, shooting and (EuroLeague) shot zones.
-import { COMPETITIONS, seasonLabel, fixed, type SimilarReport } from "../lib/m6";
+// Shot twins: the five closest EuroLeague player-seasons to the player's own latest season, across
+// the whole profile (box-score rates, shooting and shot zones), by cosine similarity. The headline
+// comparison; its percentage is the similarity score.
+import { COMPETITIONS, seasonLabel, type SimilarReport } from "../lib/m6";
 
 interface Props {
   report: SimilarReport | null;
@@ -17,10 +18,14 @@ const query = top[0]?.query_season ?? report?.season;
 
 {
   report && top.length > 0 && (
-    <section class="wrap band" id="plays-like" aria-labelledby="plays-like-title">
+    <section class="wrap band" id="twin" aria-labelledby="twin-title">
       <header class="sec-head">
-        <h2 id="plays-like-title">Plays like</h2>
-        <p>{`His ${seasonLabel(query!)} season is closest to these EuroLeague player-seasons.`}</p>
+        <h2 id="twin-title">Shot twins</h2>
+        <p>
+          {`${name}'s ${seasonLabel(query!)} season is closest to these EuroLeague player-seasons`}, across the whole
+          profile: box-score rates, shooting and shot zones. The percentage is the similarity, where 100% is an
+          identical profile.
+        </p>
       </header>
       <figure class="proj-fig" data-figure>
         <ol class="proj-like">
@@ -34,8 +39,8 @@ const query = top[0]?.query_season ?? report?.season;
                 </small>
               </span>
               <span class="val">
-                <b data-num>{fixed(r.score, 2)}</b>
-                <small>similarity</small>
+                <b data-num>{Math.round(100 * r.score)}%</b>
+                <small>similar</small>
               </span>
             </li>
           ))}

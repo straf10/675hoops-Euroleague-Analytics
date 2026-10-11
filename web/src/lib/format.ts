@@ -92,7 +92,13 @@ export interface SiteData {
   generated_at_utc: string;
   competitions: Competition[];
   /** EuroLeague titles, all-time since `since`: titles by display code (clubs with one or more). */
-  el_titles: { since: number; data_from: string; titles: Record<string, number> };
+  el_titles: {
+    since: number;
+    data_from: string;
+    titles: Record<string, number>;
+    /** Pre-2007 title winners with no code in our data (listed by name only). */
+    uncoded?: { club: string; titles: number }[];
+  };
 }
 
 /** Text -> HTML text or attribute value. */
@@ -125,3 +131,12 @@ export function call(g: Game): { team: Team; p: number } {
 
 export const signed = (x: number, digits = 1) =>
   `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(digits)}`;
+
+const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
+
+/** "2025-26", or "2019-20 to 2025-26" for a run of seasons (the first and last are used). */
+export function seasonSpan(seasons: number[]): string {
+  const first = seasons[0];
+  const last = seasons[seasons.length - 1];
+  return first === last ? seasonLabel(first) : `${seasonLabel(first)} to ${seasonLabel(last)}`;
+}

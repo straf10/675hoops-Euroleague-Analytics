@@ -64,10 +64,20 @@ def all_time(seed: pd.DataFrame, champs: pd.DataFrame) -> pd.Series:
     return seeded.add(won, fill_value=0).astype(int).sort_index()
 
 
+def uncoded_clubs(seed: pd.DataFrame) -> list[dict[str, Any]]:
+    """Clubs with a title before 2007-08 and no code in our data: they have no season files, so
+    the club list shows them by name only (a history fact, no page)."""
+    rows = seed[seed["code"].isna() & (seed["titles"] >= 1)]
+    ordered = rows.sort_values(["titles", "club"], ascending=[False, True])
+    pairs = zip(ordered["club"], ordered["titles"], strict=True)
+    return [{"club": str(c), "titles": int(n)} for c, n in pairs]
+
+
 def titles_payload(
     games: pd.DataFrame | None, display: Mapping[str, str], seed: pd.DataFrame | None = None
 ) -> dict[str, Any]:
-    """``site.json``'s ``el_titles``: clubs with at least one title, by display code."""
+    """``site.json``'s ``el_titles``: clubs with at least one title, by display code, and the
+    uncoded clubs with a title (``uncoded``)."""
     table = load_seed() if seed is None else seed
     champs = champions(games if games is not None else pd.DataFrame())
     totals = all_time(table, champs)
@@ -77,4 +87,5 @@ def titles_payload(
         "titles": {
             display.get(str(code), str(code)): int(n) for code, n in totals.items() if n >= 1
         },
+        "uncoded": uncoded_clubs(table),
     }

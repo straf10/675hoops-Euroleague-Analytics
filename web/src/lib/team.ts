@@ -2,7 +2,8 @@
 // rows (club value, rank, rail against the league, delta), both shot charts, the bands and the roster.
 // Pure (types only from ./stats), so the build and the in-page season switch share them.
 
-import { hexChart, type HexCell } from "./court";
+import type { HexCell } from "./court";
+import { freqHeat, qualityHeat } from "./heat";
 import { deltaHtml, type BetterIs } from "./delta";
 import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
@@ -178,23 +179,21 @@ export type HeadCells = ReturnType<typeof headCells>;
 
 // ---- Shots ---------------------------------------------------------------------------------
 
-const cellTip = (who: string) => ([, , att, made, lg]: HexCell) => {
-  const league = lg < 0 ? "no league shots here" : `league ${(lg / 10).toFixed(1)}%`;
-  return tip`${who}<b>${made} of ${att}</b> (${((100 * made) / att).toFixed(0)}%)<br>${league}`;
-};
-
+/** Both sides' heatmaps for the team page: frequency and shot quality, taken and allowed. */
 export function teamCharts(t: TeamSeason, radius: number) {
   const n = (cells: HexCell[]) => cells.reduce((a, c) => a + c[2], 0);
+  const head = `${t.code} ${t.label}:`;
+  const taken = `${head} ${n(t.taken)} located field-goal attempts taken`;
+  const allowed = `${head} ${n(t.allowed)} located opponent attempts allowed`;
   return {
-    taken: hexChart(t.taken, radius, {
-      label: `${t.code} ${t.label}: ${n(t.taken)} located field-goal attempts taken`,
-      tip: cellTip(""),
-    }),
-    allowed: hexChart(t.allowed, radius, {
-      label: `${t.code} ${t.label}: ${n(t.allowed)} located opponent attempts allowed`,
-      invert: true,
-      tip: cellTip("Opponents "),
-    }),
+    freq: {
+      taken: freqHeat(t.taken, radius, `${taken}, shot frequency`),
+      allowed: freqHeat(t.allowed, radius, `${allowed}, shot frequency`),
+    },
+    quality: {
+      taken: qualityHeat(t.taken, radius, `${taken}, shot quality`),
+      allowed: qualityHeat(t.allowed, radius, `${allowed}, shot quality`),
+    },
   };
 }
 

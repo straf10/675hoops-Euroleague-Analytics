@@ -2,12 +2,11 @@
 
 Layout (every number a raw total; the site derives per-game, per-36 and per-100 rates):
 
-- ``meta.json``: seasons with their coverage, field lists, distance bands, hex size, team names.
+- ``meta.json``: seasons with their coverage, field lists, distance bands, hex size, team names,
+  and every club since 2007-08 with the seasons it played (all seasons, not only the published).
 - ``players.json``: every player once (id, display name, URL slug, seasons played).
 - ``splits.json``: one row per player, season and club (the number he wore most there and his
   totals), for career, best-season and club views.
-- ``twins.json``: the Shot Profile Twin pool (player-seasons) and, per player, the closest pool
-  rows to his last 5/10/20 games and latest season (``stats/twins.py``).
 - ``seasons/{season}/players.json``: one row per player-season: totals for the season and for
   his last 5/10/20 games (a window is left out when he played no more games than it holds),
   and attempts/makes per distance band.
@@ -44,7 +43,6 @@ from eurohoops.parse.games import ATHENS, build_games_table, build_teams_table
 from eurohoops.standings import Result, rank
 from eurohoops.stats.box import STATS, BoxGames
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
-from eurohoops.stats.twins import twins_payload
 
 STATS_DIR = Path("web/src/data/stats")  # read by the Astro build in web/
 WINDOWS = (5, 10, 20)
@@ -290,6 +288,32 @@ def seasons_played(games: pd.DataFrame, season: int) -> dict[str, int]:
     return {str(t): int(n) for t, n in pairs.groupby("team")["season"].nunique().items()}
 
 
+def clubs_payload(
+    games: pd.DataFrame, codes: Mapping[str, str], names: Mapping[str, str]
+) -> list[dict[str, Any]]:
+    """Every club that played a game since 2007-08, in every season, not only the published ones.
+
+    The club list keeps clubs whose last season is outside the published window; their season
+    files are not published, so the site lists them without a page.
+    """
+    played = games[games["played"].astype(bool)]
+    pairs = pd.concat(
+        [
+            played[["season", "home"]].set_axis(["season", "team"], axis=1),
+            played[["season", "away"]].set_axis(["season", "team"], axis=1),
+        ]
+    ).drop_duplicates()
+    clubs = [
+        {
+            "code": codes.get(str(team), str(team)),
+            "name": names.get(str(team), str(team)),
+            "seasons": sorted(int(s) for s in grp["season"].unique()),
+        }
+        for team, grp in pairs.groupby("team")
+    ]
+    return sorted(clubs, key=lambda c: c["code"])
+
+
 def _teams_payload(
     season: int, teams: pd.DataFrame, shots: pd.DataFrame, inputs: Inputs
 ) -> dict[str, Any]:
@@ -487,7 +511,6 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
         )
     }
     files["splits.json"] = _splits_payload(career[career["player_id"].isin(names)], inputs)
-    files["twins.json"] = twins_payload(frame, shots_table, inputs.codes)
     codes = sorted(set(inputs.box.teams[inputs.box.teams["season"].isin(window)]["team"]))
     files["meta.json"] = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%MZ"),
@@ -497,6 +520,7 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
         "player_fields": list(PLAYER_FIELDS),
         "team_fields": list(TEAM_FIELDS),
         "teams": {inputs.codes.get(c, c): inputs.names.get(c, c) for c in codes},
+        "clubs": clubs_payload(inputs.games, inputs.codes, inputs.names),
         "seasons": seasons,
     }
     return files

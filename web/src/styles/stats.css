@@ -229,7 +229,7 @@
   fill: currentColor;
 }
 .car.up {
-  color: var(--data-1);
+  color: var(--hi);
 }
 .car.down {
   color: var(--data-neg);
@@ -283,13 +283,13 @@ svg.court {
 }
 .court .t1,
 .scale .t1 {
-  fill: color-mix(in srgb, var(--data-1) 50%, var(--surface));
-  background: color-mix(in srgb, var(--data-1) 50%, var(--surface));
+  fill: color-mix(in srgb, var(--hi) 50%, var(--surface));
+  background: color-mix(in srgb, var(--hi) 50%, var(--surface));
 }
 .court .t2,
 .scale .t2 {
-  fill: var(--data-1);
-  background: var(--data-1);
+  fill: var(--hi);
+  background: var(--hi);
 }
 /* Frequency: one hue in five validated steps (tokens in global.css). */
 .court .f1,
@@ -317,14 +317,45 @@ svg.court {
   fill: var(--freq-5);
   background: var(--freq-5);
 }
+/* Shot maps (lib/heat.ts): 0.6 m square bins, each shaded by its shots. Frequency is the team's
+   colour (more shots, stronger); shot making runs red-orange (fewer points than the league's) to teal (more). */
+.court .hf {
+  fill: var(--make, var(--team, var(--data-1)));
+}
+.court .hq.pos {
+  fill: var(--make-up);
+}
+.court .hq.neg {
+  fill: var(--make-down);
+}
+.ramp {
+  display: block;
+  width: 7.5rem;
+  height: 10px;
+  border-radius: 3px;
+}
+.ramp.freq {
+  background: linear-gradient(to right, var(--surface), var(--make, var(--team, var(--data-1))));
+}
+.ramp.quality {
+  background: linear-gradient(to right, var(--make-down), var(--surface), var(--make-up));
+}
+.scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
 /* Attempts: makes are filled orange dots, misses hollow blue rings (shape carries it too). */
 .court .made {
-  fill: var(--data-1);
+  fill: var(--make, var(--hi));
   fill-opacity: 0.75;
 }
 .court .miss {
   fill: none;
-  stroke: var(--data-neg);
+  stroke: var(--miss, var(--data-neg));
   stroke-width: 0.05;
   stroke-opacity: 0.8;
 }
@@ -392,10 +423,10 @@ svg.court {
   border-radius: 50%;
 }
 .dots .made {
-  background: var(--data-1);
+  background: var(--make, var(--hi));
 }
 .dots .miss {
-  box-shadow: inset 0 0 0 1.5px var(--data-neg);
+  box-shadow: inset 0 0 0 1.5px var(--miss, var(--data-neg));
 }
 @media (max-width: 560px) {
   .head {

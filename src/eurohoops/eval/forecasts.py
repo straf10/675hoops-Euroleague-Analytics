@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.metrics import per_game_log_loss
 from eurohoops.eval.scorecard import not_provable, read_log
 from eurohoops.logs import TIME_FORMAT
@@ -38,7 +39,17 @@ def _provable(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.DataFr
 def _finished(games: pd.DataFrame, season: int) -> pd.DataFrame:
     return games.loc[
         games["played"] & ~games["forfeit"] & (games["season"] == season),
-        ["game_id", "round", "phase", "tipoff_utc", "home", "away", "home_score", "away_score"],
+        [
+            "game_id",
+            "round",
+            "phase",
+            "tipoff_utc",
+            "home",
+            "away",
+            "home_score",
+            "away_score",
+            "neutral",
+        ],
     ]
 
 
@@ -263,6 +274,7 @@ def build_forecasts(
     *,
     odds_log: Path | None = None,
     published: str | None = None,
+    baseline: TunedModel | None = None,
 ) -> dict[str, Any]:
     """The season record of the models in ``logs`` (key -> log path; ``None`` skips a model).
 
@@ -304,4 +316,33 @@ def build_forecasts(
         },
         "rounds": _rounds(per_model, used),
         "games": _games_list(per_model),
+        "trend": _trend(shown, baseline) if baseline is not None else [],
     }
+
+
+def _trend(calls: pd.DataFrame, baseline: TunedModel) -> list[dict[str, Any]]:
+    """Per game in tip-off order, the published model's running log-loss edge over the baseline
+    (B0: the home-win rate). The edge is the baseline's loss minus the model's, summed, so positive
+    means the model is better. The points comparison is read from the games themselves.
+    """
+    if calls.empty:
+        return []
+    p_b0, _ = baseline.b0(calls["neutral"].to_numpy(dtype=np.float64))
+    margin = calls["margin"].to_numpy(dtype=np.float64)
+    home_won = (margin > 0).astype(np.float64)
+    loss_model = per_game_log_loss(calls["p_home"].to_numpy(dtype=np.float64), home_won)
+    loss_base = per_game_log_loss(p_b0, home_won)
+    edge = np.cumsum(loss_base - loss_model)
+    labels = (
+        calls["home"].astype(str)
+        + " "
+        + calls["home_score"].astype(int).astype(str)
+        + "-"
+        + calls["away_score"].astype(int).astype(str)
+        + " "
+        + calls["away"].astype(str)
+    )
+    return [
+        {"n": i + 1, "label": label, "logloss": {"baseline": round(float(e), 3)}}
+        for i, (label, e) in enumerate(zip(labels, edge, strict=True))
+    ]

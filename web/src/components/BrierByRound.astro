@@ -1,0 +1,236 @@
+---
+import type { Competition } from "../lib/format";
+import { brierChart, groupLabel, score3, shortGroup, type ChartSpec } from "../lib/forecasts";
+import { tip } from "../lib/tip";
+
+interface Props {
+  comp: Competition;
+}
+const { comp } = Astro.props;
+const fc = comp.forecasts;
+const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
+const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
+const marketName = fc?.market?.label ?? "Bookmakers";
+const acc = fc?.accuracy ?? [];
+
+const wide: ChartSpec = { w: 720, h: 280, l: 46, r: 64, t: 16, b: 34 };
+const narrow: ChartSpec = { w: 340, h: 250, l: 40, r: 52, t: 16, b: 34 };
+const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [];
+---
+
+<div class="brier">
+        {charts.length > 0 && (
+          <section aria-labelledby={`fc-chart-${comp.key}`}>
+            <h3 id={`fc-chart-${comp.key}`}>Brier score by round</h3>
+            <p class="sub">
+              Season to date, after each round. Lower is better: 0 is a perfect forecast, 0.25 is a coin flip.
+            </p>
+            <ul class="legend">
+              <li>
+                <span class="key model" aria-hidden="true" />
+                {label}
+              </li>
+              <li>
+                <span class="key market" aria-hidden="true" />
+                {marketName}
+              </li>
+            </ul>
+            {charts.map((c, k) => (
+              <svg
+                class:list={["chart", k === 0 ? "wide" : "narrow"]}
+                viewBox={`0 0 ${c.spec.w} ${c.spec.h}`}
+                role="img"
+                aria-label={`Brier score by round, ${label} against ${marketName}. The table below has the figures.`}
+              >
+                <rect
+                  class="plot"
+                  x={c.spec.l}
+                  y={c.spec.t}
+                  width={c.spec.w - c.spec.l - c.spec.r}
+                  height={c.spec.h - c.spec.t - c.spec.b}
+                />
+                {c.ticks.map((t) => (
+                  <>
+                    <line class="grid" x1={c.spec.l} x2={c.spec.w - c.spec.r} y1={t.y} y2={t.y} />
+                    <text class="tick" x={c.spec.l - 8} y={t.y + 4} text-anchor="end">
+                      {t.label}
+                    </text>
+                  </>
+                ))}
+                {c.coin !== null && (
+                  <>
+                    <line class="ref" x1={c.spec.l} x2={c.spec.w - c.spec.r} y1={c.coin} y2={c.coin} />
+                    <text class="tick" x={c.spec.w - c.spec.r - 4} y={c.coin - 5} text-anchor="end">
+                      coin flip
+                    </text>
+                  </>
+                )}
+                {c.xs.map((x) => (
+                  <text class="tick" x={x.x} y={c.spec.h - c.spec.b + 20} text-anchor="middle">
+                    {x.label}
+                  </text>
+                ))}
+                {c.market.d && <path class="ln market" d={c.market.d} />}
+                {c.model.d && <path class="ln model" d={c.model.d} />}
+                {c.market.pts.map((p) => (
+                  <circle class="dot market" cx={p.x} cy={p.y} r="4" />
+                ))}
+                {c.model.pts.map((p) => (
+                  <circle class="dot model" cx={p.x} cy={p.y} r="4" />
+                ))}
+                {c.ends.map((e) => (
+                  <text class="end" x={c.spec.w - c.spec.r + 10} y={e.y + 4}>
+                    {e.text}
+                  </text>
+                ))}
+                {acc.map((a, i) => {
+                  const x = c.xs[i].x;
+                  const half = acc.length > 1 ? (c.spec.w - c.spec.l - c.spec.r) / (acc.length - 1) / 2 : 40;
+                  return (
+                    <rect
+                      class="hit"
+                      x={x - half}
+                      y={c.spec.t}
+                      width={half * 2}
+                      height={c.spec.h - c.spec.t - c.spec.b}
+                      tabindex="0"
+                      data-tip={tip`<b>${groupLabel(a.phase, a.round)}</b>, after ${a.to_date.games} games<br>${label}: ${score3(a.to_date.model.brier)}<br>${marketName}: ${score3(a.to_date.market.brier)}`}
+                      aria-label={`${groupLabel(a.phase, a.round)}, after ${a.to_date.games} games. ${label} ${score3(a.to_date.model.brier)}, ${marketName} ${score3(a.to_date.market.brier)}.`}
+                    />
+                  );
+                })}
+              </svg>
+            ))}
+            <p class="note">
+              Scored on the games where both had a call. A few rounds is a small sample, so early lines move a lot.
+            </p>
+            <table class="sr-only">
+              <caption>
+                {comp.title}: Brier score to date after each round
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Round</th>
+                  <th scope="col">Games to date</th>
+                  <th scope="col">{label}</th>
+                  <th scope="col">{marketName}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {acc.map((a) => (
+                  <tr>
+                    <th scope="row">{groupLabel(a.phase, a.round)}</th>
+                    <td>{a.to_date.games}</td>
+                    <td>{score3(a.to_date.model.brier)}</td>
+                    <td>{score3(a.to_date.market.brier)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+</div>
+
+<style>
+  /* Chart */
+  .legend {
+    display: flex;
+    gap: 20px;
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+  .legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .key {
+    width: 18px;
+    height: 0;
+    border-top: 2px solid var(--data-1);
+    border-radius: 1px;
+  }
+  .key.market {
+    border-top-color: var(--data-2);
+  }
+  .chart {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    height: auto;
+    overflow: visible;
+  }
+  .chart.narrow {
+    display: none;
+    max-width: 380px;
+  }
+  .plot {
+    fill: var(--surface);
+  }
+  .grid {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .ref {
+    stroke: var(--axis);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+  }
+  .tick {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .end {
+    fill: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .ln {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .ln.model {
+    stroke: var(--data-1);
+  }
+  .ln.market {
+    stroke: var(--data-2);
+  }
+  .dot {
+    stroke: var(--page);
+    stroke-width: 2;
+  }
+  .dot.model {
+    fill: var(--data-1);
+  }
+  .dot.market {
+    fill: var(--data-2);
+  }
+  .hit {
+    fill: transparent;
+    outline: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .hit:hover {
+      fill: var(--data-1-wash);
+    }
+  }
+  .hit:focus-visible {
+    fill: var(--data-1-wash);
+  }
+  @media (max-width: 560px) {
+    .chart.wide {
+      display: none;
+    }
+    .chart.narrow {
+      display: block;
+    }
+  }
+</style>

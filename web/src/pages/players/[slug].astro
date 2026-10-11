@@ -1,17 +1,17 @@
 ---
 import Base from "../../layouts/Base.astro";
+import { shotPair } from "../../lib/heat";
 import "../../styles/stats.css";
 import "../../styles/player.css";
 import { teamHref as linkTeam } from "../../lib/players";
 import { perGame, totalsOf, ts, type Totals } from "../../lib/player";
-import { meta, onOffData, playerData, playerIndex, season, twinData, type PlayerIndexRow } from "../../lib/stats";
+import { meta, onOffData, playerData, playerIndex, season, type PlayerIndexRow } from "../../lib/stats";
 import { displayCode, playerM6, playerSlugs } from "../../lib/m6";
 import { leagueBoard } from "../../lib/league";
 import { clutchView, onOffView } from "../../lib/onoff";
 import { seasonEndFor } from "../../lib/season_end_page";
 import { analysisSeason } from "../../lib/analysis";
 import { position } from "../../lib/position";
-import ShotTwin from "../../components/ShotTwin.astro";
 import Comparables from "../../components/Comparables.astro";
 import ProjectionImpact from "../../components/ProjectionImpact.astro";
 import Strip from "../../components/player/Strip.astro";
@@ -30,7 +30,6 @@ export async function getStaticPaths() {
 const { p } = Astro.props as { p: PlayerIndexRow };
 const m = (await meta())!;
 const data = await playerData(p);
-const twins = await twinData(p.id);
 const m6 = await playerM6(p.id);
 const slugs = await playerSlugs();
 const seasons = data.seasons;
@@ -38,6 +37,10 @@ const latest = seasons[seasons.length - 1];
 const withShots = seasons.filter((s) => s.hex.length > 0);
 const analysis = analysisSeason(seasons);
 const shotSeason = withShots.find((s) => s.season === analysis.season) ?? withShots[withShots.length - 1];
+// The page's orange details take the colour of the player's current club: his latest season's last club.
+const pair = shotPair(latest.teams.at(-1));
+const accent = pair.make;
+const accentStyle = `--data-1: ${accent}; --data-1-wash: color-mix(in srgb, ${accent} 12%, transparent); --make: ${pair.make}; --miss: ${pair.miss}`;
 const radius = m.hex_radius_m;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -81,6 +84,7 @@ const end =
 ---
 
 <Base title={data.name} description={description} current="players">
+  <div class="accented" style={accentStyle}>
   <header class="wrap head">
     <h1>{data.name}</h1>
     <p class="facts">
@@ -138,7 +142,7 @@ const end =
 
   {end && projection && <SeasonEnd end={end.figures} report={projection} gamesPlayed={end.gamesPlayed} total={end.total} />}
 
-  <ShotTwin data={twins} name={data.name} base={base} />
+  <Comparables report={m6.similar} name={data.name} slugs={slugs} base={base} />
 
   {
     (m6.projection || m6.index) && (
@@ -152,16 +156,16 @@ const end =
     )
   }
 
-  <Comparables report={m6.similar} name={data.name} slugs={slugs} base={base} />
-
   <Seasons rows={rows} career={career} teamHref={teamHref} />
+  </div>
 </Base>
 
 <script>
   import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
   import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
-  import { bandsHtml, logHtml, shotChart, unpackPlayer, type PackedPlayer } from "../../lib/player";
-  import { countLine, dotLabel, freqChart, markChart } from "../../lib/shotmarks";
+  import { bandsHtml, logHtml, qualityChart, qualityStripHtml, unpackPlayer, type PackedPlayer } from "../../lib/player";
+  import { countLine, dotLabel, markChart } from "../../lib/shotmarks";
+  import { freqHeat, peakShots } from "../../lib/heat";
   import type { Bands, PlayerData } from "../../lib/stats";
 
   const root = document.getElementById("pdata");
@@ -201,9 +205,12 @@ const end =
         if (target === "shots") {
           s.leagueBands = bands!;
           html("court-dots", markChart(s.dots, dotLabel(s.label, s.dots)));
-          html("court-freq", freqChart(s.hex, Number(radius), `${s.label} shot frequency: ${countLine(s.dots)}`));
-          html("court-fg", shotChart(s, Number(radius)));
+          html("court-freq", freqHeat(s.hex, Number(radius), `${s.label} shot frequency: ${countLine(s.dots)}`));
+          html("court-quality", qualityChart(s, Number(radius)));
+          const peak = document.querySelector<HTMLElement>('[data-f="peak"]');
+          if (peak) peak.textContent = String(peakShots(s.hex, Number(radius)));
           html("bands", bandsHtml(s, up, down));
+          html("qstrip", qualityStripHtml(s.bands, s.leagueBands));
           const count = document.querySelector<HTMLElement>('[data-f="count"]');
           if (count) count.textContent = countLine(s.dots);
           const approx = document.querySelector<HTMLElement>('[data-f="approx"]');

@@ -17,7 +17,7 @@ from eurohoops.models.similarity import (
     self_retrieval_rate,
 )
 from eurohoops.parse.schemas import validated
-from eurohoops.stats.twins import ZONES
+from eurohoops.stats.zones import ZONES
 
 POOL = (2019, 2020, 2021, 2022)
 RATED = ("fg2a", "fg3a", "fta", "oreb", "dreb", "ast", "stl", "blk", "tov", "pf")

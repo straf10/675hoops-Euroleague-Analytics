@@ -60,6 +60,7 @@ export interface Forecasts {
   shared: { n: number; rows: ({ model: string } & FcMetrics)[] };
   rounds: { phase: string; round: number | null; games: number; models: Record<string, FcMetrics> }[];
   games: FcGame[];
+  trend?: Trend[];
 }
 
 const PHASES: Record<string, string> = {
@@ -165,4 +166,18 @@ export function brierChart(acc: AccuracyRound[], spec: ChartSpec): BrierChart {
     ends,
     coin: lo < 0.25 && hi > 0.25 ? y(0.25) : null,
   };
+}
+
+/** One game of the running win-chance edge: the model against the baseline, summed so far. */
+export interface TrendPoint {
+  n: number;
+  label: string;
+  baseline: number;
+}
+
+/** The record's running win-chance edge (eval/forecasts.py ``_trend``). */
+export interface Trend {
+  n: number;
+  label: string;
+  logloss: { baseline: number };
 }

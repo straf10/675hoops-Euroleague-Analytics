@@ -7,79 +7,33 @@ import { esc } from "./format";
 
 /** Display code -> [body, trim]. A club's usual colours across 2007-2026, not any one kit. */
 export const CLUB_COLOURS: Record<string, [body: string, trim: string]> = {
-  ARI: ["#f2c318", "#16181d"], // Aris: yellow, black
   ASV: ["#16181d", "#e9e8e3"], // ASVEL: black, white (green in the older years)
-  AVE: ["#0d7a45", "#f4f4f1"], // Avellino: green, white
-  BAM: ["#1b2a4a", "#d7263d"], // Bamberg: navy, red
   BAR: ["#a50044", "#1d3f8f"], // Barcelona: garnet, blue
   BAY: ["#c8102e", "#f4f4f1"], // Bayern: red, white
-  BER: ["#f5cf1d", "#10407f"], // ALBA: yellow, blue
-  BIL: ["#16181d", "#c8102e"], // Bilbao: black, red
   BJK: ["#16181d", "#f4f4f1"], // Besiktas: black, white
-  BUD: ["#1d4a9c", "#f4f4f1"], // Buducnost: blue, white
-  CAN: ["#f6d21a", "#0a5aa5"], // Gran Canaria: yellow, blue
-  CED: ["#ef7d1a", "#f4f4f1"], // Cedevita: orange, white
-  CHA: ["#f4f4f1", "#e1261c"], // Charleroi: white, red
-  CHL: ["#c8102e", "#f4f4f1"], // Chalon: red, white
-  CHO: ["#c8102e", "#f4f4f1"], // Cholet: red, white
-  CIB: ["#1a4d9e", "#f4f4f1"], // Cibona: blue, white
-  CSK: ["#c8102e", "#14306b"], // CSKA: red, blue
-  CTU: ["#1553a6", "#f4f4f1"], // Cantu: blue, white
   CZV: ["#d51c2a", "#f4f4f1"], // Crvena Zvezda: red, white
-  DAR: ["#15285c", "#f2c318"], // Darussafaka: navy, yellow
   DUB: ["#16181d", "#c9a45c"], // Dubai: black, gold
-  DYR: ["#1b8fd1", "#f4f4f1"], // Zenit: sky blue, white
   EFS: ["#113a74", "#f4f4f1"], // Efes: navy, white
-  FBT: ["#0e2346", "#f5d80f"], // Fenerbahce: navy, yellow
-  GAL: ["#a1122f", "#f2b719"], // Galatasaray: red, yellow
-  GSS: ["#0f7a3e", "#f4f4f1"], // Zielona Gora: green, white
+  FBT: ["#f5d80f", "#0e2346"], // Fenerbahce: yellow, navy blue
   HTA: ["#d0101e", "#f4f4f1"], // Hapoel Tel Aviv: red, white
-  JOV: ["#0b7a3c", "#16181d"], // Joventut: green, black
   KBA: ["#12398f", "#c8102e"], // Baskonia: blue, red
-  KHI: ["#c8102e", "#f4f4f1"], // Khimki: red, white
-  KLA: ["#15285c", "#5aa6e0"], // Neptunas: navy, light blue
-  KSK: ["#0b7a3c", "#d0101e"], // Karsiyaka: green, red
-  LEM: ["#f4f4f1", "#c8102e"], // Le Mans: white, red
-  LIE: ["#1553a6", "#f4f4f1"], // Rytas: blue, white
-  LJU: ["#0f7a3e", "#f4f4f1"], // Olimpija: green, white
-  LMG: ["#0f7a3e", "#f4f4f1"], // Limoges: green, white
-  MAL: ["#0b7a3c", "#5b2c83"], // Unicaja: green, purple
-  MAR: ["#f4f4f1", "#c8102e"], // Maroussi: white, red
-  MCO: ["#d0101e", "#f4f4f1"], // Monaco: red, white
-  MIL: ["#f4f4f1", "#c8102e"], // Olimpia Milano: white, red
+  MIL: ["#c8102e", "#f4f4f1"], // Olimpia Milano: red, white
   MTA: ["#f5d000", "#123f94"], // Maccabi: yellow, blue
-  NAN: ["#0f7a3e", "#f4f4f1"], // Nancy: green, white
-  NIK: ["#1553a6", "#f5d000"], // Budivelnyk: blue, yellow
-  NIO: ["#15285c", "#c8102e"], // Panionios: navy, red
-  NOV: ["#1553a6", "#f4f4f1"], // Nizhny Novgorod: blue, white
-  NTR: ["#16181d", "#d0101e"], // Nanterre: black, red
-  OLD: ["#1553a6", "#f5d000"], // Oldenburg: blue, yellow
   OLY: ["#c8102e", "#f4f4f1"], // Olympiacos: red, white
-  ORL: ["#1553a6", "#f4f4f1"], // Orleans: blue, white
   PAO: ["#0a7a3b", "#f4f4f1"], // Panathinaikos: green, white
   PAR: ["#16181d", "#f4f4f1"], // Partizan: black, white
   PBB: ["#16181d", "#e9e8e3"], // Paris: black, white
   RMB: ["#f4f4f1", "#3b2a78"], // Real Madrid: white, purple
-  ROA: ["#c8102e", "#f4f4f1"], // Roanne: red, white
-  ROM: ["#c8102e", "#f2c318"], // Roma: red, yellow
-  SAS: ["#1553a6", "#f4f4f1"], // Sassari: blue, white
-  SIE: ["#0f7a3e", "#f4f4f1"], // Siena: green, white
-  SOP: ["#f5d000", "#123f94"], // Prokom: yellow, blue
-  STR: ["#c8102e", "#f4f4f1"], // Strasbourg: red, white
-  TIV: ["#c8102e", "#0f7a3e"], // Lokomotiv Kuban: red, green
-  UNK: ["#0f7a3e", "#f4f4f1"], // UNICS: green, white
   VBC: ["#f07c00", "#16181d"], // Valencia: orange, black
   VIR: ["#16181d", "#f4f4f1"], // Virtus: black, white
-  ZAG: ["#c8102e", "#f4f4f1"], // Zagreb: red, white
   ZAL: ["#0a6b43", "#f4f4f1"], // Zalgiris: green, white
-  ZGO: ["#0f7a3e", "#f4f4f1"], // Turow: green, white
 };
 
 const FALLBACK: [string, string] = ["#8f8d86", "#f4f4f1"];
 const DARK_INK = "#111110";
 const LIGHT_INK = "#fcfcfb";
 
-function luminance(hex: string): number {
+export function luminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
   const lin = (c: number) => {
     const s = c / 255;

@@ -1,0 +1,251 @@
+---
+// Points: each game's predicted home margin against the final home margin, in tip-off order. The
+// bars are what happened, the line is what the model said; they meet where the model was right.
+import { tip } from "../lib/tip";
+
+export interface MarginGame {
+  n: number;
+  label: string;
+  predicted: number;
+  actual: number;
+}
+
+interface Props {
+  id: string;
+  title: string;
+  caption: string;
+  games: MarginGame[];
+  /** The model's average miss in points over these games. */
+  miss: number | null;
+}
+const { id, title, caption, games, miss } = Astro.props;
+const capId = `${id}-cap`;
+
+const S = 640;
+const H = 300;
+const PAD = { left: 52, right: 16, top: 14, bottom: 40 };
+const innerW = S - PAD.left - PAD.right;
+const innerH = H - PAD.top - PAD.bottom;
+const n = games.length;
+const values = games.flatMap((g) => [g.predicted, g.actual, 0]);
+const reach = Math.max(5, ...values.map((v) => Math.abs(v)));
+const step = reach <= 10 ? 5 : reach <= 25 ? 10 : 20;
+const top = Math.ceil(reach / step) * step;
+const yMin = -top;
+const yMax = top;
+const ticks: number[] = [];
+for (let v = yMin; v <= yMax; v += step) ticks.push(v);
+const slot = n ? innerW / n : innerW;
+const barW = Math.max(2, Math.min(14, slot * 0.6));
+const x = (i: number) => PAD.left + slot * (i + 0.5);
+const y = (v: number) => PAD.top + ((yMax - v) / (yMax - yMin)) * innerH;
+const line = games.map((g, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(g.predicted).toFixed(1)}`).join("");
+const sign = (v: number) => (v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`.replace("-", "−"));
+const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
+---
+
+<figure class="panel">
+  <figcaption class="cap">
+    <h3 id={id}>{title}</h3>
+    <p id={capId}>{caption}</p>
+  </figcaption>
+  <ul class="legend" aria-hidden="true">
+    <li><i class="sw actual" />Final margin</li>
+    <li><i class="sw predicted" />Predicted margin</li>
+  </ul>
+  {
+    n === 0 ? (
+      <p class="empty">No finished games yet.</p>
+    ) : (
+      <svg viewBox={`0 0 ${S} ${H}`} role="img" aria-labelledby={`${id} ${capId}`} class="chart">
+        <rect class="plot" x={PAD.left} y={PAD.top} width={innerW} height={innerH} />
+        {ticks.map((v) => (
+          <g class="grid">
+            <line x1={PAD.left} x2={PAD.left + innerW} y1={y(v)} y2={y(v)} class={v === 0 ? "zero" : ""} />
+            <text class="tick" x={PAD.left - 8} y={y(v) + 4} text-anchor="end">
+              {sign(v)}
+            </text>
+          </g>
+        ))}
+        {games.map((g, i) => (
+          <rect
+            class={`bar ${g.actual >= 0 ? "up" : "down"}`}
+            x={x(i) - barW / 2}
+            y={Math.min(y(0), y(g.actual))}
+            width={barW}
+            height={Math.max(1, Math.abs(y(g.actual) - y(0)))}
+          />
+        ))}
+        <path class="series" d={line} />
+        {games.map((g, i) => (
+          <g class="hit" tabindex="0" data-tip={tip`<b>Game ${g.n}</b><br>${g.label}<br>Predicted ${sign(g.predicted)}, final ${sign(g.actual)}`}>
+            <circle class="target" cx={x(i)} cy={y(g.predicted)} r="7" />
+            <circle class="dot" cx={x(i)} cy={y(g.predicted)} r="2.5" />
+          </g>
+        ))}
+        {xTicks.map((t) => (
+          <text class="tick" x={x(t - 1)} y={PAD.top + innerH + 18} text-anchor="middle">
+            {t}
+          </text>
+        ))}
+        <text class="axis-label" x={PAD.left + innerW / 2} y={H - 4} text-anchor="middle">
+          Games played, in tip-off order · points, home side
+        </text>
+      </svg>
+    )
+  }
+  {
+    miss !== null && n > 0 && (
+      <p class="note">
+        Off by <b>{miss.toFixed(1)} points</b> on average over these {n} games.
+      </p>
+    )
+  }
+  <table class="sr-only">
+    <caption>{title}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Game</th>
+        <th scope="col">Predicted margin</th>
+        <th scope="col">Final margin</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        games.map((g) => (
+          <tr>
+            <td>{g.label}</td>
+            <td>{sign(g.predicted)}</td>
+            <td>{sign(g.actual)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</figure>
+
+<style>
+  .panel {
+    margin: 0;
+    min-width: 0;
+  }
+  .cap {
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .cap h3 {
+    font-size: 1.0625rem;
+  }
+  .cap p {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    max-width: 70ch;
+  }
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+    color: var(--ink-2);
+    font-size: 0.8125rem;
+  }
+  .sw {
+    display: inline-block;
+    width: 14px;
+    height: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+  }
+  .sw.actual {
+    background: var(--data-2);
+  }
+  .sw.predicted {
+    background: var(--data-1);
+  }
+  .chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .plot {
+    fill: var(--surface);
+  }
+  .grid line {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .grid line.zero {
+    stroke: var(--ink-2);
+    stroke-dasharray: 4 4;
+    opacity: 0.7;
+  }
+  .tick {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .axis-label {
+    fill: var(--muted);
+    font-size: 11px;
+  }
+  .bar.up {
+    fill: var(--data-2);
+    fill-opacity: 0.45;
+  }
+  .bar.down {
+    fill: var(--data-2);
+    fill-opacity: 0.25;
+  }
+  .series {
+    fill: none;
+    stroke: var(--data-1);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .dot {
+    fill: var(--data-1);
+    transition: transform 160ms var(--ease-out);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .target {
+    fill: transparent;
+  }
+  .hit {
+    cursor: default;
+    outline: none;
+  }
+  .hit:hover .dot,
+  .hit:focus-visible .dot {
+    transform: scale(2.4);
+  }
+  .hit:focus-visible .target {
+    stroke: var(--data-1);
+    stroke-width: 1.5;
+  }
+  .note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+  .note b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  @media (max-width: 520px) {
+    .tick,
+    .axis-label {
+      font-size: 13px;
+    }
+  }
+</style>

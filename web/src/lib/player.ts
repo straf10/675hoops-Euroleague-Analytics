@@ -1,7 +1,7 @@
 // Player page renderers: shot chart, distance bands against the league, game log, season lines.
 // Pure (types only from ./stats), so the build and the in-page season switch share them.
 
-import { hexChart } from "./court";
+import { qualityHeat } from "./heat";
 import { esc } from "./format";
 import { dataTip, tip } from "./tip";
 import type { Bands, PlayerData, PlayerSeason } from "./stats";
@@ -65,11 +65,12 @@ export const SEASON_COLS: { head: string; about: string; cell: (t: Totals) => st
   { head: "TS%", about: "True shooting: PTS / (2 × (FGA + 0.44 × FTA))", cell: ts },
 ];
 
-// ---- Shot chart ----------------------------------------------------------------------------
+// ---- Shot quality -------------------------------------------------------------------------
 
-export function shotChart(s: PlayerSeason, radius: number): string {
+/** His shot quality heatmap for one season (lib/heat.ts): points above the league per attempt. */
+export function qualityChart(s: PlayerSeason, radius: number): string {
   const attempts = s.hex.reduce((a, c) => a + c[2], 0);
-  return hexChart(s.hex, radius, { label: `${s.label} shot chart: ${attempts} located field-goal attempts` });
+  return qualityHeat(s.hex, radius, `${s.label} shot quality: ${attempts} located field-goal attempts`);
 }
 
 // ---- Distance bands ------------------------------------------------------------------------
@@ -77,6 +78,44 @@ export function shotChart(s: PlayerSeason, radius: number): string {
 function share(b: Bands, key: string) {
   const total = Object.values(b).reduce((a, [att]) => a + att, 0);
   return total ? (100 * b[key][0]) / total : 0;
+}
+
+const THREE_BANDS = ["three", "deep3"];
+
+/** The three headline shot-quality figures for a season, from its distance bands: actual eFG% (threes
+ *  worth 1.5), the eFG% the league would get on the same shots (its FG% per band, weighted by his
+ *  attempts), and the gap between them. Empty without attempts. */
+export function qualityStripHtml(b: Bands, league: Bands): string {
+  let att = 0;
+  let made = 0;
+  let threes = 0;
+  let expected = 0;
+  let expectedThrees = 0;
+  for (const key of Object.keys(BAND_LABELS)) {
+    const [a, m] = b[key] ?? [0, 0];
+    const [la, lm] = league[key] ?? [0, 0];
+    const lg = la ? lm / la : 0;
+    att += a;
+    made += m;
+    expected += a * lg;
+    if (THREE_BANDS.includes(key)) {
+      threes += m;
+      expectedThrees += a * lg;
+    }
+  }
+  if (!att) return "";
+  const actual = (made + 0.5 * threes) / att;
+  const exp = (expected + 0.5 * expectedThrees) / att;
+  const gap = 100 * (actual - exp);
+  const tone = gap > 0 ? "up" : gap < 0 ? "down" : "";
+  return (
+    `<div class="qcell"><span>Actual eFG%</span><b>${(100 * actual).toFixed(1)}%</b>` +
+    `<small>${att.toLocaleString("en-GB")} attempts</small></div>` +
+    `<div class="qcell"><span>Expected eFG%</span><b>${(100 * exp).toFixed(1)}%</b>` +
+    `<small>at league rates for this diet</small></div>` +
+    `<div class="qcell"><span>Shot making</span><b class="${tone}">${signed(gap)}%</b>` +
+    `<small>actual minus expected</small></div>`
+  );
 }
 
 const signed = (x: number, digits = 1) =>

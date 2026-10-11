@@ -377,6 +377,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
             if store.path(comp.prediction_log).exists()
             else pd.DataFrame()
         )
+        model = _live_model(store, comp)
         sections.append(
             Section(
                 key=comp.name,
@@ -386,7 +387,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                 backtest=backtest,
                 games=games,
                 names=_names(store, comp),
-                model=_live_model(store, comp),
+                model=model,
                 season=LIVE_SEASON,
                 replay_from=comp.live_backtest.warmup[0],
                 forecasts=build_forecasts(
@@ -401,6 +402,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                     comp.manual_pushes,
                     odds_log=_path_or_none(store, comp.odds_log),
                     published=SITE_FORECAST_MODEL,
+                    baseline=model,
                 ),
             )
         )

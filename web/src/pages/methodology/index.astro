@@ -153,7 +153,10 @@ function notes(s: ValidationSeason) {
       <div>
         <dt>Shot maps</dt>
         <dd>
-          Each located attempt is placed on a half court and grouped into hexagons 0.5 metres from centre to corner.
+          Each located attempt is placed on a half court and binned into small hexagonal cells. The shot maps
+          count those cells into 0.6 m squares: frequency shades each square by how many shots it takes, in
+          the team's colour, and shot making shades it by the points per shot above or below the league's from the
+          same spot (teal above, red-orange below), shrunk toward zero where the sample is small.
           Shots are also sorted into six distance bands: at the rim (under 1.5 m), short (to 3 m), mid-range (to 5 m),
           long two, three-pointer, and deep three (beyond 8 m). Attempts with no position in the data are left out of
           the maps and bands but stay in the player's totals.

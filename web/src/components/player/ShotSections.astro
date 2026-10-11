@@ -1,5 +1,5 @@
 ---
-// Shot chart (attempts or frequency) beside the zone chart against the league, then Shot quality
+// Shot chart (attempts, frequency or shot quality: one at a time, the switch picks) and Shot quality
 // (the distance table and shot-making). One season switch drives both sections; the page script
 // swaps the charts in place (#court-*, #bands).
 import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
@@ -7,8 +7,9 @@ import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
 import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
 import ProjectionShotMaking from "../ProjectionShotMaking.astro";
 import { GROUPS, colsHtml } from "../../lib/cols";
-import { bandsHtml, shotChart } from "../../lib/player";
-import { countLine, dotLabel, freqChart, markChart } from "../../lib/shotmarks";
+import { bandsHtml, qualityChart, qualityStripHtml } from "../../lib/player";
+import { countLine, dotLabel, markChart } from "../../lib/shotmarks";
+import { FULL, freqHeat, peakShots } from "../../lib/heat";
 import type { PlayerIndex } from "../../lib/m6";
 import type { PlayerSeason } from "../../lib/stats";
 
@@ -29,14 +30,16 @@ const s = shotSeason;
       <header class="sec-head split">
         <div>
           <h2 id="shots-title">Shot chart</h2>
-          <p>Where he shot from, and how that compares with the league spot by spot.{options.length < 2 ? ` ${s.label}.` : ""}</p>
+          <p>Where he shoots, and how well he scores from each spot against the league.{options.length < 2 ? ` ${s.label}.` : ""}</p>
         </div>
         <div class="controls">
-          <fieldset class="seg" aria-label="Shot chart view" style="--seg-w:11.4rem">
+          <fieldset class="seg" aria-label="Shot chart view" style="--seg-w:17.5rem">
             <input type="radio" name="shot-view" id="sv-dots" value="dots" checked />
-            <label for="sv-dots" data-tip="One mark per shot">Attempts</label>
+            <label for="sv-dots" data-tip="One mark per shot: a filled circle made, a cross missed">Attempts</label>
             <input type="radio" name="shot-view" id="sv-freq" value="freq" />
             <label for="sv-freq" data-tip="Shaded by how often he shot from each spot">Frequency</label>
+            <input type="radio" name="shot-view" id="sv-quality" value="quality" />
+            <label for="sv-quality" data-tip="Points per shot above or below the league's from each spot">Shot making</label>
           </fieldset>
           {
             options.length > 1 && (
@@ -59,9 +62,9 @@ const s = shotSeason;
       </header>
       <div class="shots busy-fade">
         <figure class="chart-box shot-main">
-          <h3 class="fig-title">Where he shoots</h3>
           <div id="court-dots" class="v-dots" set:html={markChart(s.dots, dotLabel(s.label, s.dots))} />
-          <div id="court-freq" class="v-freq" set:html={freqChart(s.hex, radius, `${s.label} shot frequency: ${countLine(s.dots)}`)} />
+          <div id="court-freq" class="v-freq" set:html={freqHeat(s.hex, radius, `${s.label} shot frequency: ${countLine(s.dots)}`)} />
+          <div id="court-quality" class="v-quality" set:html={qualityChart(s, radius)} />
           <div class="key v-dots">
             <span class="dots" aria-hidden="true">
               <i class="made" />
@@ -73,37 +76,25 @@ const s = shotSeason;
             <span>Missed</span>
           </div>
           <div class="key v-freq">
-            <span class="scale" aria-hidden="true">
-              <i class="f1" />
-              <i class="f2" />
-              <i class="f3" />
-              <i class="f4" />
-              <i class="f5" />
+            <span class="scale">
+              <span>FEWER</span>
+              <span class="ramp freq" aria-hidden="true" />
+              <span>MORE</span>
             </span>
-            <span>Shaded by how often he shot from the spot, fewer to more</span>
+            <span>
+              up to <b data-f="peak">{peakShots(s.hex, radius)}</b> per area
+            </span>
+          </div>
+          <div class="key v-quality">
+            <span class="scale">
+              <span>-{FULL.toFixed(1)}</span>
+              <span class="ramp quality" aria-hidden="true" />
+              <span>+{FULL.toFixed(1)}</span>
+            </span>
+            <span>Points per shot against the league's from the same spot: red-orange below, teal above</span>
           </div>
           <p class="note" data-f="count">{countLine(s.dots)}</p>
           <p class="note" data-f="approx" hidden={s.validated}>Shot locations before 2011-12 are approximate.</p>
-        </figure>
-        <figure class="chart-box shot-league">
-          <h3 class="fig-title">Against the league</h3>
-          <div id="court-fg" set:html={shotChart(s, radius)} />
-          <div class="key">
-            <span class="scale" aria-hidden="true">
-              <i class="t-2" />
-              <i class="t-1" />
-              <i class="t0" />
-              <i class="t1" />
-              <i class="t2" />
-            </span>
-            <span>His FG% against the league's from that spot, below to above</span>
-            <span class="sizes" aria-hidden="true">
-              <i class="s1" />
-              <i class="s2" />
-              <i class="s3" />
-            </span>
-            <span>Size: how often he shot from there</span>
-          </div>
         </figure>
       </div>
     </section>
@@ -140,6 +131,7 @@ const s = shotSeason;
         {
           s && (
             <div class="bands">
+              <div id="qstrip" class="qstrip" set:html={qualityStripHtml(s.bands, s.leagueBands)} />
               <Fragment set:html={colsHtml("bc", GROUPS.bands)} />
               <div class="scroll">
                 <table class="grid bands">

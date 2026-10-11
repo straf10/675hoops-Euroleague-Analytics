@@ -36,7 +36,7 @@ const first = board.boards[0].key;
               <span class="nm">{b.head}</span>
               <span class="rail" aria-hidden="true">
                 <i class="avg" style={`--x:${at(b, b.league)}`} />
-                <i class="dot" style={`--x:${at(b, b.mine!)}`} />
+                <i class={`dot ${(b.mine ?? 0) >= (b.league ?? 0) ? "hi" : "lo"}`} style={`--x:${at(b, b.mine!)}`} />
               </span>
               <span class="val">
                 <b>{text(b, b.mine!)}</b>

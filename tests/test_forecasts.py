@@ -43,6 +43,7 @@ def games() -> pd.DataFrame:
             "away_score": a,
             "played": hs is not None,
             "forfeit": g == "G8",
+            "neutral": False,
         }
         for g, r, ph, t, hs, a in GAMES
     ]

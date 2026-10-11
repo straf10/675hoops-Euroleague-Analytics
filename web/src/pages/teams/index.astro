@@ -3,7 +3,7 @@ import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import { teamHref } from "../../lib/players";
-import { defaultSeason, meta, season, teamIndex } from "../../lib/stats";
+import { clubIndex, defaultSeason, meta, published, season, type TeamIndexRow } from "../../lib/stats";
 import { clubRowsHtml, type ClubCells } from "../../lib/clubs";
 import { tip } from "../../lib/tip";
 import { GROUPS, colsHtml } from "../../lib/cols";
@@ -27,9 +27,13 @@ const shown = tables.find(({ s }) => s.season === open);
 const others: Record<string, [string, ClubCells[]]> = Object.fromEntries(
   tables.filter((t) => t !== shown).map(({ s, rows }) => [s.season, [s.label, rows]]),
 );
-const clubs = await teamIndex();
+const clubs = await clubIndex();
 // EuroLeague titles, all-time since 1958, by display code (clubs with at least one).
 const titles = (raw as SiteData).el_titles.titles;
+// Clubs with a pre-2007 title and no code in our data: listed by name, with no page or seasons.
+const uncoded = (raw as SiteData).el_titles.uncoded ?? [];
+// Clubs with a season in the published window have a page; the others are listed without one.
+const linked = (c: TeamIndexRow) => (m ? published(c, m) : false);
 // A phone shows them in groups (Record, Ratings, Pace), with Net, the ranking, in every group.
 const COLS = [
   ["W–L", "Wins and losses"],
@@ -100,19 +104,38 @@ const COLS = [
       <section class="wrap band" aria-labelledby="all-title">
         <header class="sec-head">
           <h2 id="all-title">Every club since 2007-08</h2>
-          <p>{clubs.length} clubs, with the EuroLeague seasons each played and, in brackets, EuroLeague titles, all-time since 1958.</p>
+          <p>{clubs.length + uncoded.length} clubs, with the EuroLeague seasons each played and, in brackets, EuroLeague titles, all-time since 1958.</p>
         </header>
         <ul class="all">
-          {clubs.map((c) => (
+          {clubs.map((c) => {
+            const cells = [
+              <span class="code">{c.code}</span>,
+              <span class="nm">{c.name}</span>,
+              <span class="n" title={`${c.seasons[0]}–${c.seasons.at(-1)} seasons played`}>
+                {c.seasons.length}
+              </span>,
+              <span class="t" title="EuroLeague titles, all-time since 1958">
+                {titles[c.code] ? `(${titles[c.code]})` : ""}
+              </span>,
+            ];
+            return (
+              <li>
+                {linked(c) ? (
+                  <a href={teamHref(base, c.code)}>{cells}</a>
+                ) : (
+                  <span class="row">{cells}</span>
+                )}
+              </li>
+            );
+          })}
+          {uncoded.map((u) => (
             <li>
-              <a href={teamHref(base, c.code)}>
-                <span class="code">{c.code}</span>
-                <span class="nm">{c.name}</span>
-                <span class="n">{c.seasons.length}</span>
-                <span class="t" title="EuroLeague titles, all-time since 1958">
-                  {titles[c.code] ? `(${titles[c.code]})` : ""}
-                </span>
-              </a>
+              <span class="row">
+                <span class="code" aria-hidden="true">–</span>
+                <span class="nm">{u.club}</span>
+                <span class="n" title="No EuroLeague season since 2007-08 in our data">pre-2007</span>
+                <span class="t" title="EuroLeague titles, all-time since 1958">({u.titles})</span>
+              </span>
             </li>
           ))}
         </ul>
@@ -160,7 +183,8 @@ const COLS = [
     padding: 0;
     list-style: none;
   }
-  .all a {
+  .all a,
+  .all .row {
     display: flex;
     align-items: baseline;
     gap: 4px;
@@ -176,6 +200,9 @@ const COLS = [
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .all .row {
+    color: var(--ink-2);
   }
   .all .n {
     color: var(--muted);
