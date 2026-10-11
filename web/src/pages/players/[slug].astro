@@ -9,6 +9,7 @@ import { displayCode, playerM6, playerSlugs } from "../../lib/m6";
 import { leagueBoard } from "../../lib/league";
 import { clutchView, onOffView } from "../../lib/onoff";
 import { seasonEndFor } from "../../lib/season_end_page";
+import { analysisSeason } from "../../lib/analysis";
 import { position } from "../../lib/position";
 import ShotTwin from "../../components/ShotTwin.astro";
 import Comparables from "../../components/Comparables.astro";
@@ -35,7 +36,8 @@ const slugs = await playerSlugs();
 const seasons = data.seasons;
 const latest = seasons[seasons.length - 1];
 const withShots = seasons.filter((s) => s.hex.length > 0);
-const shotSeason = withShots[withShots.length - 1];
+const analysis = analysisSeason(seasons);
+const shotSeason = withShots.find((s) => s.season === analysis.season) ?? withShots[withShots.length - 1];
 const radius = m.hex_radius_m;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -54,12 +56,12 @@ const seasonOptions = (list: typeof seasons, chosen: number) =>
   [...list].reverse().map((s) => ({ value: s.season, label: s.label, selected: s.season === chosen }));
 const pos = position(latest.pos);
 
-// 1. Against the league (his latest season)
-const board = leagueBoard(await season(latest.season, "players"), p.id);
+// 1. Against the league (his analysis season: a full-enough sample)
+const board = leagueBoard(await season(analysis.season, "players"), p.id);
 
 // 5-6. On/off and clutch, when the stints cover his latest season
 const onoff = await onOffData();
-const stints = onoff?.seasons.includes(latest.season) ? onoff.players[p.id]?.[String(latest.season)] : undefined;
+const stints = onoff?.seasons.includes(analysis.season) ? onoff.players[p.id]?.[String(analysis.season)] : undefined;
 const onOff = stints ? onOffView(stints) : null;
 const clutch = stints ? clutchView(stints) : null;
 
@@ -115,7 +117,7 @@ const end =
 
   <Strip totals={lt} label={latest.label} />
 
-  {board && <AgainstLeague board={board} slug={data.slug} label={latest.label} base={base} />}
+  {board && <AgainstLeague board={board} slug={data.slug} label={analysis.label} base={base} />}
 
   <Form season={latest} options={seasonOptions(seasons, latest.season)} />
 
@@ -126,11 +128,11 @@ const end =
     index={m6.index}
   />
 
-  {onOff && <OnOff view={onOff} label={latest.label} />}
+  {onOff && <OnOff view={onOff} label={analysis.label} />}
 
   {
     clutch && onoff && (
-      <Clutch clutch={clutch} label={latest.label} minutes={Math.round(onoff.clutch.last_seconds / 60)} margin={onoff.clutch.margin} />
+      <Clutch clutch={clutch} label={analysis.label} minutes={Math.round(onoff.clutch.last_seconds / 60)} margin={onoff.clutch.margin} />
     )
   }
 

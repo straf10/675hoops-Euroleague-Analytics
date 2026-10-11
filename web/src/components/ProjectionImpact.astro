@@ -13,9 +13,12 @@ const row = report?.projections[0];
 const rows: RailRow[] = [];
 if (report && row) {
   const history = `${thousands(row.exposure)} possessions of history, ${row.n_seasons} season${row.n_seasons === 1 ? "" : "s"}`;
+  // Two projections of the same rating: from his box score alone, and with on/off added (BRAPM, the
+  // rating the past seasons below use).
+  const kinds = { spm: "from box score", brapm: "with on/off" } as const;
   for (const key of ["spm", "brapm"] as const) {
     const b = row.stats[key];
-    if (b) rows.push({ label: `Impact, ${seasonLabel(report.season)} projection`, value: b.mean, lo: b.lo80, hi: b.hi80, level: "80% interval", sample: history });
+    if (b) rows.push({ label: `${seasonLabel(report.season)} projection, ${kinds[key]}`, value: b.mean, lo: b.lo80, hi: b.hi80, level: "80% interval", sample: history });
   }
 }
 const past = [...(index?.impact?.seasons ?? [])].reverse().slice(0, 6);

@@ -337,6 +337,30 @@
   font-weight: 550;
   cursor: pointer;
 }
+.more > summary {
+  list-style: none;
+}
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+.more .chev {
+  display: inline-grid;
+  font-size: 0.75rem;
+  transition: rotate 180ms var(--ease-out);
+}
+.more .chev svg {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+.more[open] .chev {
+  rotate: 180deg;
+}
+@media (prefers-reduced-motion: reduce) {
+  .more .chev {
+    transition: none;
+  }
+}
 .more > summary:focus-visible {
   outline: 2px solid var(--data-1);
   outline-offset: 3px;
