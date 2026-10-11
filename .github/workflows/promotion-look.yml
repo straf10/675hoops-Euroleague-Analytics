@@ -1,0 +1,101 @@
+# Runs one pre-registered look of the R1 flagship promotion test (docs/models/m5.md for the
+# EuroLeague, m1.md for the GBL). Manual only: no schedule.
+#
+# Run look 1 once EuroLeague regular-season round 19 (GBL round 13) is complete, and look 2 once
+# the season's last game is played. An early dispatch is harmless: promote-check refuses before
+# the checkpoint is complete and exits 1 with "Nothing computed.", which fails this run on purpose.
+# A look runs once: a second dispatch refuses because its verdict file already exists.
+#
+# On success only reports/promotion_*.json is committed and pushed to main. Runs from any other
+# branch stop at the first step. The concurrency group is daily.yml's, so the two never push at once.
+name: promotion-look
+
+on:
+  workflow_dispatch:
+    inputs:
+      competition:
+        description: "Competition to test"
+        type: choice
+        required: true
+        options:
+          - euroleague
+          - gbl
+      look:
+        description: "Pre-registered look: 1 (mid-season) or 2 (season end)"
+        type: choice
+        required: true
+        options:
+          - "1"
+          - "2"
+
+concurrency:
+  group: daily-predictions
+  cancel-in-progress: false
+
+jobs:
+  promotion-look:
+    runs-on: ubuntu-latest
+    # A cold raw cache (a few thousand throttled requests) fits well inside this.
+    timeout-minutes: 150
+    permissions:
+      contents: write
+    steps:
+      - name: Only from main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::promotion-look runs from main only (this run is on $GITHUB_REF)"
+            exit 1
+          fi
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --no-dev
+      # Restore only: the daily run owns the saves, and this run must not overwrite its caches.
+      - name: Restore GBL raw cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw/gbl
+          key: gbl-raw-${{ github.run_id }}
+          restore-keys: gbl-raw-
+      - name: Restore EuroLeague raw cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw/euroleague
+          key: euroleague-raw-${{ github.run_id }}
+          restore-keys: euroleague-raw-
+      # The games mart needs the schedules and results of both competitions. Past seasons come
+      # from the restored raw cache; only the live season is fetched. Box scores are not staged:
+      # the mart does not need them.
+      - name: Ingest schedules and results
+        run: |
+          uv run --no-dev eurohoops ingest
+          uv run --no-dev eurohoops ingest --competition gbl
+      - name: Build marts
+        run: uv run --no-dev eurohoops build
+      - name: Promotion look
+        run: uv run --no-dev eurohoops promote-check --competition ${{ inputs.competition }} --look ${{ inputs.look }}
+      # main may have moved during the run: replay the run's commit on top of it. A conflict is
+      # never resolved here: abort, fail, merge by hand.
+      - name: Commit the verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git add reports/promotion_*.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Promotion look ${{ inputs.competition }} ${{ inputs.look }}"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if ! git pull --rebase "$remote" main; then
+            git rebase --abort 2>/dev/null || true  # no rebase to abort if the pull itself failed
+            echo "::error::could not replay onto main (conflict or fetch failure); nothing pushed, merge by hand"
+            exit 1
+          fi
+          git push "$remote" "HEAD:main"
