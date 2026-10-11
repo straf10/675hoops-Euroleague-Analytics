@@ -329,6 +329,9 @@ class M4Backtest:
 
 M4 = M4Backtest()
 GBL_BOX_GAPS = Path("reports/gbl_box_gaps.csv")
+# The one model the Forecasts page leads with (PLAN 8.1 R1: Elo until M5 beats it at a look).
+SITE_FORECAST_MODEL = "elo"
+
 ODDS_CALLS = Path("odds/api_calls.csv")
 ODDS_TEAMS = Path("odds/euroleague_teams.csv")
 ODDS_RAW_DIR = Path("data/raw/odds/euroleague")

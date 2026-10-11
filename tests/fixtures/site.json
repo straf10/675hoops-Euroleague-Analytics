@@ -799,6 +799,420 @@
         }
       ],
       "forecasts": {
+        "published": "elo",
+        "market": {
+          "label": "Bookmakers",
+          "season": {
+            "n": 15,
+            "picks": 15,
+            "right": 10,
+            "right_pct": 0.666667,
+            "brier": 0.210035,
+            "log_loss": 0.615856
+          }
+        },
+        "accuracy": [
+          {
+            "phase": "RS",
+            "round": 1,
+            "games": 2,
+            "model": {
+              "n": 2,
+              "picks": 2,
+              "right": 0,
+              "right_pct": 0.0,
+              "brier": 0.373248,
+              "log_loss": 0.952781
+            },
+            "market": {
+              "n": 2,
+              "picks": 2,
+              "right": 0,
+              "right_pct": 0.0,
+              "brier": 0.476424,
+              "log_loss": 1.193446
+            },
+            "to_date": {
+              "model": {
+                "n": 2,
+                "picks": 2,
+                "right": 0,
+                "right_pct": 0.0,
+                "brier": 0.373248,
+                "log_loss": 0.952781
+              },
+              "market": {
+                "n": 2,
+                "picks": 2,
+                "right": 0,
+                "right_pct": 0.0,
+                "brier": 0.476424,
+                "log_loss": 1.193446
+              },
+              "games": 2
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 2,
+            "games": 1,
+            "model": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.079806,
+              "log_loss": 0.331982
+            },
+            "market": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.041006,
+              "log_loss": 0.226273
+            },
+            "to_date": {
+              "model": {
+                "n": 3,
+                "picks": 3,
+                "right": 1,
+                "right_pct": 0.333333,
+                "brier": 0.275434,
+                "log_loss": 0.745848
+              },
+              "market": {
+                "n": 3,
+                "picks": 3,
+                "right": 1,
+                "right_pct": 0.333333,
+                "brier": 0.331285,
+                "log_loss": 0.871055
+              },
+              "games": 3
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 3,
+            "games": 2,
+            "model": {
+              "n": 2,
+              "picks": 2,
+              "right": 2,
+              "right_pct": 1.0,
+              "brier": 0.061635,
+              "log_loss": 0.285269
+            },
+            "market": {
+              "n": 2,
+              "picks": 2,
+              "right": 2,
+              "right_pct": 1.0,
+              "brier": 0.028331,
+              "log_loss": 0.184144
+            },
+            "to_date": {
+              "model": {
+                "n": 5,
+                "picks": 5,
+                "right": 3,
+                "right_pct": 0.6,
+                "brier": 0.189915,
+                "log_loss": 0.561617
+              },
+              "market": {
+                "n": 5,
+                "picks": 5,
+                "right": 3,
+                "right_pct": 0.6,
+                "brier": 0.210103,
+                "log_loss": 0.596291
+              },
+              "games": 5
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 4,
+            "games": 1,
+            "model": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.119439,
+              "log_loss": 0.424036
+            },
+            "market": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.070543,
+              "log_loss": 0.308701
+            },
+            "to_date": {
+              "model": {
+                "n": 6,
+                "picks": 6,
+                "right": 4,
+                "right_pct": 0.666667,
+                "brier": 0.178169,
+                "log_loss": 0.538687
+              },
+              "market": {
+                "n": 6,
+                "picks": 6,
+                "right": 4,
+                "right_pct": 0.666667,
+                "brier": 0.186843,
+                "log_loss": 0.548359
+              },
+              "games": 6
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 5,
+            "games": 2,
+            "model": {
+              "n": 2,
+              "picks": 2,
+              "right": 2,
+              "right_pct": 1.0,
+              "brier": 0.104064,
+              "log_loss": 0.386289
+            },
+            "market": {
+              "n": 2,
+              "picks": 2,
+              "right": 2,
+              "right_pct": 1.0,
+              "brier": 0.059504,
+              "log_loss": 0.274731
+            },
+            "to_date": {
+              "model": {
+                "n": 8,
+                "picks": 8,
+                "right": 6,
+                "right_pct": 0.75,
+                "brier": 0.159643,
+                "log_loss": 0.500587
+              },
+              "market": {
+                "n": 8,
+                "picks": 8,
+                "right": 6,
+                "right_pct": 0.75,
+                "brier": 0.155009,
+                "log_loss": 0.479952
+              },
+              "games": 8
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 6,
+            "games": 1,
+            "model": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.165405,
+              "log_loss": 0.522055
+            },
+            "market": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.106733,
+              "log_loss": 0.395564
+            },
+            "to_date": {
+              "model": {
+                "n": 9,
+                "picks": 9,
+                "right": 7,
+                "right_pct": 0.777778,
+                "brier": 0.160283,
+                "log_loss": 0.502973
+              },
+              "market": {
+                "n": 9,
+                "picks": 9,
+                "right": 7,
+                "right_pct": 0.777778,
+                "brier": 0.149645,
+                "log_loss": 0.470576
+              },
+              "games": 9
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 7,
+            "games": 2,
+            "model": {
+              "n": 2,
+              "picks": 2,
+              "right": 1,
+              "right_pct": 0.5,
+              "brier": 0.200793,
+              "log_loss": 0.590278
+            },
+            "market": {
+              "n": 2,
+              "picks": 2,
+              "right": 1,
+              "right_pct": 0.5,
+              "brier": 0.222945,
+              "log_loss": 0.627711
+            },
+            "to_date": {
+              "model": {
+                "n": 11,
+                "picks": 11,
+                "right": 8,
+                "right_pct": 0.727273,
+                "brier": 0.167648,
+                "log_loss": 0.518846
+              },
+              "market": {
+                "n": 11,
+                "picks": 11,
+                "right": 8,
+                "right_pct": 0.727273,
+                "brier": 0.162972,
+                "log_loss": 0.499146
+              },
+              "games": 11
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 8,
+            "games": 1,
+            "model": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.129456,
+              "log_loss": 0.445975
+            },
+            "market": {
+              "n": 1,
+              "picks": 1,
+              "right": 1,
+              "right_pct": 1.0,
+              "brier": 0.078288,
+              "log_loss": 0.328226
+            },
+            "to_date": {
+              "model": {
+                "n": 12,
+                "picks": 12,
+                "right": 9,
+                "right_pct": 0.75,
+                "brier": 0.164466,
+                "log_loss": 0.512774
+              },
+              "market": {
+                "n": 12,
+                "picks": 12,
+                "right": 9,
+                "right_pct": 0.75,
+                "brier": 0.155915,
+                "log_loss": 0.484902
+              },
+              "games": 12
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 9,
+            "games": 2,
+            "model": {
+              "n": 2,
+              "picks": 2,
+              "right": 1,
+              "right_pct": 0.5,
+              "brier": 0.350848,
+              "log_loss": 0.938521
+            },
+            "market": {
+              "n": 2,
+              "picks": 2,
+              "right": 1,
+              "right_pct": 0.5,
+              "brier": 0.394704,
+              "log_loss": 1.107351
+            },
+            "to_date": {
+              "model": {
+                "n": 14,
+                "picks": 14,
+                "right": 10,
+                "right_pct": 0.714286,
+                "brier": 0.191092,
+                "log_loss": 0.573595
+              },
+              "market": {
+                "n": 14,
+                "picks": 14,
+                "right": 10,
+                "right_pct": 0.714286,
+                "brier": 0.190028,
+                "log_loss": 0.573824
+              },
+              "games": 14
+            }
+          },
+          {
+            "phase": "RS",
+            "round": 10,
+            "games": 1,
+            "model": {
+              "n": 1,
+              "picks": 1,
+              "right": 0,
+              "right_pct": 0.0,
+              "brier": 0.384524,
+              "log_loss": 0.967847
+            },
+            "market": {
+              "n": 1,
+              "picks": 1,
+              "right": 0,
+              "right_pct": 0.0,
+              "brier": 0.49014,
+              "log_loss": 1.204306
+            },
+            "to_date": {
+              "model": {
+                "n": 15,
+                "picks": 15,
+                "right": 10,
+                "right_pct": 0.666667,
+                "brier": 0.203987,
+                "log_loss": 0.599878
+              },
+              "market": {
+                "n": 15,
+                "picks": 15,
+                "right": 10,
+                "right_pct": 0.666667,
+                "brier": 0.210035,
+                "log_loss": 0.615856
+              },
+              "games": 15
+            }
+          }
+        ],
         "models": [
           {
             "key": "elo",
@@ -2769,6 +3183,9 @@
         }
       ],
       "forecasts": {
+        "published": "elo",
+        "market": null,
+        "accuracy": [],
         "models": [
           {
             "key": "elo",

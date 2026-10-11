@@ -87,6 +87,29 @@ def m1_log(elo_log: pd.DataFrame) -> pd.DataFrame:
     )[list(M1_LOG_COLUMNS)]
 
 
+def odds_log(elo_log: pd.DataFrame) -> pd.DataFrame:
+    """Bookmaker fetches for every other 2026 game: an early one, then a closing one that is a
+    little sharper than Elo. Games the rows skip have no bookmaker call."""
+    rows = []
+    for i, g in enumerate(elo_log[elo_log["season"] == 2026].itertuples()):
+        if i % 2:
+            continue
+        p = float(g.p_home)
+        tip = pd.Timestamp(g.tipoff_utc)
+        for hours, shift in ((30, 0.0), (2, 0.08 * (1 if p > 0.5 else -1))):
+            rows.append(
+                {
+                    "game_id": g.game_id,
+                    "season": g.season,
+                    "round": g.round,
+                    "tipoff_utc": g.tipoff_utc,
+                    "fetched_at_utc": (tip - timedelta(hours=hours)).strftime(TIME_FORMAT),
+                    "p_home": f"{min(max(p + shift, 0.02), 0.98):.4f}",
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def section(tmp: Path, key: str, title: str, gbl_like: bool, seasons: tuple[int, ...]) -> Section:
     games = make_games({s: True for s in range(2022, 2027)} | {2027: False}, gbl_like=gbl_like)
     report = run_backtest(games, SPEC)
@@ -96,15 +119,22 @@ def section(tmp: Path, key: str, title: str, gbl_like: bool, seasons: tuple[int,
     log_path = tmp / f"{key}_log.csv"
     log.to_csv(log_path, index=False)
     model = load_tuned_model(report_path)
-    m1_path = None
-    if key == "euroleague":  # GBL keeps the no-M1-log state
+    m1_path = odds_path = None
+    if key == "euroleague":  # GBL keeps the no-M1-log, no-odds state
         m1_path = tmp / f"{key}_m1_log.csv"
         m1_log(log).to_csv(m1_path, index=False)
+        odds_path = tmp / f"{key}_odds.csv"
+        odds_log(log).to_csv(odds_path, index=False)
     card = build_scorecard(log_path, games, model, NOW, m1_log_path=m1_path)
     names = dict(teams_table(games).itertuples(index=False))
     # The synthetic 2027 season has no finished games, so the record is of 2026 (30 logged, 1 late).
     forecasts = build_forecasts(
-        {"elo": log_path, "m1": m1_path}, {"elo": "Elo", "m1": "M1"}, games, 2026
+        {"elo": log_path, "m1": m1_path},
+        {"elo": "Elo", "m1": "M1"},
+        games,
+        2026,
+        odds_log=odds_path,
+        published="elo",
     )
     return Section(
         key,
@@ -161,3 +191,14 @@ def test_the_fixture_carries_the_forecast_record() -> None:
     assert el["forecasts"]["shared"]["n"] == 29 and el["forecasts"]["rounds"]
     assert len(el["forecasts"]["games"]) == 29  # the late row is never scored
     assert gbl["forecasts"]["shared"] == {"n": 0, "rows": []} and gbl["forecasts"]["games"]
+
+
+def test_the_fixture_carries_the_bookmaker_comparison() -> None:
+    el, gbl = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
+    fc = el["forecasts"]
+    assert fc["published"] == "elo"
+    assert fc["market"]["label"] == "Bookmakers"
+    assert 0 < fc["market"]["season"]["n"] < 29  # every other game has a closing line
+    assert fc["accuracy"] and fc["accuracy"][-1]["to_date"]["games"] == fc["market"]["season"]["n"]
+    assert set(fc["accuracy"][-1]["to_date"]["model"]) >= {"right_pct", "brier", "log_loss"}
+    assert gbl["forecasts"]["market"] is None and gbl["forecasts"]["accuracy"] == []
