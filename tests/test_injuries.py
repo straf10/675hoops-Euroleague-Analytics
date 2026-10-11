@@ -155,7 +155,6 @@ def test_new_page_update_time_with_same_rows_is_a_new_snapshot(tmp_path: Path) -
             b'<table class="table_02"><tr class="injury_reports__head"><th>P</th></tr></table>',
         ),
         (200, b"<html><title>Just a moment...</title></html>"),
-        (200, b'<script src="/cdn-cgi/challenge-platform/h/b/orchestrate"></script>'),
     ],
 )
 def test_failures_warn_and_write_nothing(
@@ -236,6 +235,23 @@ def test_challenge_header_on_a_200_is_a_challenge_not_a_report() -> None:
 def test_real_report_passes_the_fetch_and_parses() -> None:
     assert fetch_report(client()) == HTML
     assert len(parse_report(fetch_report(client()))[1]) == 5
+
+
+def test_real_report_with_a_cloudflare_script_still_records(tmp_path: Path) -> None:
+    # Cloudflare puts its challenge-platform script on normal pages too: not a challenge.
+    script = b'<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>'
+    injected = HTML.replace(b"</body>", script + b"</body>")
+    assert injected != HTML
+    p = paths(tmp_path)
+    summary = record_injuries(client(body=injected), NAMES, p, lambda: T1)
+    assert (summary["status"], summary["rows"]) == ("appended", 5)
+
+
+def test_title_challenge_message_names_the_interstitial() -> None:
+    page = b"<html><head><title>Just a moment...</title></head></html>"
+    with pytest.raises(InjuryReportError) as info:
+        fetch_report(client(body=page))
+    assert str(info.value) == "fetch failed: Cloudflare challenge page"
 
 
 def test_report_request_sends_browser_accept_headers_and_keeps_the_project_agent() -> None:

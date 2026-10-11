@@ -53,7 +53,8 @@ REPORT_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 # Cloudflare's bot interstitial comes back as a 200 page: it must never parse as "no rows".
-_CHALLENGE_MARKERS = (b"Just a moment...", b"challenge-platform")
+# Only its title counts: normal pages also carry a challenge-platform script.
+_CHALLENGE_TITLE = re.compile(rb"<title>\s*Just a moment\.\.\.\s*</title>", re.IGNORECASE)
 _EVIDENCE_HEADERS = ("server", "cf-mitigated")
 
 log = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ def _status_evidence(response: httpx.Response) -> str:
 def _is_challenge(response: httpx.Response) -> bool:
     if response.headers.get("cf-mitigated", "").lower() == "challenge":
         return True
-    return any(marker in response.content for marker in _CHALLENGE_MARKERS)
+    return _CHALLENGE_TITLE.search(response.content) is not None
 
 
 def fetch_report(client: httpx.Client) -> bytes:
