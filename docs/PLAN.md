@@ -267,7 +267,7 @@ EuroLeague started **24 Sep 2026**; GBL starts late Sep/early Oct. The live log 
 | 12–14 | Entity resolution + M4 | Cross-league player matching (P/R reported), translation factors | Translation beats naive on GBL→EL movers |
 | 14–16 | M5 + M7 | Roster-aware predictor (projected vs oracle), season simulator | M5 beats M1 on validation; sim backtest calibrated |
 | 16–18 | M6 + product | Projections, scouting board, similarity; API; site polish | All pages live from API |
-| 18–20 | Write-up | Methodology page, 2–3 blog posts, README, demo video (3 min) | A stranger can reproduce and understand it |
+| 18–20 | Write-up | Methodology page, 2–3 blog posts, README (demo video dropped by owner, 2026-10-11) | A stranger can reproduce and understand it |
 | 20+ (→ Jun 2027) | Run the season | Weekly checks, end-of-season report: live results vs baselines, incl. EL playoffs/F4 and GBL finals | Honest final report published |
 
 ### 8.1 Review backlog (owner review 2026-10-09) — do before or alongside the weeks 18–20 write-up
