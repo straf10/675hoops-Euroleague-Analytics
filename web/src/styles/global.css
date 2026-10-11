@@ -211,8 +211,8 @@ svg.icon {
   display: inline-flex;
 }
 .delta-arrow svg {
-  width: 0.75em;
-  height: 0.75em;
+  width: 0.9em;
+  height: 0.9em;
   fill: currentColor;
 }
 .delta[data-verdict="better"] .delta-arrow {
