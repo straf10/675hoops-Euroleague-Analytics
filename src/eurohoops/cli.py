@@ -211,7 +211,8 @@ from eurohoops.sim.formats import season_format
 from eurohoops.sim.played import regulation_scores
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.downloads import DOWNLOADS_DIR, build_downloads, write_downloads
-from eurohoops.stats.export import STATS_DIR
+from eurohoops.stats.export import STATS_DIR, site_window
+from eurohoops.stats.onoff import load_onoff, write_onoff
 from eurohoops.stats.validate import write_validation
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -1591,6 +1592,10 @@ def export_stats(
     store = RawStore(from_cache=from_cache, raw_dir=raw_dir)
     files = stats_files(TestClient(create_app(store, lambda: now)))
     write_stats_files(out, files)
+    inputs = stats_inputs(store)
+    window = site_window(inputs.box.players["season"].unique())
+    onoff = load_onoff(MART_PATH, raw_dir, inputs.games, window)
+    write_onoff(out, onoff)
     # validation first: on an error it writes validation.json, then fails the export
     write_validation(out, stats_inputs(store), now)
     write_downloads(DOWNLOADS_DIR, build_downloads(stats_inputs(store), now))
