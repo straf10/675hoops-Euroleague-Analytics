@@ -12,11 +12,11 @@ Astro static site (user choice, 2026-09-25). Python pipeline stays the source of
 
 ## Users
 
-Recruiter-first, fan-usable. Primary: hiring leads for ML-engineer and sports-analyst roles skimming a portfolio project; they need to see rigor and craft within a minute. Secondary: EuroLeague / Greek Basket League fans checking today's games and their team's win probability.
+Recruiter-first, fan-usable. Primary: hiring leads for ML-engineer and sports-analyst roles skimming a portfolio project; they need to see rigor and craft within a minute. Secondary: EuroLeague fans checking today's games and their team's win probability.
 
 ## Product Purpose
 
-6.75 Analytics forecasts every EuroLeague and GBL game of 2026-27 and commits each forecast to a public, append-only log before tip-off, then scores it against a home-win baseline. Success: a visitor can see the upcoming forecasts, how past forecasts fared, and why the numbers can be trusted.
+6.75 Analytics forecasts every EuroLeague game of 2026-27 and commits each forecast to a public, append-only log before tip-off, then scores it against a home-win baseline. Success: a visitor can see the upcoming forecasts, how past forecasts fared, and why the numbers can be trusted.
 
 ## Positioning
 
@@ -29,7 +29,7 @@ Pipeline ingest → build → backtest → predict → score → publish runs da
 ## Capabilities and Constraints
 
 - v1 scope: live predictions (upcoming games: P(home), expected margin), recent results with hit/miss, scorecard (log loss, Brier, accuracy, margin MAE; Elo vs baseline), team power ratings (current Elo per team, trend).
-- Stats site (user decision 2026-09-26, ahead of PLAN §9's week-16 UI slot): EuroLeague-only stats pages modelled on boxscorelab.com and databallr.com. Stats-first home; Players dashboard (any metric, season or last 5/10/20 games, per-game/per-36/per-100); player pages with season history, game log, shot chart and Shot Profile Twin (last X games matched against every EuroLeague player-season since 2007-08); team pages with shots taken and allowed; Leaders; Compare; Shots explorer. All 20 seasons (2007-08 to today). Forecasts move to their own page and keep GBL.
+- Stats site (user decision 2026-09-26, ahead of PLAN §9's week-16 UI slot): EuroLeague-only stats pages modelled on boxscorelab.com and databallr.com. Stats-first home; Players dashboard (any metric, season or last 5/10/20 games, per-game/per-36/per-100); player pages with season history, game log, shot chart and Shot Profile Twin (last X games matched against every EuroLeague player-season since 2007-08); team pages with shots taken and allowed; Leaders; Compare; Shots explorer. All 20 seasons (2007-08 to today). Forecasts move to their own page, EuroLeague only (GBL is not shown on the site; its logs stay in the repo).
 - Season simulation is shown on a Standings page as "not gated": M7 failed its validation gate, so its numbers never enter the pre-registered record (owner decision 2026-10-07). Still out of scope: odds on the site, tracking data (none exists).
 - Games whose prediction reached the public log after tip-off are shown but flagged and not scored.
 - Models today: MOV-adjusted Elo (FiveThirtyEight-style) publishes the forecasts; M1 and M5 run as shadow logs. Player models are built: xPTS shot-making (M2), RAPM/SPM impact (M3), league translation (M4), and player projections with an over/under board and comparables (M6, gate passed). Every model number on the site shows its interval and sample.
