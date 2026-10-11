@@ -78,17 +78,24 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
           </div>
           {market && both && (
             <div class="stat">
-              <p class="who">{marketName}</p>
-              <p class="big">{share(both.market.right_pct)}</p>
-              <p class="what">
-                Picked the winner in <b>{rightText(both.market)}</b> games
-                {both.games < ours.n ? `, the ${both.games} with a recorded line` : ""}
+              <p class="who">Against the bookmakers</p>
+              <div class="pair">
+                <div>
+                  <p class="mid">{share(both.model.right_pct)}</p>
+                  <p class="what">
+                    {label}: <b>{rightText(both.model)}</b>
+                  </p>
+                </div>
+                <div>
+                  <p class="mid">{share(both.market.right_pct)}</p>
+                  <p class="what">
+                    {marketName}: <b>{rightText(both.market)}</b>
+                  </p>
+                </div>
+              </div>
+              <p class="aside">
+                Picked the winner, on the {both.games} games with a bookmakers' line.
               </p>
-              {sameGames && (
-                <p class="aside">
-                  {label} on those {both.games}: {rightText(both.model)}, {share(both.model.right_pct)}
-                </p>
-              )}
             </div>
           )}
         </section>
@@ -399,14 +406,28 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
 <style>
   .fc {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 44px;
+  }
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 6px;
+  }
+  .mid {
+    font-size: 2.5rem;
+    font-weight: 620;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
   .fc h3 {
     font-size: 1.0625rem;
   }
   .lead {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
     gap: 24px 48px;
   }
   .stat {
@@ -591,6 +612,9 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
     }
     .big {
       font-size: 2.75rem;
+    }
+    .mid {
+      font-size: 2rem;
     }
   }
 
