@@ -21,7 +21,7 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
 }));
 ---
 
-<div class="fcg" data-fcg>
+<div class="fcg" data-fcg style="min-width:0">
   {
     filter && (
       <form class="filters" aria-label={`${title} filters`} onsubmit="return false">
@@ -64,7 +64,7 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
             const c = g.models[model];
             return (
               <tr data-group={keyOf(g)}>
-                <td class="date">{groupLabel(g.phase, g.phase === "RS" ? g.round : null).replace("Round ", "")}</td>
+                <td class="date rd">{groupLabel(g.phase, g.phase === "RS" ? g.round : null).replace("Round ", "")}</td>
                 <td class="date">{athensDay(g.tipoff_utc)}</td>
                 <td class:list={["team r", { won: homeWon }]}>
                   <span class="name">{g.home.name}</span>
@@ -82,7 +82,7 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
                 <td class="call">
                   {c ? (
                     <>
-                      {pct(c.p_home)} <span>{signed(c.exp_margin)}</span>
+                      {pct(c.p_home)} <span class="mg">{signed(c.exp_margin)}</span>
                       {c.right === null ? (
                         <span class="dash">{dash}</span>
                       ) : (
@@ -232,6 +232,23 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
   @media (hover: hover) and (pointer: fine) {
     .games tbody tr:hover {
       background: var(--sunk);
+    }
+  }
+  @media (max-width: 560px) {
+    table {
+      min-width: 0;
+    }
+    .mg,
+    .sub-h {
+      display: none;
+    }
+    .w-round,
+    td.rd {
+      display: none;
+    }
+    td,
+    th {
+      padding-right: 8px;
     }
   }
   @media (max-width: 720px) {
