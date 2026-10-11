@@ -74,6 +74,20 @@ def ingest_bios(
     return gbl_fetched, el_fetched
 
 
+def refresh_people(fetcher: Fetcher, *, el_raw: Path, season: int) -> int:
+    """Refetch one season's people listing (one call), replacing the cached file atomically.
+
+    Returns the number of rows in the new listing. A payload without a ``data`` list is rejected
+    before it can replace a good cache.
+    """
+    payload = fetcher.get(EL_PEOPLE_URL.format(season=season))
+    rows = json.loads(payload)["data"]
+    if not isinstance(rows, list):
+        raise ValueError(f"people listing for E{season} has no data list")
+    write_atomic(el_people_path(el_raw, season), payload)
+    return len(rows)
+
+
 def _day_month_year(text: str) -> date | None:
     match = re.fullmatch(r"(\d{2})-(\d{2})-(\d{4})", text.strip())
     if match is None:

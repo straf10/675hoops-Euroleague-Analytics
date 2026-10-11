@@ -86,6 +86,7 @@ from eurohoops.stats.export import (
     load_cached_games,
     load_cached_standings,
 )
+from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.shots import build_shots
 
 T = TypeVar("T")
@@ -432,14 +433,16 @@ def stats_inputs(store: Store) -> Inputs:
 
     def make() -> Inputs:
         games, teams = _el_games(store)
+        box = _el_box(store)
         return Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
-            box=_el_box(store),
+            box=box,
             shots=build_shots(store.path(EUROLEAGUE.raw_dir), games),
             codes=DISPLAY_CODES[EUROLEAGUE.name],
             live_season=LIVE_SEASON,
             official_standings=load_cached_standings(store.path(EUROLEAGUE.raw_dir)),
+            positions=season_positions(store.path(EUROLEAGUE.raw_dir), games_by_club(box.players)),
         )
 
     return store.memo("stats_inputs", make)

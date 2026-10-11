@@ -67,6 +67,9 @@ class Inputs:
     live_season: int
     # Official final regular-season tables from the cached standings feed: season -> code -> place
     official_standings: Mapping[int, Mapping[str, int]] = field(default_factory=dict)
+    positions: Mapping[str, Mapping[int, str]] = field(
+        default_factory=dict
+    )  # id -> season -> G/F/C
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -167,6 +170,7 @@ def _players_payload(
     bands = band_table(shots, "player_id")
     for key, lines in frame.groupby("player_id", sort=False):
         pid = str(key)
+        pos = inputs.positions.get(pid, {}).get(season)
         rows.append(
             {
                 "id": pid,
@@ -176,6 +180,7 @@ def _players_payload(
                 "dorsal": str(lines["dorsal"].iloc[-1]),
                 "totals": _windows(lines[list(PLAYER_FIELDS)].to_numpy(dtype=float)),
                 "bands": bands.get(pid, {b: [0, 0] for b in BANDS}),
+                **({"pos": pos} if pos else {}),
             }
         )
     rows.sort(key=lambda r: (-r["totals"]["season"][PLAYER_FIELDS.index("pts")], r["id"]))

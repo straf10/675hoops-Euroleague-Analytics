@@ -44,6 +44,7 @@ from eurohoops.stats.export import (
     slugify,
     write_stats,
 )
+from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.shots import (
     BANDS,
     HEX_RADIUS_M,
@@ -76,13 +77,15 @@ runner = CliRunner()
 @pytest.fixture(scope="module")
 def inputs() -> Inputs:
     games, teams = load_cached_games(RAW)
+    box = build_box_games(RAW, games)
     return Inputs(
         games=games,
         names=dict(teams.itertuples(index=False)),
-        box=build_box_games(RAW, games),
+        box=box,
         shots=build_shots(RAW, games),
         codes=DISPLAY_CODES["euroleague"],
         live_season=2026,
+        positions=season_positions(RAW, games_by_club(box.players)),
     )
 
 
@@ -109,6 +112,13 @@ def test_only_the_latest_site_seasons_are_published(
     }
     assert {row[1] for row in latest["splits.json"]["rows"]} >= {2024}
     assert all(row[1] == 2024 for row in latest["twins.json"]["pool"])
+
+
+def test_season_rows_carry_the_listed_position(files: dict[str, dict[str, Any]]) -> None:
+    for season in (2010, 2024):
+        rows = files[f"seasons/{season}/players.json"]["players"]
+        assert {r["pos"] for r in rows if "pos" in r} <= {"G", "F", "C"}
+        assert sum("pos" in r for r in rows) > 0.9 * len(rows)
 
 
 def test_seconds_parses_box_minutes() -> None:

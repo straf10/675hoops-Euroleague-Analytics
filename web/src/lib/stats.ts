@@ -41,6 +41,7 @@ export interface PlayerRow {
   pos?: string;
   totals: Record<string, number[]>; // "season", "last5", "last10", "last20"
   bands: Bands;
+  pos?: "G" | "F" | "C"; // the EuroLeague listing's position that season (absent when unlisted)
 }
 
 export interface SeasonPlayers {

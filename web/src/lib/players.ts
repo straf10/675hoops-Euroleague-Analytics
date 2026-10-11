@@ -1,25 +1,24 @@
 // Players dashboard: measures, filtering, ranking, and the HTML for the ranked chart and table.
 // Pure functions of the season data and the view state, run both at build time (the first
-// paint) and in the browser (every filter change), so the two can never disagree.
+// paint) and in the browser (every filter change), so the two can never disagree. Values are per
+// game; `rated` also serves the Compare page's per-36 and per-100 columns.
 
 import { esc } from "./format";
+import { position, type Position } from "./position";
 import { dataTip, tip } from "./tip";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 
-export type Window = "season" | "last5" | "last10" | "last20";
 export type Rate = "game" | "36" | "100";
 export type ColumnSet = "box" | "shooting";
 
 export interface View {
   season: number;
-  window: Window;
-  rate: Rate;
-  sort: string;
+  metric: string; // the measure the players are ranked on
   dir: "desc" | "asc";
-  team: string; // "" = every team
-  minMin: number; // minutes per game
-  q: string;
-  set: ColumnSet;
+  minMin: number; // minutes per game, at least
+  top: number; // players shown; 0 = all
+  pos: Position | ""; // "" = every position
+  set: ColumnSet; // which columns the table shows
 }
 
 type Totals = Record<string, number>;
@@ -164,35 +163,42 @@ export const PHONE_GROUPS: { set: ColumnSet; keys: string[] }[] = [
   { set: "shooting", keys: ["fta", "ft_pct", "efg", "ts", "usg"] },
 ];
 
-export const WINDOWS: { key: Window; label: string }[] = [
-  { key: "season", label: "Season" },
-  { key: "last5", label: "Last 5" },
-  { key: "last10", label: "Last 10" },
-  { key: "last20", label: "Last 20" },
+/** Minutes-per-game presets beside the typed field: from 2025-26, 275 players pass the games
+ *  floor; 251 average 10+, 190 15+, 107 20+ and 32 25+. */
+export const MIN_PRESETS = [0, 10, 15, 20, 25];
+export const MIN_MAX = 40;
+/** "Show top" choices; 0 is All. */
+export const TOPS = [5, 10, 25, 50, 100, 0];
+export const topLabel = (n: number) => (n ? String(n) : "All");
+export const POSITION_CHOICES: { key: Position | ""; label: string }[] = [
+  { key: "", label: "All" },
+  ...(["Guard", "Wing", "Big"] as const).map((p) => ({ key: p, label: p })),
 ];
-export const RATES: { key: Rate; label: string; long: string }[] = [
-  { key: "game", label: "Per game", long: "per game" },
-  { key: "36", label: "Per 36", long: "per 36 minutes" },
-  { key: "100", label: "Per 100", long: "per 100 possessions" },
-];
-export const MIN_MINUTES = [0, 10, 15, 20];
 
 export const DEFAULT_VIEW: Omit<View, "season"> = {
-  window: "season",
-  rate: "game",
-  sort: "pts",
+  metric: "pts",
   dir: "desc",
-  team: "",
   minMin: 10,
-  q: "",
+  top: 25,
+  pos: "",
   set: "box",
 };
+
+/** The column set a measure is shown in. */
+export const setOf = (key: string): ColumnSet => (SETS.box.includes(key) ? "box" : "shooting");
+
+/** The Metric select's groups, in column order. */
+export const METRIC_GROUPS: { label: string; keys: string[] }[] = [
+  { label: "Box score", keys: SETS.box },
+  { label: "Shooting", keys: SETS.shooting },
+];
 
 export interface Line {
   row: PlayerRow;
   totals: Totals;
   values: Record<string, number | null>;
-  ranked: boolean; // qualifies for the sorted measure
+  ranked: boolean; // qualifies for the ranked measure
+  pos: Position | null;
 }
 
 function totalsOf(fields: string[], values: number[]): Totals {
@@ -209,31 +215,24 @@ export function rated(m: Measure, t: Totals, rate: Rate): number | null {
   return t.poss ? (raw * 100) / t.poss : null;
 }
 
-const fold = (s: string) =>
-  s
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-
-/** The table's rows in order: players passing the filters, sorted on the measure (unranked last). */
+/** Every player passing the filters, ranked on the metric (unranked last). Show top is applied by
+ *  `shown`, so the chart's average still covers everyone ranked. */
 export function lines(data: SeasonPlayers, view: View): Line[] {
-  const measure = BY_KEY[view.sort] ?? BY_KEY.pts;
+  const measure = BY_KEY[view.metric] ?? BY_KEY.pts;
   const all = data.players.map((row) => {
-    const totals = totalsOf(data.fields, row.totals[view.window] ?? row.totals.season);
+    const totals = totalsOf(data.fields, row.totals.season);
     const values: Record<string, number | null> = {};
-    for (const m of MEASURES) values[m.key] = rated(m, totals, view.rate);
-    return { row, totals, values, ranked: true };
+    for (const m of MEASURES) values[m.key] = rated(m, totals, "game");
+    return { row, totals, values, ranked: true, pos: position(row.pos) };
   });
   // The games floor keeps cameo seasons out: a quarter of the most games anyone played.
   const most = Math.max(0, ...all.map((l) => l.totals.gp));
-  const floorGames = view.window === "season" && view.minMin > 0 ? Math.ceil(most / 4) : 0;
-  const q = fold(view.q.trim());
+  const floorGames = view.minMin > 0 ? Math.ceil(most / 4) : 0;
   const kept = all.filter(
     (l) =>
       l.totals.gp >= floorGames &&
       (l.totals.gp ? l.totals.sec / l.totals.gp / 60 : 0) >= view.minMin &&
-      (!view.team || l.row.teams.includes(view.team)) &&
-      (!q || fold(l.row.name).includes(q)),
+      (!view.pos || l.pos === view.pos),
   );
   for (const l of kept) l.ranked = l.values[measure.key] !== null && (measure.qualifies?.(l.totals) ?? true);
   const sign = view.dir === "desc" ? -1 : 1;
@@ -244,6 +243,13 @@ export function lines(data: SeasonPlayers, view: View): Line[] {
     return av === bv ? a.row.name.localeCompare(b.row.name) : sign * (av - bv);
   });
 }
+
+/** "25 of 143 players" when Show top cuts the list, else "143 players". */
+export const countText = (n: number, total: number) =>
+  n < total ? `${n} of ${total} players` : `${total} player${total === 1 ? "" : "s"}`;
+
+/** Show top: the first `top` lines of a ranked list (all of them when `top` is 0). */
+export const shown = <T>(ls: T[], view: View): T[] => (view.top ? ls.slice(0, view.top) : ls);
 
 export function format(m: Measure, v: number | null): string {
   if (v === null || !Number.isFinite(v)) return "–";
@@ -258,9 +264,8 @@ export const teamHref = (base: string, code: string, season?: number) =>
 export const playerHref = (base: string, slug: string) => `${base.replace(/\/$/, "")}/players/${slug}/`;
 
 export function measureTitle(view: View): string {
-  const m = BY_KEY[view.sort] ?? BY_KEY.pts;
-  const rate = RATES.find((r) => r.key === view.rate)!.long;
-  return m.kind === "count" ? `${m.name} ${rate}` : m.key === "min" ? "Minutes per game" : m.name;
+  const m = BY_KEY[view.metric] ?? BY_KEY.pts;
+  return m.kind === "count" ? `${m.name} per game` : m.key === "min" ? "Minutes per game" : m.name;
 }
 
 function niceTicks(lo: number, hi: number, count = 6): number[] {
@@ -273,8 +278,6 @@ function niceTicks(lo: number, hi: number, count = 6): number[] {
   return ticks;
 }
 
-export const CHART_ROWS = 25;
-
 export interface Chart {
   title: string;
   rows: { line: Line; x: number; text: string }[];
@@ -282,14 +285,14 @@ export interface Chart {
   avg: { x: number; text: string; n: number } | null;
 }
 
-/** The ranked dot chart: the first 25 ranked rows on one scale, with the listed players' average. */
+/** The ranked dot chart: the top ranked rows (Show top) on one scale, with the average of everyone ranked. */
 export function chart(ls: Line[], view: View): Chart {
-  const m = BY_KEY[view.sort] ?? BY_KEY.pts;
+  const m = BY_KEY[view.metric] ?? BY_KEY.pts;
   const ranked = ls.filter((l) => l.ranked);
-  const shown = ranked.slice(0, CHART_ROWS);
+  const top = shown(ranked, view);
   const values = ranked.map((l) => l.values[m.key] as number);
   const mean = values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
-  const inView = [...shown.map((l) => l.values[m.key] as number), ...(mean === null ? [] : [mean])];
+  const inView = [...top.map((l) => l.values[m.key] as number), ...(mean === null ? [] : [mean])];
   let lo = Math.min(...inView);
   let hi = Math.max(...inView);
   if (!inView.length) [lo, hi] = [0, 1];
@@ -298,10 +301,10 @@ export function chart(ls: Line[], view: View): Chart {
   hi += pad;
   if (m.kind !== "pct" && !m.signed && lo < 0) lo = 0;
   const x = (v: number) => (100 * (v - lo)) / (hi - lo);
-  const top = view.dir === "desc" ? "Highest" : "Lowest";
+  const end = view.dir === "desc" ? "Highest" : "Lowest";
   return {
-    title: `${top} ${Math.min(CHART_ROWS, shown.length)}: ${measureTitle(view)}`,
-    rows: shown.map((line) => ({ line, x: x(line.values[m.key] as number), text: format(m, line.values[m.key]) })),
+    title: `${end} ${top.length}: ${measureTitle(view)}`,
+    rows: top.map((line) => ({ line, x: x(line.values[m.key] as number), text: format(m, line.values[m.key]) })),
     ticks: niceTicks(lo, hi).map((v) => ({ x: x(v), text: format({ ...m, digits: Number.isInteger(v) ? 0 : 1 }, v) })),
     avg: mean === null ? null : { x: x(mean), text: format(m, mean), n: values.length },
   };
@@ -311,12 +314,11 @@ export function chart(ls: Line[], view: View): Chart {
 export const slotTip = (row: PlayerRow, c: Chart, text: string) =>
   tip`<b>${row.name}</b> ${row.teams.join(", ")}<br>${c.title.split(": ")[1]}: ${text}`;
 
-/** Chart rows as HTML. Always CHART_ROWS slots, so a change retargets dots instead of rebuilding. */
+/** Chart rows as HTML, one slot per row. While the row count stays the same a change retargets the
+ *  slots (dots slide); a new Show top rebuilds them. */
 export function chartHtml(c: Chart, base: string): string {
-  const slots = Array.from({ length: CHART_ROWS }, (_, i) => c.rows[i]);
-  return slots
+  return c.rows
     .map((s, i) => {
-      if (!s) return `<li class="slot" hidden></li>`;
       const { row } = s.line;
       const body = slotTip(row, c, s.text);
       return `<li class="slot" style="--x:${s.x.toFixed(2)}"><span class="rk">${i + 1}</span><a class="nm" href="${playerHref(base, row.slug)}">${esc(row.name)}</a><span class="track"${dataTip(body)} tabindex="-1"><span class="pos"></span></span><span class="val">${s.text}</span></li>`;
@@ -335,7 +337,7 @@ export function gridHtml(c: Chart): string {
 export function headHtml(view: View): string {
   const cols = SETS[view.set].map((key) => {
     const m = BY_KEY[key];
-    const on = key === view.sort;
+    const on = key === view.metric;
     const sort = on ? (view.dir === "desc" ? "descending" : "ascending") : "none";
     return `<th scope="col" class="num${on ? " on" : ""}" aria-sort="${sort}"><button type="button" data-sort="${key}"${dataTip(tip`<b>${m.name}</b><br>${m.about}`)}>${m.head}</button></th>`;
   });
@@ -350,7 +352,7 @@ const teamCell = (teams: string[], base: string, season: number) => {
 
 export function bodyHtml(ls: Line[], view: View, base: string): string {
   if (!ls.length) {
-    return `<tr class="empty"><td colspan="${SETS[view.set].length + 2}">No players match. Lower the minutes floor, pick another team, or clear the search.</td></tr>`;
+    return `<tr class="empty"><td colspan="${SETS[view.set].length + 2}">No players match. Lower the minutes or pick another position.</td></tr>`;
   }
   let rank = 0;
   return ls
@@ -361,7 +363,7 @@ export function bodyHtml(ls: Line[], view: View, base: string): string {
           const m = BY_KEY[key];
           const v = l.values[key];
           const short = m.qualifies && !m.qualifies(l.totals);
-          const cls = ["num", key === view.sort ? "on" : "", short ? "short" : ""].filter(Boolean).join(" ");
+          const cls = ["num", key === view.metric ? "on" : "", short ? "short" : ""].filter(Boolean).join(" ");
           return `<td class="${cls}">${format(m, v)}</td>`;
         })
         .join("");
@@ -370,13 +372,17 @@ export function bodyHtml(ls: Line[], view: View, base: string): string {
     .join("");
 }
 
-/** View <-> query string: only values that differ from the defaults are written. */
+/** View <-> query string: only values that differ from the defaults are written. Parameters from
+ *  older versions of the page (sort, window, rate, team, q, minMin) are ignored. */
 export function toQuery(view: View, defaultSeason: number): string {
   const p = new URLSearchParams();
   if (view.season !== defaultSeason) p.set("season", String(view.season));
-  for (const [k, v] of Object.entries(DEFAULT_VIEW) as [keyof typeof DEFAULT_VIEW, unknown][]) {
-    if (view[k] !== v) p.set(k, String(view[k]));
-  }
+  if (view.metric !== DEFAULT_VIEW.metric) p.set("metric", view.metric);
+  if (view.dir !== DEFAULT_VIEW.dir) p.set("dir", view.dir);
+  if (view.minMin !== DEFAULT_VIEW.minMin) p.set("min", String(view.minMin));
+  if (view.top !== DEFAULT_VIEW.top) p.set("top", String(view.top));
+  if (view.pos) p.set("pos", view.pos);
+  if (view.set !== setOf(view.metric)) p.set("set", view.set); // a set that hides the metric
   const s = p.toString();
   return s ? `?${s}` : "";
 }
@@ -388,16 +394,16 @@ export function fromQuery(search: string, seasons: number[], defaultSeason: numb
     return v && allowed.includes(v) ? v : fallback;
   };
   const season = Number(p.get("season"));
-  const minMin = Number(p.get("minMin"));
+  const min = p.has("min") && p.get("min") !== "" ? Number(p.get("min")) : NaN;
+  const top = p.has("top") ? Number(p.get("top")) : NaN;
+  const metric = pick("metric", MEASURES.map((m) => m.key), DEFAULT_VIEW.metric);
   return {
     season: seasons.includes(season) ? season : defaultSeason,
-    window: pick("window", WINDOWS.map((w) => w.key), DEFAULT_VIEW.window),
-    rate: pick("rate", RATES.map((r) => r.key), DEFAULT_VIEW.rate),
-    sort: pick("sort", MEASURES.map((m) => m.key), DEFAULT_VIEW.sort),
+    metric,
     dir: pick("dir", ["desc", "asc"] as const, DEFAULT_VIEW.dir),
-    team: p.get("team") ?? "",
-    minMin: MIN_MINUTES.includes(minMin) && p.has("minMin") ? minMin : DEFAULT_VIEW.minMin,
-    q: p.get("q") ?? "",
-    set: pick("set", ["box", "shooting"] as const, DEFAULT_VIEW.set),
+    minMin: Number.isInteger(min) && min >= 0 && min <= MIN_MAX ? min : DEFAULT_VIEW.minMin,
+    top: TOPS.includes(top) ? top : DEFAULT_VIEW.top,
+    pos: pick("pos", ["Guard", "Wing", "Big"] as const, DEFAULT_VIEW.pos as Position | "") as Position | "",
+    set: pick("set", ["box", "shooting"] as const, setOf(metric)),
   };
 }

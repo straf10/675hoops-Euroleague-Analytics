@@ -29,6 +29,7 @@ from eurohoops.logs import write_json
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import Inputs, build_payloads, load_cached_games, write_stats
+from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.shots import build_shots
 from tests.api_tree import EL_PERSON, GBL_ONLY_PERSON, NOW, build_tree
 from tests.conftest import FIXTURES, REPO
@@ -192,14 +193,16 @@ def test_a_missing_report_is_a_404_naming_the_file(tmp_path: Path) -> None:
 def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
     """The payloads built the way ``cli export-stats --from-cache`` builds them."""
     games, teams = load_cached_games(raw)
+    box = build_box_games(raw, games)
     return build_payloads(
         Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
-            box=build_box_games(raw, games),
+            box=box,
             shots=build_shots(raw, games),
             codes=DISPLAY_CODES["euroleague"],
             live_season=2026,
+            positions=season_positions(raw, games_by_club(box.players)),
         ),
         now,
     )
