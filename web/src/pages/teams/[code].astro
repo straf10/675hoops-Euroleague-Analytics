@@ -7,8 +7,7 @@ import "../../styles/stats.css";
 import { SEASON_COLS } from "../../lib/player";
 import { defaultSeason, meta, teamIndex, teamSeason, type TeamIndexRow } from "../../lib/stats";
 import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, teamBands, teamCharts } from "../../lib/team";
-import FactorsPanel from "../../components/FactorsPanel.astro";
-import { sourceCode, teamFactors } from "../../lib/live";
+import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
 import { GROUPS, colsHtml } from "../../lib/cols";
 
@@ -28,10 +27,10 @@ const charts = teamCharts(t, radius);
 const bands = teamBands(t, up, down);
 const labels = new Map(m.seasons.map((s) => [s.season, s.label]));
 const description = `${club.name}: EuroLeague record, ratings, four factors, shot charts and roster.`;
-// Four factors and schedule strength come from the API's live-season file, keyed by source code.
+// Schedule strength comes from the API's live-season file, keyed by source code.
 const factors = await teamFactors("euroleague", sourceCode("euroleague", club.code));
 const liveSeason = factors?.season ?? m.seasons.find((s) => s.live)?.season ?? open;
-const liveLabel = labels.get(liveSeason) ?? `${liveSeason}-${String(liveSeason + 1).slice(2)}`;
+const schedule = factors?.schedule_strength;
 const bandHead = [
   ["Shots", ""],
   ["Share", ""],
@@ -142,15 +141,18 @@ const bandHead = [
     <p class="note">Ranks count from the best. The arrow compares with the league average.</p>
   </section>
 
-  <section class="wrap band" id="factors" aria-labelledby="factors-title">
-    <header class="sec-head">
-      <h2 id="factors-title">Four factors and schedule</h2>
-      <p>
-        How the club has played this season so far and who it has played.
-      </p>
-    </header>
-    <FactorsPanel factors={factors} label={liveLabel} />
-  </section>
+  {
+    schedule && schedule.value !== null && (
+      <section class="wrap band" id="schedule" aria-labelledby="schedule-title" data-season={liveSeason} hidden={t.season !== liveSeason}>
+        <header class="sec-head">
+          <h2 id="schedule-title">Schedule strength</h2>
+          <p>
+            Mean opponent rating <b class="strength">{schedule.value.toFixed(1)}</b> over {plural(schedule.games ?? 0, "scheduled game")}.
+          </p>
+        </header>
+      </section>
+    )
+  }
 
   <section class="wrap band" id="shots" aria-labelledby="shots-title">
     <header class="sec-head split">
@@ -323,6 +325,8 @@ const bandHead = [
           document.getElementById(`bands-${side}`)!.innerHTML = bands[side];
         }
         document.getElementById("roster-body")!.innerHTML = rosterHtml(t, base!);
+        const sched = document.getElementById("schedule");
+        if (sched) sched.hidden = s !== sched.dataset.season;
         select!.value = s;
         document.title = `${t.name} · 6.75 Analytics`;
         if (push) {
@@ -352,6 +356,13 @@ const bandHead = [
 <style>
   :global(.season-pending) .seasonal {
     visibility: hidden;
+  }
+  #schedule[hidden] {
+    display: none;
+  }
+  .strength {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
   }
   .team-head {
     display: flex;
