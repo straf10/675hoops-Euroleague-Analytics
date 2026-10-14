@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import subprocess
 import time
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -50,6 +51,7 @@ from eurohoops.config import (
     M4,
     M5,
     M5_GBL,
+    M5_RETUNE,
     M6,
     M6_BOARD,
     M6_GBL,
@@ -101,6 +103,12 @@ from eurohoops.eval.m5_backtest import (
     PlayerPartFn,
     format_m5_table,
     run_m5_backtest,
+)
+from eurohoops.eval.m5_retune import (
+    git_head_sha,
+    is_clean_tree,
+    retune_check,
+    run_retune,
 )
 from eurohoops.eval.m6_backtest import (
     M6Inputs,
@@ -784,6 +792,49 @@ def _m5_player_part_gbl(inputs: M5Inputs, frame: pd.DataFrame, spec: M5Backtest)
     return player_part
 
 
+def _on_origin_main() -> bool:
+    local = git_head_sha()
+    try:
+        remote = subprocess.check_output(["git", "rev-parse", "origin/main"], text=True).strip()
+    except subprocess.CalledProcessError:
+        return False
+    return local == remote
+
+
+def _backtest_m5_retune(check_only: bool) -> None:
+    """``backtest --model m5 --retune`` or ``--retune-check`` (docs/models/m5.md)."""
+    if M5_RETUNE.report.exists() and not check_only:
+        log.error("refusing to run: %s already exists", M5_RETUNE.report)
+        raise typer.Exit(code=1)
+    if not check_only:
+        if not is_clean_tree():
+            log.error("refusing to run: the working tree is not clean")
+            raise typer.Exit(code=1)
+        if not _on_origin_main():
+            log.error("refusing to run: HEAD is not the same as origin/main")
+            raise typer.Exit(code=1)
+    inputs, frame = _m5_inputs(EUROLEAGUE, GBL, M5, dict(GREEK_EL_CLUBS))
+    player_part = _m5_player_part_el(inputs, frame)
+    if check_only:
+        if not M5.games_report.exists():
+            log.error("missing %s for the baseline check", M5.games_report)
+            raise typer.Exit(code=1)
+        baseline = pd.read_csv(M5.games_report)
+        summary = retune_check(
+            inputs, retune=M5_RETUNE, player_part=player_part, baseline_games=baseline
+        )
+        typer.echo(json.dumps(summary, indent=2))
+        return
+    started = time.perf_counter()
+    report, detail = run_retune(
+        inputs, retune=M5_RETUNE, player_part=player_part, git_head=git_head_sha()
+    )
+    write_json(M5_RETUNE.report, report)
+    detail.to_csv(M5_RETUNE.games_report, index=False, lineterminator="\n")
+    typer.echo(f"{M5_RETUNE.report}\n{json.dumps(report['selected'], indent=2)}")
+    typer.echo(f"RUNTIME backtest m5 retune: {time.perf_counter() - started:.0f} s")
+
+
 def _backtest_m5(
     competition: CompetitionName, score_test: bool, tuning_only: bool, tracking_uri: str
 ) -> None:
@@ -1335,7 +1386,7 @@ def sim_ungated(competition: CompetitionOption = CompetitionName.euroleague) -> 
 
 
 @app.command()
-def backtest(  # noqa: PLR0911 -- one dispatch return per model
+def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
     *,
     competition: CompetitionOption = CompetitionName.euroleague,
     model: Annotated[
@@ -1366,8 +1417,25 @@ def backtest(  # noqa: PLR0911 -- one dispatch return per model
             help="M7: the rolling-origin gate v2 (docs/models/m7.md), EuroLeague, run once"
         ),
     ] = False,
+    retune: Annotated[
+        bool,
+        typer.Option(help="M5: retune protocol v1 (docs/models/m5.md), EuroLeague, run once"),
+    ] = False,
+    retune_check: Annotated[
+        bool,
+        typer.Option(help="M5: retune harness check vs the committed M5 backtest margins"),
+    ] = False,
 ) -> None:
     """Tune and score a model vs its baselines; the Elo live report holds the live parameters."""
+    if retune or retune_check:
+        if model is not ModelName.m5:
+            log.error("--retune and --retune-check belong to --model m5")
+            raise typer.Exit(code=1)
+        if competition is not CompetitionName.euroleague:
+            log.error("M5 retune is the EuroLeague's")
+            raise typer.Exit(code=1)
+        _backtest_m5_retune(check_only=retune_check)
+        return
     if gate_v2:
         if model is not ModelName.m7:
             log.error("--gate-v2 belongs to --model m7")

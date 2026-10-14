@@ -45,9 +45,11 @@ class ResidualFit:
     adjustment: FloatArray  # h·home_flag + r_home - r_away + β·rest_diff
     rest_coef: FloatArray  # (n_games, k) β; k = 0 columns when there is no rest feature
     home: FloatArray  # h
+    r_home: FloatArray  # team residual applied to the home side
+    r_away: FloatArray  # team residual applied to the away side
 
 
-def fit_residual(
+def fit_residual(  # noqa: PLR0915
     games: pd.DataFrame,
     target: FloatArray,
     rest_diff: FloatArray | None,
@@ -55,6 +57,7 @@ def fit_residual(
     half_life_days: float,
     residual_ridge: float,
     rest_ridge: float,
+    season_only: bool = False,
 ) -> ResidualFit:
     """Walk-forward fit of [h, r_team…, β…] on ``target`` (= actual margin - player part).
 
@@ -101,14 +104,24 @@ def fit_residual(
     adjustment = np.full(n, np.nan)
     rest_coef = np.full((n, k), np.nan)
     home_coef = np.full(n, np.nan)
+    r_home = np.full(n, np.nan)
+    r_away = np.full(n, np.nan)
     added = 0
     fitted_any = False
+    fit_season: int | None = None
     for time in np.unique(cutoff):
         due = np.flatnonzero(cutoff == time)
-        model.advance(float(time), int(seasons[due[0]]))
+        season_at = int(seasons[due[0]])
+        if season_only and fit_season is not None and season_at != fit_season:
+            model = DecayedRidge(penalty, DecayParams(half_life_days, 1.0, 0.0))
+            fitted_any = False
+        fit_season = season_at
+        model.advance(float(time), season_at)
         stop = int(np.searchsorted(tipoff, time, side="left"))
         rows = np.flatnonzero(usable[added:stop]) + added
         added = stop
+        if season_only:
+            rows = rows[seasons[rows] == season_at]
         if len(rows):
             model.add(
                 columns[rows],
@@ -125,8 +138,11 @@ def fit_residual(
         h, r, beta = theta[0], theta[1 : 1 + n_teams], theta[1 + n_teams :]
         home_coef[due] = h
         rest_coef[due] = beta
-        adjustment[due] = h * home_flag[due] + r[home[due]] - r[away[due]] + rest[due] @ beta
-    return ResidualFit(adjustment, rest_coef, home_coef)
+        for i in due:
+            rh, ra = float(r[home[i]]), float(r[away[i]])
+            r_home[i], r_away[i] = rh, ra
+            adjustment[i] = h * home_flag[i] + rh - ra + rest[i] @ beta
+    return ResidualFit(adjustment, rest_coef, home_coef, r_home, r_away)
 
 
 def _probit_loglik(

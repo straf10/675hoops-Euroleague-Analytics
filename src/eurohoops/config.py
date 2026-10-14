@@ -382,6 +382,32 @@ M5 = M5Backtest(
     test=(2024, 2025),
 )
 M5_REST_REPORT = Path("reports/m5_rest.json")
+
+
+@dataclass(frozen=True)
+class M5Retune:
+    """M5 retune protocol v1 (docs/models/m5.md): rolling-origin CV, run once."""
+
+    report: Path
+    games_report: Path
+    warmup: tuple[int, ...]
+    folds: tuple[int, ...]
+    residual_half_life_days: tuple[float, ...] = (120.0, 180.0, 365.0)
+    avail_half_life_games: float = 1.0
+    residual_ridge: float = 40.0
+    margin_variant: str = "student_t_const"
+    bootstrap_resamples: int = 10000
+    bootstrap_seed: int = 20261011
+    shadow_log_loss_margin: float = 0.002
+    addendum: str = "docs/models/m5.md (retune addendum 2026-10-14)"
+
+
+M5_RETUNE = M5Retune(
+    Path("reports/m5_retune.json"),
+    Path("reports/m5_retune_games.csv"),
+    warmup=_seasons(2011, 2014),
+    folds=_seasons(2015, 2023),
+)
 M5_GBL = M5Backtest(
     Path("reports/backtest_m5_gbl.json"),
     Path("reports/backtest_m5_gbl_games.csv"),
