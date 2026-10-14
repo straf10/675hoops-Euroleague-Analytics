@@ -20,6 +20,7 @@ from eurohoops.config import (
     M6Backtest,
 )
 from eurohoops.eval.m5_backtest import predict_games
+from eurohoops.eval.m5_retune import RetuneSetting, grid_settings, run_retune
 from eurohoops.models.box_impact import box_only_margins, pir_margins
 from eurohoops.models.m5 import (
     ResidualFit,
@@ -51,6 +52,7 @@ from eurohoops.models.similarity import (
     self_retrieval_rate,
 )
 from eurohoops.models.translation import StatFit
+from eurohoops.models.turnover import CONTINUITY_SCHEMA, mixed_team_adjustment, roster_continuity
 from eurohoops.standings import EUROLEAGUE_2026, GBL_2026, Format, Series, rank
 
 Series.best_of
@@ -104,6 +106,14 @@ StatFit.delta_hi90
 
 # week 14-16 J1: called by eval/m5_backtest.py (J4, wave 2)
 rest_features
+
+# M5 retune protocol v1 (docs/models/m5.md)
+RetuneSetting
+grid_settings
+run_retune
+CONTINUITY_SCHEMA
+roster_continuity
+mixed_team_adjustment
 
 # week 14-16 J3: called by eval/m5_backtest.py (J4, wave 2)
 ResidualFit

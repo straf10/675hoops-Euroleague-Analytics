@@ -1161,6 +1161,11 @@ def run_m5_backtest(
     return report, _scored_frame(sc)
 
 
+prepare_context = _prepare
+projected_for_option = _projected
+core_margin_from_context = _core_margin
+
+
 def format_m5_table(report: dict[str, Any]) -> str:
     def cell(value: float | None, width: int, digits: int) -> str:
         return f"{'-' if value is None else f'{value:.{digits}f}':>{width}}"
