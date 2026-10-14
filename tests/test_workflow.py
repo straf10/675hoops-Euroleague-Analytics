@@ -103,14 +103,15 @@ def odds_step() -> str:
 def test_daily_records_odds_after_build_and_before_scoring() -> None:
     assert DAILY.index("eurohoops build") < DAILY.index("eurohoops odds")
     assert DAILY.index("eurohoops odds") < DAILY.index("eurohoops score")
-    assert "git add predictions/ reports/ odds/ injuries/" in DAILY
+    assert "git add predictions/ reports/ odds/" in DAILY
+    assert "git add predictions/ reports/ odds/ injuries/" not in DAILY
 
 
 def test_daily_records_injuries_between_odds_and_prediction() -> None:
     assert DAILY.index("- name: Record EuroLeague odds") < DAILY.index(
         "- name: Record EuroLeague injuries"
     )
-    assert DAILY.index("uv run --no-dev eurohoops injuries") < DAILY.index(
+    assert DAILY.index("uv run --no-dev eurohoops injuries --probe") < DAILY.index(
         "- name: Predict upcoming games"
     )
 
@@ -198,7 +199,7 @@ def sandbox(tmp_path: Path) -> tuple[Path, Path, dict[str, str]]:
         git(other, "config", key, value)
     (other / "predictions").mkdir()
     (other / "predictions/log.csv").write_text("game_id,p\nG1,0.5\n", newline="\n")
-    for folder in ("reports", "odds", "injuries"):  # the step adds all four folders
+    for folder in ("reports", "odds"):  # the step adds predictions plus these folders
         (other / folder).mkdir()
         (other / folder / "keep.txt").write_text("x\n", newline="\n")
     git(other, "add", ".")

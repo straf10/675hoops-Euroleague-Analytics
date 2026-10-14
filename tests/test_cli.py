@@ -317,6 +317,19 @@ def test_injuries_records_a_snapshot_and_never_fails(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.usefixtures("pipeline")
+def test_injuries_probe_writes_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    page = Path(__file__).parent / "fixtures" / "basketnews" / "injury_report.html"
+    body = page.read_bytes()
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, content=body))
+    )
+    monkeypatch.setattr(cli, "make_client", lambda: client)
+    before = INJURY_LOG.read_bytes() if INJURY_LOG.exists() else b""
+    assert "probe ok; 5 rows" in invoke("injuries", "--probe")
+    assert (INJURY_LOG.read_bytes() if INJURY_LOG.exists() else b"") == before
+
+
+@pytest.mark.usefixtures("pipeline")
 def test_build_writes_team_games_and_possessions_validates_them() -> None:
     failed = runner.invoke(cli.app, ["possessions"])
     assert failed.exit_code == 1  # the marts have no team_games before `build`
