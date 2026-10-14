@@ -172,6 +172,23 @@ def _is_challenge(response: httpx.Response) -> bool:
     return _CHALLENGE_TITLE.search(response.content) is not None
 
 
+def probe_report(client: httpx.Client) -> dict[str, Any]:
+    """One fetch and parse; no cache or log. ``status`` is ``ok`` or ``failed``."""
+    try:
+        html = fetch_report(client)
+        updated, parsed = parse_report(html)
+        if not parsed:
+            raise InjuryReportError("injury table has no player rows")
+    except InjuryReportError as exc:
+        return {"status": "failed", "detail": str(exc)}
+    return {
+        "status": "ok",
+        "rows": len(parsed),
+        "teams": len({r["team_name_bn"] for r in parsed}),
+        "page_updated_utc": updated,
+    }
+
+
 def fetch_report(client: httpx.Client) -> bytes:
     try:
         response = client.get(REPORT_URL, headers=REPORT_HEADERS)

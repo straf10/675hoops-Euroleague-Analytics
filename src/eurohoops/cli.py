@@ -126,7 +126,7 @@ from eurohoops.eval.tracking import (
 from eurohoops.ingest import euroleague, gbl
 from eurohoops.ingest.bios import build_bios, ingest_bios, refresh_people
 from eurohoops.ingest.http import Fetcher, make_client
-from eurohoops.injuries import InjuryPaths, record_injuries, team_name_map
+from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import live_spec, load_m5, predict_upcoming_m5
 from eurohoops.live_m6 import (
@@ -1513,11 +1513,28 @@ def odds() -> None:
 
 
 @app.command()
-def injuries() -> None:
+def injuries(
+    probe: Annotated[
+        bool,
+        typer.Option("--probe", help="One fetch; print ok or failed; write nothing."),
+    ] = False,
+) -> None:
     """Record the BasketNews EuroLeague injury report: one request, a snapshot appended.
 
     A failed fetch, an unparseable page or a torn log is a warning, never a non-zero exit.
+    ``--probe`` checks reachability only (for CI); it never writes the cache or the log.
     """
+    if probe:
+        with make_client() as client:
+            summary = probe_report(client)
+        if summary["status"] == "ok":
+            typer.echo(
+                f"injuries: probe ok; {summary['rows']} rows, {summary['teams']} teams"
+                f" (page updated {summary.get('page_updated_utc') or '?'})"
+            )
+        else:
+            typer.echo(f"injuries: probe failed; {summary['detail']}")
+        return
     names = team_name_map(
         read_teams(MART_PATH, EUROLEAGUE.name), read_games(MART_PATH, EUROLEAGUE.name), LIVE_SEASON
     )

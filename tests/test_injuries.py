@@ -14,6 +14,7 @@ from eurohoops.injuries import (
     InjuryReportError,
     fetch_report,
     parse_report,
+    probe_report,
     record_injuries,
     team_name_map,
 )
@@ -252,6 +253,24 @@ def test_title_challenge_message_names_the_interstitial() -> None:
     with pytest.raises(InjuryReportError) as info:
         fetch_report(client(body=page))
     assert str(info.value) == "fetch failed: Cloudflare challenge page"
+
+
+def test_probe_ok_reports_rows_and_writes_nothing(tmp_path: Path) -> None:
+    p = paths(tmp_path)
+    summary = probe_report(client())
+    assert summary["status"] == "ok"
+    assert summary["rows"] == 5
+    assert not p.log.exists()
+    assert not (tmp_path / "raw").exists()
+
+
+def test_probe_failed_reports_detail_and_writes_nothing(tmp_path: Path) -> None:
+    p = paths(tmp_path)
+    summary = probe_report(client(403, b"blocked"))
+    assert summary["status"] == "failed"
+    assert "HTTP 403" in summary["detail"]
+    assert not p.log.exists()
+    assert not (tmp_path / "raw").exists()
 
 
 def test_report_request_sends_browser_accept_headers_and_keeps_the_project_agent() -> None:
