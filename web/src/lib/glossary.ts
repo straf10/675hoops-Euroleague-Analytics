@@ -281,7 +281,7 @@ export const TERMS: GlossaryTerm[] = [
     term: "Wins",
     name: "Projected wins",
     group: "Forecasts",
-    def: "On the Standings page, the wins a club is projected to add over the rest of the season, averaged across many simulated seasons.",
+    def: "On the Season projection page, the wins a club is projected to add over the rest of the season, averaged across many simulated seasons.",
     shownOn: [ST],
   },
   {
