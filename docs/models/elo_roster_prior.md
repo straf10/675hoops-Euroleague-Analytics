@@ -1,8 +1,9 @@
-# DRAFT – not approved, not run
+# Elo with a roster prior (ELOR): protocol v1
 
-**Elo with a roster-prior blend (shadow model proposal).** Written 2026-10-15 for the owner to
-approve or reject. No code is written for it, no CV is run, nothing is logged. Approval of this
-file would authorise the protocol below, not the model.
+**Status: approved by the owner 2026-10-15, not run.** Drafted 2026-10-15 and approved the same
+day with one change: the roster comes from the EuroLeague season roster lists (decision 0 below),
+not only from players who have already played. Approval authorises the protocol below, not the
+model: nothing is logged unless the criteria pass.
 
 ## Question
 Elo (`src/eurohoops/models/elo.py`, card `docs/models/elo.md`) regresses every rating 25% toward
@@ -19,8 +20,17 @@ over the first rounds, improves EuroLeague home-win log loss over live Elo.
   `reports/backtest_m3.json`, the same player part M5 uses; built by `_m5_player_part_el` in
   `src/eurohoops/cli.py`), weighted by the team's projected minute shares. Shares come from
   `models/minutes.py:projected_shares` or `models/rotation.py:projected_shares_variant`, computed
-  from box scores before the season-start cutoff. Roster turnover is handled by
-  `models/turnover.py:roster_continuity` (player-minute continuity; see the limits below).
+  from box scores before the season-start cutoff. **Roster membership (decision 0, option A):**
+  a team's roster for a game is the players (`type == "J"`) listed for that club in the cached
+  season roster list `data/raw/euroleague/people/E{season}.json.gz` (`ingest/bios.py`) whose
+  `startDate` is before the game's cutoff and whose `endDate` (if any) is after it. Mid-season
+  signings therefore enter only from their start date. Players with no M3 rating get the same
+  prior M5 gives unrated players. Before the first fold is scored, the build checks how many
+  `startDate` values fall after round 1 began (2024 has many in October) and declares one fixed
+  rule for registrations stamped within the first round; the rule and the counts go in the
+  report. Live 2026-27 roster lists are read from the cache only; a refresh before a round is a
+  normal cached ingest, never a re-fetch of a finished season.
+  `models/turnover.py:roster_continuity` remains available as a diagnostic.
   The margin is converted to Elo points by `elo.fit_margin_scale`, fitted on earlier seasons only.
   P_t is centred on the league mean of P in that season, so the blend moves teams relative to
   each other, not the league level.
@@ -62,7 +72,7 @@ Same structure as the M5 retune protocol (`docs/models/m5.md`, "Retune protocol 
 - **Score:** pooled log loss of P(home win) over the nine folds. Brier is reported too.
 - **Selection:** the setting with the lowest pooled log loss is the best. The SE of each setting's
   gap to the best is the standard deviation of the paired difference over 10,000 resamples of
-  **whole seasons**. Seed: proposed 20261015, to be fixed at approval.
+  **whole seasons**. Seed: 20261015 (fixed at approval).
 - **One-SE rule:** choose the simplest setting whose pooled log loss is within one SE of the
   best. Live Elo is not a grid point, so the rule always returns a blend setting; whether that
   blend beats Elo is decided by the criteria below.
@@ -77,11 +87,10 @@ model work, and the long-history Elo run (`reports/backtest_elo_history.json`) t
 The live Elo parameters were chosen on 2024 only. The baseline is
 live Elo with fixed parameters, which favours the baseline on these folds. The 2020 and 2021
 seasons (COVID) are kept as the M5 protocol kept 2019, with the open question below.
-Roster turnover is inferred from who has played: there are no historical signed-roster lists,
-and the feature is empty before a team's first games (it then falls back to P_t = R_t(start),
-so the blend has no effect).
+Roster lists record registration, not availability: an injured or unused registered player
+counts at their projected minutes. Their `startDate` stamps may lag the real signing.
 
-## Criteria to start a shadow (proposed, the owner decides)
+## Criteria to start a shadow (approved)
 All three needed, as in the M5 retune protocol:
 1. The selected setting's pooled log loss is below live Elo's on the same nine folds.
 2. Non-inferiority: the upper end of the 95% season-bootstrap CI of the pooled log-loss
@@ -97,9 +106,12 @@ Superiority is reported, not required.
 - Logged daily from the first CI run after the merge, with no backfill. Append-only, like every
   `predictions/` file.
 - Judged at the existing R1 promotion look (`docs/models/m5.md`, "Flagship promotion rule"). The
-  R1 rule is written for M5 against Elo, so the owner must confirm in writing that this arm is
-  added to the look report as a third comparison. Its promotion rule is declared separately
-  before 2027-28, as for the retuned M5. R1 is not changed by this proposal.
+  R1 rule is written for M5 against Elo; the owner confirmed (2026-10-15) that this arm is
+  added to the look report as a third comparison, reported only. Its promotion rule is declared
+  separately before 2027-28, as for the retuned M5. R1 is not changed by this protocol.
+- **Limited live evidence in 2026-27:** with no backfill, logging starts several rounds into the
+  season. Once a team is past the fade length N, ELOR equals Elo, so this season's live log
+  shows little difference. The first full live test is 2027-28 from round 1.
 
 ## Leakage safeguards
 - Season-start ratings (`R_t(start)`) and the blend weight use only games before the season's
@@ -116,9 +128,9 @@ Superiority is reported, not required.
 - The existing leakage tests run on the new code, and new tests check that a game's prediction
   is unchanged when later games are removed.
 
-## Open questions for the owner
-1. Approve or reject the grid (12 settings) and the simplicity order.
-2. Approve the folds (2015 to 2023, nine folds), including the 2020 and 2021 COVID seasons.
-3. Confirm the criteria: ±0.002 margins, the same as the M5 retune.
-4. Confirm the shadow joins the R1 look as a third comparison, or declare its own look.
-5. Confirm the seed (proposed 20261015).
+## Owner decisions (2026-10-15)
+0. Roster source: EuroLeague season roster lists with start/end dates (option A).
+1. Grid (12 settings) and simplicity order: approved as drafted.
+2. Folds 2015 to 2023 (nine), including the 2020 and 2021 COVID seasons: approved.
+3. Criteria: ±0.002 margins, as in the M5 retune: approved.
+4. Live judgement: a third comparison in the existing R1 look, reported only: approved.
