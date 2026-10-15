@@ -1,0 +1,293 @@
+{
+  "question": "Is the frozen EuroLeague home-court advantage (hca=90) shown to be wrong?",
+  "db": "C:\\Python\\675hoops\\data\\marts\\eurohoops.duckdb",
+  "live_params": {
+    "k": 20.0,
+    "hca": 90.0,
+    "reversion": 0.25
+  },
+  "scoring_rule": "played, not forfeit, not neutral; ratings replayed over all played games from the earliest season in the mart",
+  "per_season": [
+    {
+      "season": 2015,
+      "games": 246,
+      "actual_home_win_rate": 0.6463414634146342,
+      "mean_p_home": 0.6160471059718482,
+      "gap_mean_p_minus_actual": -0.03029435744278597
+    },
+    {
+      "season": 2016,
+      "games": 255,
+      "actual_home_win_rate": 0.6235294117647059,
+      "mean_p_home": 0.6172704046410344,
+      "gap_mean_p_minus_actual": -0.006259007123671445
+    },
+    {
+      "season": 2017,
+      "games": 256,
+      "actual_home_win_rate": 0.63671875,
+      "mean_p_home": 0.6156749174284329,
+      "gap_mean_p_minus_actual": -0.021043832571567056
+    },
+    {
+      "season": 2018,
+      "games": 256,
+      "actual_home_win_rate": 0.6328125,
+      "mean_p_home": 0.6181870976532235,
+      "gap_mean_p_minus_actual": -0.01462540234677645
+    },
+    {
+      "season": 2019,
+      "games": 252,
+      "actual_home_win_rate": 0.6190476190476191,
+      "mean_p_home": 0.6130306914177772,
+      "gap_mean_p_minus_actual": -0.006016927629841851
+    },
+    {
+      "season": 2020,
+      "games": 324,
+      "actual_home_win_rate": 0.5679012345679012,
+      "mean_p_home": 0.6163321539870664,
+      "gap_mean_p_minus_actual": 0.04843091941916522
+    },
+    {
+      "season": 2021,
+      "games": 295,
+      "actual_home_win_rate": 0.6542372881355932,
+      "mean_p_home": 0.6140813678139077,
+      "gap_mean_p_minus_actual": -0.04015592032168558
+    },
+    {
+      "season": 2022,
+      "games": 324,
+      "actual_home_win_rate": 0.6265432098765432,
+      "mean_p_home": 0.6165135434019148,
+      "gap_mean_p_minus_actual": -0.01002966647462844
+    },
+    {
+      "season": 2023,
+      "games": 327,
+      "actual_home_win_rate": 0.6452599388379205,
+      "mean_p_home": 0.6155528823186961,
+      "gap_mean_p_minus_actual": -0.02970705651922445
+    },
+    {
+      "season": 2024,
+      "games": 326,
+      "actual_home_win_rate": 0.6196319018404908,
+      "mean_p_home": 0.6185155641686532,
+      "gap_mean_p_minus_actual": -0.0011163376718376083
+    },
+    {
+      "season": 2025,
+      "games": 399,
+      "actual_home_win_rate": 0.6365914786967418,
+      "mean_p_home": 0.6200229837782381,
+      "gap_mean_p_minus_actual": -0.016568494918503762
+    },
+    {
+      "season": 2026,
+      "games": 48,
+      "actual_home_win_rate": 0.5625,
+      "mean_p_home": 0.6058006496576045,
+      "gap_mean_p_minus_actual": 0.043300649657604495
+    }
+  ],
+  "hca_grid": [
+    {
+      "hca": 50.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6322172207467668,
+          "brier": 0.22174570671649016,
+          "mean_p_home": 0.5663416670485061,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6400753467638837,
+          "brier": 0.22508014983459737,
+          "mean_p_home": 0.5665002379664636,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.6241484018399763,
+          "brier": 0.21682834843732368,
+          "mean_p_home": 0.5527262457400965,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    },
+    {
+      "hca": 60.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6290730383191501,
+          "brier": 0.22032598791108923,
+          "mean_p_home": 0.5798171119407203,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6364427533666602,
+          "brier": 0.22340058441363403,
+          "mean_p_home": 0.5801053133560757,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.6243789647574118,
+          "brier": 0.2172212171681319,
+          "mean_p_home": 0.5661936602898363,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    },
+    {
+      "hca": 70.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6267300948345681,
+          "brier": 0.21928047914182602,
+          "mean_p_home": 0.5931584041908285,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6336212315396513,
+          "brier": 0.2220986481196109,
+          "mean_p_home": 0.5935763747954479,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.6253530730657949,
+          "brier": 0.21797074957666399,
+          "mean_p_home": 0.5795436238597014,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    },
+    {
+      "hca": 80.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6251783103143761,
+          "brier": 0.21859929890099716,
+          "mean_p_home": 0.606341877795644,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6316004836451198,
+          "brier": 0.22116493831133024,
+          "mean_p_home": 0.6068897375012142,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.6270605259547839,
+          "brier": 0.21906471435730648,
+          "mean_p_home": 0.5927532256762446,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    },
+    {
+      "hca": 90.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6244060924623688,
+          "brier": 0.21827017631035914,
+          "mean_p_home": 0.6193451647537903,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6303687034586538,
+          "brier": 0.22058763968834874,
+          "mean_p_home": 0.6200229837782381,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.6294899126848846,
+          "brier": 0.2204888478456247,
+          "mean_p_home": 0.6058006496576045,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    },
+    {
+      "hca": 100.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6244004391190363,
+          "brier": 0.21827870495467794,
+          "mean_p_home": 0.6321473546833779,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6299126804283246,
+          "brier": 0.2203527728921245,
+          "mean_p_home": 0.6329551203333619,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.632628708426089,
+          "brier": 0.22222709239698038,
+          "mean_p_home": 0.6186653210919933,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    },
+    {
+      "hca": 110.0,
+      "periods": {
+        "2024_25_pooled": {
+          "games": 725,
+          "log_loss": 0.6251470502812523,
+          "brier": 0.21860862253462646,
+          "mean_p_home": 0.6447291295442757,
+          "actual_home_win_rate": 0.6289655172413793
+        },
+        "2025": {
+          "games": 399,
+          "log_loss": 0.6302179135022435,
+          "brier": 0.220444469421358,
+          "mean_p_home": 0.6456667118067672,
+          "actual_home_win_rate": 0.6365914786967418
+        },
+        "2026_so_far": {
+          "games": 48,
+          "log_loss": 0.6364633759571657,
+          "brier": 0.2242618535247045,
+          "mean_p_home": 0.6313280340634506,
+          "actual_home_win_rate": 0.5625
+        }
+      }
+    }
+  ],
+  "bootstrap_2025": {
+    "comparison": "2025 log loss: hca 100 (best on 2025) minus hca 90 (live)",
+    "best_hca_on_2025": 100.0,
+    "n_games_2025": 399,
+    "resamples": 10000,
+    "seed": 20261015,
+    "observed_mean_difference": -0.00045602303032923354,
+    "ci95": [
+      -0.003206606542237323,
+      0.002303351904006796
+    ],
+    "ci_includes_zero": true
+  }
+}
