@@ -372,6 +372,9 @@ def priors_report(priors: dict[int, NewcomerPrior]) -> dict[str, dict[str, Any]]
     return {
         str(s): {
             "rating": _round(p.rating),
+            "anchor": _round(p.anchor),
+            "gap": _round(p.gap),
+            "all_mean": {str(k): _round(v) for k, v in sorted(p.all_mean.items())},
             "share": _round(p.share),
             "rating_players": p.rating_players,
             "rating_seconds": _round(p.rating_seconds),

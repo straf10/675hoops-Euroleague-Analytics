@@ -24,8 +24,8 @@ over the first rounds, improves EuroLeague home-win log loss over live Elo.
   a team's roster for a game is the players (`type == "J"`) listed for that club in the cached
   season roster list `data/raw/euroleague/people/E{season}.json.gz` (`ingest/bios.py`) whose
   `startDate` is before the game's cutoff and whose `endDate` (if any) is after it. Mid-season
-  signings therefore enter only from their start date. Players with no M3 rating get the same
-  prior M5 gives unrated players. Before the first fold is scored, the build checks how many
+  signings therefore enter only from their start date. Players with no M3 rating or no minute
+  share get the typical-newcomer prior (owner decision 6, Build addendum). Before the first fold is scored, the build checks how many
   `startDate` values fall after round 1 began (2024 has many in October) and declares one fixed
   rule for registrations stamped within the first round; the rule and the counts go in the
   report. Live 2026-27 roster lists are read from the cache only; a refresh before a round is a
@@ -141,6 +141,14 @@ Superiority is reported, not required.
    (rating and minute share from earlier first-season newcomers; definition in the Build
    addendum). A GBL translation was considered and rejected: only 2 to 7 arrivals per season
    have GBL history.
+7. The newcomer rating prior is a gap anchored on the previous season's league mean, not an
+   absolute mean. Why: the M3 rating scale drifts upward over the years (the all-player
+   minutes-weighted mean is 0.19 in 2011 and about 1.85 in 2023), so pooled absolute values sit
+   too low against the current scale, while newcomers run 0.6 to 1.0 below their season's
+   league mean in the same fit. The prior is `anchor + pooled_gap` (Build addendum). The owner
+   approved the three build interpretations: a rating counts only once the player has played
+   before the cutoff; the share prior counts sat-out games as 0; the rating uses the fit at each
+   season's last round cutoff.
 
 ## Build addendum (2026-10-15, before any fold is scored; for owner review)
 Written with the harness (`eval/elor_cv.py`, `models/elor.py`, `models/roster.py`). Nothing
@@ -196,13 +204,18 @@ after round 1's cutoff for round 1's own games, which the leakage rule forbids
   - A first-season newcomer of season t is a player whose first seconds in the EuroLeague box
     data (from 2007) are in season t. 2007, the first season with box data, has no newcomers
     (no history to tell), so the history runs from 2008.
-  - Prior rating: the minutes-weighted mean of the newcomers' `O + D` in the walk-forward M3
-    fit at season t's last round cutoff (the state before t's final round, so the final round
-    itself is not in it). The weight is each newcomer's seconds in t before that cutoff.
-    Newcomers without a rating there are left out. The M3 frame starts in 2011 (the stints'
-    first season), so rating history runs from 2011; warm-up seasons count. The end of t is
-    taken from t's own last cutoff, not from the next season's first, so that removing season
-    s cannot change the prior for s.
+  - Prior rating: a gap anchored on the previous season's league mean (owner decision 7).
+    The M3 scale drifts, so the rating is stored relative to the league mean of its own fit.
+    For each earlier season sigma with ratings, in the season-end fit of sigma
+    (`season_end_rating`, the fit at sigma's last round cutoff), weighted by each player's
+    seconds in sigma before that cutoff: `all_mean(sigma)` is the weighted mean O + D over all
+    rated players with seconds in sigma; `new_mean(sigma)` is the same over the first-season
+    newcomers of sigma; `gap(sigma) = new_mean(sigma) - all_mean(sigma)`. Then
+    `pooled_gap(s) = sum(w_new(sigma) x gap(sigma)) / sum(w_new(sigma))` over the sigma < s
+    with both means, where `w_new(sigma)` is the newcomers' weight in sigma. The rating prior
+    for season s is `anchor(s) + pooled_gap(s)` with `anchor(s) = all_mean(s - 1)`. It is NaN if
+    either part is missing. The rating prior uses only seasons before s, so removing season s
+    cannot change it.
   - Prior share: the mean, over newcomer team-games, of `min(1, 5 x his seconds / the team's
     seconds)` in every rated game of his club from his first to his last appearance with it in
     season t. A game he sat out counts 0, as in the projected shares.

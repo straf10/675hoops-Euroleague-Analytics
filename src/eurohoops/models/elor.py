@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 import numpy as np
@@ -213,8 +213,12 @@ class Appearances:
 
 @dataclass(frozen=True)
 class NewcomerPrior:
-    """The typical-newcomer prior for one target season (owner decision 6), from seasons
-    before it only: ``rating`` (O + D per 100, minutes-weighted) and ``share`` (per game)."""
+    """The typical-newcomer prior for one target season (owner decision 6), from seasons before
+    it only (Build addendum). The rating is anchored on the previous season's league mean, not
+    on absolute values, because the M3 scale drifts: ``rating = anchor + gap``, where ``anchor``
+    is ``all_mean`` of season s - 1 and ``gap`` is the pooled newcomer gap to the league mean of
+    their own season. ``share`` is per game. ``all_mean`` holds each earlier season's league mean
+    (NaN where the season has no ratings)."""
 
     season: int
     rating: float
@@ -223,27 +227,57 @@ class NewcomerPrior:
     rating_seconds: float
     share_player_games: int
     history: tuple[int, ...]  # the earlier seasons that had newcomers
+    anchor: float = math.nan
+    gap: float = math.nan
+    all_mean: dict[int, float] = field(default_factory=dict)
 
 
-def _newcomer_season(
+@dataclass(frozen=True)
+class _SeasonSums:
+    """One season's sums: every rated player's weight and w * O + D, the newcomers' the same,
+    and the newcomers' share sums (``games`` newcomer team-games)."""
+
+    all_wr: float
+    all_w: float
+    new_wr: float
+    new_w: float
+    rated: int
+    share_sum: float
+    games: int
+
+    def all_mean(self) -> float:
+        return self.all_wr / self.all_w if self.all_w > 0 else math.nan
+
+    def new_mean(self) -> float:
+        return self.new_wr / self.new_w if self.new_w > 0 else math.nan
+
+
+def _season_sums(
     appearances: Appearances, sigma: int, season_end_rating: SeasonEndRating
-) -> tuple[float, float, int, float, int]:
-    """One season's newcomer sums: (sum w*r, sum w, rated players, sum of shares, games)."""
-    wr = w_sum = share_sum = 0.0
+) -> _SeasonSums:
+    """Season sigma's sums at its last round cutoff (the weights are seconds in sigma before
+    it). Newcomers are first-season players of sigma, none in the first box season."""
+    all_wr = all_w = new_wr = new_w = share_sum = 0.0
     rated = games = 0
     last_cutoff = appearances.last_cutoff.get(sigma, math.inf)
-    for player, first in appearances.first_season.items():
-        if first != sigma:
-            continue
-        times, teams, seasons = appearances.player[player]
-        secs = appearances.player_sec[player]
+    newcomers_here = sigma > appearances.data_first_season
+    for player, (times, teams, seasons) in appearances.player.items():
         in_season = seasons == sigma
+        if not in_season.any():
+            continue
+        secs = appearances.player_sec[player]
         weight = float(secs[in_season & (times < last_cutoff)].sum())
-        value = season_end_rating(sigma, player)
-        if value is not None and weight > 0:
-            wr += weight * value
-            w_sum += weight
-            rated += 1
+        value = season_end_rating(sigma, player) if weight > 0 else None
+        newcomer = newcomers_here and appearances.first_season.get(player) == sigma
+        if value is not None:
+            all_wr += weight * value
+            all_w += weight
+            if newcomer:
+                new_wr += weight * value
+                new_w += weight
+                rated += 1
+        if not newcomer:
+            continue
         for club in sorted({t for t, s in zip(teams, seasons, strict=True) if s == sigma}):
             mine = in_season & (np.asarray(teams) == club)
             start, end = float(times[mine].min()), float(times[mine].max())
@@ -254,7 +288,7 @@ def _newcomer_season(
                 sec = appearances.sec.get((t_ids[i], club, player), 0.0)
                 share_sum += min(1.0, ON_COURT * sec / float(t_sec[i]))
                 games += 1
-    return wr, w_sum, rated, share_sum, games
+    return _SeasonSums(all_wr, all_w, new_wr, new_w, rated, share_sum, games)
 
 
 def newcomer_priors(
@@ -263,43 +297,59 @@ def newcomer_priors(
     """Each target season's typical-newcomer prior (owner decision 6, Build addendum).
 
     A first-season newcomer of season sigma is a player whose first seconds in the box data are
-    in sigma; the first season with box data has none (no history to tell). Over every sigma
-    before the target:
+    in sigma; the first season with box data has none (no history to tell). Each sigma's sums
+    use the walk-forward fit at its last round cutoff (``season_end_rating``) and weights of
+    seconds in sigma before that cutoff. Over every sigma before the target:
 
-    * rating: the minutes-weighted mean of the newcomers' O + D in the walk-forward fit at
-      sigma's last round cutoff (``season_end_rating``), weighted by their seconds in sigma
-      before that cutoff (players without a rating there are left out);
-    * share: the mean, over newcomer team-games, of min(1, 5 x his seconds / the team's seconds)
-      in every game of his club from his first to his last appearance with it in sigma (a game
-      he sat out counts 0, as in the projected shares).
+    * ``all_mean(sigma)``: the minutes-weighted mean O + D of all rated players of sigma;
+    * ``gap(sigma)``: the newcomers' weighted mean minus ``all_mean(sigma)``;
+    * ``pooled_gap``: the newcomer-weight-weighted mean of the gaps (sigmas with both means);
+    * ``anchor``: ``all_mean(target - 1)``;
+    * rating: ``anchor + pooled_gap``, NaN if either part is missing;
+    * share: the mean, over newcomer team-games, of min(1, 5 x his seconds / the team's
+      seconds) in every game of his club from his first to his last appearance with it in sigma
+      (a game he sat out counts 0, as in the projected shares).
 
-    NaN when no earlier season has newcomers (the caller decides)."""
+    NaN where the prior is missing (the caller decides)."""
     out: dict[int, NewcomerPrior] = {}
-    sums: dict[int, tuple[float, float, int, float, int]] = {}
+    sums: dict[int, _SeasonSums] = {}
+
+    def season(sigma: int) -> _SeasonSums:
+        if sigma not in sums:
+            sums[sigma] = _season_sums(appearances, sigma, season_end_rating)
+        return sums[sigma]
+
     first = appearances.data_first_season
     for target in targets:
-        wr = w = share = 0.0
+        gap_wg = gap_w = share = 0.0
         rated = games = 0
         history: list[int] = []
-        for sigma in range(first + 1, target):
-            if sigma not in sums:
-                sums[sigma] = _newcomer_season(appearances, sigma, season_end_rating)
-            s_wr, s_w, s_rated, s_share, s_games = sums[sigma]
-            if s_games or s_rated:
+        all_mean: dict[int, float] = {}
+        for sigma in range(first, target):
+            s = season(sigma)
+            all_mean[sigma] = s.all_mean()
+            if s.games or s.rated:
                 history.append(sigma)
-            wr += s_wr
-            w += s_w
-            rated += s_rated
-            share += s_share
-            games += s_games
+            gap_sigma = s.new_mean() - s.all_mean()
+            if math.isfinite(gap_sigma) and s.new_w > 0:
+                gap_wg += s.new_w * gap_sigma
+                gap_w += s.new_w
+            share += s.share_sum
+            games += s.games
+            rated += s.rated
+        pooled_gap = gap_wg / gap_w if gap_w > 0 else math.nan
+        anchor = season(target - 1).all_mean()
         out[target] = NewcomerPrior(
             season=target,
-            rating=wr / w if w > 0 else math.nan,
+            rating=anchor + pooled_gap,
             share=share / games if games else math.nan,
             rating_players=rated,
-            rating_seconds=w,
+            rating_seconds=gap_w,
             share_player_games=games,
             history=tuple(history),
+            anchor=anchor,
+            gap=pooled_gap,
+            all_mean=all_mean,
         )
     return out
 

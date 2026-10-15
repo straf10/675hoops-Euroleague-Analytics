@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -180,34 +182,132 @@ def _priors(
     return newcomer_priors(app, syn.ratings(games, box).at_season_end, [2024, 2025, 2026])
 
 
+def _season_means(
+    games: pd.DataFrame, box: pd.DataFrame, sigma: int, value: Callable[[int, str], float | None]
+) -> tuple[float, float, float]:
+    """By hand from the box: (all_mean, new_mean, newcomer weight) of season sigma, weights =
+    seconds in sigma before its last round cutoff; newcomers are players first seen in sigma."""
+    last = float(round_cutoffs(games)[games["season"] == sigma].max())
+    ids = games.set_index("game_id")
+    tip = ids["tipoff_utc"].map(pd.Timestamp.timestamp)
+    rows = box.assign(t=box["game_id"].map(tip), s=box["game_id"].map(ids["season"]))
+    first = rows.groupby("player_id")["s"].min()
+    rows = rows[(rows["s"] == sigma) & (rows["t"] < last)]
+    weights = rows.groupby("player_id")["sec"].sum().astype(float)
+    means = {p: (weights[p] * float(value(sigma, p) or 0.0)) for p in weights.index}
+    all_mean = sum(means.values()) / float(weights.sum())
+    newcomers = [p for p in weights.index if first[p] == sigma]
+    new_w = float(weights[newcomers].sum())
+    new_mean = sum(means[p] for p in newcomers) / new_w
+    return all_mean, new_mean, new_w
+
+
 def test_newcomer_priors_by_hand() -> None:
     games, box = syn.games_and_box()
     games = _sorted(games)
     priors = _priors()
-    assert np.isnan(priors[2024].rating) and np.isnan(priors[2024].share)  # 2023: no history
-    # 2025: the only earlier newcomer is C5 (first seconds in 2024; 2023 is the first season).
+    value = syn.ratings(games, box).at_season_end
+    assert np.isnan(priors[2024].rating) and np.isnan(priors[2024].share)  # no newcomer season
+    assert np.isnan(priors[2024].gap) and np.isfinite(priors[2024].anchor)
+    # 2023 has no newcomers, so 2025 is anchored on 2024's mean with 2024's gap (C5).
+    m24, n24, w24 = _season_means(games, box, 2024, value)
+    assert priors[2025].anchor == pytest.approx(m24)
+    assert priors[2025].gap == pytest.approx(n24 - m24)
+    assert priors[2025].rating == pytest.approx(n24)
     c24 = games[(games["season"] == 2024) & ((games["home"] == "C") | (games["away"] == "C"))]
-    last_2024 = float(round_cutoffs(games)[games["season"] == 2024].max())
     rows = box[box["game_id"].isin(c24["game_id"]) & (box["team"] == "C")]
     team_sec = rows.groupby("game_id")["sec"].sum()
     c5 = rows[rows["player_id"] == "C5"].set_index("game_id")["sec"]
     share = float(np.minimum(1.0, 5 * c5 / team_sec).mean())
     assert priors[2025].share == pytest.approx(share)
-    assert priors[2025].rating == pytest.approx(syn.fake_value(2024, last_2024, "C5"))
     assert priors[2025].history == (2024,) and priors[2025].rating_players == 1
-    # 2026 adds A5 (2025 only), weighted by seconds before 2025's last round cutoff.
-    last_2025 = float(round_cutoffs(games)[games["season"] == 2025].max())
-    tip = games.set_index("game_id")["tipoff_utc"].map(pd.Timestamp.timestamp)
-    a5 = box[(box["player_id"] == "A5")]
-    w_a5 = float(a5.loc[a5["game_id"].map(tip) < last_2025, "sec"].sum())
-    c5_24 = box[(box["player_id"] == "C5") & box["game_id"].isin(c24["game_id"])]
-    w_c5 = float(c5_24.loc[c5_24["game_id"].map(tip) < last_2024, "sec"].sum())
-    expected = (
-        w_c5 * syn.fake_value(2024, last_2024, "C5") + w_a5 * syn.fake_value(2025, last_2025, "A5")
-    ) / (w_c5 + w_a5)
-    assert priors[2026].rating == pytest.approx(expected)
+    # 2026: anchor on 2025's mean, gap pooled over 2024 and 2025 by newcomer weight.
+    m25, n25, w25 = _season_means(games, box, 2025, value)
+    assert priors[2026].anchor == pytest.approx(m25)
+    assert priors[2026].gap == pytest.approx((w24 * (n24 - m24) + w25 * (n25 - m25)) / (w24 + w25))
+    assert priors[2026].rating == pytest.approx(priors[2026].anchor + priors[2026].gap)
+    assert priors[2026].all_mean[2024] == pytest.approx(m24)
+    assert set(priors[2026].all_mean) == {2023, 2024, 2025}
+    assert priors[2026].all_mean[2025] == pytest.approx(m25)
     assert priors[2026].history == (2024, 2025) and priors[2026].share_player_games == 8
     assert priors[2026].rating != 0.0 and priors[2026].share > 0.0
+
+
+def test_rating_prior_is_the_previous_season_mean_plus_the_pooled_newcomer_gap() -> None:
+    """Worked by hand. Every box row has 1000 seconds, so each player's weight in a season is
+    1000 x his games before the last round cutoff: 3 games (rounds 1-3) for everyone who plays
+    the whole season. Ratings: season value c plus 1 for the season's newcomer (C5 in 2024,
+    A5 in 2025). 2024: 17 rated players, all_mean = c24 + 3000/(17 x 3000) = c24 + 1/17, new_mean
+    = c24 + 1, gap = 16/17. 2025: 18 players, all_mean = c25 + 1/18, gap = 17/18. Pooled gap
+    for 2026 (equal newcomer weights 3000 each) = (16/17 + 17/18) / 2. Prior = all_mean(2025)
+    + pooled gap."""
+    games, box = syn.games_and_box()
+    games = _sorted(games)
+    box = box.assign(sec=1000)
+    base = {2024: 2.0, 2025: 5.0}
+    newcomers = {(2024, "C5"), (2025, "A5")}
+
+    def value(sigma: int, player: str) -> float | None:
+        return base.get(sigma, 0.0) + (1.0 if (sigma, player) in newcomers else 0.0)
+
+    app = Appearances(games, box)
+    priors = newcomer_priors(app, value, [2025, 2026])
+    gap_24, gap_25 = 16 / 17, 17 / 18
+    assert priors[2025].anchor == pytest.approx(2.0 + 1 / 17)
+    assert priors[2025].gap == pytest.approx(gap_24)
+    assert priors[2025].rating == pytest.approx(3.0)
+    assert priors[2025].rating_seconds == pytest.approx(3000.0)
+    assert priors[2026].anchor == pytest.approx(5.0 + 1 / 18)
+    assert priors[2026].gap == pytest.approx((gap_24 + gap_25) / 2)
+    assert priors[2026].rating == pytest.approx(5.0 + 1 / 18 + (gap_24 + gap_25) / 2)
+    assert priors[2026].rating_seconds == pytest.approx(6000.0)
+    assert priors[2026].all_mean[2024] == pytest.approx(2.0 + 1 / 17)
+    assert priors[2026].all_mean[2025] == pytest.approx(5.0 + 1 / 18)
+
+
+def _shifted(
+    base: Callable[[int, str], float | None], by: Callable[[int], float]
+) -> Callable[[int, str], float | None]:
+    def out(season: int, player: str) -> float | None:
+        value = base(season, player)
+        return None if value is None else value + by(season)
+
+    return out
+
+
+def _priors_with(by: Callable[[int], float]) -> dict[int, NewcomerPrior]:
+    games, box = syn.games_and_box()
+    games = _sorted(games)
+    base = syn.ratings(games, box).at_season_end
+    return newcomer_priors(Appearances(games, box), _shifted(base, by), [2024, 2025, 2026])
+
+
+@pytest.mark.parametrize("c", [3.0, -7.5])
+def test_rating_prior_shifts_with_a_constant_shift_of_every_season(c: float) -> None:
+    base = _priors_with(lambda s: 0.0)
+    shifted = _priors_with(lambda s: c)
+    for target in (2025, 2026):
+        assert shifted[target].rating == pytest.approx(base[target].rating + c)
+        assert shifted[target].gap == pytest.approx(base[target].gap)
+        assert shifted[target].share == base[target].share
+
+
+@pytest.mark.parametrize(("target", "old"), [(2025, 2023), (2026, 2023), (2026, 2024)])
+def test_shifting_a_season_two_or_more_back_leaves_the_prior_unchanged(
+    target: int, old: int
+) -> None:
+    base = _priors_with(lambda s: 0.0)[target]
+    moved = _priors_with(lambda s: 4.25 if s == old else 0.0)[target]
+    assert moved.rating == pytest.approx(base.rating)
+    assert moved.gap == pytest.approx(base.gap)
+
+
+@pytest.mark.parametrize("target", [2025, 2026])
+def test_shifting_the_previous_season_shifts_the_prior_by_exactly_that(target: int) -> None:
+    base = _priors_with(lambda s: 0.0)[target]
+    moved = _priors_with(lambda s: 4.25 if s == target - 1 else 0.0)[target]
+    assert moved.rating == pytest.approx(base.rating + 4.25)
+    assert moved.gap == pytest.approx(base.gap)
 
 
 @pytest.mark.parametrize("target", [2025, 2026])
