@@ -1,0 +1,76 @@
+{
+  "model": "m5",
+  "protocol": "retune_v1",
+  "git_head": "f09df098cae471e7851c0d08ac589efd5bce8ff7",
+  "addendum": "docs/models/m5.md (retune addendum 2026-10-14)",
+  "folds": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+  ],
+  "scored_games": 2567,
+  "settings": {
+    "proj_hc|core|d120|r40": 0.59793,
+    "proj_avail@1|core|d120|r40": 0.597832,
+    "proj_hc|core|d120|r40|T": 0.598093,
+    "proj_avail@1|core|d120|r40|T": 0.598001,
+    "proj_hc|core|d180|r40": 0.597679,
+    "proj_avail@1|core|d180|r40": 0.59759,
+    "proj_hc|core|d180|r40|T": 0.597788,
+    "proj_avail@1|core|d180|r40|T": 0.597694,
+    "proj_hc|core|d365|r40": 0.598027,
+    "proj_avail@1|core|d365|r40": 0.597945,
+    "proj_hc|core|d365|r40|T": 0.597683,
+    "proj_avail@1|core|d365|r40|T": 0.597604
+  },
+  "se_log_loss_gap_to_best": {
+    "proj_hc|core|d120|r40": 0.000483,
+    "proj_avail@1|core|d120|r40": 0.0004,
+    "proj_hc|core|d120|r40|T": 0.000606,
+    "proj_avail@1|core|d120|r40|T": 0.000643,
+    "proj_hc|core|d180|r40": 0.000479,
+    "proj_avail@1|core|d180|r40": 0.0,
+    "proj_hc|core|d180|r40|T": 0.000485,
+    "proj_avail@1|core|d180|r40|T": 0.00046,
+    "proj_hc|core|d365|r40": 0.000744,
+    "proj_avail@1|core|d365|r40": 0.000495,
+    "proj_hc|core|d365|r40|T": 0.000514,
+    "proj_avail@1|core|d365|r40|T": 0.00054
+  },
+  "baseline": {
+    "shares": "proj_hc",
+    "half_life_games": null,
+    "turnover": false,
+    "residual_half_life_days": 180.0
+  },
+  "selected": {
+    "shares": "proj_hc",
+    "half_life_games": null,
+    "turnover": false,
+    "residual_half_life_days": 180.0
+  },
+  "baseline_stands": true,
+  "pooled_log_loss": {
+    "baseline": 0.597679,
+    "selected": 0.597679
+  },
+  "selected_minus_baseline": {
+    "mean": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ]
+  },
+  "shadow_criteria": {
+    "not_baseline": false,
+    "non_inferior": true,
+    "worth_it": false
+  },
+  "totals_crps_m1_rest": 9.268499
+}
