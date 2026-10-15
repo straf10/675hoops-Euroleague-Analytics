@@ -408,6 +408,40 @@ M5_RETUNE = M5Retune(
     warmup=_seasons(2011, 2014),
     folds=_seasons(2015, 2023),
 )
+
+
+# Live Elo's EuroLeague parameters, fixed for ELOR (never searched; checked against the report).
+ELOR_ELO_PARAMS = EloParams(k=20.0, hca=90.0, reversion=0.25)
+
+
+@dataclass(frozen=True)
+class ElorCv:
+    """ELOR protocol v1 (docs/models/elo_roster_prior.md): rolling-origin CV, run once.
+
+    Frozen before any fold is scored: the 12-setting grid (``w0`` x ``n_rounds``), the folds,
+    the simplicity order (smaller ``w0``, then smaller ``n_rounds``), the bootstrap and the
+    criteria. Live Elo's parameters are fixed, never searched."""
+
+    report: Path
+    games_report: Path
+    elo_warmup: tuple[int, ...]
+    folds: tuple[int, ...]
+    w0: tuple[float, ...] = (0.2, 0.35, 0.5)
+    n_rounds: tuple[int, ...] = (4, 8, 16, 24)
+    elo_params: EloParams = ELOR_ELO_PARAMS
+    bootstrap_resamples: int = 10000
+    bootstrap_seed: int = 20261015
+    shadow_log_loss_margin: float = 0.002
+    min_rostered: int = 8  # coverage diagnostic only (--cv-check), never a filter
+    protocol: str = "docs/models/elo_roster_prior.md (protocol v1, build addendum)"
+
+
+ELOR_CV = ElorCv(
+    Path("reports/elor_cv.json"),
+    Path("reports/elor_cv_games.csv"),
+    elo_warmup=_seasons(2007, 2014),
+    folds=_seasons(2015, 2023),
+)
 M5_GBL = M5Backtest(
     Path("reports/backtest_m5_gbl.json"),
     Path("reports/backtest_m5_gbl_games.csv"),

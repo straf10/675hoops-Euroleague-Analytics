@@ -24,8 +24,8 @@ over the first rounds, improves EuroLeague home-win log loss over live Elo.
   a team's roster for a game is the players (`type == "J"`) listed for that club in the cached
   season roster list `data/raw/euroleague/people/E{season}.json.gz` (`ingest/bios.py`) whose
   `startDate` is before the game's cutoff and whose `endDate` (if any) is after it. Mid-season
-  signings therefore enter only from their start date. Players with no M3 rating get the same
-  prior M5 gives unrated players. Before the first fold is scored, the build checks how many
+  signings therefore enter only from their start date. Players with no M3 rating or no minute
+  share get the typical-newcomer prior (owner decision 6, Build addendum). Before the first fold is scored, the build checks how many
   `startDate` values fall after round 1 began (2024 has many in October) and declares one fixed
   rule for registrations stamped within the first round; the rule and the counts go in the
   report. Live 2026-27 roster lists are read from the cache only; a refresh before a round is a
@@ -134,3 +134,104 @@ Superiority is reported, not required.
 2. Folds 2015 to 2023 (nine), including the 2020 and 2021 COVID seasons: approved.
 3. Criteria: ±0.002 margins, as in the M5 retune: approved.
 4. Live judgement: a third comparison in the existing R1 look, reported only: approved.
+5. Registrations stamped during round 1: the strict rule is approved (see the Build addendum).
+   They count from their own `startDate`, so such a player joins from round 2. The
+   alternative that counted them from the season start is removed from the code.
+6. Players new to the EuroLeague do not count as zero: they get a typical-newcomer prior
+   (rating and minute share from earlier first-season newcomers; definition in the Build
+   addendum). A GBL translation was considered and rejected: only 2 to 7 arrivals per season
+   have GBL history.
+7. The newcomer rating prior is a gap anchored on the previous season's league mean, not an
+   absolute mean. Why: the M3 rating scale drifts upward over the years (the all-player
+   minutes-weighted mean is 0.19 in 2011 and about 1.85 in 2023), so pooled absolute values sit
+   too low against the current scale, while newcomers run 0.6 to 1.0 below their season's
+   league mean in the same fit. The prior is `anchor + pooled_gap` (Build addendum). The owner
+   approved the three build interpretations: a rating counts only once the player has played
+   before the cutoff; the share prior counts sat-out games as 0; the rating uses the fit at each
+   season's last round cutoff.
+
+## Build addendum (2026-10-15, before any fold is scored; for owner review)
+Written with the harness (`eval/elor_cv.py`, `models/elor.py`, `models/roster.py`). Nothing
+above is changed. The numbers come from `eurohoops backtest --model elor --cv-check`, which
+scores no fold.
+
+**Start-date counts, 2015 to 2023.** Player rows of each season's roster list. "After round 1
+began": `startDate` at or after the season's first tip-off. "During round 1": also before the
+second round's cutoff. "Played before stamp": rows whose player already had seconds for that
+club that season before his `startDate`.
+
+| Season | Players | After round 1 began | During round 1 | Of those, played before stamp |
+|---|---|---|---|---|
+| 2015 | 391 | 38 | 0 | 0 |
+| 2016 | 278 | 45 | 0 | 0 |
+| 2017 | 277 | 35 | 1 | 0 |
+| 2018 | 279 | 44 | 7 | 0 |
+| 2019 | 326 | 55 | 2 | 0 |
+| 2020 | 368 | 86 | 3 | 0 |
+| 2021 | 328 | 48 | 5 | 0 |
+| 2022 | 326 | 46 | 1 | 0 |
+| 2023 | 320 | 42 | 0 | 0 |
+
+**Rule for registrations stamped during round 1: strict** (approved, owner decision 5;
+`FIRST_ROUND_RULE = "strict"` in `models/roster.py`, the only rule in the code). A registration counts from its own `startDate` only, so a
+player stamped during round 1 joins the roster from round 2. Reasons: only 19 of 2,893 rows are
+stamped during round 1, none for a player who had already played for that club, so the stamps
+do not lag the debut there; and counting them from the season start would use a stamp made
+after round 1's cutoff for round 1's own games, which the leakage rule forbids
+(`tests/test_elor_cv.py` checks that a round-1 stamp never moves round 1's predictions).
+
+**How the build reads the protocol** (no choice here looks at a fold's result):
+- Roster stamps carry no time zone and are read as UTC. One 2014 row has no `startDate` and
+  counts from before the season (2014 is not a fold). Roster club codes equal the `games` mart
+  codes in every season 2007 to 2026, so no mapping is needed; the build stops if they differ.
+- `P_t` is evaluated at each game's cutoff (the roster in force then), not once per season.
+- Minute shares: H-c's `proj_hc` rule (window 5) applied to the club the player last played for
+  before the cutoff, in this season (that club's last 5 games up to his last appearance) or last
+  season (all its games). For a player who played his club's last game this equals
+  `minutes.projected_shares`. A player with no appearance in this or last season has no share
+  of his own and gets the newcomer prior share (below).
+- Ratings: `O + D` from the walk-forward M3 fit at the cutoff, available only if the lookup
+  holds the player and he has played (seconds > 0) in a rated game of the M3 frame before the
+  cutoff. The lookup alone is not enough: its columns span the whole frame, so a player who
+  first plays later already has a column, and its existence would leak that future. A player
+  without an available rating gets the newcomer prior rating (below).
+- **Newcomer prior** (owner decision 6). At a game's cutoff a rostered player with no share gets
+  the prior share, and one with no available rating gets the prior rating. Share and rating are
+  treated separately. As soon as the rules above give him a share or a rating, his own value
+  replaces the prior. Team shares then go through the cap: above a total of 5 they are scaled
+  down to 5. Both priors are computed once per target season s from seasons before s only
+  (`elor.newcomer_priors`):
+  - A first-season newcomer of season t is a player whose first seconds in the EuroLeague box
+    data (from 2007) are in season t. 2007, the first season with box data, has no newcomers
+    (no history to tell), so the history runs from 2008.
+  - Prior rating: a gap anchored on the previous season's league mean (owner decision 7).
+    The M3 scale drifts, so the rating is stored relative to the league mean of its own fit.
+    For each earlier season sigma with ratings, in the season-end fit of sigma
+    (`season_end_rating`, the fit at sigma's last round cutoff), weighted by each player's
+    seconds in sigma before that cutoff: `all_mean(sigma)` is the weighted mean O + D over all
+    rated players with seconds in sigma; `new_mean(sigma)` is the same over the first-season
+    newcomers of sigma; `gap(sigma) = new_mean(sigma) - all_mean(sigma)`. Then
+    `pooled_gap(s) = sum(w_new(sigma) x gap(sigma)) / sum(w_new(sigma))` over the sigma < s
+    with both means, where `w_new(sigma)` is the newcomers' weight in sigma. The rating prior
+    for season s is `anchor(s) + pooled_gap(s)` with `anchor(s) = all_mean(s - 1)`. It is NaN if
+    either part is missing. The rating prior uses only seasons before s, so removing season s
+    cannot change it.
+  - Prior share: the mean, over newcomer team-games, of `min(1, 5 x his seconds / the team's
+    seconds)` in every rated game of his club from his first to his last appearance with it in
+    season t. A game he sat out counts 0, as in the projected shares.
+  - The CV uses the M5 retune frame (2011 to 2023). The 2026 live prior is reported by
+    `--cv-check` from a second fit on M5's frame (2011 to 2025). Each fit is walk-forward, so
+    the two give the same values for the seasons they share.
+  - A fold whose prior has no history stops the build. None does: 2015 has 2008 to 2014.
+- `P_t` in Elo points: `s * poss/100 * Q_t`, with `Q_t` the per-100 roster rating, `poss` the
+  game's expected possessions (M5's) and `s` from `elo.fit_margin_scale` on live-Elo differences
+  and margins of all rated games of earlier seasons (from 2007). Centring is over the clubs with
+  a rostered player at that cutoff, for `Q` and `R(start)` alike; it cancels in a game's
+  difference.
+- A game without M3 state, expected possessions or a margin scale keeps live Elo. In 2015 to
+  2023 no scored game is affected.
+- Scored games: 2,535 (the 2,567 rated fold games of the M5 retune minus 32 neutral games).
+- One-SE: the SE is the SD (ddof 1) of the game-weighted pooled gap over the 10,000 whole-season
+  resamples (seed 20261015); the selected-minus-Elo CI uses the same draws.
+- Outputs: `reports/elor_cv.json` and `reports/elor_cv_games.csv` (per game: Elo and all 12
+  settings' P(home win)).
