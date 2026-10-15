@@ -17,6 +17,8 @@ const fullTitle = title ? `${title} · 6.75 Analytics` : "6.75 Analytics";
 const url = new URL(Astro.url.pathname, Astro.site ?? "https://675hoops.com").href;
 const home = import.meta.env.BASE_URL;
 const root = home.replace(/\/$/, "");
+// The social card, the same on every page. It needs public/og.png (1200x630).
+const image = new URL(`${root}/og.png`, Astro.site ?? "https://675hoops.com").href;
 const pages = [
   { key: "players", href: `${root}/players/`, label: "Players" },
   { key: "leaders", href: `${root}/leaders/`, label: "Leaders" },
@@ -47,7 +49,15 @@ const footLinks = [
     <meta property="og:site_name" content="6.75 Analytics" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={url} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    <link rel="canonical" href={url} />
+    <slot name="head" />
     <link rel="icon" href={`${root}/favicon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${root}/favicon.ico`} sizes="32x32" />
     <link rel="apple-touch-icon" href={`${root}/apple-touch-icon.png`} />
@@ -109,6 +119,13 @@ const footLinks = [
     </footer>
 
     <div class="tip" id="tip" role="tooltip" aria-hidden="true"></div>
+
+    <script>
+      // Error reports only (no traces, no replay). Off when the build has no DSN.
+      import * as Sentry from "@sentry/browser";
+      const dsn = import.meta.env.PUBLIC_SENTRY_DSN;
+      if (dsn) Sentry.init({ dsn, environment: import.meta.env.MODE, tracesSampleRate: 0 });
+    </script>
 
     <script>
       // Theme toggle: flips against whatever is showing now and remembers it.

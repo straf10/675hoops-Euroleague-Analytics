@@ -203,6 +203,9 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Build the site (Astro, into site/)
         working-directory: web
+        env:
+          # Public by design (it ships in the browser bundle). Unset means Sentry stays off.
+          PUBLIC_SENTRY_DSN: ${{ secrets.PUBLIC_SENTRY_DSN }}
         run: |
           npm ci
           npm run build

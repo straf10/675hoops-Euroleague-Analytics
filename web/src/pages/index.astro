@@ -68,6 +68,13 @@ const scoreRows = [
 ---
 
 <Base description={description} current="forecasts">
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "6.75 Analytics",
+    url: "https://675hoops.com/",
+    description,
+  })} />
   <section class="hero wrap" aria-labelledby="hero-title">
     <div class="copy">
       <h1 id="hero-title">Forecasts</h1>
