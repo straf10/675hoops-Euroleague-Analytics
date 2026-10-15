@@ -127,6 +127,7 @@ class Competition:
     m1: M1Backtest | None = None
     m1_prediction_log: Path | None = None  # live M1 log (E-g), separate from the Elo log
     m5_prediction_log: Path | None = None  # live M5 shadow log (EuroLeague only; not gated for GBL)
+    elor_prediction_log: Path | None = None  # live ELOR shadow log (EuroLeague only)
 
     @property
     def raw_dir(self) -> Path:
@@ -179,6 +180,7 @@ EUROLEAGUE = Competition(
     ),
     m1_prediction_log=Path("predictions/euroleague_m1_2026-27.csv"),
     m5_prediction_log=Path("predictions/euroleague_m5_2026-27.csv"),
+    elor_prediction_log=Path("predictions/euroleague_elor_2026-27.csv"),
 )
 
 GBL_ELO_GRID = Grid(

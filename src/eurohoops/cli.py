@@ -135,6 +135,7 @@ from eurohoops.ingest import euroleague, gbl
 from eurohoops.ingest.bios import build_bios, ingest_bios, refresh_people
 from eurohoops.ingest.http import Fetcher, make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
+from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import live_spec, load_m5, predict_upcoming_m5
 from eurohoops.live_m6 import (
@@ -1576,12 +1577,44 @@ app.command(name="m5-rest")(research.m5_rest)
 app.command(name="shot-charts")(research.shot_charts)
 
 
-def _m5_live_build(comp: Competition) -> tuple[M5Inputs, PlayerPartFn]:
-    """The live M5 harness inputs and EuroLeague player part: the backtest's own builders over
-    every game up to the live season (``live_spec``)."""
-    spec = live_spec(M5, LIVE_SEASON)
-    inputs, frame = _m5_inputs(comp, GBL, spec, dict(GREEK_EL_CLUBS))
-    return inputs, _m5_player_part_el(inputs, frame)
+class _LiveFrame:
+    """M5's live inputs, frame and M3 walk-forward fit, built once per ``predict`` run on first
+    use and shared by the M5 and ELOR shadow logs (the fit is the slow part)."""
+
+    def __init__(self, comp: Competition) -> None:
+        self._comp = comp
+        self._built: tuple[M5Inputs, ElPlayerRatings] | None = None
+
+    def get(self) -> tuple[M5Inputs, ElPlayerRatings]:
+        if self._built is None:
+            spec = live_spec(M5, LIVE_SEASON)
+            inputs, frame = _m5_inputs(self._comp, GBL, spec, dict(GREEK_EL_CLUBS))
+            self._built = (inputs, _el_player_ratings(inputs, frame))
+        return self._built
+
+    def m5(self) -> tuple[M5Inputs, PlayerPartFn]:
+        """The live M5 harness inputs and EuroLeague player part (``live_spec``)."""
+        inputs, ratings = self.get()
+        return inputs, el_player_part(ratings)
+
+    def elor(self) -> ElorInputs:
+        """ELOR's live inputs: the same fit, and the live season's cached roster list."""
+        inputs, ratings = self.get()
+        try:
+            roster = read_rosters(EUROLEAGUE.raw_dir, (LIVE_SEASON,))
+        except RosterCacheError as error:
+            log.error("%s", error)
+            raise typer.Exit(code=1) from error
+        source = WalkForwardRatings(ratings.frame, ratings.wf.lookups, inputs.player_games)
+        return ElorInputs(
+            games=inputs.games,
+            player_games=inputs.player_games,
+            roster=roster,
+            rating=source,
+            has_state=source.has_state,
+            possessions=ratings.possessions,
+            season_end_rating=source.at_season_end,
+        )
 
 
 @app.command()
@@ -1616,13 +1649,14 @@ def predict(
                 clock=utc_now,
             )
             typer.echo(f"{added} M1 predictions appended to {comp.m1_prediction_log}")
+        frame = _LiveFrame(comp)
         m5 = load_m5(M5.report) if comp.m5_prediction_log is not None else None
         if m5 is not None and comp.m5_prediction_log is not None:
             try:
                 added = predict_upcoming_m5(
                     live.games,
                     m5,
-                    partial(_m5_live_build, comp),
+                    frame.m5,
                     log_path=comp.m5_prediction_log,
                     season=live.season,
                     window=timedelta(hours=window_hours),
@@ -1635,6 +1669,25 @@ def predict(
                 raise
             except Exception:  # e.g. marts without the tuning seasons: still never blocks
                 log.exception("M5 skipped: its forecast failed; nothing appended to its log")
+        elor = load_elor(ELOR_CV.report) if comp.elor_prediction_log is not None else None
+        if elor is not None and comp.elor_prediction_log is not None:
+            try:
+                added = predict_upcoming_elor(
+                    live.games,
+                    elor,
+                    frame.elor,
+                    log_path=comp.elor_prediction_log,
+                    season=live.season,
+                    window=timedelta(hours=window_hours),
+                    clock=utc_now,
+                )
+                typer.echo(f"{added} ELOR predictions appended to {comp.elor_prediction_log}")
+            except typer.Exit:  # a shadow model never blocks the Elo and M1 logs
+                log.warning("ELOR skipped: its marts, stints, roster list or reports are missing")
+            except LatePredictionError:
+                raise
+            except Exception:
+                log.exception("ELOR skipped: its forecast failed; nothing appended to its log")
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc

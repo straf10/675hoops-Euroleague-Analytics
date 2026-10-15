@@ -357,7 +357,7 @@ def _elo(store: Store, comp: Competition, season: int) -> dict[str, tuple[float,
 # ---- site ----
 
 # The page leads with SITE_FORECAST_MODEL; the team models appear only in its small comparison.
-FORECAST_MODELS = {"elo": "Our forecast", "m1": "M1", "m5": "M5"}
+FORECAST_MODELS = {"elo": "Our forecast", "m1": "M1", "m5": "M5", "elor": "Roster Elo (trial)"}
 
 
 def _path_or_none(store: Store, relative: Path | None) -> Path | None:
@@ -395,6 +395,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         "elo": store.path(comp.prediction_log),
                         "m1": _path_or_none(store, comp.m1_prediction_log),
                         "m5": _path_or_none(store, comp.m5_prediction_log),
+                        "elor": _path_or_none(store, comp.elor_prediction_log),
                     },
                     FORECAST_MODELS,
                     games,
@@ -510,6 +511,7 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
             "elo": comp.prediction_log,
             "m1": comp.m1_prediction_log,
             "m5": comp.m5_prediction_log,
+            "elor": comp.elor_prediction_log,
         }
         models: dict[str, Any] = {}
         head: Mapping[Any, Any] | None = None
