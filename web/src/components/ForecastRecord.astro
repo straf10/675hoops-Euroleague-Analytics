@@ -47,6 +47,10 @@ const latestName = called.length ? groupLabel(called[0].phase, called[0].phase =
 
 const rounds = fc && model ? [...fc.rounds].reverse().filter((g) => g.models[model]) : [];
 const lineOf = (phase: string, round: number | null) => acc.find((a) => a.phase === phase && a.round === round);
+// Every model with a scored round, the published one first: a side-by-side view, not a verdict.
+const roundModels = fc && model
+  ? [model, ...fc.models.map((m) => m.key).filter((k) => k !== model && rounds.some((g) => g.models[k]))]
+  : [];
 
 
 const others = fc && fc.shared.rows.length > 1 ? fc.shared : null;
@@ -231,7 +235,10 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
 
         <section aria-labelledby={`fc-rounds-${comp.key}`}>
           <h3 id={`fc-rounds-${comp.key}`}>Round by round</h3>
-          <p class="sub">Newest first. {marketName} are counted on the games with a recorded line.</p>
+          <p class="sub">
+            Newest first. Each cell is the winners picked, then the Brier score (lower is better). Every model
+            is counted on the games it called; {marketName} on the games with a recorded line.
+          </p>
           <div class="scroll">
             <table class="plain">
               <caption class="sr-only">
@@ -243,12 +250,14 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                   <th scope="col" class="n">
                     Games
                   </th>
-                  <th scope="col" class="n">
-                    {label} picked the winner
-                  </th>
+                  {roundModels.map((k) => (
+                    <th scope="col" class="n">
+                      {k === model ? label : labelOf(k)}
+                    </th>
+                  ))}
                   {market && (
                     <th scope="col" class="n">
-                      {marketName} picked the winner
+                      {marketName}
                     </th>
                   )}
                 </tr>
@@ -260,16 +269,46 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                     <tr>
                       <th scope="row">{groupLabel(g.phase, g.round)}</th>
                       <td class="n">{g.models[model].n}</td>
-                      <td class="n">
-                        {rightText(g.models[model])} ({share(g.models[model].right_pct)})
-                      </td>
-                      {market && <td class="n">{m ? `${rightText(m)} (${share(m.right_pct)})` : dash}</td>}
+                      {roundModels.map((k) => {
+                        const r = g.models[k];
+                        return (
+                          <td class="n">
+                            {r ? (
+                              <>
+                                {rightText(r)}
+                                <span class="bri">{score3(r.brier)}</span>
+                              </>
+                            ) : (
+                              dash
+                            )}
+                          </td>
+                        );
+                      })}
+                      {market && (
+                        <td class="n">
+                          {m ? (
+                            <>
+                              {rightText(m)}
+                              <span class="bri">{score3(m.brier)}</span>
+                            </>
+                          ) : (
+                            dash
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          {roundModels.length > 1 && (
+            <p class="note">
+              A round is eight to ten games, so one result moves these numbers a lot. This view is for
+              watching trends; the models are compared formally, as declared before the season, after
+              round 19.
+            </p>
+          )}
         </section>
 
         <details class="log" id="every-game">
@@ -359,6 +398,11 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
   }
   .scroll {
     overflow-x: auto;
+  }
+  .bri {
+    display: block;
+    color: var(--muted);
+    font-size: 0.8125rem;
   }
   table.plain {
     width: auto;
