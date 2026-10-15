@@ -29,6 +29,8 @@ def roster_continuity(games: pd.DataFrame, player_games: pd.DataFrame) -> pd.Dat
     ordered = games.sort_values("tipoff_utc").reset_index(drop=True)
     cutoffs = round_cutoffs(ordered)
     rated_pg = player_games[player_games["sec"] > 0].copy()
+    if "season" in rated_pg.columns:
+        rated_pg = rated_pg.drop(columns=["season"])
     rated_pg = rated_pg.merge(_rated(ordered)[["game_id", "season"]], on="game_id", how="inner")
     player_season = rated_pg.groupby(["season", "team", "player_id"], as_index=False)["sec"].sum()
     team_season = rated_pg.groupby(["season", "team"], as_index=False).agg(team_sec=("sec", "sum"))

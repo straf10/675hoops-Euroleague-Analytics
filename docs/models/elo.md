@@ -94,10 +94,9 @@ live backtest report, and appends one row per upcoming game before tip-off.
 - **Scoring:** `eurohoops score` writes the scorecards. Rows whose stamp is not provably before
   tip-off are excluded (two EuroLeague rows are not provable).
 
-Live 2026-27 numbers as published in the scorecards (descriptive only, a small sample; Elo is
-scored on the games it logged before tip-off):
-- **EuroLeague:** 38 scored games, log loss 0.630038, Brier 0.221118; B0 0.672396.
-- **GBL:** 14 scored games, log loss 0.392408, Brier 0.12194; B0 0.651774.
+The live 2026-27 numbers change with every scored game, so this card does not quote them: they are
+in `reports/live_scorecard.json` and `reports/live_scorecard_gbl.json` under `elo` and `b0`
+(descriptive only, a small sample; Elo is scored on the games it logged before tip-off).
 
 ## Limitations
 - One rating per team: no roster, injuries, rest or travel. It cannot see a trade, an injury or a
@@ -110,7 +109,7 @@ scored on the games it logged before tip-off):
   described above.
 - Elo has no total-points model: the totals error in the reports uses a baseline of the previous
   two seasons' mean total, not a rating.
-- Live samples are small. The live numbers above are not a verdict.
+- Live samples are small. The live scorecards are not a verdict.
 
 ## Numbers
 | Quantity | Value | Report |
@@ -171,13 +170,3 @@ scored on the games it logged before tip-off):
 | GBL live: test log loss, Elo minus B0 | -0.183443 | `backtest_elo_gbl.json:test_log_loss_diff_elo_minus_b0.mean` |
 | GBL live: test log loss, Elo minus B0, CI low | -0.226229 | `backtest_elo_gbl.json:test_log_loss_diff_elo_minus_b0.ci95.0` |
 | GBL live: test log loss, Elo minus B0, CI high | -0.137582 | `backtest_elo_gbl.json:test_log_loss_diff_elo_minus_b0.ci95.1` |
-| Live EuroLeague: rows in log | 43 | `live_scorecard.json:rows_in_log` |
-| Live EuroLeague: rows not provable | 2 | `live_scorecard.json:rows_not_provable` |
-| Live EuroLeague: scored games | 38 | `live_scorecard.json:elo.n` |
-| Live EuroLeague: Elo log loss | 0.630038 | `live_scorecard.json:elo.log_loss` |
-| Live EuroLeague: Elo Brier | 0.221118 | `live_scorecard.json:elo.brier` |
-| Live EuroLeague: B0 log loss | 0.672396 | `live_scorecard.json:b0.log_loss` |
-| Live GBL: scored games | 14 | `live_scorecard_gbl.json:elo.n` |
-| Live GBL: Elo log loss | 0.392408 | `live_scorecard_gbl.json:elo.log_loss` |
-| Live GBL: Elo Brier | 0.12194 | `live_scorecard_gbl.json:elo.brier` |
-| Live GBL: B0 log loss | 0.651774 | `live_scorecard_gbl.json:b0.log_loss` |

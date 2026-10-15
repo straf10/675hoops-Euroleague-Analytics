@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from eurohoops.models.m5 import ResidualFit
 from eurohoops.models.turnover import mixed_team_adjustment, roster_continuity
 
 
-def test_roster_continuity_first_game_of_season_is_one() -> None:
-    games = pd.DataFrame(
+def _one_game() -> pd.DataFrame:
+    return pd.DataFrame(
         {
             "game_id": ["g1"],
             "season": [2025],
@@ -20,6 +21,10 @@ def test_roster_continuity_first_game_of_season_is_one() -> None:
             "neutral": [False],
         }
     )
+
+
+@pytest.mark.parametrize("with_season", [False, True])
+def test_roster_continuity_first_game_of_season_is_one(with_season: bool) -> None:
     player_games = pd.DataFrame(
         {
             "game_id": ["g1", "g1"],
@@ -28,7 +33,9 @@ def test_roster_continuity_first_game_of_season_is_one() -> None:
             "sec": [600, 600],
         }
     )
-    out = roster_continuity(games, player_games)
+    if with_season:  # build_box_games' player table carries its own season column
+        player_games["season"] = 2025
+    out = roster_continuity(_one_game(), player_games)
     assert out.iloc[0]["c_home"] == 1.0
     assert out.iloc[0]["c_away"] == 1.0
 

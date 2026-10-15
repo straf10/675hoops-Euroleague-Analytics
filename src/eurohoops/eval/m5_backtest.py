@@ -1163,7 +1163,6 @@ def run_m5_backtest(
 
 prepare_context = _prepare
 projected_for_option = _projected
-core_margin_from_context = _core_margin
 
 
 def format_m5_table(report: dict[str, Any]) -> str:

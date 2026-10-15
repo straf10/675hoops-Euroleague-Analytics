@@ -52,7 +52,10 @@ try {
         exit 0
     }
 
-    $out = uv run --no-dev eurohoops injuries 2>&1 | Out-String
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $out = (uv run --no-dev eurohoops injuries 2>&1 | ForEach-Object { "$_" }) -join "`n"
+    $ErrorActionPreference = $prev
     Write-Host $out.TrimEnd()
     $rows = 0
     if ($out -match "(\d+) rows") { $rows = [int]$Matches[1] }
@@ -66,8 +69,9 @@ try {
             git push origin HEAD:main
             if ($LASTEXITCODE -eq 0) { $pushed = $true; break }
             if ($attempt -eq 1) {
-                if (-not (git pull --rebase origin main)) {
-                    git rebase --abort 2>$null
+                git pull --rebase origin main
+                if ($LASTEXITCODE -ne 0) {
+                    git rebase --abort
                     Write-Attempt "push_conflict" $rows ""
                     throw "push failed after rebase conflict; merge by hand"
                 }

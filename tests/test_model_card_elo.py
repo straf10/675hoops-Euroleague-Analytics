@@ -11,7 +11,7 @@ REPORTS = Path(__file__).parent.parent / "reports"
 
 def test_every_table_value_matches_its_report_path() -> None:
     table = rows(DOC)
-    assert len(table) >= 60
+    assert len(table) >= 50
     reports = {
         name: json.loads((REPORTS / name).read_text(encoding="utf-8"))
         for name in {r["file"] for r in table}

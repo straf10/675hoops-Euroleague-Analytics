@@ -50,7 +50,7 @@ def retune_backtest_spec(retune: M5Retune) -> M5Backtest:
         warmup=retune.warmup,
         tuning=retune.folds,
         validation=(),
-        test=(),
+        test=(retune.folds[-1],),  # frame end season; retune scores via folds, not this split
         grid=M5Grid(
             half_life_games=(retune.avail_half_life_games,),
             residual_half_life_days=retune.residual_half_life_days,

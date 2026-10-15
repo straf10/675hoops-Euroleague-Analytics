@@ -107,6 +107,7 @@ from eurohoops.eval.m5_backtest import (
 from eurohoops.eval.m5_retune import (
     git_head_sha,
     is_clean_tree,
+    retune_backtest_spec,
     retune_check,
     run_retune,
 )
@@ -813,7 +814,8 @@ def _backtest_m5_retune(check_only: bool) -> None:
         if not _on_origin_main():
             log.error("refusing to run: HEAD is not the same as origin/main")
             raise typer.Exit(code=1)
-    inputs, frame = _m5_inputs(EUROLEAGUE, GBL, M5, dict(GREEK_EL_CLUBS))
+    retune_spec = retune_backtest_spec(M5_RETUNE)
+    inputs, frame = _m5_inputs(EUROLEAGUE, GBL, retune_spec, dict(GREEK_EL_CLUBS))
     player_part = _m5_player_part_el(inputs, frame)
     if check_only:
         if not M5.games_report.exists():
