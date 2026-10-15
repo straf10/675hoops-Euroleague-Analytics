@@ -9,8 +9,12 @@ $ErrorActionPreference = "Stop"
 $AttemptLog = Join-Path $env:LOCALAPPDATA "675hoops\injury_attempts.log"
 $Mart = Join-Path $RepoRoot "data\marts\eurohoops.duckdb"
 $UtcNow = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+$logged = $false
+$rows = 0
+$stage = "recover"
 
 function Write-Attempt([string]$Status, [int]$Rows, [string]$Sha) {
+    $script:logged = $true
     $line = "$UtcNow`t$Status`t$Rows`t$Sha"
     if ($WhatIf) {
         Write-Host "[WhatIf] append attempt log: $line"
@@ -31,18 +35,50 @@ function Invoke-Step([string]$Label, [scriptblock]$Action) {
 }
 
 if (-not (Test-Path $RepoRoot)) {
+    Write-Attempt "no_repo" 0 ""
     throw "Repo root not found: $RepoRoot (clone main here first)"
 }
 
 Push-Location $RepoRoot
 try {
+    # Recover an injury commit left unpushed by an earlier failed run, so pull --ff-only can work again.
+    if ($WhatIf) {
+        Write-Host "[WhatIf] git fetch origin main"
+        Write-Host "[WhatIf] if local commits ahead of origin/main: git pull --rebase origin main; git push origin HEAD:main"
+    } else {
+        git fetch origin main
+        if ($LASTEXITCODE -ne 0) { throw "git fetch failed (exit $LASTEXITCODE)" }
+        $revOut = git rev-list --count origin/main..HEAD
+        if ($LASTEXITCODE -ne 0) { throw "git rev-list failed (exit $LASTEXITCODE)" }
+        $ahead = [int]("$revOut".Trim())
+        if ($ahead -gt 0) {
+            Write-Host "Recovering $ahead unpushed local commit(s)"
+            git pull --rebase origin main
+            if ($LASTEXITCODE -ne 0) {
+                $pullExit = $LASTEXITCODE
+                # Abort succeeds only if a rebase is in progress (a conflict); else the pull itself failed.
+                git rebase --abort
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Attempt "stuck" $rows ""
+                    throw "local commits conflict with origin; resolve by hand in $RepoRoot"
+                }
+                throw "git pull --rebase failed (exit $pullExit)"
+            }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -ne 0) { throw "recovery push failed (exit $LASTEXITCODE)" }
+        }
+    }
+
+    $stage = "pull"
     Invoke-Step "git pull --ff-only" { git pull --ff-only origin main }
 
     $martStale = -not (Test-Path $Mart) -or (
         (Get-Item $Mart).LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7)
     )
     if ($martStale) {
+        $stage = "ingest"
         Invoke-Step "ingest --current-only" { uv run --no-dev eurohoops ingest --current-only }
+        $stage = "build"
         Invoke-Step "build" { uv run --no-dev eurohoops build }
     }
 
@@ -57,13 +93,14 @@ try {
     $out = (uv run --no-dev eurohoops injuries 2>&1 | ForEach-Object { "$_" }) -join "`n"
     $ErrorActionPreference = $prev
     Write-Host $out.TrimEnd()
-    $rows = 0
     if ($out -match "(\d+) rows") { $rows = [int]$Matches[1] }
 
     if ($out -match "injuries: appended") {
+        $stage = "commit"
         git add injuries/
         $stamp = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mmZ")
         git commit -m "Injury snapshot $stamp"
+        $stage = "push"
         $pushed = $false
         foreach ($attempt in 1..2) {
             git push origin HEAD:main
@@ -93,6 +130,15 @@ try {
 
     Write-Attempt "failed" 0 ""
     exit 1
+}
+catch {
+    # Log stages that threw before their own Write-Attempt; rethrow so Task Scheduler sees the failure.
+    if (-not $logged) {
+        $status = "error"
+        if ($stage -in @("recover", "pull", "ingest", "build")) { $status = "$($stage)_failed" }
+        Write-Attempt $status $rows ""
+    }
+    throw
 }
 finally {
     Pop-Location

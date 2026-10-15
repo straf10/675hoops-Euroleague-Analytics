@@ -1,11 +1,12 @@
-# Register a twice-daily Task Scheduler job for scripts/record_injuries.ps1.
+# Register a twice-daily Task Scheduler job for the recorder clone's scripts/record_injuries.ps1.
+# Runs at 07:30 and 11:00 UTC (fixed, DST-independent) so the snapshot lands before daily CI at 08:00 UTC.
 param(
     [string]$RepoRoot = "C:\Python\675hoops-recorder"
 )
 
-$Script = Join-Path $PSScriptRoot "record_injuries.ps1"
+$Script = Join-Path $RepoRoot "scripts\record_injuries.ps1"
 if (-not (Test-Path $Script)) {
-    throw "Missing $Script"
+    throw "Missing $Script. Clone the recorder first (see one-time setup below)."
 }
 
 Write-Host @"
@@ -18,9 +19,16 @@ One-time setup (if the recorder clone does not exist yet):
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Script`" -RepoRoot `"$RepoRoot`""
 
+# Daily trigger pinned to a UTC wall time via a Z-suffixed StartBoundary.
+function New-UtcDailyTrigger([string]$Time) {
+    $t = New-ScheduledTaskTrigger -Daily -At $Time
+    $t.StartBoundary = "2026-01-01T$($Time):00Z"
+    return $t
+}
+
 $Triggers = @(
-    (New-ScheduledTaskTrigger -Daily -At "11:00"),
-    (New-ScheduledTaskTrigger -Daily -At "14:00")
+    (New-UtcDailyTrigger "07:30"),
+    (New-UtcDailyTrigger "11:00")
 )
 
 $Settings = New-ScheduledTaskSettingsSet `
@@ -37,4 +45,4 @@ Register-ScheduledTask `
     -Principal $Principal `
     -Force | Out-Null
 
-Write-Host "Registered task 675hoops-injury-recorder (11:00 and 14:00 local, StartWhenAvailable)."
+Write-Host "Registered task 675hoops-injury-recorder (07:30 and 11:00 UTC, StartWhenAvailable)."

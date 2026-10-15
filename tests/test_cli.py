@@ -18,6 +18,8 @@ from eurohoops.config import (
     GBL_BOX_FILL,
     GBL_PBP,
     INJURY_LOG,
+    M5,
+    M5_RETUNE,
     MART_PATH,
     ODDS_TEAMS,
     POSSESSION_REPORT,
@@ -25,8 +27,10 @@ from eurohoops.config import (
     STINT_REPORT,
     STINTS_MART_REPORT,
     TEAM_CONTINUITY_REPORT,
+    M5Backtest,
 )
 from eurohoops.eval.backtest import load_tuned_model
+from eurohoops.eval.m5_retune import retune_backtest_spec
 from eurohoops.ingest.cache import write_atomic
 from eurohoops.marts import read_games, write_tables
 from eurohoops.parse.games import write_table
@@ -438,6 +442,39 @@ def test_backtest_m1_writes_reproducible_reports_for_both_competitions(small_m1:
     invoke("publish")
     site = json.loads(SITE_DATA.read_text(encoding="utf-8"))
     assert all(c["scorecard"]["m1"]["n"] == 0 for c in site["competitions"])
+
+
+class _Stop(Exception):
+    """Ends a backtest command right after the fake _m5_inputs has recorded its spec."""
+
+
+def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    specs: list[M5Backtest] = []
+
+    def fake_inputs(comp: object, other: object, spec: M5Backtest, clubs: object) -> None:
+        specs.append(spec)
+        raise _Stop
+
+    monkeypatch.setattr(cli, "_m5_inputs", fake_inputs)
+    result = runner.invoke(cli.app, ["backtest", "--model", "m5", "--retune-check"])
+    assert isinstance(result.exception, _Stop), result.output
+    (spec,) = specs
+    assert spec == retune_backtest_spec(M5_RETUNE)
+    assert spec.test[-1] == M5_RETUNE.folds[-1]
+    assert spec != M5
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["backtest", "--retune"],
+        ["backtest", "--model", "m5", "--competition", "gbl", "--retune-check"],
+    ],
+)
+def test_retune_flags_refuse_other_models_and_competitions(args: list[str]) -> None:
+    assert runner.invoke(cli.app, args).exit_code == 1
 
 
 class AnyGameHotel(FakeBasketHotel):
