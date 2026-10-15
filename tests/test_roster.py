@@ -56,8 +56,7 @@ def test_missing_start_counts_from_before_the_season() -> None:
     payload = b'{"data": [{"person": {"code": "1"}, "club": {"code": "MAL"}, "type": "J"}]}'
     table = rs.parse_roster(payload, 2014)
     assert np.isnan(table["start"].iloc[0])
-    rounds = rs.SeasonRounds({2014: 100.0}, {2014: 200.0})
-    assert rs.on_roster(table, rounds, 100.0, 2014, "strict")["player_id"].tolist() == ["P1"]
+    assert rs.on_roster(table, 100.0, 2014)["player_id"].tolist() == ["P1"]
 
 
 def test_read_rosters_reads_the_cache_only(tmp_path: Path) -> None:
@@ -79,10 +78,9 @@ def test_club_codes_are_checked_against_the_games() -> None:
     }
 
 
-def _members(cutoff: str, rule: str = "strict") -> list[str]:
+def _members(cutoff: str) -> list[str]:
     table = rs.parse_roster(PAYLOAD, 2026)
-    rounds = rs.season_rounds(_games())
-    out = rs.on_roster(table, rounds, _ts(cutoff), 2026, rule)
+    out = rs.on_roster(table, _ts(cutoff), 2026)
     return sorted(out["player_id"])
 
 
@@ -99,14 +97,12 @@ def test_membership_at_cutoffs() -> None:
     assert "P900003" not in _members("2026-10-20T23:59:59")
 
 
-def test_first_round_rule_variants() -> None:
-    assert rs.FIRST_ROUND_RULE in rs.FIRST_ROUND_RULES
-    preseason = _members("2026-10-08T18:00:00", "first_round_as_preseason")
-    assert preseason == ["P900002", "P900003", "P900004"]
-    # A stamp after round 2's cutoff is never moved.
-    assert "P900005" not in _members("2026-10-15T18:00:00", "first_round_as_preseason")
-    with pytest.raises(ValueError, match="unknown first-round rule"):
-        _members("2026-10-08T18:00:00", "lenient")
+def test_only_the_approved_strict_rule_exists() -> None:
+    assert rs.FIRST_ROUND_RULE == "strict"
+    assert not hasattr(rs, "FIRST_ROUND_RULES")
+    # Stamped during round 1 (9 Oct): in from round 2's cutoff, not at round 1's.
+    assert "P900004" not in _members("2026-10-08T18:00:00")
+    assert "P900004" in _members("2026-10-15T18:00:00")
 
 
 def test_start_date_counts() -> None:

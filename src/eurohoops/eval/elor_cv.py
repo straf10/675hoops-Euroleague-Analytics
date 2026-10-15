@@ -26,10 +26,13 @@ from eurohoops.models import elo
 from eurohoops.models.elor import (
     Appearances,
     ElorSetting,
+    NewcomerPrior,
     Offsets,
     RatingFn,
+    SeasonEndRating,
     elor_diff,
     margin_scales,
+    newcomer_priors,
     offsets,
     roster_strengths,
     round_index,
@@ -56,6 +59,7 @@ class ElorInputs:
     roster: pd.DataFrame  # models.roster.ROSTER_SCHEMA rows
     rating: RatingFn
     has_state: Callable[[int, float], bool]
+    season_end_rating: SeasonEndRating  # the fit at a season's last round cutoff
     possessions: pd.Series  # expected possessions per game_id (M5's)
 
 
@@ -71,6 +75,7 @@ class ElorContext:
     home_won: np.ndarray
     appearances: Appearances
     scales: dict[int, float]
+    priors: dict[int, NewcomerPrior]
 
 
 def grid_settings(spec: ElorCv) -> list[ElorSetting]:
@@ -82,7 +87,7 @@ def _simplicity(setting: ElorSetting) -> tuple[float, int]:
     return setting.w0, setting.n_rounds
 
 
-def build_context(inputs: ElorInputs, spec: ElorCv, rule: str = FIRST_ROUND_RULE) -> ElorContext:
+def build_context(inputs: ElorInputs, spec: ElorCv) -> ElorContext:
     first, last = spec.elo_warmup[0], spec.folds[-1]
     games = inputs.games[inputs.games["season"].between(first, last)]
     games = games.sort_values("tipoff_utc", kind="stable").reset_index(drop=True)
@@ -95,6 +100,10 @@ def build_context(inputs: ElorInputs, spec: ElorCv, rule: str = FIRST_ROUND_RULE
     starts = season_starts(arrays, spec.elo_params, seasons)
     scales = margin_scales(games, elo_diff)
     appearances = Appearances(games, inputs.player_games)
+    priors = newcomer_priors(appearances, inputs.season_end_rating, list(spec.folds))
+    missing = [s for s, p in priors.items() if math.isnan(p.rating) or math.isnan(p.share)]
+    if missing:
+        raise ValueError(f"no newcomer history before seasons {missing}")
     roster = inputs.roster[inputs.roster["season"].isin(spec.folds)].reset_index(drop=True)
     in_folds = games["season"].isin(spec.folds).to_numpy()
     strengths = roster_strengths(
@@ -102,7 +111,7 @@ def build_context(inputs: ElorInputs, spec: ElorCv, rule: str = FIRST_ROUND_RULE
         roster,
         appearances,
         inputs.rating,
-        rule=rule,
+        priors=priors,
         has_state=inputs.has_state,
     )
     offs = offsets(games, strengths, starts, scales, inputs.possessions)
@@ -125,6 +134,7 @@ def build_context(inputs: ElorInputs, spec: ElorCv, rule: str = FIRST_ROUND_RULE
         home_won=(margin > 0).astype(np.float64),
         appearances=appearances,
         scales=scales,
+        priors=priors,
     )
 
 
@@ -180,9 +190,9 @@ def select(
 
 
 def run_cv(
-    inputs: ElorInputs, *, spec: ElorCv, git_head: str, rule: str = FIRST_ROUND_RULE
+    inputs: ElorInputs, *, spec: ElorCv, git_head: str
 ) -> tuple[dict[str, Any], pd.DataFrame]:
-    ctx = build_context(inputs, spec, rule)
+    ctx = build_context(inputs, spec)
     settings = grid_settings(spec)
     p_elo = win_probabilities(ctx.elo_diff)
     probs = {
@@ -216,7 +226,8 @@ def run_cv(
         "model": "elor",
         "protocol": spec.protocol,
         "git_head": git_head,
-        "first_round_rule": rule,
+        "first_round_rule": FIRST_ROUND_RULE,
+        "newcomer_priors": priors_report(ctx.priors),
         "elo_params": asdict(spec.elo_params),
         "folds": list(spec.folds),
         "elo_warmup": list(spec.elo_warmup),
@@ -272,13 +283,13 @@ def roster_coverage(ctx: ElorContext, spec: ElorCv) -> dict[str, Any]:
             ctx.strengths["cutoff"],
             ctx.strengths["club"],
             ctx.strengths["rostered"],
-            ctx.strengths["with_share"],
-            ctx.strengths["unrated"],
+            ctx.strengths["share_prior"],
+            ctx.strengths["rating_prior"],
             strict=True,
         )
     }
     both = 0
-    slots = no_share = unrated = 0
+    slots = share_prior = rating_prior = 0
     idx = np.flatnonzero(ctx.scored)
     homes = ctx.games["home"].astype(str).to_numpy()
     aways = ctx.games["away"].astype(str).to_numpy()
@@ -290,8 +301,8 @@ def roster_coverage(ctx: ElorContext, spec: ElorCv) -> dict[str, Any]:
         for v in sides:
             if v is not None:
                 slots += v[0]
-                no_share += v[0] - v[1]
-                unrated += v[2]
+                share_prior += v[1]
+                rating_prior += v[2]
     n = len(idx)
     return {
         "scored_games": n,
@@ -299,8 +310,10 @@ def roster_coverage(ctx: ElorContext, spec: ElorCv) -> dict[str, Any]:
         "both_sides_min_rostered": both,
         "both_sides_min_rostered_share": _round(both / n) if n else math.nan,
         "rostered_slots": slots,
-        "no_share_slots_share": _round(no_share / slots) if slots else math.nan,
-        "unrated_slots_share": _round(unrated / slots) if slots else math.nan,
+        "share_prior_slots": share_prior,
+        "share_prior_slots_share": _round(share_prior / slots) if slots else math.nan,
+        "rating_prior_slots": rating_prior,
+        "rating_prior_slots_share": _round(rating_prior / slots) if slots else math.nan,
         "prior_available_games": int((ctx.scored & ctx.offsets.available).sum()),
     }
 
@@ -355,13 +368,34 @@ def prior_summary(ctx: ElorContext, spec: ElorCv) -> dict[str, Any]:
     }
 
 
-def cv_check(inputs: ElorInputs, *, spec: ElorCv, rule: str = FIRST_ROUND_RULE) -> dict[str, Any]:
+def priors_report(priors: dict[int, NewcomerPrior]) -> dict[str, dict[str, Any]]:
+    return {
+        str(s): {
+            "rating": _round(p.rating),
+            "share": _round(p.share),
+            "rating_players": p.rating_players,
+            "rating_seconds": _round(p.rating_seconds),
+            "share_player_games": p.share_player_games,
+            "history": [p.history[0], p.history[-1]] if p.history else [],
+        }
+        for s, p in sorted(priors.items())
+    }
+
+
+def cv_check(
+    inputs: ElorInputs,
+    *,
+    spec: ElorCv,
+    live_priors: dict[int, NewcomerPrior] | None = None,
+) -> dict[str, Any]:
     """Read-only inputs check: game counts per fold, roster coverage and the start-date counts
     the protocol asks for before any fold is scored. Scores nothing."""
-    ctx = build_context(inputs, spec, rule)
+    ctx = build_context(inputs, spec)
     in_folds = ctx.games[ctx.games["season"].isin(spec.folds)]
     return {
-        "first_round_rule": rule,
+        "first_round_rule": FIRST_ROUND_RULE,
+        "newcomer_priors": priors_report(ctx.priors),
+        "newcomer_priors_live": priors_report(live_priors or {}),
         "scored_games": int(ctx.scored.sum()),
         "per_fold_games": per_fold_games(ctx, spec),
         "roster_coverage": roster_coverage(ctx, spec),

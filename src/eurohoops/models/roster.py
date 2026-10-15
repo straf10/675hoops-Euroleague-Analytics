@@ -13,9 +13,9 @@ midnight stamps, and the cutoffs they are compared with are tip-offs in the even
 
 **Membership at a cutoff (protocol decision 0, option A).** A player is on a club's roster for a
 game when his ``startDate`` is before the game's cutoff (``minutes.round_cutoffs``: the first
-tip-off of its ``(season, phase, round)``) and his ``endDate``, if any, is after it. The one
-declared exception is ``FIRST_ROUND_RULE`` (Build addendum in the protocol): how a registration
-stamped while the season's first round is under way is treated.
+tip-off of its ``(season, phase, round)``) and his ``endDate``, if any, is after it. A
+registration stamped while the season's first round is under way follows the same rule
+(``FIRST_ROUND_RULE``, strict, owner decision 5): it counts from round 2.
 """
 
 from __future__ import annotations
@@ -45,11 +45,8 @@ ROSTER_SCHEMA = pa.DataFrameSchema(
     strict=True,
 )
 
-# Registrations stamped during the season's first round (Build addendum, owner review before
-# the run). ``"strict"``: the plain rule, a stamp counts from its own time only.
-# ``"first_round_as_preseason"``: a stamp at or after the season's first cutoff and before the
-# second round's cutoff counts as if made before the season's first cutoff.
-FIRST_ROUND_RULES = ("strict", "first_round_as_preseason")
+# Registrations stamped during the season's first round (Build addendum; owner decision 5,
+# 2026-10-15): strict, a stamp counts from its own time only, so such a player joins from round 2.
 FIRST_ROUND_RULE = "strict"
 
 
@@ -130,28 +127,11 @@ def season_rounds(games: pd.DataFrame) -> SeasonRounds:
     return SeasonRounds(first, second)
 
 
-def effective_start(roster: pd.DataFrame, rounds: SeasonRounds, rule: str) -> pd.Series:
-    """The ``start`` each row's membership uses under ``rule`` (``FIRST_ROUND_RULES``)."""
-    if rule not in FIRST_ROUND_RULES:
-        raise ValueError(f"unknown first-round rule {rule!r}; expected one of {FIRST_ROUND_RULES}")
-    start = roster["start"].astype("float64").fillna(-np.inf)
-    if rule == "strict":
-        return start
-    season = roster["season"].astype(int)
-    first = season.map(rounds.first).astype("float64")
-    second = season.map(rounds.second).astype("float64")
-    in_first = (start >= first) & ((start < second) | second.isna())
-    preseason = first - 1.0
-    out: pd.Series = start.where(~in_first, preseason)
-    return out
-
-
-def on_roster(
-    roster: pd.DataFrame, rounds: SeasonRounds, cutoff: float, season: int, rule: str
-) -> pd.DataFrame:
-    """Roster rows of ``season`` in force at ``cutoff``: start before it, end (if any) after."""
+def on_roster(roster: pd.DataFrame, cutoff: float, season: int) -> pd.DataFrame:
+    """Roster rows of ``season`` in force at ``cutoff`` (``FIRST_ROUND_RULE``, strict): start
+    before it (a missing start counts from before the season), end (if any) after it."""
     part = roster[roster["season"] == season]
-    start = effective_start(part, rounds, rule)
+    start = part["start"].astype("float64").fillna(-np.inf)
     end = part["end"]
     keep = (start < cutoff) & (end.isna() | (end > cutoff))
     out: pd.DataFrame = part[keep]

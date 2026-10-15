@@ -25,8 +25,8 @@ from tests import elor_synthetic as syn
 SETTING = ElorSetting(0.5, 4)  # largest weight, every 2026 round still blended
 
 
-def _diffs(inputs: elor_cv.ElorInputs, rule: str = "strict") -> pd.Series:
-    ctx = elor_cv.build_context(inputs, syn.spec(), rule)
+def _diffs(inputs: elor_cv.ElorInputs) -> pd.Series:
+    ctx = elor_cv.build_context(inputs, syn.spec())
     values = elor_diff(ctx.elo_diff, ctx.rounds, ctx.offsets, SETTING)
     return pd.Series(values, index=ctx.games["game_id"].astype(str))
 
@@ -78,7 +78,7 @@ def test_later_edits_leave_games_up_to_the_cutoff_unchanged(rnd: int) -> None:
     base = _diffs(syn.inputs())
     moved = _diffs(_later_edits(cutoff))
     ids = _upto(syn.games_and_box()[0], cutoff)
-    assert len(ids) == 16 + 2 * rnd  # 2024, 2025 and 2026 up to round rnd
+    assert len(ids) == 24 + 2 * rnd  # 2023 to 2025 and 2026 up to round rnd
     np.testing.assert_array_equal(moved[ids].to_numpy(), base[ids].to_numpy())
 
 
@@ -119,18 +119,23 @@ def test_control_an_earlier_roster_row_moves_later_games() -> None:
     assert not np.array_equal(moved[["E2026_20"]].to_numpy(), base[["E2026_20"]].to_numpy())
 
 
-def test_first_round_as_preseason_would_let_a_round1_stamp_reach_round1() -> None:
-    """Why the strict rule: under the alternative a stamp made after round 1's cutoff (during
-    round 1) changes round 1's own predictions."""
+def test_a_round1_stamp_never_reaches_round1() -> None:
+    """The approved strict rule: a stamp made during round 1 (after its cutoff) leaves round 1's
+    own predictions unchanged and moves later rounds."""
     stamp = pd.DataFrame(
         [{"season": 2026, "club": "C", "player_id": "A1", "start": _cutoff(1) + 3600 * 30}]
     ).assign(end=np.nan)
     rosters = pd.concat([syn.roster(), stamp], ignore_index=True)
-    r1 = ["E2026_10", "E2026_11"]
-    for rule, moves in (("strict", False), ("first_round_as_preseason", True)):
-        base = _diffs(syn.inputs(), rule)
-        moved = _diffs(syn.inputs(rosters=rosters), rule)
-        assert (not np.array_equal(moved[r1].to_numpy(), base[r1].to_numpy())) is moves
+    base = _diffs(syn.inputs())
+    moved = _diffs(syn.inputs(rosters=rosters))
+    r1, r2 = ["E2026_10", "E2026_11"], ["E2026_20", "E2026_21"]
+    np.testing.assert_array_equal(moved[r1].to_numpy(), base[r1].to_numpy())
+    assert not np.array_equal(moved[r2].to_numpy(), base[r2].to_numpy())
+
+
+def test_a_fold_without_newcomer_history_stops_the_build() -> None:
+    with pytest.raises(ValueError, match="no newcomer history"):
+        elor_cv.build_context(syn.inputs(), syn.spec(elo_warmup=(2023,), folds=(2024, 2025)))
 
 
 def test_mismatched_club_codes_stop_the_build() -> None:
@@ -205,6 +210,9 @@ def test_run_cv_report_and_games(tmp_path: Path) -> None:
     assert set(per) == {"2025", "2026"} and per["2025"]["games"] == 8
     assert {"log_loss", "brier"} <= set(report["elo"])
     assert report["first_round_rule"] == "strict"
+    priors = report["newcomer_priors"]
+    assert set(priors) == {"2025", "2026"}
+    assert priors["2026"]["history"] == [2024, 2025] and priors["2026"]["share"] > 0
     assert {"p_elo", "p_w0.5|n24", "round_index", "prior_available"} <= set(detail.columns)
     assert detail["prior_available"].all()
 
@@ -228,10 +236,14 @@ def test_cv_check_reports_counts_coverage_and_start_dates() -> None:
     out = elor_cv.cv_check(syn.inputs(), spec=syn.spec(min_rostered=4))
     assert out["per_fold_games"] == {"2025": 8, "2026": 8}
     cov = out["roster_coverage"]
-    # 2026: A has 3 players after A4 left (its 4 games), C 3 after C3 left (round 4's C game).
-    assert cov["both_sides_min_rostered"] == 11
+    # 2026: A has 3 players after A4 left (its 4 games); every other side has 4 or more.
+    assert cov["both_sides_min_rostered"] == 12
     assert cov["prior_available_games"] == 16
-    assert 0 < cov["unrated_slots_share"] < 1
+    # Slots on the prior: A5 in 2025 round 1, D5 in D games of 2026 rounds 1-3, B9 in rounds 3-4.
+    assert cov["share_prior_slots"] == 6 and cov["rating_prior_slots"] == 6
+    assert 0 < cov["share_prior_slots_share"] < 1
+    assert set(out["newcomer_priors"]) == {"2025", "2026"}
+    assert out["newcomer_priors_live"] == {}
     assert out["start_dates"]["2026"]["start_after_round1"] == 1  # B9
     assert out["start_dates"]["2026"]["start_after_round1_played_before_stamp"] == 0
     assert out["start_dates"]["2025"]["start_after_round1_began"] == 0

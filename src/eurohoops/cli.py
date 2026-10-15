@@ -184,7 +184,7 @@ from eurohoops.models.board import (
 )
 from eurohoops.models.box_impact import STAT_COLUMNS, BoxGrid, box_only_margins, pir_margins
 from eurohoops.models.elo import FloatArray
-from eurohoops.models.elor import WalkForwardRatings
+from eurohoops.models.elor import Appearances, NewcomerPrior, WalkForwardRatings, newcomer_priors
 from eurohoops.models.minutes import expected_possessions
 from eurohoops.models.player_part import (
     ElPlayerRatings,
@@ -836,7 +836,7 @@ def _elor_inputs() -> ElorInputs:
     except RosterCacheError as error:
         log.error("%s", error)
         raise typer.Exit(code=1) from error
-    source = WalkForwardRatings(ratings.frame, ratings.wf.lookups)
+    source = WalkForwardRatings(ratings.frame, ratings.wf.lookups, inputs.player_games)
     return ElorInputs(
         games=inputs.games,
         player_games=inputs.player_games,
@@ -844,7 +844,19 @@ def _elor_inputs() -> ElorInputs:
         rating=source,
         has_state=source.has_state,
         possessions=ratings.possessions,
+        season_end_rating=source.at_season_end,
     )
+
+
+def _elor_live_priors() -> dict[int, NewcomerPrior]:
+    """The live season's newcomer prior (reported by ``--cv-check`` only): M5's frame up to its
+    last test season, so every season before the live one, and its own M3 walk-forward fit."""
+    inputs, frame = _m5_inputs(EUROLEAGUE, GBL, M5, dict(GREEK_EL_CLUBS))
+    ratings = _el_player_ratings(inputs, frame)
+    source = WalkForwardRatings(ratings.frame, ratings.wf.lookups, inputs.player_games)
+    appearances = Appearances(inputs.games, inputs.player_games)
+    # The fold seasons too: a cross-check that this fit gives the CV frame's fold priors.
+    return newcomer_priors(appearances, source.at_season_end, [*ELOR_CV.folds, LIVE_SEASON])
 
 
 def _live_elo_params_match() -> bool:
@@ -875,7 +887,8 @@ def _backtest_elor(check_only: bool) -> None:
     started = time.perf_counter()
     inputs = _elor_inputs()
     if check_only:
-        typer.echo(json.dumps(cv_check(inputs, spec=ELOR_CV), indent=2))
+        live = _elor_live_priors()
+        typer.echo(json.dumps(cv_check(inputs, spec=ELOR_CV, live_priors=live), indent=2))
         typer.echo(f"RUNTIME backtest elor cv-check: {time.perf_counter() - started:.0f} s")
         return
     report, detail = run_cv(inputs, spec=ELOR_CV, git_head=git_head_sha())

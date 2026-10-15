@@ -20,12 +20,16 @@ protocol's minute-share default) applied to the club he last played for:
   s - 1 it is all of X's rated games that season (H-c's previous-season fallback);
 * share = min(1, 5 x his seconds / X's recorded seconds) over the window.
 
-For a player who played his club's last game this is exactly ``minutes.projected_shares``. A
-player with no appearance in s or s - 1 before the cutoff gets no share (he enters only through
-box scores that exist). If the shares add up to more than 5 they are scaled down to 5; minutes
-left unfilled count at rating 0. The team's per-100 rating is ``Q_t = sum share_p * r_p``, with
-``r_p = O + D`` from M3's walk-forward fit at the cutoff (``rapm_spm``, as M5) and 0 for a player
-without a rating (M5's ``RatingLookup`` default). In margin points ``Q_t * poss_g / 100`` (the
+For a player who played his club's last game this is exactly ``minutes.projected_shares``.
+``r_p = O + D`` comes from M3's walk-forward fit at the cutoff (``rapm_spm``, as M5), available
+only once the player has played before the cutoff (``WalkForwardRatings``).
+
+**Newcomers (owner decision 6).** A rostered player with no share gets the season's prior share,
+one with no available rating the prior rating, separately (``newcomer_priors``: what EuroLeague
+first-season newcomers posted in earlier seasons). As soon as the rules above give him a share
+or a rating, his own value replaces the prior. If the shares then add up to more than 5 they
+are scaled down to 5. The team's per-100 rating is ``Q_t = sum share_p * r_p``; in margin
+points ``Q_t * poss_g / 100`` (the
 game's expected possessions, as M5), in Elo points times the margin scale ``s``
 (``elo.fit_margin_scale`` on live-Elo differences and margins of earlier seasons only).
 
@@ -52,12 +56,14 @@ from eurohoops.models import elo
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.minutes import ON_COURT, _team_games, round_cutoffs
 from eurohoops.models.rapm import RatingLookup
-from eurohoops.models.roster import SeasonRounds, on_roster, season_rounds
+from eurohoops.models.roster import on_roster
 
 PROJ_N_GAMES = 5  # H-c's window, ``minutes.projected_shares``' default
 
 # (season, cutoff, player_id, club) -> rating O + D, or None for a player with no rating
 RatingFn = Callable[[int, float, str, str], float | None]
+# (season, player_id) -> rating O + D in the fit at that season's end, or None
+SeasonEndRating = Callable[[int, str], float | None]
 
 
 @dataclass(frozen=True)
@@ -91,16 +97,34 @@ def round_index(games: pd.DataFrame) -> np.ndarray:
 
 class WalkForwardRatings:
     """``RatingFn`` from a walk-forward fit aligned with ``frame`` (state just before each
-    round): ``None`` for a player the lookup does not hold, and ``has_state`` false before the
-    fit has any stint."""
+    round), and ``has_state`` false before the fit has any stint.
 
-    def __init__(self, frame: pd.DataFrame, lookups: list[RatingLookup | None]) -> None:
+    A player's rating is available at a cutoff only if the lookup holds him **and** he has
+    played (seconds > 0 in a rated game of ``frame``) before that cutoff. The lookup alone is not
+    enough: its columns span the whole frame, so a player who first plays later has a column
+    (filled with the SPM prior) whose existence would leak that future. ``at_season_end`` is
+    the fit at the season's last round cutoff (state before its final round), with the same
+    condition at that cutoff."""
+
+    def __init__(
+        self,
+        frame: pd.DataFrame,
+        lookups: list[RatingLookup | None],
+        player_games: pd.DataFrame,
+    ) -> None:
         cutoffs = round_cutoffs(frame).to_numpy(dtype=np.float64)
         seasons = frame["season"].astype(int).to_numpy()
         self._by: dict[tuple[int, float], RatingLookup] = {}
+        self._last: dict[int, float] = {}
         for s, c, lookup in zip(seasons, cutoffs, lookups, strict=True):
+            self._last[int(s)] = max(self._last.get(int(s), -math.inf), float(c))
             if lookup is not None:
                 self._by[(int(s), float(c))] = lookup
+        rated = frame[frame["played"] & ~frame["forfeit"]][["game_id", "tipoff_utc"]]
+        rows = player_games[player_games["sec"] > 0][["game_id", "player_id"]]
+        rows = rows.merge(rated, on="game_id")
+        first = rows.groupby("player_id")["tipoff_utc"].min()
+        self._first: dict[str, float] = {str(p): float(t.timestamp()) for p, t in first.items()}
 
     def has_state(self, season: int, cutoff: float) -> bool:
         return (season, cutoff) in self._by
@@ -109,8 +133,16 @@ class WalkForwardRatings:
         lookup = self._by.get((season, cutoff))
         if lookup is None or player_id not in lookup.o:
             return None
+        if not self._first.get(player_id, math.inf) < cutoff:
+            return None
         o, d = lookup.rating(player_id, club, season)
         return float(o + d)
+
+    def at_season_end(self, season: int, player_id: str) -> float | None:
+        cutoff = self._last.get(season)
+        if cutoff is None:
+            return None
+        return self(season, cutoff, player_id, "")
 
 
 class Appearances:
@@ -135,12 +167,22 @@ class Appearances:
             )
         }
         self.player: dict[str, tuple[np.ndarray, list[str], np.ndarray]] = {}
+        self.player_sec: dict[str, np.ndarray] = {}
         for player, part in rows.groupby("player_id"):
             self.player[str(player)] = (
                 part["time"].to_numpy(dtype=np.float64),
                 part["team"].astype(str).tolist(),
                 part["season"].astype(int).to_numpy(),
             )
+            self.player_sec[str(player)] = part["sec"].to_numpy(dtype=np.float64)
+        # Newcomer history: each player's first season with seconds, the first season with any
+        # box data (nobody can be called a newcomer in it) and each season's last round cutoff.
+        self.first_season = {p: int(found[2][0]) for p, found in self.player.items()}
+        self.data_first_season = int(team_games["season"].min()) if len(team_games) else 0
+        cutoffs = round_cutoffs(games)
+        self.last_cutoff = {
+            int(s): float(c.max()) for s, c in cutoffs.groupby(games["season"].astype(int))
+        }
 
     def share(
         self, player_id: str, season: int, cutoff: float, n_games: int = PROJ_N_GAMES
@@ -170,11 +212,104 @@ class Appearances:
 
 
 @dataclass(frozen=True)
+class NewcomerPrior:
+    """The typical-newcomer prior for one target season (owner decision 6), from seasons
+    before it only: ``rating`` (O + D per 100, minutes-weighted) and ``share`` (per game)."""
+
+    season: int
+    rating: float
+    share: float
+    rating_players: int
+    rating_seconds: float
+    share_player_games: int
+    history: tuple[int, ...]  # the earlier seasons that had newcomers
+
+
+def _newcomer_season(
+    appearances: Appearances, sigma: int, season_end_rating: SeasonEndRating
+) -> tuple[float, float, int, float, int]:
+    """One season's newcomer sums: (sum w*r, sum w, rated players, sum of shares, games)."""
+    wr = w_sum = share_sum = 0.0
+    rated = games = 0
+    last_cutoff = appearances.last_cutoff.get(sigma, math.inf)
+    for player, first in appearances.first_season.items():
+        if first != sigma:
+            continue
+        times, teams, seasons = appearances.player[player]
+        secs = appearances.player_sec[player]
+        in_season = seasons == sigma
+        weight = float(secs[in_season & (times < last_cutoff)].sum())
+        value = season_end_rating(sigma, player)
+        if value is not None and weight > 0:
+            wr += weight * value
+            w_sum += weight
+            rated += 1
+        for club in sorted({t for t, s in zip(teams, seasons, strict=True) if s == sigma}):
+            mine = in_season & (np.asarray(teams) == club)
+            start, end = float(times[mine].min()), float(times[mine].max())
+            t_times, t_ids, t_sec = appearances.team[(club, sigma)]
+            for i in np.flatnonzero((t_times >= start) & (t_times <= end)):
+                if t_sec[i] <= 0:
+                    continue
+                sec = appearances.sec.get((t_ids[i], club, player), 0.0)
+                share_sum += min(1.0, ON_COURT * sec / float(t_sec[i]))
+                games += 1
+    return wr, w_sum, rated, share_sum, games
+
+
+def newcomer_priors(
+    appearances: Appearances, season_end_rating: SeasonEndRating, targets: list[int]
+) -> dict[int, NewcomerPrior]:
+    """Each target season's typical-newcomer prior (owner decision 6, Build addendum).
+
+    A first-season newcomer of season sigma is a player whose first seconds in the box data are
+    in sigma; the first season with box data has none (no history to tell). Over every sigma
+    before the target:
+
+    * rating: the minutes-weighted mean of the newcomers' O + D in the walk-forward fit at
+      sigma's last round cutoff (``season_end_rating``), weighted by their seconds in sigma
+      before that cutoff (players without a rating there are left out);
+    * share: the mean, over newcomer team-games, of min(1, 5 x his seconds / the team's seconds)
+      in every game of his club from his first to his last appearance with it in sigma (a game
+      he sat out counts 0, as in the projected shares).
+
+    NaN when no earlier season has newcomers (the caller decides)."""
+    out: dict[int, NewcomerPrior] = {}
+    sums: dict[int, tuple[float, float, int, float, int]] = {}
+    first = appearances.data_first_season
+    for target in targets:
+        wr = w = share = 0.0
+        rated = games = 0
+        history: list[int] = []
+        for sigma in range(first + 1, target):
+            if sigma not in sums:
+                sums[sigma] = _newcomer_season(appearances, sigma, season_end_rating)
+            s_wr, s_w, s_rated, s_share, s_games = sums[sigma]
+            if s_games or s_rated:
+                history.append(sigma)
+            wr += s_wr
+            w += s_w
+            rated += s_rated
+            share += s_share
+            games += s_games
+        out[target] = NewcomerPrior(
+            season=target,
+            rating=wr / w if w > 0 else math.nan,
+            share=share / games if games else math.nan,
+            rating_players=rated,
+            rating_seconds=w,
+            share_player_games=games,
+            history=tuple(history),
+        )
+    return out
+
+
+@dataclass(frozen=True)
 class ClubStrength:
     q: float  # per-100 roster rating
     rostered: int
-    with_share: int
-    unrated: int  # rostered players without a share or without an M3 rating
+    share_prior: int  # rostered players on the newcomer share prior
+    rating_prior: int  # rostered players on the newcomer rating prior
 
 
 def club_strength(
@@ -185,23 +320,30 @@ def club_strength(
     *,
     appearances: Appearances,
     rating: RatingFn,
+    prior: NewcomerPrior,
 ) -> ClubStrength:
-    shares = {p: appearances.share(p, season, cutoff) for p in players}
+    """``Q_t`` with the newcomer prior: a player without a projected share gets the prior share,
+    one without an available rating the prior rating (separately); then the cap at 5."""
+    shares: dict[str, float] = {}
+    values: dict[str, float] = {}
+    share_prior = rating_prior = 0
+    for player in players:
+        share = appearances.share(player, season, cutoff)
+        if share <= 0:
+            share = prior.share
+            share_prior += 1
+        value = rating(season, cutoff, player, club)
+        if value is None:
+            value = prior.rating
+            rating_prior += 1
+        shares[player], values[player] = share, value
     total = sum(shares.values())
     scale = min(1.0, ON_COURT / total) if total > 0 else 0.0
-    q = 0.0
-    unrated = 0
-    for player, share in shares.items():
-        value = rating(season, cutoff, player, club) if share > 0 else None
-        if value is None:
-            unrated += 1
-            continue
-        q += scale * share * value
-    with_share = sum(1 for s in shares.values() if s > 0)
-    return ClubStrength(q, len(players), with_share, unrated)
+    q = sum(scale * shares[p] * values[p] for p in players)
+    return ClubStrength(q, len(players), share_prior, rating_prior)
 
 
-STRENGTH_COLUMNS = ["season", "cutoff", "club", "q", "rostered", "with_share", "unrated"]
+STRENGTH_COLUMNS = ["season", "cutoff", "club", "q", "rostered", "share_prior", "rating_prior"]
 
 
 def roster_strengths(
@@ -210,13 +352,12 @@ def roster_strengths(
     appearances: Appearances,
     rating: RatingFn,
     *,
-    rule: str,
+    priors: dict[int, NewcomerPrior],
     has_state: Callable[[int, float], bool] | None = None,
 ) -> pd.DataFrame:
     """Every club's ``ClubStrength`` at every round cutoff of ``games`` (``STRENGTH_COLUMNS``):
     the clubs with at least one roster row in force at that cutoff. Cutoffs without M3 state
     (``has_state`` false) are skipped."""
-    rounds: SeasonRounds = season_rounds(games)
     cutoffs = round_cutoffs(games).to_numpy(dtype=np.float64)
     seasons = games["season"].astype(int).to_numpy()
     out: list[dict[str, object]] = []
@@ -225,11 +366,20 @@ def roster_strengths(
     ):
         if has_state is not None and not has_state(season, cutoff):
             continue
-        part = on_roster(roster, rounds, cutoff, season, rule)
+        part = on_roster(roster, cutoff, season)
+        if part.empty:
+            continue
+        prior = priors[season]
         for club, rows in part.groupby("club"):
             players = sorted(set(rows["player_id"].astype(str)))
             st = club_strength(
-                players, str(club), season, cutoff, appearances=appearances, rating=rating
+                players,
+                str(club),
+                season,
+                cutoff,
+                appearances=appearances,
+                rating=rating,
+                prior=prior,
             )
             out.append(
                 {
@@ -238,8 +388,8 @@ def roster_strengths(
                     "club": str(club),
                     "q": st.q,
                     "rostered": st.rostered,
-                    "with_share": st.with_share,
-                    "unrated": st.unrated,
+                    "share_prior": st.share_prior,
+                    "rating_prior": st.rating_prior,
                 }
             )
     return pd.DataFrame(out, columns=STRENGTH_COLUMNS)

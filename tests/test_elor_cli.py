@@ -100,11 +100,13 @@ def test_cv_check_prints_and_writes_nothing(
     elor: ElorCv, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(cli, "_elor_inputs", syn.inputs)
+    monkeypatch.setattr(cli, "_elor_live_priors", lambda: {})
     monkeypatch.setattr(cli, "is_clean_tree", lambda: False)  # a dirty tree is fine for a check
     before = sorted(tmp_path.rglob("*"))
     result = runner.invoke(cli.app, ["backtest", "--model", "elor", "--cv-check"])
     assert result.exit_code == 0, result.output
     assert '"per_fold_games"' in result.output and '"start_dates"' in result.output
+    assert '"newcomer_priors_live"' in result.output
     assert sorted(tmp_path.rglob("*")) == before
     assert not elor.report.exists()
 
@@ -163,6 +165,23 @@ def test_elor_inputs_read_the_roster_cache_only(
     built = cli._elor_inputs()
     assert len(built.roster) == 4
     assert not built.has_state(2026, 0.0)
+    assert built.season_end_rating(2025, "A1") is None  # no lookups at all
+
+
+def test_elor_live_priors_cover_the_live_season(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "_m5_inputs", _fake_m5_inputs)
+    monkeypatch.setattr(cli, "ELOR_CV", syn.spec())
+    games, _ = syn.games_and_box()
+    ordered = games.sort_values("tipoff_utc").reset_index(drop=True)
+    lookups = syn.fake_lookups(ordered)
+    ratings = dataclasses.make_dataclass("R", ["frame", "wf", "possessions"])(
+        ordered, dataclasses.make_dataclass("W", ["lookups"])(lookups), pd.Series(dtype=float)
+    )
+    monkeypatch.setattr(cli, "_el_player_ratings", lambda inputs, frame: ratings)
+    priors = cli._elor_live_priors()
+    assert set(priors) == {2025, 2026, cli.LIVE_SEASON}
+    live = priors[cli.LIVE_SEASON]
+    assert live.history == (2024, 2025) and live.share > 0 and live.rating != 0
 
 
 def test_player_ratings_refuse_a_wrong_m3_variant_or_missing_stints(tmp_path: Path) -> None:
