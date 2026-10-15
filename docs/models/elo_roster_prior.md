@@ -235,3 +235,19 @@ after round 1's cutoff for round 1's own games, which the leakage rule forbids
   resamples (seed 20261015); the selected-minus-Elo CI uses the same draws.
 - Outputs: `reports/elor_cv.json` and `reports/elor_cv_games.csv` (per game: Elo and all 12
   settings' P(home win)).
+
+## Result (run once, 2026-10-15, git 249ff8e)
+`uv run eurohoops backtest --model elor --cv`: `reports/elor_cv.json`, `reports/elor_cv_games.csv`.
+- 2,535 scored games, folds 2015–2023, strict first-round rule.
+- Live Elo pooled log loss 0.605151 (Brier 0.208911). Selected setting `w0.5|n24`: 0.602833
+  (Brier 0.207873).
+- Selected minus Elo: mean −0.002318, 95% CI [−0.004282, −0.000686]. The CI excludes 0.
+- Criteria: below Elo yes; non-inferior yes; worth a version yes (−0.002318 ≤ −0.002). **All pass**:
+  ELOR may start a shadow log under the rules above.
+- The selected setting is the best and the only one within one SE. Log loss improves steadily
+  with more weight and a longer fade, so the best sits on the grid's corner (`w0` 0.5, `N` 24):
+  the true optimum may lie beyond the grid. Not re-run (stopping rule); any wider grid would be a
+  new, separately declared protocol on seasons already seen.
+- Per season, ELOR beats Elo in 7 of 9 folds (not 2016, 2017).
+- With `N` 24, the blend stays active until round 24, so a shadow log started this season still
+  differs from Elo for most of the regular season.
