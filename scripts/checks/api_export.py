@@ -87,6 +87,7 @@ def legacy_site(out: Path, now: datetime) -> None:
                         "elo": comp.prediction_log,
                         "m1": comp.m1_prediction_log,
                         "m5": comp.m5_prediction_log,
+                        "elor": comp.elor_prediction_log,
                     },
                     FORECAST_MODELS,
                     live.games,

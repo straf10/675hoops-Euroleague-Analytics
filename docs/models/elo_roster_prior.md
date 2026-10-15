@@ -251,3 +251,18 @@ after round 1's cutoff for round 1's own games, which the leakage rule forbids
 - Per season, ELOR beats Elo in 7 of 9 folds (not 2016, 2017).
 - With `N` 24, the blend stays active until round 24, so a shadow log started this season still
   differs from Elo for most of the regular season.
+
+## Live amendment (owner, 2026-10-15, before any ELOR row is logged)
+- **Shown on the site (owner decision 8).** This overrides "is never shown on the site" in
+  "Shadow logging": ELOR appears on the Forecasts page beside the other models as
+  "Roster Elo (trial)". Display only: it is never the published forecast, and how it is judged
+  (the R1 look, reported only) does not change.
+- **Elo base.** The live ELOR replays Elo from 2007 with the fixed parameters, exactly as the CV
+  scored it, not from the published log's 2023 start. On the 2026 games the two differ by
+  0.0015 in mean absolute win probability (max 0.0083).
+- **Setting.** The CV's selected setting, read from `reports/elor_cv.json` (`w0` 0.5, `N` 24),
+  logged only while that report's `shadow_criteria.all` is true. `exp_margin` is the blended
+  difference divided by the season's margin scale (fitted on earlier seasons).
+- **Inputs.** M5's live frame and M3 walk-forward fit (shared with the M5 log in one run), the
+  live season's cached roster list (refreshed daily by `eurohoops people`), and the 2026
+  newcomer prior from that fit.

@@ -240,6 +240,20 @@ def test_a_failing_m5_forecast_never_blocks_the_elo_log(monkeypatch: pytest.Monk
     assert EUROLEAGUE.prediction_log.exists()
 
 
+@pytest.mark.usefixtures("pipeline")
+def test_a_failing_elor_forecast_never_blocks_the_elo_log(monkeypatch: pytest.MonkeyPatch) -> None:
+    invoke("backtest")
+
+    def broken(*_args: object, **_kwargs: object) -> int:
+        raise ValueError("roster club codes do not match the games mart")
+
+    monkeypatch.setattr(cli, "load_elor", lambda _path: object())
+    monkeypatch.setattr(cli, "predict_upcoming_elor", broken)
+    result = runner.invoke(cli.app, ["predict"])
+    assert result.exit_code == 0
+    assert EUROLEAGUE.prediction_log.exists()
+
+
 def odds_api(status: int) -> httpx.MockTransport:
     events = [
         {
