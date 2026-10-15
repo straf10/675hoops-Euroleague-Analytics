@@ -33,6 +33,7 @@ from eurohoops.config import (
     BIO_EL_SEASONS,
     BOX_INVARIANTS_REPORT,
     COMPETITIONS,
+    ELOR_CV,
     EUROLEAGUE,
     GBL,
     GBL_BOX_FILL,
@@ -82,12 +83,10 @@ from eurohoops.config import (
     M7Backtest,
 )
 from eurohoops.eval.backtest import TunedModel, format_table, load_tuned_model, run_backtest
+from eurohoops.eval.elor_cv import ElorInputs, cv_check, run_cv
 from eurohoops.eval.m1_backtest import format_m1_table, run_m1_backtest
 from eurohoops.eval.m3_backtest import (
-    TunedRapm,
-    build_rapm_inputs,
     format_m3_table,
-    rapm_margins,
     run_m3_backtest,
 )
 from eurohoops.eval.m3_gbl_backtest import (
@@ -185,7 +184,15 @@ from eurohoops.models.board import (
 )
 from eurohoops.models.box_impact import STAT_COLUMNS, BoxGrid, box_only_margins, pir_margins
 from eurohoops.models.elo import FloatArray
+from eurohoops.models.elor import WalkForwardRatings
 from eurohoops.models.minutes import expected_possessions
+from eurohoops.models.player_part import (
+    ElPlayerRatings,
+    PlayerPartError,
+    el_player_part,
+    el_player_ratings,
+    same_frame,
+)
 from eurohoops.models.player_seasons import (
     AGES_SCHEMA,
     COUNT_STATS,
@@ -195,8 +202,8 @@ from eurohoops.models.player_seasons import (
     read_xwalk_file,
 )
 from eurohoops.models.projection import Translation
+from eurohoops.models.roster import RosterCacheError, read_rosters
 from eurohoops.models.similarity import BOX_FEATURES, embed, neighbours, raw_features
-from eurohoops.models.spm import fit_spm
 from eurohoops.odds import OddsApiError, OddsPaths, api_key, record_odds
 from eurohoops.parse.box import build_box_tables
 from eurohoops.parse.continuity import continuity_report
@@ -237,6 +244,7 @@ class CompetitionName(StrEnum):
 
 class ModelName(StrEnum):
     elo = "elo"
+    elor = "elor"
     m1 = "m1"
     m2 = "m2"
     m3 = "m3"
@@ -740,41 +748,20 @@ def _m5_inputs(
     return inputs, frame
 
 
-def _same_frame(expected: pd.DataFrame, frame: pd.DataFrame) -> None:
-    if not frame["game_id"].astype(str).equals(expected["game_id"].astype(str)):
-        raise ValueError("the player part was fitted on a different frame than the harness's")
-
-
 def _m5_player_part_el(inputs: M5Inputs, frame: pd.DataFrame) -> PlayerPartFn:
     """M3's committed ``rapm_spm`` (``reports/backtest_m3.json`` ``chosen``, never re-tuned),
     fitted walk-forward once over the frame; the player part is H-c's ``rapm_margins``."""
-    chosen = json.loads(M3.report.read_text(encoding="utf-8"))["chosen"]
-    if chosen["variant"] != "rapm_spm":
-        log.error("M3 chosen variant must be rapm_spm (see reports/backtest_m3.json)")
-        raise typer.Exit(code=1)
-    stints = read_table(MART_PATH, "stints")
-    checks = read_table(MART_PATH, "stint_game_checks")
-    if stints is None or checks is None:
-        log.error("stints/stint_game_checks missing; run: eurohoops stints --mart")
-        raise typer.Exit(code=1)
-    extra = {k: chosen[k] for k in ("target_half_life_days", "target_ridge_o", "target_ridge_d")}
-    tuned = TunedRapm(
-        chosen["half_life_days"],
-        chosen["ridge_o"],
-        chosen["ridge_d"],
-        chosen["tuning_rmse"],
-        grid={},
-        extra={**extra, "k": chosen["k"], "alpha": chosen["alpha"]},
-    )
-    rapm_inputs = build_rapm_inputs(stints, checks, frame, inputs.player_games)
-    wf = fit_spm(frame, rapm_inputs, tuned)
-    possessions = expected_possessions(frame, inputs.team_games)
+    return el_player_part(_el_player_ratings(inputs, frame))
 
-    def player_part(games: pd.DataFrame, shares: pd.DataFrame) -> FloatArray:
-        _same_frame(frame, games)
-        return rapm_margins(games, wf, shares, possessions)
 
-    return player_part
+def _el_player_ratings(inputs: M5Inputs, frame: pd.DataFrame) -> ElPlayerRatings:
+    try:
+        return el_player_ratings(
+            frame, inputs.player_games, inputs.team_games, m3_report=M3.report, mart_path=MART_PATH
+        )
+    except PlayerPartError as error:
+        log.error("%s", error)
+        raise typer.Exit(code=1) from error
 
 
 def _m5_player_part_gbl(inputs: M5Inputs, frame: pd.DataFrame, spec: M5Backtest) -> PlayerPartFn:
@@ -784,7 +771,7 @@ def _m5_player_part_gbl(inputs: M5Inputs, frame: pd.DataFrame, spec: M5Backtest)
     tuning = rated & frame["season"].isin(spec.tuning).to_numpy()
 
     def player_part(games: pd.DataFrame, shares: pd.DataFrame) -> FloatArray:
-        _same_frame(frame, games)
+        same_frame(frame, games)
         result = box_only_margins(
             games, inputs.player_games, shares, possessions, tuning, grid=BoxGrid()
         )
@@ -835,6 +822,68 @@ def _backtest_m5_retune(check_only: bool) -> None:
     detail.to_csv(M5_RETUNE.games_report, index=False, lineterminator="\n")
     typer.echo(f"{M5_RETUNE.report}\n{json.dumps(report['selected'], indent=2)}")
     typer.echo(f"RUNTIME backtest m5 retune: {time.perf_counter() - started:.0f} s")
+
+
+def _elor_inputs() -> ElorInputs:
+    """ELOR's inputs: every EuroLeague game up to the last fold, the M5 retune frame's M3
+    walk-forward fit (warm-up 2011) and the cached roster lists of the fold seasons."""
+    inputs, frame = _m5_inputs(
+        EUROLEAGUE, GBL, retune_backtest_spec(M5_RETUNE), dict(GREEK_EL_CLUBS)
+    )
+    ratings = _el_player_ratings(inputs, frame)
+    try:
+        roster = read_rosters(EUROLEAGUE.raw_dir, ELOR_CV.folds)
+    except RosterCacheError as error:
+        log.error("%s", error)
+        raise typer.Exit(code=1) from error
+    source = WalkForwardRatings(ratings.frame, ratings.wf.lookups)
+    return ElorInputs(
+        games=inputs.games,
+        player_games=inputs.player_games,
+        roster=roster,
+        rating=source,
+        has_state=source.has_state,
+        possessions=ratings.possessions,
+    )
+
+
+def _live_elo_params_match() -> bool:
+    report = EUROLEAGUE.live_backtest.report
+    if not report.exists():
+        return False
+    tuned = json.loads(report.read_text(encoding="utf-8"))["tuned"]
+    live = (float(tuned["k"]), float(tuned["hca"]), float(tuned["reversion"]))
+    params = ELOR_CV.elo_params
+    return live == (params.k, params.hca, params.reversion)
+
+
+def _backtest_elor(check_only: bool) -> None:
+    """``backtest --model elor --cv`` or ``--cv-check`` (docs/models/elo_roster_prior.md)."""
+    if not _live_elo_params_match():
+        log.error("ELOR's fixed Elo parameters differ from %s", EUROLEAGUE.live_backtest.report)
+        raise typer.Exit(code=1)
+    if not check_only:
+        if ELOR_CV.report.exists():
+            log.error("refusing to run: %s already exists", ELOR_CV.report)
+            raise typer.Exit(code=1)
+        if not is_clean_tree():
+            log.error("refusing to run: the working tree is not clean")
+            raise typer.Exit(code=1)
+        if not _on_origin_main():
+            log.error("refusing to run: HEAD is not the same as origin/main")
+            raise typer.Exit(code=1)
+    started = time.perf_counter()
+    inputs = _elor_inputs()
+    if check_only:
+        typer.echo(json.dumps(cv_check(inputs, spec=ELOR_CV), indent=2))
+        typer.echo(f"RUNTIME backtest elor cv-check: {time.perf_counter() - started:.0f} s")
+        return
+    report, detail = run_cv(inputs, spec=ELOR_CV, git_head=git_head_sha())
+    write_json(ELOR_CV.report, report)
+    detail.to_csv(ELOR_CV.games_report, index=False, lineterminator="\n")
+    typer.echo(f"{ELOR_CV.report}\n{json.dumps(report['selected'], indent=2)}")
+    typer.echo(json.dumps(report["shadow_criteria"], indent=2))
+    typer.echo(f"RUNTIME backtest elor cv: {time.perf_counter() - started:.0f} s")
 
 
 def _backtest_m5(
@@ -1394,7 +1443,10 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
     model: Annotated[
         ModelName,
         typer.Option(
-            help="elo (live), m1, m2, m3 (players), m4, m5 (roster), m6 (projections), m7 (season)"
+            help=(
+                "elo (live), elor (roster prior CV), m1, m2, m3 (players), m4, m5 (roster), "
+                "m6 (projections), m7 (season)"
+            )
         ),
     ] = ModelName.elo,
     score_test: Annotated[
@@ -1427,8 +1479,25 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
         bool,
         typer.Option(help="M5: retune harness check vs the committed M5 backtest margins"),
     ] = False,
+    cv: Annotated[
+        bool,
+        typer.Option(help="ELOR: protocol v1 CV (docs/models/elo_roster_prior.md), run once"),
+    ] = False,
+    cv_check_only: Annotated[
+        bool,
+        typer.Option("--cv-check", help="ELOR: read-only inputs check; writes nothing"),
+    ] = False,
 ) -> None:
     """Tune and score a model vs its baselines; the Elo live report holds the live parameters."""
+    if cv or cv_check_only or model is ModelName.elor:
+        if model is not ModelName.elor or cv == cv_check_only:
+            log.error("ELOR runs as --model elor with exactly one of --cv or --cv-check")
+            raise typer.Exit(code=1)
+        if competition is not CompetitionName.euroleague:
+            log.error("ELOR is the EuroLeague's")
+            raise typer.Exit(code=1)
+        _backtest_elor(check_only=cv_check_only)
+        return
     if retune or retune_check:
         if model is not ModelName.m5:
             log.error("--retune and --retune-check belong to --model m5")

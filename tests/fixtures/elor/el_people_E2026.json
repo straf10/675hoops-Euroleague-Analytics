@@ -1,0 +1,7 @@
+{"data": [
+  {"person": {"code": "900001"}, "club": {"code": "PAN"}, "type": "E", "typeName": "Coach", "startDate": "2026-08-01T00:00:00", "endDate": null},
+  {"person": {"code": "900002 "}, "club": {"code": "PAN"}, "type": "J", "typeName": "Player", "startDate": "2026-08-11T10:25:22.916", "endDate": null},
+  {"person": {"code": "900003"}, "club": {"code": "ULK"}, "type": "J", "typeName": "Player", "startDate": "2026-09-01T00:00:00", "endDate": "2026-10-20T23:59:59"},
+  {"person": {"code": "900004"}, "club": {"code": "ULK"}, "type": "J", "typeName": "Player", "startDate": "2026-10-09T00:00:00", "endDate": ""},
+  {"person": {"code": "900005"}, "club": {"code": "PAN"}, "type": "J", "typeName": "Player", "startDate": "2026-11-15T00:00:00"}
+], "total": 5}

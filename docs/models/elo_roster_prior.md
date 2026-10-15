@@ -134,3 +134,57 @@ Superiority is reported, not required.
 2. Folds 2015 to 2023 (nine), including the 2020 and 2021 COVID seasons: approved.
 3. Criteria: ±0.002 margins, as in the M5 retune: approved.
 4. Live judgement: a third comparison in the existing R1 look, reported only: approved.
+
+## Build addendum (2026-10-15, before any fold is scored; for owner review)
+Written with the harness (`eval/elor_cv.py`, `models/elor.py`, `models/roster.py`). Nothing
+above is changed. The numbers come from `eurohoops backtest --model elor --cv-check`, which
+scores no fold.
+
+**Start-date counts, 2015 to 2023.** Player rows of each season's roster list. "After round 1
+began": `startDate` at or after the season's first tip-off. "During round 1": also before the
+second round's cutoff. "Played before stamp": rows whose player already had seconds for that
+club that season before his `startDate`.
+
+| Season | Players | After round 1 began | During round 1 | Of those, played before stamp |
+|---|---|---|---|---|
+| 2015 | 391 | 38 | 0 | 0 |
+| 2016 | 278 | 45 | 0 | 0 |
+| 2017 | 277 | 35 | 1 | 0 |
+| 2018 | 279 | 44 | 7 | 0 |
+| 2019 | 326 | 55 | 2 | 0 |
+| 2020 | 368 | 86 | 3 | 0 |
+| 2021 | 328 | 48 | 5 | 0 |
+| 2022 | 326 | 46 | 1 | 0 |
+| 2023 | 320 | 42 | 0 | 0 |
+
+**Rule for registrations stamped during round 1 (proposed): strict** (`FIRST_ROUND_RULE =
+"strict"` in `models/roster.py`). A registration counts from its own `startDate` only, so a
+player stamped during round 1 joins the roster from round 2. Reasons: only 19 of 2,893 rows are
+stamped during round 1, none for a player who had already played for that club, so the stamps
+do not lag the debut there; and counting them from the season start would use a stamp made
+after round 1's cutoff for round 1's own games, which the leakage rule forbids
+(`tests/test_elor_cv.py` shows that alternative moving round-1 predictions).
+
+**How the build reads the protocol** (no choice here looks at a fold's result):
+- Roster stamps carry no time zone and are read as UTC. One 2014 row has no `startDate` and
+  counts from before the season (2014 is not a fold). Roster club codes equal the `games` mart
+  codes in every season 2007 to 2026, so no mapping is needed; the build stops if they differ.
+- `P_t` is evaluated at each game's cutoff (the roster in force then), not once per season.
+- Minute shares: H-c's `proj_hc` rule (window 5) applied to the club the player last played for
+  before the cutoff, in this season (that club's last 5 games up to his last appearance) or last
+  season (all its games). For a player who played his club's last game this equals
+  `minutes.projected_shares`. A player with no appearance in this or last season gets no share.
+  Shares above a team total of 5 are scaled down to 5; unfilled minutes count at rating 0 (M5's
+  value for an unrated player).
+- `P_t` in Elo points: `s * poss/100 * Q_t`, with `Q_t` the per-100 roster rating, `poss` the
+  game's expected possessions (M5's) and `s` from `elo.fit_margin_scale` on live-Elo differences
+  and margins of all rated games of earlier seasons (from 2007). Centring is over the clubs with
+  a rostered player at that cutoff, for `Q` and `R(start)` alike; it cancels in a game's
+  difference.
+- A game without M3 state, expected possessions or a margin scale keeps live Elo. In 2015 to
+  2023 no scored game is affected.
+- Scored games: 2,535 (the 2,567 rated fold games of the M5 retune minus 32 neutral games).
+- One-SE: the SE is the SD (ddof 1) of the game-weighted pooled gap over the 10,000 whole-season
+  resamples (seed 20261015); the selected-minus-Elo CI uses the same draws.
+- Outputs: `reports/elor_cv.json` and `reports/elor_cv_games.csv` (per game: Elo and all 12
+  settings' P(home win)).
