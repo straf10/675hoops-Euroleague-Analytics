@@ -417,7 +417,7 @@ const description =
     syncCols(true);
     if (location.search) update();
     // Warm the shown season so the first change is instant.
-    else requestIdleCallback?.(() => loadSeason(view.season));
+    else (window.requestIdleCallback ?? setTimeout)(() => loadSeason(view.season));
   }
 </script>
 
