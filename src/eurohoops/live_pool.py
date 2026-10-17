@@ -3,14 +3,15 @@ logarithmic pool of the four live forecasts (docs/models/pool.md).
 
 The pool reads only the four component logs, at their pinned ``model_version`` (config
 ``POOL_COMPONENTS``). A game gets a pool row only when all four components logged it, the four
-rows agree on the fixtures, and the latest component stamp is strictly before tip-off. The pool
-row is stamped with that latest component stamp, so it never postdates a component. Nothing is
-written while ``config.POOL_LIVE_ENABLED`` is False.
+rows agree on the fixtures, the game has not tipped off by the time the row is written, and the
+latest component stamp is strictly before tip-off. The pool row is stamped with that latest
+component stamp, so it never postdates a component. Nothing is written while
+``config.POOL_LIVE_ENABLED`` is False.
 """
 
 import csv
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,30 +29,37 @@ log = logging.getLogger(__name__)
 Rows = dict[str, dict[str, str]]  # game_id -> the component's logged row
 
 
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 def pool_version() -> str:
     """The pool's ``model_version``: the package version and a hash of the pinned components."""
     key = ";".join(f"{name}={config.POOL_COMPONENTS[name][1]}" for name in COMPONENTS)
     return tagged_version("pool", key)
 
 
-def read_component(path: Path, version: str) -> Rows:
-    """The rows of one component log logged at ``version``, keyed by game. An absent log is empty.
+def read_component(path: Path, version: str) -> tuple[Rows, list[dict[str, str]]]:
+    """The rows of one component log logged at ``version``, keyed by game, and the rows logged at
+    any other version. An absent log is empty.
 
     A game logged twice at the pinned version is an error: the logs are append-only, so a second
     row means something was written by hand.
     """
     if not path.exists():
-        return {}
+        return {}, []
     rows: Rows = {}
+    others: list[dict[str, str]] = []
     with path.open(newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             if row["model_version"] != version:
+                others.append(row)
                 continue
             game_id = row["game_id"]
             if game_id in rows:
                 raise ValueError(f"{path}: game {game_id} logged twice at {version}")
             rows[game_id] = row
-    return rows
+    return rows, others
 
 
 def _stamp(text: str) -> datetime:
@@ -59,19 +67,25 @@ def _stamp(text: str) -> datetime:
 
 
 def pool_rows(
-    components: Mapping[str, Rows], logged: set[tuple[str, str]], version: str
-) -> tuple[list[dict[str, Any]], int]:
+    components: Mapping[str, Rows], logged: set[tuple[str, str]], version: str, now: datetime
+) -> tuple[list[dict[str, Any]], int, int]:
     """Pool rows for every game all four components logged, not yet logged at ``version``.
 
-    Returns the rows and the number of games skipped because their component rows disagree on
-    the fixtures or the latest stamp is not before tip-off. The probabilities are computed from
-    the 4-decimal values in the logs, so a row can be reproduced from the logs alone.
+    ``now`` is the time the rows are written. A game whose tip-off is not after ``now`` is never
+    pooled; those games are counted separately from the games skipped for a fixture disagreement
+    or a component stamp at or after tip-off. Returns the rows, the skipped count and the count
+    of games already tipped off. The probabilities are computed from the 4-decimal values in the
+    logs, so a row can be reproduced from the logs alone.
     """
     elo = components["elo"]
     rows: list[dict[str, Any]] = []
     skipped = 0
+    past = 0
     for game_id, base in elo.items():
         if (game_id, version) in logged:
+            continue
+        if _stamp(base["tipoff_utc"]) <= now:
+            past += 1
             continue
         if any(game_id not in components[name] for name in COMPONENTS):
             continue
@@ -103,25 +117,42 @@ def pool_rows(
                 "predicted_at_utc": stamp.strftime(TIME_FORMAT),
             }
         )
-    return rows, skipped
+    return rows, skipped, past
 
 
 def predict_pool(
     *,
     log_path: Path,
     components: Mapping[str, tuple[Path, str]] | None = None,
+    clock: Callable[[], datetime] = _utc_now,
 ) -> int:
     """Append the pool rows that are due; return how many were written.
 
     Off unless ``config.POOL_LIVE_ENABLED`` is True (read at call time). Reads only the four
-    component logs, so it never blocks or alters them.
+    component logs, so it never blocks or alters them. ``clock`` gives the write time.
     """
     if not config.POOL_LIVE_ENABLED:
         return 0
     pins = config.POOL_COMPONENTS if components is None else components
+    now = clock()
     version = pool_version()
-    loaded = {name: read_component(pins[name][0], pins[name][1]) for name in COMPONENTS}
-    rows, skipped = pool_rows(loaded, logged_keys(log_path), version)
+    loaded: dict[str, Rows] = {}
+    for name in COMPONENTS:
+        path, pinned = pins[name]
+        component_rows, others = read_component(path, pinned)
+        loaded[name] = component_rows
+        upcoming = sorted({r["model_version"] for r in others if _stamp(r["tipoff_utc"]) > now})
+        if upcoming:
+            log.warning(
+                "POOL: %s logged upcoming games at %s, not the pinned %s: those games are not "
+                "pooled (a new POOL version must be declared)",
+                name,
+                ", ".join(upcoming),
+                pinned,
+            )
+    rows, skipped, past = pool_rows(loaded, logged_keys(log_path), version, now)
+    if past:
+        log.info("POOL: %d games already tipped off at %s: not logged", past, now)
     if skipped:
         log.warning("POOL: %d games skipped (fixtures disagree or logged after tip-off)", skipped)
     if not rows:

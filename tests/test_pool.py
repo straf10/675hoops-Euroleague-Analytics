@@ -1,6 +1,8 @@
 """POOL (docs/models/pool.md): pooling math, the all-four and logged-before-tip-off rules, the
-write-once guard, the overlap audit, and the live gate (off by default)."""
+version-change warning, the overlap audit, and the live gate (off by default)."""
 
+import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +16,7 @@ from eurohoops.models.pool import COMPONENTS, logit, pool_margin, pool_probabili
 from eurohoops.predict import LOG_COLUMNS
 
 TIP = "2026-10-20T17:00:00Z"
+NOW = datetime(2026, 10, 18, 12, 0, tzinfo=UTC)  # the write time: before TIP, after the stamps
 
 
 # -- pooling math -------------------------------------------------------------------------------
@@ -114,7 +117,7 @@ def test_only_games_all_four_components_logged_are_pooled() -> None:
     rows["m1"] += [_row("E2", "v-m1", 0.6, "2026-10-19T10:00:00Z")]
     rows["m5"] += [_row("E2", "v-m5", 0.6, "2026-10-19T10:00:00Z")]
     rows["elor"] += [_row("E2", "v-elor", 0.6, "2026-10-19T10:00:00Z")]
-    out, skipped = live_pool.pool_rows(_components(rows), set(), "pool-v")
+    out, skipped, _ = live_pool.pool_rows(_components(rows), set(), "pool-v", NOW)
     assert [r["game_id"] for r in out] == ["E2"]
     assert skipped == 0
 
@@ -126,34 +129,45 @@ def test_pool_row_is_stamped_with_the_latest_component_and_is_before_tipoff() ->
         "m5": [_row("E1", "v-m5", 0.5, "2026-10-19T10:45:00Z")],
         "elor": [_row("E1", "v-elor", 0.5, "2026-10-19T09:00:00Z")],
     }
-    out, _ = live_pool.pool_rows(_components(rows), set(), "pool-v")
+    out, _, _ = live_pool.pool_rows(_components(rows), set(), "pool-v", NOW)
     assert out[0]["predicted_at_utc"] == "2026-10-19T11:30:00Z"
     assert out[0]["predicted_at_utc"] < out[0]["tipoff_utc"]
 
 
 def test_a_component_stamped_at_or_after_tipoff_excludes_the_game() -> None:
     rows = _all_four("E1", stamp="2026-10-20T17:00:00Z")  # equal to tip-off: not before it
-    out, skipped = live_pool.pool_rows(_components(rows), set(), "pool-v")
-    assert out == [] and skipped == 1
+    out, skipped, past = live_pool.pool_rows(_components(rows), set(), "pool-v", NOW)
+    assert out == [] and skipped == 1 and past == 0
     late = _all_four("E2", stamp="2026-10-20T18:00:00Z")
-    out, skipped = live_pool.pool_rows(_components(late), set(), "pool-v")
+    out, skipped, _ = live_pool.pool_rows(_components(late), set(), "pool-v", NOW)
     assert out == [] and skipped == 1
+
+
+def test_a_game_already_tipped_off_is_never_pooled_even_with_early_stamps() -> None:
+    rows = _all_four("E1", stamp="2026-10-19T10:00:00Z")  # stamps before tip-off, but played
+    out, skipped, past = live_pool.pool_rows(
+        _components(rows), set(), "pool-v", datetime(2026, 10, 21, tzinfo=UTC)
+    )
+    assert out == [] and skipped == 0 and past == 1
+    at_tipoff = datetime(2026, 10, 20, 17, 0, tzinfo=UTC)  # tip-off itself counts as played
+    out, _, past = live_pool.pool_rows(_components(rows), set(), "pool-v", at_tipoff)
+    assert out == [] and past == 1
 
 
 def test_disagreeing_fixtures_are_not_pooled() -> None:
     rows = _all_four("E1")
     rows["m1"] = [_row("E1", "v-m1", 0.5, "2026-10-19T10:00:00Z", home="MAD")]
-    out, skipped = live_pool.pool_rows(_components(rows), set(), "pool-v")
+    out, skipped, _ = live_pool.pool_rows(_components(rows), set(), "pool-v", NOW)
     assert out == [] and skipped == 1
 
 
 def test_already_logged_games_are_not_written_again() -> None:
-    out, _ = live_pool.pool_rows(_components(_all_four("E1")), {("E1", "pool-v")}, "pool-v")
+    out, _, _ = live_pool.pool_rows(_components(_all_four("E1")), {("E1", "pool-v")}, "pool-v", NOW)
     assert out == []
 
 
 def test_pooled_probability_matches_the_components_as_logged() -> None:
-    out, _ = live_pool.pool_rows(_components(_all_four("E1")), set(), "pool-v")
+    out, _, _ = live_pool.pool_rows(_components(_all_four("E1")), set(), "pool-v", NOW)
     # components 0.5, 0.6, 0.7, 0.8 (the fixture helper's ramp)
     expected = pool_probabilities(np.array([[0.5, 0.6, 0.7, 0.8]]))[0]
     assert float(out[0]["p_home"]) == pytest.approx(round(expected, 4), abs=1e-4)
@@ -181,8 +195,10 @@ def test_read_component_ignores_other_versions_and_rejects_duplicates(tmp_path: 
             _row("E2", "0.1.0+old", 0.5, "2026-10-19T10:00:00Z"),
         ],
     )
-    assert list(live_pool.read_component(path, "v-elo")) == ["E1"]
-    assert live_pool.read_component(tmp_path / "absent.csv", "v-elo") == {}
+    rows, others = live_pool.read_component(path, "v-elo")
+    assert list(rows) == ["E1"]
+    assert [r["game_id"] for r in others] == ["E2"]
+    assert live_pool.read_component(tmp_path / "absent.csv", "v-elo") == ({}, [])
     append_rows(path, LOG_COLUMNS, [_row("E1", "v-elo", 0.6, "2026-10-19T10:00:00Z")])
     with pytest.raises(ValueError, match="logged twice"):
         live_pool.read_component(path, "v-elo")
@@ -193,7 +209,7 @@ def test_live_is_disabled_by_default_and_writes_nothing(tmp_path: Path) -> None:
     rows = {name: _all_four("E1")[name] for name in COMPONENTS}
     pins = _write_components(tmp_path, rows)
     target = tmp_path / "pool.csv"
-    assert live_pool.predict_pool(log_path=target, components=pins) == 0
+    assert live_pool.predict_pool(log_path=target, components=pins, clock=lambda: NOW) == 0
     assert not target.exists()
 
 
@@ -204,8 +220,8 @@ def test_enabled_predict_pool_appends_once_and_is_idempotent(
     rows = _all_four("E1")
     pins = _write_components(tmp_path, rows)
     target = tmp_path / "pool.csv"
-    assert live_pool.predict_pool(log_path=target, components=pins) == 1
-    assert live_pool.predict_pool(log_path=target, components=pins) == 0
+    assert live_pool.predict_pool(log_path=target, components=pins, clock=lambda: NOW) == 1
+    assert live_pool.predict_pool(log_path=target, components=pins, clock=lambda: NOW) == 0
     written = pd.read_csv(target, dtype={"game_id": str})
     assert list(written.columns) == list(LOG_COLUMNS)
     assert written["model"].tolist() == ["pool"]
@@ -218,24 +234,32 @@ def test_pool_version_is_tagged_and_depends_on_the_pins() -> None:
     assert version == live_pool.pool_version()
 
 
-def test_live_comparison_report_is_written_once(tmp_path: Path) -> None:
-    target = tmp_path / "pool_live.json"
-    payload = {"games": 0}
-    eval_pool.write_live_comparison(target, payload)
-    with pytest.raises(eval_pool.PoolEvalAlreadyWrittenError):
-        eval_pool.write_live_comparison(target, payload)
+def test_upcoming_game_at_another_version_warns_and_is_not_pooled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(config, "POOL_LIVE_ENABLED", True)
+    rows = _all_four("E1")
+    rows["elo"].append(_row("E2", "0.1.0+old", 0.5, "2026-10-19T10:00:00Z"))  # upcoming
+    rows["elo"].append(
+        _row("E3", "0.0.9+older", 0.5, "2026-10-01T10:00:00Z", tip="2026-10-02T17:00:00Z")
+    )
+    pins = _write_components(tmp_path, rows)
+    target = tmp_path / "pool.csv"
+    with caplog.at_level(logging.WARNING, logger="eurohoops.live_pool"):
+        assert live_pool.predict_pool(log_path=target, components=pins, clock=lambda: NOW) == 1
+    assert "POOL: elo logged upcoming games at 0.1.0+old, not the pinned v-elo" in caplog.text
+    assert "0.0.9" not in caplog.text  # a game already tipped off is not a warning
+    assert pd.read_csv(target, dtype={"game_id": str})["game_id"].tolist() == ["E1"]
 
 
-def test_live_comparison_is_paired_and_reports_the_shadow_form() -> None:
-    rng = np.random.default_rng(7)
-    y = rng.integers(0, 2, size=400).astype(float)
-    p_elo = np.clip(0.5 + 0.1 * (y - 0.5) + rng.normal(0, 0.1, 400), 0.05, 0.95)
-    same = eval_pool.live_comparison(p_elo, p_elo, y)
-    assert same["mean"] == 0.0 and same["shadow_criterion_met"] is False
-    empty = eval_pool.live_comparison(np.array([]), np.array([]), np.array([]))
-    assert empty["games"] == 0
-    with pytest.raises(ValueError, match="same games"):
-        eval_pool.live_comparison(p_elo, p_elo[:-1], y)
+def test_no_version_warning_when_every_upcoming_game_is_at_the_pinned_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(config, "POOL_LIVE_ENABLED", True)
+    pins = _write_components(tmp_path, _all_four("E1"))
+    with caplog.at_level(logging.WARNING, logger="eurohoops.live_pool"):
+        live_pool.predict_pool(log_path=tmp_path / "pool.csv", components=pins, clock=lambda: NOW)
+    assert "not the pinned" not in caplog.text
 
 
 # -- overlap audit ------------------------------------------------------------------------------

@@ -978,6 +978,7 @@ def promote_check(
             comp.manual_pushes,
             Path("reports"),
             elor_log=comp.elor_prediction_log,
+            pool_log=comp.pool_prediction_log,
         )
     except LookNotDueError as exc:
         typer.echo(f"{exc}. Nothing computed.", err=True)

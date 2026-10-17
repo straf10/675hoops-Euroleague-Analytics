@@ -257,10 +257,3 @@ Verdict.min_gap
 Verdict.ci_upper_below_zero
 Verdict.mean_at_most_min_gap
 Verdict.promote
-
-# POOL (docs/models/pool.md): the live comparison and its write-once report are built ahead of
-# the R1 look that reports them (the look itself is not declared yet); tests call them
-from eurohoops.eval.pool import live_comparison, write_live_comparison  # noqa: E402
-
-live_comparison
-write_live_comparison

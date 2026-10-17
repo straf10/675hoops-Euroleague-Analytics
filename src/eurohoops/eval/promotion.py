@@ -12,7 +12,8 @@ unplanned peek.
 
 Reported next to the verdict, never in the decision: a round-clustered bootstrap of the same gap
 (``sensitivity_round_clustered``) and, in the EuroLeague, ELOR against Elo and against the
-flagship (``reported_only``). ``promote`` depends on the verdict's inputs alone.
+flagship, and the POOL against Elo (``reported_only``). ``promote`` depends on the verdict's
+inputs alone.
 """
 
 from collections.abc import Sequence
@@ -325,6 +326,25 @@ def _reported_only(
     }
 
 
+def _pool_vs_elo(
+    pool_log: Path,
+    pairing: Pairing,
+    season: int,
+    manual_pushes: Sequence[datetime],
+) -> dict[str, Any]:
+    """The POOL minus Elo on the games both logged: the look's game-level CI and the round-clustered
+    sensitivity of the same gap. Reported only; never a verdict."""
+    pool = _season_provable(pool_log, season, manual_pushes)
+    block = _reported_gap(pool, pairing.elo, pairing.finished, ("pool", "elo"))
+    paired = _join(pool, pairing.elo, pairing.finished)
+    if paired.empty:
+        block["round_clustered"] = None
+        return block
+    loss_pool, loss_elo = _losses(paired)
+    block["round_clustered"] = _round_clustered(paired, season, loss_pool - loss_elo)
+    return block
+
+
 class LookNotDueError(RuntimeError):
     """A look was asked for before its checkpoint is complete, or a second time."""
 
@@ -340,13 +360,15 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
     out_dir: Path,
     *,
     elor_log: Path | None = None,
+    pool_log: Path | None = None,
 ) -> tuple[Verdict, Path]:
     """Run one look and write ``promotion_<competition>_<season>_look<look>.json`` to ``out_dir``.
 
     The guard comes first: before the checkpoint is complete (or when the look's file already
     exists) nothing is read from the logs or computed. The file holds the verdict's keys, then
     the reported-only blocks: ``sensitivity_round_clustered`` and, with ``elor_log`` (EuroLeague),
-    ``reported_only``. Neither feeds ``promote``.
+    ``reported_only`` (ELOR), which also holds ``pool_vs_elo`` with ``pool_log``. Neither feeds
+    ``promote``.
     """
     rnd = LOOK_ROUNDS[competition]
     due, why = checkpoint_status(games, season, look, rnd)
@@ -379,5 +401,9 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
     )
     if elor_log is not None and competition == "euroleague":
         payload["reported_only"] = _reported_only(elor_log, pairing, season, manual_pushes)
+    if pool_log is not None and competition == "euroleague":
+        payload.setdefault("reported_only", {})["pool_vs_elo"] = _pool_vs_elo(
+            pool_log, pairing, season, manual_pushes
+        )
     write_json(out, payload)
     return verdict, out

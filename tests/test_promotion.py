@@ -253,8 +253,11 @@ def test_gbl_uses_round_13(tmp_path: Path) -> None:
     assert (verdict.n_games, verdict.flagship, verdict.first_round) == (13, "M1", 1)
 
 
-def write_elor(tmp_path: Path, p: float = 0.7) -> Path:
-    """ELOR's shadow log: every round 1-22, home wins always, stamped 10 h before tip-off."""
+def write_elor(
+    tmp_path: Path, p: float = 0.7, *, model: str = "elor", filename: str = "elor.csv"
+) -> Path:
+    """A shadow log (ELOR by default): every round 1-22, home wins always, stamped 10 h before
+    tip-off."""
     rows = []
     for r in range(1, 23):
         rows.append(
@@ -268,14 +271,14 @@ def write_elor(tmp_path: Path, p: float = 0.7) -> Path:
                 "away": "A",
                 "p_home": p,
                 "exp_margin": 5.0,
-                "model": "elor",
-                "model_version": "0.2.0+elor.test",
+                "model": model,
+                "model_version": f"0.2.0+{model}.test",
                 "predicted_at_utc": (tip(r) - pd.Timedelta(hours=10)).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 ),
             }
         )
-    path = tmp_path / "elor.csv"
+    path = tmp_path / filename
     pd.DataFrame(rows).reindex(columns=list(LOG_COLUMNS)).to_csv(path, index=False)
     return path
 
@@ -341,4 +344,63 @@ def test_gbl_look_has_no_elor_blocks(tmp_path: Path) -> None:
     flagship, elo = write_logs(tmp_path, flagship_from=1)
     elor = write_elor(tmp_path)
     _, out = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path, elor_log=elor)
+    assert "reported_only" not in json.loads(out.read_text())
+
+
+def test_pool_block_is_reported_with_the_look_ci_and_leaves_the_verdict_alone(
+    tmp_path: Path,
+) -> None:
+    flagship, elo = write_logs(tmp_path)
+    pool = write_elor(tmp_path, 0.65, model="pool", filename="pool.csv")
+    plain, plain_out = run_look(
+        "euroleague", 1, games(19), SEASON, flagship, elo, (), tmp_path / "a"
+    )
+    full, full_out = run_look(
+        "euroleague", 1, games(19), SEASON, flagship, elo, (), tmp_path / "b", pool_log=pool
+    )
+    assert full.as_dict() == plain.as_dict()
+    payload = json.loads(full_out.read_text())
+    for key in plain.as_dict():
+        assert payload[key] == json.loads(plain_out.read_text())[key]
+    assert set(payload["reported_only"]) == {"pool_vs_elo"}  # no ELOR log, so no ELOR blocks
+    block = payload["reported_only"]["pool_vs_elo"]
+    # the pool and Elo both log rounds 1-19 (the look's cap); the gap is the same every game
+    assert block["n"] == 19
+    assert block["mean_diff"] == pytest.approx(-np.log(0.65) - (-np.log(0.6)), abs=1e-6)
+    assert block["pool_log_loss"] == pytest.approx(-np.log(0.65), abs=1e-6)
+    assert block["ci_level"] == 0.975
+    assert block["resamples"] == promotion.RESAMPLES
+    assert block["seed"] == promotion.SEED
+    clustered = block["round_clustered"]
+    assert (clustered["n_games"], clustered["n_clusters"]) == (19, 19)
+    assert clustered["mean_diff"] == pytest.approx(block["mean_diff"], abs=1e-6)
+    assert clustered["ci_lo"] == pytest.approx(block["mean_diff"], abs=1e-6)
+    assert clustered["ci_hi"] == pytest.approx(block["mean_diff"], abs=1e-6)
+
+
+def test_pool_block_is_added_next_to_elor_blocks(tmp_path: Path) -> None:
+    flagship, elo = write_logs(tmp_path)
+    elor = write_elor(tmp_path)
+    pool = write_elor(tmp_path, 0.65, model="pool", filename="pool.csv")
+    _, out = run_look(
+        "euroleague",
+        1,
+        games(19),
+        SEASON,
+        flagship,
+        elo,
+        (),
+        tmp_path,
+        elor_log=elor,
+        pool_log=pool,
+    )
+    blocks = json.loads(out.read_text())["reported_only"]
+    assert set(blocks) == {"elor_vs_elo", "elor_vs_flagship", "pool_vs_elo"}
+    assert blocks["elor_vs_elo"]["n"] == 19
+
+
+def test_gbl_look_has_no_pool_block(tmp_path: Path) -> None:
+    flagship, elo = write_logs(tmp_path, flagship_from=1)
+    pool = write_elor(tmp_path, 0.65, model="pool", filename="pool.csv")
+    _, out = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path, pool_log=pool)
     assert "reported_only" not in json.loads(out.read_text())

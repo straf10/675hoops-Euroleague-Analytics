@@ -1,9 +1,9 @@
-"""POOL evaluation (docs/models/pool.md): the read-only overlap audit and the live comparison.
+"""POOL evaluation (docs/models/pool.md): the read-only overlap audit.
 
 The historical overlap audit reads only committed reports (no marts, no raw data) and states which
 games are out of sample for every component. The protocol chose a live-only evaluation, so the
-audit is the evidence for that choice. ``live_comparison`` is the reported pool-minus-Elo block
-for the R1 looks: paired, game-weighted, reported only, never a verdict on the flagship.
+audit is the evidence for that choice. The live pool-minus-Elo block is the look report's
+``reported_only.pool_vs_elo`` (``eval/promotion.py``), with the look's own CI.
 """
 
 import json
@@ -11,18 +11,9 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
-from eurohoops.config import (
-    ELOR_CV,
-    M5,
-    POOL_BOOTSTRAP_RESAMPLES,
-    POOL_BOOTSTRAP_SEED,
-)
-from eurohoops.eval.common import paired_ci
-from eurohoops.eval.metrics import per_game_log_loss
-from eurohoops.logs import write_json
+from eurohoops.config import ELOR_CV, M5
 from eurohoops.models.pool import COMPONENTS
 
 # Model variants in the committed game-level reports (the live or chosen setting of each model).
@@ -36,12 +27,6 @@ SEEN_SEASONS: dict[str, tuple[int, ...]] = {
     "m5": tuple(range(2015, 2026)),  # as M1, plus the retune selection over 2015-2023
     "elor": tuple(range(2015, 2024)),  # the CV that chose its live setting
 }
-
-SHADOW_MARGIN = 0.002  # the shadow criterion's margin, as ELOR's and the M5 retune's
-
-
-class PoolEvalAlreadyWrittenError(RuntimeError):
-    """The live comparison report exists: it is written once per look, never rewritten."""
 
 
 def load_components(m5_games: Path, elor_games: Path, elor_key: str) -> pd.DataFrame:
@@ -138,30 +123,3 @@ def default_overlap() -> dict[str, Any]:
     """The overlap audit on the committed reports (read-only)."""
     frame = load_components(M5.games_report, ELOR_CV.games_report, elor_selected_key())
     return overlap_report(frame)
-
-
-def live_comparison(p_pool: np.ndarray, p_elo: np.ndarray, home_won: np.ndarray) -> dict[str, Any]:
-    """Pool minus flagship Elo on the same games: mean per-game log-loss gap and a paired CI.
-
-    Game-weighted and paired. ``shadow_criterion_met`` is the ELOR form (CI upper end below
-    +0.002 and mean at or below -0.002); it is reported, never a verdict on the flagship.
-    """
-    if not (len(p_pool) == len(p_elo) == len(home_won)):
-        raise ValueError("pool, Elo and results must cover the same games")
-    if len(p_pool) == 0:
-        return {"games": 0, "mean": None, "ci95": None, "shadow_criterion_met": False}
-    y = np.asarray(home_won, dtype=np.float64)
-    diff = per_game_log_loss(np.asarray(p_pool, np.float64), y) - per_game_log_loss(
-        np.asarray(p_elo, np.float64), y
-    )
-    block = paired_ci(diff, POOL_BOOTSTRAP_RESAMPLES, POOL_BOOTSTRAP_SEED)
-    upper = float(block["ci95"][1])
-    met = upper < SHADOW_MARGIN and float(block["mean"]) <= -SHADOW_MARGIN
-    return {"games": len(diff), **block, "shadow_criterion_met": bool(met)}
-
-
-def write_live_comparison(path: Path, payload: dict[str, Any]) -> None:
-    """Write one live comparison report. Refuses to overwrite: a look is run once."""
-    if path.exists():
-        raise PoolEvalAlreadyWrittenError(f"{path} exists: the live comparison is written once")
-    write_json(path, payload)

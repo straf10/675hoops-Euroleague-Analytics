@@ -96,9 +96,9 @@ Implemented in `src/eurohoops/live_pool.py`, run after the four component logs a
    the game and is logged as an error.
    The pool's probability and margin are computed from the 4-decimal values in the four logs,
    so every pool row can be reproduced from the logs alone.
-4. **Logged before tip-off:** the pool row's `predicted_at_utc` is the latest of the four
-   component `predicted_at_utc` stamps. It must be strictly before the game's tip-off. A game that
-   fails this is not logged.
+4. **Logged before tip-off:** a game is pooled only if its tip-off is after the time the pool row
+   is written; a game already played is never logged. The row's `predicted_at_utc` is the latest
+   of the four component stamps, which must also be strictly before tip-off.
 5. **Append-only and idempotent:** rows go to `predictions/euroleague_pool_2026-27.csv`
    (the same columns as the other logs, `model = "pool"`), keyed by `(game_id, model_version)`.
    A logged key is never written again. The file is never edited.
@@ -106,12 +106,15 @@ Implemented in `src/eurohoops/live_pool.py`, run after the four component logs a
    reads odds, injuries, marts or the rest of the forecast pipeline.
 
 ## Evaluation (live only)
-- **Comparison:** on the games with a pool row, the pool against the flagship Elo row for the
-  same game, paired and game-weighted. Mean difference (pool minus Elo) of per-game log loss,
-  with a 95% paired bootstrap CI over games (10,000 resamples, fixed seed declared at approval).
+- **Comparison:** on the games with a pool row, the pool against the Elo log row
+  (`predictions/euroleague_2026-27.csv`) for the same game, paired and game-weighted. Mean
+  difference (pool minus Elo) of per-game log loss with the look report's own game-level CI
+  (`promotion._reported_gap`: R1's resamples, seed and level), plus the round-clustered
+  sensitivity (whole rounds resampled).
 - **Reported at the R1 looks** (`docs/models/m5.md`, "Flagship promotion rule": look 1 after
-  round 19, look 2 at season end), as a third comparison in the look report. It is reported,
-  never used to promote or demote anything, and R1 itself is unchanged.
+  round 19, look 2 at season end), as the block `reported_only.pool_vs_elo` in the look file
+  (`reports/promotion_euroleague_<season>_look<n>.json`). It is reported, never used to promote
+  or demote anything, and R1 itself is unchanged.
 - **Shadow criterion, if asked:** same form as ELOR's: the CI upper end below +0.002 and the mean
   at or below −0.002. It is shown with the numbers, not as a verdict.
 - **Expected size:** small. The first pool row can only come after ELOR's first row (2026-10-16,
@@ -127,14 +130,21 @@ Implemented in `src/eurohoops/live_pool.py`, run after the four component logs a
 - **Thin live evidence.** ELOR logs from 2026-10-16, so the pool starts late in 2026-27.
 - **No historical test.** The pool's numbers come from live games only. Any conclusion is
   limited to the games logged.
+- **Clip.** Logs keep four decimals, so a logged 0.0000 or 1.0000 becomes log-odds ±13.8 at the
+  1e-6 clip and outvotes the other three. Unlikely in the EuroLeague; disclosed, not tuned.
+- **Selected sample.** Games any component misses (e.g. ELOR roster failures) are not pooled, so
+  the pooled games are not a random sample.
 
 ## Stopping rule
 One live log, no change to the components, the pinned versions, the weights, the clip or the
 criteria after approval. Any change is a new protocol version, declared before it is used.
 
+A component version change (e.g. the M5 injury arm or a package version bump) ends v1 coverage of
+new games; `predict` warns when it happens. POOL v2 must be declared before that component's first
+new-version row (declare it together with the injury arm).
+
 ## Owner decisions needed
 1. Approve this protocol (option ii, live-only, as drafted).
 2. Confirm the pinned component versions above.
-3. Confirm the bootstrap seed and resample count (10,000; seed `20261017`, the date of the
-   declaration).
+3. The CI is the look report's (R1's resamples and seed); no separate seed.
 4. Only then set `POOL_LIVE_ENABLED = True` in `config.py`.

@@ -200,8 +200,6 @@ POOL_COMPONENTS: dict[str, tuple[Path, str]] = {
     "m5": (Path("predictions/euroleague_m5_2026-27.csv"), "0.2.0+m5.d4848a7e"),
     "elor": (Path("predictions/euroleague_elor_2026-27.csv"), "0.2.0+elor.59b43f20"),
 }
-POOL_BOOTSTRAP_RESAMPLES = 10_000  # the live comparison's paired CI (docs/models/pool.md)
-POOL_BOOTSTRAP_SEED = 20261017  # the protocol's declaration date
 
 GBL_ELO_GRID = Grid(
     k=(10.0, 15.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0),
