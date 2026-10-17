@@ -40,7 +40,7 @@ const logloss: TrendPoint[] = [
 const finished = [...(fc?.games ?? [])].reverse().filter((g) => model && g.models[model]);
 const margins: MarginGame[] = finished.map((g, i) => ({
   n: i + 1,
-  label: `${g.home} ${g.home_score}-${g.away_score} ${g.away}`,
+  label: `${g.home.code} ${g.home_score}-${g.away_score} ${g.away.code}`,
   predicted: g.models[model!]!.exp_margin,
   actual: g.home_score - g.away_score,
 }));
