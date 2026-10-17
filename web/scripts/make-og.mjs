@@ -48,7 +48,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" 
   ${setText("EuroLeague 2026-27 win forecasts,", 64, PAD, 280, INK, -0.03)}
   ${setText("pre-registered and scored in public", 64, PAD, 364, INK_SOFT, -0.03)}
   <rect x="${PAD}" y="${H - 150}" width="${W - 2 * PAD}" height="1" fill="${RULE}"/>
-  ${setText("675hoops.com  ·  A model benchmark, not betting advice", 28, PAD, H - 90, MUTED, 0)}
+  ${setText("675hoops.com  ·  Every forecast logged before tip-off", 28, PAD, H - 90, MUTED, 0)}
 </svg>`;
 
 writeFileSync("public/og.png", await sharp(Buffer.from(svg)).png().toBuffer());
