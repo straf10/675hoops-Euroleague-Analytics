@@ -1,0 +1,56 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0) for the data this project publishes
+=============================================================================================
+
+Licensor: 6.75 Analytics (https://675hoops.com)
+
+Scope
+-----
+
+This licence covers only the outputs the project itself produces:
+
+- `predictions/*.csv`: the pre-registered forecast logs.
+- `reports/live_scorecard*.json`: the live scorecards.
+- Model outputs the project publishes, such as ratings and projections.
+
+It does not cover the code, which is licensed separately under `LICENSE`.
+
+Excluded
+--------
+
+EuroLeague-derived statistics are not licensed by 6.75 Analytics. This includes the games, team
+box scores, player box scores and shots offered on the Downloads page, and any other file derived
+from them.
+
+Source: Euroleague Basketball. These statistics remain the property of Euroleague Basketball; they
+are shared for non-commercial analysis and are not covered by our licence.
+
+Summary of the CC BY 4.0 deed
+-----------------------------
+
+You are free to:
+
+- Share: copy and redistribute the material in any medium or format.
+- Adapt: remix, transform, and build upon the material for any purpose, even commercially.
+
+Under the following terms:
+
+- Attribution: you must give appropriate credit, provide a link to the licence, and indicate if
+  changes were made. You may do so in any reasonable manner, but not in any way that suggests the
+  licensor endorses you or your use.
+- No additional restrictions: you may not apply legal terms or technological measures that legally
+  restrict others from doing anything the licence permits.
+
+This is a human-readable summary, not a substitute for the licence itself.
+
+Full licence
+------------
+
+The full legal code is at https://creativecommons.org/licenses/by/4.0/legalcode. It governs
+any use of the licensed material.
+
+Attribution
+-----------
+
+Credit the material as:
+
+    6.75 Analytics (https://675hoops.com)
