@@ -6,7 +6,7 @@ import "../../styles/player.css";
 import { teamHref as linkTeam } from "../../lib/players";
 import { perGame, totalsOf, ts, type Totals } from "../../lib/player";
 import { meta, onOffData, playerData, playerIndex, season, type PlayerIndexRow } from "../../lib/stats";
-import { displayCode, playerM6, playerSlugs } from "../../lib/m6";
+import { displayCode, playerM6, playerSlugs, rapmBoard } from "../../lib/m6";
 import { leagueBoard } from "../../lib/league";
 import { clutchView, onOffView } from "../../lib/onoff";
 import { seasonEndFor } from "../../lib/season_end_page";
@@ -14,6 +14,7 @@ import { analysisSeason } from "../../lib/analysis";
 import { position } from "../../lib/position";
 import Comparables from "../../components/Comparables.astro";
 import ProjectionImpact from "../../components/ProjectionImpact.astro";
+import Rapm from "../../components/player/Rapm.astro";
 import Strip from "../../components/player/Strip.astro";
 import AgainstLeague from "../../components/player/AgainstLeague.astro";
 import Form from "../../components/player/Form.astro";
@@ -33,6 +34,9 @@ const { p } = Astro.props as { p: PlayerIndexRow };
 const m = (await meta())!;
 const data = await playerData(p);
 const m6 = await playerM6(p.id);
+// EuroLeague RAPM of the latest rated season (the board holds EuroLeague players only).
+const rapm = await rapmBoard();
+const rapmRow = rapm?.players.find((r) => r.person_id === `P:${p.id}`) ?? null;
 const slugs = await playerSlugs();
 const seasons = data.seasons;
 const latest = seasons[seasons.length - 1];
@@ -165,12 +169,13 @@ const end =
   <Comparables report={m6.similar} name={data.name} slugs={slugs} base={base} />
 
   {
-    (m6.projection || m6.index) && (
+    (m6.projection || m6.index || (rapm && rapmRow)) && (
       <section class="wrap band" id="impact" aria-labelledby="impact-title">
         <header class="sec-head">
           <h2 id="impact-title">Impact</h2>
           <p>Net points per 100 possessions against an average player, offense plus defense. Dashed line: average.</p>
         </header>
+        {rapm && rapmRow && <Rapm board={rapm} row={rapmRow} />}
         <ProjectionImpact report={m6.projection} index={m6.index} />
       </section>
     )

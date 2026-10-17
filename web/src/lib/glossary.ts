@@ -8,7 +8,8 @@ export type GlossaryGroup =
   | "Rates and samples"
   | "Team ratings"
   | "Forecasts"
-  | "Player projections";
+  | "Player projections"
+  | "Player ratings";
 
 export interface GlossaryTerm {
   /** Stable anchor: /glossary/#ts-pct. Never rename one; other pages may link to it. */
@@ -32,6 +33,7 @@ export const GROUPS: GlossaryGroup[] = [
   "Team ratings",
   "Forecasts",
   "Player projections",
+  "Player ratings",
 ];
 
 const PL = "players";
@@ -420,5 +422,38 @@ export const TERMS: GlossaryTerm[] = [
     group: "Forecasts",
     def: "Two other team models that log a forecast for every game alongside the one the site shows. They are compared on the games they all called.",
     shownOn: [FC],
+  },
+  // Player ratings
+  {
+    id: "rapm",
+    term: "RAPM",
+    name: "Regularised adjusted plus-minus",
+    group: "Player ratings",
+    def: "Points per 100 possessions a player's team scores and allows with him on the floor, adjusted for his teammates and opponents, shrunk toward a box-score estimate. Zero is average, and a higher total is better. EuroLeague only: the Greek Basket League has too few play-by-play stints to rate.",
+    formula: "O-RAPM + D-RAPM",
+    shownOn: [LD, PP],
+  },
+  {
+    id: "o-rapm",
+    term: "O-RAPM",
+    name: "Offensive RAPM",
+    group: "Player ratings",
+    def: "The offensive part of RAPM: points per 100 possessions his offense adds against an average player. Positive is better.",
+    shownOn: [LD, PP],
+  },
+  {
+    id: "d-rapm",
+    term: "D-RAPM",
+    name: "Defensive RAPM",
+    group: "Player ratings",
+    def: "The defensive part of RAPM: points per 100 possessions his defense keeps off the scoreboard against an average player. Positive is better: a negative number means the team allows more with him on the floor.",
+    shownOn: [LD, PP],
+  },
+  {
+    id: "interval-90",
+    term: "90% interval",
+    group: "Player ratings",
+    def: "The range a rating should fall in nine times out of ten, if the model is right. A wide range means a short sample: little playing time, so little evidence.",
+    shownOn: [LD, PP],
   },
 ];

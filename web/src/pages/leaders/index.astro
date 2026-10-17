@@ -16,6 +16,8 @@ import {
   title,
   type View,
 } from "../../lib/leaders";
+import { playerSlugs, rapmBoard } from "../../lib/m6";
+import RapmTable from "../../components/RapmTable.astro";
 import { BY_KEY } from "../../lib/players";
 import { defaultSeason, leaderPool, meta, teamIndex } from "../../lib/stats";
 import "../../styles/stats.css";
@@ -34,6 +36,9 @@ const cfg = {
   seasons: seasons.map((s) => s.season),
   clubs: Object.fromEntries(clubs.map((c) => [c.code, { name: c.name, seasons: c.seasons }])),
 };
+const rapm = await rapmBoard();
+const slugs = await playerSlugs();
+const rapmRanked = rapm?.players.some((p) => p.rank !== null) ?? false;
 const description =
   "The EuroLeague's leaders since 2007-08 on the floor as jersey backs: a season or whole careers, for the league or one club.";
 ---
@@ -148,6 +153,18 @@ const description =
             <ol class="bench" id="bench" set:html={benchHtml(b, view, base)} />
           </section>
         </div>
+      </section>
+    )
+  }
+
+  {
+    rapm && rapmRanked && (
+      <section class="wrap band" id="rapm-board" aria-labelledby="rapm-title">
+        <header class="sec-head">
+          <h2 id="rapm-title">RAPM</h2>
+          <p>EuroLeague only: the latest season's player ratings from the stints, adjusted for teammates and opponents. The Greek Basket League has no RAPM.</p>
+        </header>
+        <RapmTable board={rapm} slugs={slugs} base={base.replace(/\/$/, "")} />
       </section>
     )
   }

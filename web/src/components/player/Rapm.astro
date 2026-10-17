@@ -1,0 +1,30 @@
+---
+// One line under Impact: the player's latest-season RAPM (EuroLeague only). Rendered only when the
+// board has a row for him; below the minimum minutes he has the rating but no rank.
+import { seasonLabel, thousands, type RapmBoard, type RapmPlayer } from "../../lib/m6";
+import { signed } from "../../lib/format";
+
+interface Props {
+  board: RapmBoard;
+  row: RapmPlayer;
+}
+const { board, row } = Astro.props;
+const ranked = board.players.filter((p) => p.rank !== null).length;
+const [lo, hi] = row.ci90_total;
+---
+
+<p class="rapm-line">{
+  `${seasonLabel(board.season)} RAPM: offense ${signed(row.o)}, defense ${signed(row.d)}, total ${signed(row.total)} (90% interval ${signed(lo)} to ${signed(hi)}). ${
+    row.rank !== null
+      ? `Rank ${row.rank} of ${ranked} with at least ${thousands(board.minimum_minutes)} minutes.`
+      : `Not ranked: ${thousands(row.minutes)} minutes, under the ${thousands(board.minimum_minutes)} needed for a rank.`
+  }`
+}</p>
+
+<style>
+  .rapm-line {
+    margin: 0 0 1rem;
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
