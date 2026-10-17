@@ -71,6 +71,7 @@ from eurohoops.eval.m5_retune import (
 from eurohoops.eval.m6_backtest import M6Inputs, SpmFn, World, format_m6_table, run_m6_backtest
 from eurohoops.eval.m7_backtest import M7Inputs, format_m7_table, run_m7_backtest, scored_splits
 from eurohoops.eval.m7_gate_v2 import format_gate_v2, run_gate_v2
+from eurohoops.eval.pool import default_overlap, format_overlap
 from eurohoops.eval.promotion import LookNotDueError, run_look
 from eurohoops.eval.tracking import (
     default_tracking_uri,
@@ -836,7 +837,8 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
         typer.Option(
             help=(
                 "elo (live), elor (roster prior CV), m1, m2, m3 (players), m4, m5 (roster), "
-                "m6 (projections), m7 (season), eloc (calibrated Elo CV: --cv or --cv-check)"
+                "m6 (projections), m7 (season), eloc (calibrated Elo CV: --cv or --cv-check), "
+                "pool (equal-weight pool, read-only --check)"
             )
         ),
     ] = ModelName.elo,
@@ -878,8 +880,21 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
         bool,
         typer.Option("--cv-check", help="ELOR: read-only inputs check; writes nothing"),
     ] = False,
+    pool_check: Annotated[
+        bool,
+        typer.Option(
+            "--check",
+            help="POOL: read-only overlap audit of the four components (docs/models/pool.md)",
+        ),
+    ] = False,
 ) -> None:
     """Tune and score a model vs its baselines; the Elo live report holds the live parameters."""
+    if pool_check or model is ModelName.pool:
+        if model is not ModelName.pool or not pool_check:
+            log.error("POOL runs as --model pool --check (read-only; live logging is gated)")
+            raise typer.Exit(code=1)
+        typer.echo(format_overlap(default_overlap()))
+        return
     if cv or cv_check_only or model in (ModelName.elor, ModelName.eloc):
         _cv_backtest(model, competition, cv, cv_check_only)
         return

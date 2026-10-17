@@ -82,6 +82,7 @@ from eurohoops.live_m6 import (
     similarity_report,
     undervalued,
 )
+from eurohoops.live_pool import predict_pool
 from eurohoops.live_sim import (
     LIVE_SIMS,
     latest_report,
@@ -345,6 +346,18 @@ def _predict_eloc(games: pd.DataFrame, season: int, comp: Competition, window_ho
         log.exception("ELOC skipped: its forecast failed; nothing appended to its log")
 
 
+def _predict_pool(log_path: Path | None) -> None:
+    """POOL: reads the four component logs only; off while POOL_LIVE_ENABLED is False."""
+    if log_path is None:
+        return
+    try:
+        added = predict_pool(log_path=log_path)
+        if added:
+            typer.echo(f"{added} POOL predictions appended to {log_path}")
+    except Exception:  # a shadow model never blocks the Elo, M1 or ELOR logs
+        log.exception("POOL skipped: nothing appended to its log")
+
+
 def predict(
     competition: CompetitionOption = CompetitionName.euroleague,
     window_hours: Annotated[float, typer.Option(help="Predict games tipping off within")] = 36.0,
@@ -416,6 +429,7 @@ def predict(
             except Exception:
                 log.exception("ELOR skipped: its forecast failed; nothing appended to its log")
         _predict_eloc(live.games, live.season, comp, window_hours)
+        _predict_pool(comp.pool_prediction_log)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc
