@@ -11,6 +11,8 @@ import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
 import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
+import JsonLd from "../../components/JsonLd.astro";
+import { sportsTeam } from "../../lib/jsonld";
 
 export async function getStaticPaths() {
   // A club gets a page only when it has a published season (teamIndex keeps published seasons only).
@@ -32,6 +34,7 @@ const charts = teamCharts(t, radius);
 const bands = teamBands(t, up, down);
 const labels = new Map(m.seasons.map((s) => [s.season, s.label]));
 const description = `${club.name}: EuroLeague record, ratings, four factors, shot charts and roster.`;
+const abs = (path: string) => new URL(path, Astro.site ?? "https://675hoops.com").href;
 // Schedule strength comes from the API's live-season file, keyed by source code.
 const factors = await teamFactors("euroleague", sourceCode("euroleague", club.code));
 const liveSeason = factors?.season ?? m.seasons.find((s) => s.live)?.season ?? open;
@@ -47,6 +50,16 @@ const bandHead = [
 ---
 
 <Base title={club.name} description={description} current="teams">
+  <JsonLd
+    slot="head"
+    data={sportsTeam({
+      name: t.name,
+      url: abs(`${base}/teams/${club.code.toLowerCase()}/`),
+      athletes: t.roster
+        .filter((p) => p.slug)
+        .map((p) => ({ name: p.name, url: abs(`${base}/players/${p.slug}/`) })),
+    })}
+  />
   <div class="accented" style={accentStyle}>
   <script is:inline define:vars={{ shown: String(t.season) }}>
     // A link to another season: hide the season's numbers until they arrive, so they never flash.

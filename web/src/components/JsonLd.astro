@@ -1,0 +1,11 @@
+---
+// One schema.org JSON-LD block for one object or an array of them. Nothing renders for an empty
+// array. "<" is escaped so no string in the data can close the script tag.
+interface Props {
+  data: object | object[];
+}
+const { data } = Astro.props;
+const empty = Array.isArray(data) && data.length === 0;
+---
+
+{!empty && <script type="application/ld+json" set:html={JSON.stringify(data).replace(/</g, "\\u003c")} />}

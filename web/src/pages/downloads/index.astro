@@ -1,5 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
+import JsonLd from "../../components/JsonLd.astro";
+import { dataset, type JsonLdObject } from "../../lib/jsonld";
 import "../../styles/stats.css";
 
 interface Entry {
@@ -45,9 +47,41 @@ const size = (b: number) =>
 const built = manifest ? manifest.built.slice(0, 10) : "";
 const description =
   "Download 6.75 Analytics EuroLeague data as CSV: games, team and player box scores and shots, one gzipped file per season.";
+
+// One Dataset per dataset (games, team lines, ...), its files as DataDownloads. No license is set:
+// the repository's LICENSE grants no reuse terms, only a visibility notice.
+const origin = Astro.site ?? "https://675hoops.com";
+const abs = (path: string) => new URL(path, origin).href;
+const root = import.meta.env.BASE_URL.replace(/\/$/, "");
+const DESCRIPTIONS: Record<string, string> = {
+  games: "One row per EuroLeague game, one gzipped CSV file per season.",
+  team_games: "One row per club in each EuroLeague game, one gzipped CSV file per season.",
+  player_box: "One row per player in each EuroLeague game (box score), one gzipped CSV file per season.",
+  shots: "One row per shot in EuroLeague games, one gzipped CSV file per season.",
+};
+const byDataset = new Map<string, Entry[]>();
+for (const f of manifest?.files ?? []) byDataset.set(f.dataset, [...(byDataset.get(f.dataset) ?? []), f]);
+const datasets: JsonLdObject[] = [...byDataset].map(([name, files]) => {
+  const seasons = files.map((f) => f.season);
+  return dataset({
+    name: `EuroLeague ${(LABELS[name] ?? name).toLowerCase()}`,
+    description: DESCRIPTIONS[name] ?? "EuroLeague data as gzipped CSV.",
+    url: abs(`${root}/downloads/`),
+    siteUrl: abs(`${root}/`),
+    dateModified: manifest!.built.slice(0, 10),
+    temporalCoverage: `${Math.min(...seasons)}/${Math.max(...seasons) + 1}`,
+    distribution: files.map((f) => ({
+      name: `${LABELS[name] ?? name} ${season(f.season)}`,
+      contentUrl: abs(`${root}/${f.path}`),
+      encodingFormat: "text/csv",
+      compressionFormat: "application/gzip",
+    })),
+  });
+});
 ---
 
 <Base title="Downloads" description={description} current="downloads">
+  <JsonLd slot="head" data={datasets} />
   <header class="wrap head">
     <h1>Downloads</h1>
     {
