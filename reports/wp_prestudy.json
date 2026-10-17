@@ -1,0 +1,1208 @@
+{
+  "scope": "Seasons 2007-2022 only. No validation or test season was read.",
+  "counts": {
+    "mart_games_2007_2022": 4059,
+    "included_games": 3803,
+    "scoring_rows": 317665,
+    "checkpoint_rows_eval": 128794,
+    "exclusion_reasons": {
+      "nd_clock": 173,
+      "not_played": 82,
+      "code_mismatch": 1
+    }
+  },
+  "season_table": [
+    {
+      "season": 2007,
+      "mart_games": 231,
+      "mart_played": 231,
+      "files_with_pbp": 231,
+      "included": 231,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 168,
+        "TS": 48,
+        "PO": 11,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2008,
+      "mart_games": 188,
+      "mart_played": 188,
+      "files_with_pbp": 188,
+      "included": 188,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 48,
+        "PO": 16,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2009,
+      "mart_games": 188,
+      "mart_played": 188,
+      "files_with_pbp": 188,
+      "included": 188,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 48,
+        "PO": 16,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2010,
+      "mart_games": 189,
+      "mart_played": 189,
+      "files_with_pbp": 189,
+      "included": 189,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 48,
+        "PO": 17,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2011,
+      "mart_games": 188,
+      "mart_played": 188,
+      "files_with_pbp": 188,
+      "included": 188,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 48,
+        "PO": 16,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2012,
+      "mart_games": 253,
+      "mart_played": 253,
+      "files_with_pbp": 253,
+      "included": 253,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 112,
+        "PO": 17,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2013,
+      "mart_games": 253,
+      "mart_played": 253,
+      "files_with_pbp": 253,
+      "included": 253,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 112,
+        "PO": 17,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2014,
+      "mart_games": 251,
+      "mart_played": 251,
+      "files_with_pbp": 251,
+      "included": 251,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 112,
+        "PO": 15,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2015,
+      "mart_games": 250,
+      "mart_played": 250,
+      "files_with_pbp": 250,
+      "included": 250,
+      "excluded_by_reason": {},
+      "phases": {
+        "RS": 120,
+        "TS": 112,
+        "PO": 14,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2016,
+      "mart_games": 259,
+      "mart_played": 259,
+      "files_with_pbp": 259,
+      "included": 102,
+      "excluded_by_reason": {
+        "nd_clock": 157
+      },
+      "phases": {
+        "RS": 240,
+        "PO": 15,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2017,
+      "mart_games": 260,
+      "mart_played": 260,
+      "files_with_pbp": 260,
+      "included": 258,
+      "excluded_by_reason": {
+        "nd_clock": 2
+      },
+      "phases": {
+        "RS": 240,
+        "PO": 16,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2018,
+      "mart_games": 260,
+      "mart_played": 260,
+      "files_with_pbp": 260,
+      "included": 257,
+      "excluded_by_reason": {
+        "nd_clock": 2,
+        "code_mismatch": 1
+      },
+      "phases": {
+        "RS": 240,
+        "PO": 16,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2019,
+      "mart_games": 306,
+      "mart_played": 252,
+      "files_with_pbp": 306,
+      "included": 251,
+      "excluded_by_reason": {
+        "not_played": 54,
+        "nd_clock": 1
+      },
+      "phases": {
+        "RS": 306
+      }
+    },
+    {
+      "season": 2020,
+      "mart_games": 328,
+      "mart_played": 328,
+      "files_with_pbp": 328,
+      "included": 326,
+      "excluded_by_reason": {
+        "nd_clock": 2
+      },
+      "phases": {
+        "RS": 306,
+        "PO": 18,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2021,
+      "mart_games": 327,
+      "mart_played": 299,
+      "files_with_pbp": 327,
+      "included": 295,
+      "excluded_by_reason": {
+        "not_played": 28,
+        "nd_clock": 4
+      },
+      "phases": {
+        "RS": 306,
+        "PO": 17,
+        "FF": 4
+      }
+    },
+    {
+      "season": 2022,
+      "mart_games": 328,
+      "mart_played": 328,
+      "files_with_pbp": 328,
+      "included": 323,
+      "excluded_by_reason": {
+        "nd_clock": 5
+      },
+      "phases": {
+        "RS": 306,
+        "PO": 18,
+        "FF": 4
+      }
+    }
+  ],
+  "shot_codes_by_season": [
+    {
+      "season": 2007,
+      "2FGM": 9182,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 3491,
+      "2FGA": 7209,
+      "LAYUPATT": 0,
+      "2FGAB": 1133,
+      "3FGA": 6099
+    },
+    {
+      "season": 2008,
+      "2FGM": 1334,
+      "LAYUPMD": 5099,
+      "DUNK": 892,
+      "3FGM": 2749,
+      "2FGA": 2146,
+      "LAYUPATT": 4607,
+      "2FGAB": 59,
+      "3FGA": 4941
+    },
+    {
+      "season": 2009,
+      "2FGM": 1918,
+      "LAYUPMD": 4336,
+      "DUNK": 880,
+      "3FGM": 2778,
+      "2FGA": 2892,
+      "LAYUPATT": 3288,
+      "2FGAB": 229,
+      "3FGA": 5035
+    },
+    {
+      "season": 2010,
+      "2FGM": 2193,
+      "LAYUPMD": 4633,
+      "DUNK": 795,
+      "3FGM": 2445,
+      "2FGA": 3604,
+      "LAYUPATT": 3590,
+      "2FGAB": 200,
+      "3FGA": 4779
+    },
+    {
+      "season": 2011,
+      "2FGM": 2770,
+      "LAYUPMD": 4019,
+      "DUNK": 798,
+      "3FGM": 2510,
+      "2FGA": 4305,
+      "LAYUPATT": 2825,
+      "2FGAB": 338,
+      "3FGA": 4782
+    },
+    {
+      "season": 2012,
+      "2FGM": 3370,
+      "LAYUPMD": 5564,
+      "DUNK": 1129,
+      "3FGM": 3698,
+      "2FGA": 5071,
+      "LAYUPATT": 4202,
+      "2FGAB": 391,
+      "3FGA": 6631
+    },
+    {
+      "season": 2013,
+      "2FGM": 3670,
+      "LAYUPMD": 5272,
+      "DUNK": 1280,
+      "3FGM": 3811,
+      "2FGA": 5272,
+      "LAYUPATT": 3881,
+      "2FGAB": 474,
+      "3FGA": 6756
+    },
+    {
+      "season": 2014,
+      "2FGM": 3690,
+      "LAYUPMD": 5162,
+      "DUNK": 1305,
+      "3FGM": 3970,
+      "2FGA": 5583,
+      "LAYUPATT": 3636,
+      "2FGAB": 485,
+      "3FGA": 7158
+    },
+    {
+      "season": 2015,
+      "2FGM": 9819,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 4047,
+      "2FGA": 7991,
+      "LAYUPATT": 0,
+      "2FGAB": 1283,
+      "3FGA": 7193
+    },
+    {
+      "season": 2016,
+      "2FGM": 4119,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 1698,
+      "2FGA": 3248,
+      "LAYUPATT": 0,
+      "2FGAB": 502,
+      "3FGA": 2876
+    },
+    {
+      "season": 2017,
+      "2FGM": 10495,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 4412,
+      "2FGA": 9360,
+      "LAYUPATT": 0,
+      "2FGAB": 0,
+      "3FGA": 7342
+    },
+    {
+      "season": 2018,
+      "2FGM": 10588,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 4394,
+      "2FGA": 9122,
+      "LAYUPATT": 0,
+      "2FGAB": 0,
+      "3FGA": 7478
+    },
+    {
+      "season": 2019,
+      "2FGM": 9816,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 4644,
+      "2FGA": 8733,
+      "LAYUPATT": 0,
+      "2FGAB": 0,
+      "3FGA": 7784
+    },
+    {
+      "season": 2020,
+      "2FGM": 12691,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 5887,
+      "2FGA": 10976,
+      "LAYUPATT": 0,
+      "2FGAB": 0,
+      "3FGA": 9668
+    },
+    {
+      "season": 2021,
+      "2FGM": 11465,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 5074,
+      "2FGA": 9990,
+      "LAYUPATT": 0,
+      "2FGAB": 0,
+      "3FGA": 9199
+    },
+    {
+      "season": 2022,
+      "2FGM": 12629,
+      "LAYUPMD": 0,
+      "DUNK": 0,
+      "3FGM": 5850,
+      "2FGA": 10519,
+      "LAYUPATT": 0,
+      "2FGAB": 0,
+      "3FGA": 10328
+    }
+  ],
+  "attendance_by_season": [
+    {
+      "season": 2007,
+      "games": 231,
+      "share_attendance_zero": 0.1774891774891775,
+      "median_attendance": 5000.0
+    },
+    {
+      "season": 2008,
+      "games": 188,
+      "share_attendance_zero": 0.14361702127659576,
+      "median_attendance": 5017.5
+    },
+    {
+      "season": 2009,
+      "games": 188,
+      "share_attendance_zero": 0.015957446808510637,
+      "median_attendance": 5041.0
+    },
+    {
+      "season": 2010,
+      "games": 189,
+      "share_attendance_zero": 0.026455026455026454,
+      "median_attendance": 6779.0
+    },
+    {
+      "season": 2011,
+      "games": 188,
+      "share_attendance_zero": 0.026595744680851064,
+      "median_attendance": 6269.5
+    },
+    {
+      "season": 2012,
+      "games": 253,
+      "share_attendance_zero": 0.0,
+      "median_attendance": 6800.0
+    },
+    {
+      "season": 2013,
+      "games": 253,
+      "share_attendance_zero": 0.019762845849802372,
+      "median_attendance": 7157.0
+    },
+    {
+      "season": 2014,
+      "games": 251,
+      "share_attendance_zero": 0.035856573705179286,
+      "median_attendance": 7844.0
+    },
+    {
+      "season": 2015,
+      "games": 250,
+      "share_attendance_zero": 0.044,
+      "median_attendance": 6495.5
+    },
+    {
+      "season": 2016,
+      "games": 102,
+      "share_attendance_zero": 0.029411764705882353,
+      "median_attendance": 8490.0
+    },
+    {
+      "season": 2017,
+      "games": 258,
+      "share_attendance_zero": 0.007751937984496124,
+      "median_attendance": 8133.5
+    },
+    {
+      "season": 2018,
+      "games": 257,
+      "share_attendance_zero": 0.023346303501945526,
+      "median_attendance": 7512.0
+    },
+    {
+      "season": 2019,
+      "games": 251,
+      "share_attendance_zero": 0.01593625498007968,
+      "median_attendance": 8013.0
+    },
+    {
+      "season": 2020,
+      "games": 326,
+      "share_attendance_zero": 0.8098159509202454,
+      "median_attendance": 0.0
+    },
+    {
+      "season": 2021,
+      "games": 295,
+      "share_attendance_zero": 0.061016949152542375,
+      "median_attendance": 4980.0
+    },
+    {
+      "season": 2022,
+      "games": 323,
+      "share_attendance_zero": 0.04024767801857585,
+      "median_attendance": 7783.0
+    }
+  ],
+  "elo": {
+    "k": 20.0,
+    "hca": 90.0,
+    "reversion": 0.25,
+    "s_fold_by_eval_season": {
+      "2010": 16.08175865140668,
+      "2011": 16.456767098650367,
+      "2012": 16.63264201710566,
+      "2013": 17.697791846303797,
+      "2014": 17.985885452988047,
+      "2015": 18.313313677815103,
+      "2016": 18.56415058115289,
+      "2017": 19.24120791306285,
+      "2018": 19.71131536147153,
+      "2019": 19.785536429443287,
+      "2020": 20.0139621663297,
+      "2021": 20.421004207099838,
+      "2022": 20.740994649120605
+    }
+  },
+  "oof_logloss": {
+    "model_logit_ck": 0.44469567492773115,
+    "baseline_closed_form_ck": 0.460066205134366,
+    "model_minus_baseline": -0.015370530206634907
+  },
+  "T1_assists": {
+    "linkage_by_season": [
+      {
+        "season": 2007,
+        "as_rows": 5962,
+        "share_linked": 0.8265682656826568,
+        "share_linked_variant_B": 0.983059376048306,
+        "share_linked_gap0": 0.9084821428571429,
+        "share_linked_gap_le5": 0.9084821428571429,
+        "share_prev_event_same_team_make": 0.6974169741697417
+      },
+      {
+        "season": 2008,
+        "as_rows": 4701,
+        "share_linked": 0.8502446288023825,
+        "share_linked_variant_B": 0.982982344182089,
+        "share_linked_gap0": 0.9294470853139855,
+        "share_linked_gap_le5": 0.9294470853139855,
+        "share_prev_event_same_team_make": 0.7492022973835354
+      },
+      {
+        "season": 2009,
+        "as_rows": 5217,
+        "share_linked": 0.8102357676825762,
+        "share_linked_variant_B": 0.9570634464251485,
+        "share_linked_gap0": 0.8959072628341613,
+        "share_linked_gap_le5": 0.8959072628341613,
+        "share_prev_event_same_team_make": 0.6846846846846847
+      },
+      {
+        "season": 2010,
+        "as_rows": 5170,
+        "share_linked": 0.8230174081237911,
+        "share_linked_variant_B": 0.9545454545454546,
+        "share_linked_gap0": 0.9050528789659225,
+        "share_linked_gap_le5": 0.9052878965922444,
+        "share_prev_event_same_team_make": 0.7067698259187621
+      },
+      {
+        "season": 2011,
+        "as_rows": 5266,
+        "share_linked": 0.8883402962400304,
+        "share_linked_variant_B": 0.9039118875807064,
+        "share_linked_gap0": 0.1586147926464301,
+        "share_linked_gap_le5": 0.8749465583582727,
+        "share_prev_event_same_team_make": 0.808203570072161
+      },
+      {
+        "season": 2012,
+        "as_rows": 7451,
+        "share_linked": 0.8633740437525165,
+        "share_linked_variant_B": 0.8726345456985639,
+        "share_linked_gap0": 0.13508471941551375,
+        "share_linked_gap_le5": 0.8638271413026581,
+        "share_prev_event_same_team_make": 0.7707690242920413
+      },
+      {
+        "season": 2013,
+        "as_rows": 8106,
+        "share_linked": 0.8927954601529731,
+        "share_linked_variant_B": 0.8979768073032321,
+        "share_linked_gap0": 0.15780019345032473,
+        "share_linked_gap_le5": 0.8933259637971536,
+        "share_prev_event_same_team_make": 0.8232173698494942
+      },
+      {
+        "season": 2014,
+        "as_rows": 8596,
+        "share_linked": 0.8750581665891112,
+        "share_linked_variant_B": 0.8814564913913449,
+        "share_linked_gap0": 0.19303376761499602,
+        "share_linked_gap_le5": 0.8775591597979261,
+        "share_prev_event_same_team_make": 0.7938576081898557
+      },
+      {
+        "season": 2015,
+        "as_rows": 8596,
+        "share_linked": 0.8730805025593299,
+        "share_linked_variant_B": 0.8785481619357841,
+        "share_linked_gap0": 0.1849433710859427,
+        "share_linked_gap_le5": 0.8784810126582279,
+        "share_prev_event_same_team_make": 0.7858306188925082
+      },
+      {
+        "season": 2016,
+        "as_rows": 3550,
+        "share_linked": 0.9287323943661971,
+        "share_linked_variant_B": 0.9329577464788732,
+        "share_linked_gap0": 0.2781316348195329,
+        "share_linked_gap_le5": 0.9551107067030634,
+        "share_prev_event_same_team_make": 0.884225352112676
+      },
+      {
+        "season": 2017,
+        "as_rows": 9127,
+        "share_linked": 0.9386435849676783,
+        "share_linked_variant_B": 0.9391914101018954,
+        "share_linked_gap0": 0.3285864363254348,
+        "share_linked_gap_le5": 0.9479397688805883,
+        "share_prev_event_same_team_make": 0.8914210583981593
+      },
+      {
+        "season": 2018,
+        "as_rows": 8975,
+        "share_linked": 0.9399442896935933,
+        "share_linked_variant_B": 0.9399442896935933,
+        "share_linked_gap0": 0.26647700331910856,
+        "share_linked_gap_le5": 0.9553105737316263,
+        "share_prev_event_same_team_make": 0.8955988857938718
+      },
+      {
+        "season": 2019,
+        "as_rows": 8731,
+        "share_linked": 0.9412438437750544,
+        "share_linked_variant_B": 0.9413583781926469,
+        "share_linked_gap0": 0.23168654173764908,
+        "share_linked_gap_le5": 0.9576539303966902,
+        "share_prev_event_same_team_make": 0.9071125873324934
+      },
+      {
+        "season": 2020,
+        "as_rows": 11451,
+        "share_linked": 0.9413151689808751,
+        "share_linked_variant_B": 0.941664483451227,
+        "share_linked_gap0": 0.23081918545319602,
+        "share_linked_gap_le5": 0.9603859356155487,
+        "share_prev_event_same_team_make": 0.9067330364160335
+      },
+      {
+        "season": 2021,
+        "as_rows": 9672,
+        "share_linked": 0.9446856906534326,
+        "share_linked_variant_B": 0.9448924731182796,
+        "share_linked_gap0": 0.24471927328444784,
+        "share_linked_gap_le5": 0.9613658750136806,
+        "share_prev_event_same_team_make": 0.912737799834574
+      },
+      {
+        "season": 2022,
+        "as_rows": 11000,
+        "share_linked": 0.9398181818181818,
+        "share_linked_variant_B": 0.94,
+        "share_linked_gap0": 0.2509189398336235,
+        "share_linked_gap_le5": 0.9541497388276262,
+        "share_prev_event_same_team_make": 0.9041818181818182
+      }
+    ],
+    "linkage_all": {
+      "as_rows": 121571,
+      "share_linked": 0.9011524129932303,
+      "share_linked_variant_B": 0.9285191369652301,
+      "share_linked_gap0": 0.33431002062909615,
+      "share_linked_gap_le5": 0.9250141482739106,
+      "share_prev_event_same_team_make": 0.8352896661210322,
+      "make_linked_twice": 2207
+    },
+    "box_validation": {
+      "team_games": 7606,
+      "agree_linked_exact": 0.38180383907441495,
+      "agree_all_AS_rows_exact": 0.9998685248488036,
+      "variant_B_agree_exact": 0.4357086510649487,
+      "variant_B_linked_total": 112881,
+      "linked_total": 109554,
+      "box_total": 121569,
+      "all_AS_total": 121571,
+      "agree_linked_by_season": {
+        "2007": 0.5303030303030303,
+        "2008": 0.6223404255319149,
+        "2009": 0.3696808510638298,
+        "2010": 0.3412698412698413,
+        "2011": 0.425531914893617,
+        "2012": 0.3932806324110672,
+        "2013": 0.3577075098814229,
+        "2014": 0.31274900398406374,
+        "2015": 0.306,
+        "2016": 0.3137254901960784,
+        "2017": 0.3682170542635659,
+        "2018": 0.35797665369649806,
+        "2019": 0.35856573705179284,
+        "2020": 0.3496932515337423,
+        "2021": 0.4033898305084746,
+        "2022": 0.34520123839009287
+      }
+    },
+    "points_join": {
+      "fg_points_rows": 458189,
+      "matched_to_pbp_event": 1.0,
+      "action_agrees": 1.0,
+      "shooter_agrees": 1.0
+    },
+    "zone_nonempty_share_by_season": {
+      "2007": 0.9998897423646588,
+      "2008": 0.9999542961608775,
+      "2009": 0.999906611878969,
+      "2010": 0.9999103219442202,
+      "2011": 0.9997319873140662,
+      "2012": 0.9998007703546288,
+      "2013": 0.9999344111763355,
+      "2014": 0.9998068565910189,
+      "2015": 0.9998355425451436,
+      "2016": 1.0,
+      "2017": 0.9999367268815843,
+      "2018": 0.9999366727882971,
+      "2019": 0.9998385899215547,
+      "2020": 0.9998215287338739,
+      "2021": 0.9998320644872369,
+      "2022": 0.9997965722422825
+    },
+    "coord_nonnull_share_by_season": {
+      "2007": 1.0,
+      "2008": 1.0,
+      "2009": 1.0,
+      "2010": 1.0,
+      "2011": 1.0,
+      "2012": 1.0,
+      "2013": 1.0,
+      "2014": 1.0,
+      "2015": 1.0,
+      "2016": 1.0,
+      "2017": 1.0,
+      "2018": 1.0,
+      "2019": 1.0,
+      "2020": 1.0,
+      "2021": 1.0,
+      "2022": 1.0
+    },
+    "assist_counts": {
+      "fg_attempts_with_coords": 458189,
+      "fg_makes": 212371,
+      "fg_misses": 245818,
+      "assisted_makes_linked": 107347,
+      "unassisted_makes": 105024,
+      "assisted_makes_share_of_makes": 0.5054692024805647,
+      "assisted_misses_by_construction": 0
+    },
+    "passer_share_identification": {
+      "R_unassisted_over_assisted_makes": 0.9783598982738223,
+      "f_min_feasible_assisted_attempt_share": 0.23428541497067804,
+      "f_at_S0_assisted_equals_unassisted_make_rate": 0.5054692024805647,
+      "S_at_f_min": 0.7006515753530079,
+      "S_grid": {
+        "0.3": 0.5807029007397904,
+        "0.4": 0.3477600678174517,
+        "0.5": 0.021640101726177696,
+        "0.6": -0.4675398474107333
+      },
+      "f_implied_by_proposed_70_30": 0.41707383542704013,
+      "f_implied_by_50_50": 0.33821263725011425,
+      "f_implied_by_100_0": 0.5054692024805647,
+      "bootstrap_95ci": {
+        "R": [
+          0.9628173832292183,
+          0.9941392825011708
+        ],
+        "f_min": [
+          0.23225083604792662,
+          0.2363255408317053
+        ],
+        "f_at_S0": [
+          0.5014694854951601,
+          0.509471746354659
+        ]
+      }
+    },
+    "R_by_shot_type": {
+      "2pt": {
+        "assisted": 64157,
+        "unassisted": 86756,
+        "R": 1.3522452733139019
+      },
+      "3pt": {
+        "assisted": 43190,
+        "unassisted": 18268,
+        "R": 0.42296827969437367
+      }
+    },
+    "makes_only_logit": {
+      "n_makes": 212363,
+      "assisted_share": 0.5054882441856632,
+      "shooter_season_levels": 4701,
+      "coef": {
+        "zone_B": -0.8575562658319458,
+        "zone_C": -1.014952034310681,
+        "zone_D": -1.045002749939317,
+        "zone_E": -1.1968224468705342,
+        "zone_F": -0.5931516860474114,
+        "zone_G": -0.6483909025412635,
+        "zone_H": -0.18811329098089408,
+        "zone_I": -0.12358704209376759,
+        "zone_J": -1.009691939139957,
+        "is3": 1.1179632175628107
+      },
+      "note": "Assisted is defined only on makes; the make ~ assisted model is not identified."
+    },
+    "c_proxy_wpa": "not run (optional; not done in this pre-study)"
+  },
+  "T2_clock_2016": {
+    "games_2016_files": 259,
+    "games_2016_with_nd_play_event": 157,
+    "nd_play_events_2016": 422,
+    "nd_raw_values": [
+      "ND"
+    ],
+    "games_2016_excluded_by_reason": {
+      "nd_clock": 157,
+      "included": 102
+    },
+    "validation": {
+      "seasons": [
+        "2015",
+        "2017"
+      ],
+      "replicates": 5,
+      "blanked_events": 4213,
+      "MAE_seconds": 4.025239338555266,
+      "P50_seconds": 2.0,
+      "P95_seconds": 11.5,
+      "P95_by_season": {
+        "2015": 12.5,
+        "2017": 11.0
+      },
+      "recommend_repair": true
+    }
+  },
+  "T3_playoffs": {
+    "regular_season_incl_TS": {
+      "games": 2969,
+      "mean_pred": 0.6269335224207289,
+      "observed_home_win": 0.6234422364432469,
+      "gap_pred_minus_obs": 0.0034912859774819823,
+      "log_loss": 0.44055087673307947,
+      "bins": [
+        {
+          "n": 82.0,
+          "mean_pred": 0.07182442104455942,
+          "observed": 0.0
+        },
+        {
+          "n": 195.0,
+          "mean_pred": 0.14844843809941477,
+          "observed": 0.02564102564102564
+        },
+        {
+          "n": 202.0,
+          "mean_pred": 0.2516094249690416,
+          "observed": 0.1188118811881188
+        },
+        {
+          "n": 242.0,
+          "mean_pred": 0.35127965608675277,
+          "observed": 0.21487603305785125
+        },
+        {
+          "n": 236.0,
+          "mean_pred": 0.44755417901448835,
+          "observed": 0.3644067796610169
+        },
+        {
+          "n": 285.0,
+          "mean_pred": 0.5534091784559632,
+          "observed": 0.5052631578947369
+        },
+        {
+          "n": 277.0,
+          "mean_pred": 0.6496455392049101,
+          "observed": 0.6859205776173285
+        },
+        {
+          "n": 380.0,
+          "mean_pred": 0.7493295051550435,
+          "observed": 0.8236842105263158
+        },
+        {
+          "n": 523.0,
+          "mean_pred": 0.8532709358789325,
+          "observed": 0.9407265774378585
+        },
+        {
+          "n": 547.0,
+          "mean_pred": 0.9440432753284033,
+          "observed": 0.9963436928702011
+        }
+      ]
+    },
+    "playoffs_PO_PI_FF": {
+      "games": 227,
+      "mean_pred": 0.6249792078373617,
+      "observed_home_win": 0.6255506607929515,
+      "gap_pred_minus_obs": -0.000571452955589837,
+      "log_loss": 0.4989067138701142,
+      "bins": [
+        {
+          "n": 4.0,
+          "mean_pred": 0.07676668245849266,
+          "observed": 0.0
+        },
+        {
+          "n": 11.0,
+          "mean_pred": 0.13728320014956952,
+          "observed": 0.0
+        },
+        {
+          "n": 20.0,
+          "mean_pred": 0.24998172054866136,
+          "observed": 0.2
+        },
+        {
+          "n": 22.0,
+          "mean_pred": 0.351166888640793,
+          "observed": 0.2727272727272727
+        },
+        {
+          "n": 18.0,
+          "mean_pred": 0.4433571527885087,
+          "observed": 0.5
+        },
+        {
+          "n": 19.0,
+          "mean_pred": 0.543225674371847,
+          "observed": 0.5263157894736842
+        },
+        {
+          "n": 25.0,
+          "mean_pred": 0.6548589416877236,
+          "observed": 0.72
+        },
+        {
+          "n": 25.0,
+          "mean_pred": 0.7587496987450066,
+          "observed": 0.68
+        },
+        {
+          "n": 46.0,
+          "mean_pred": 0.847843866136451,
+          "observed": 0.8913043478260869
+        },
+        {
+          "n": 37.0,
+          "mean_pred": 0.9374335640588632,
+          "observed": 1.0
+        }
+      ]
+    },
+    "playoff_minus_rs_gap_ci95": [
+      -0.05463978036582904,
+      0.04613017947359345
+    ],
+    "playoff_gap_ci95": [
+      -0.04927746985161852,
+      0.04850865321559065
+    ],
+    "playoff_minus_rs_logloss_ci95": [
+      -0.004937643350613669,
+      0.12614687383432055
+    ],
+    "playoff_minus_rs_logloss": 0.05835583713703474,
+    "by_phase_n": {
+      "FF": 45,
+      "PO": 182,
+      "RS": 2425,
+      "TS": 544
+    },
+    "recommend_phase_flag": false
+  },
+  "T4_covid": {
+    "per_season_oof": [
+      {
+        "season": 2010,
+        "games": 189,
+        "observed_home_win": 0.6455026455026455,
+        "mean_pred_ck": 0.6458390544887322,
+        "mean_pred_tip": 0.636536291433618,
+        "home_win_rate_tip_obs": 0.6455026455026455,
+        "log_loss_ck": 0.44272429938752744
+      },
+      {
+        "season": 2011,
+        "games": 188,
+        "observed_home_win": 0.6223404255319149,
+        "mean_pred_ck": 0.6250900430878031,
+        "mean_pred_tip": 0.6343183151210857,
+        "home_win_rate_tip_obs": 0.6223404255319149,
+        "log_loss_ck": 0.4032719755335123
+      },
+      {
+        "season": 2012,
+        "games": 253,
+        "observed_home_win": 0.5968379446640316,
+        "mean_pred_ck": 0.6217371831517952,
+        "mean_pred_tip": 0.6366943692242503,
+        "home_win_rate_tip_obs": 0.5968379446640316,
+        "log_loss_ck": 0.44800074720185756
+      },
+      {
+        "season": 2013,
+        "games": 253,
+        "observed_home_win": 0.6324110671936759,
+        "mean_pred_ck": 0.6274628678081104,
+        "mean_pred_tip": 0.6278863373835216,
+        "home_win_rate_tip_obs": 0.6324110671936759,
+        "log_loss_ck": 0.40531426331834625
+      },
+      {
+        "season": 2014,
+        "games": 251,
+        "observed_home_win": 0.6254980079681275,
+        "mean_pred_ck": 0.6184867318146509,
+        "mean_pred_tip": 0.6240791326791569,
+        "home_win_rate_tip_obs": 0.6254980079681275,
+        "log_loss_ck": 0.3902031286273459
+      },
+      {
+        "season": 2015,
+        "games": 250,
+        "observed_home_win": 0.644,
+        "mean_pred_ck": 0.6269668247864586,
+        "mean_pred_tip": 0.6283713585761809,
+        "home_win_rate_tip_obs": 0.644,
+        "log_loss_ck": 0.4131019127647197
+      },
+      {
+        "season": 2016,
+        "games": 102,
+        "observed_home_win": 0.6274509803921569,
+        "mean_pred_ck": 0.6488078305372247,
+        "mean_pred_tip": 0.6363628456999912,
+        "home_win_rate_tip_obs": 0.6274509803921569,
+        "log_loss_ck": 0.49741524472041004
+      },
+      {
+        "season": 2017,
+        "games": 258,
+        "observed_home_win": 0.6317829457364341,
+        "mean_pred_ck": 0.6434323473472716,
+        "mean_pred_tip": 0.6324589992467337,
+        "home_win_rate_tip_obs": 0.6317829457364341,
+        "log_loss_ck": 0.4556022392172214
+      },
+      {
+        "season": 2018,
+        "games": 257,
+        "observed_home_win": 0.6264591439688716,
+        "mean_pred_ck": 0.6347787444450542,
+        "mean_pred_tip": 0.6348117463456993,
+        "home_win_rate_tip_obs": 0.6264591439688716,
+        "log_loss_ck": 0.4322582274229204
+      },
+      {
+        "season": 2019,
+        "games": 251,
+        "observed_home_win": 0.6215139442231076,
+        "mean_pred_ck": 0.6254068417982649,
+        "mean_pred_tip": 0.6311964067475649,
+        "home_win_rate_tip_obs": 0.6215139442231076,
+        "log_loss_ck": 0.4414086400504964
+      },
+      {
+        "season": 2020,
+        "games": 326,
+        "observed_home_win": 0.5644171779141104,
+        "mean_pred_ck": 0.6051546106711894,
+        "mean_pred_tip": 0.6331407693403102,
+        "home_win_rate_tip_obs": 0.5644171779141104,
+        "log_loss_ck": 0.5144255859169259
+      },
+      {
+        "season": 2021,
+        "games": 295,
+        "observed_home_win": 0.6576271186440678,
+        "mean_pred_ck": 0.6196213256769524,
+        "mean_pred_tip": 0.6243202078642162,
+        "home_win_rate_tip_obs": 0.6576271186440678,
+        "log_loss_ck": 0.42890629706315436
+      },
+      {
+        "season": 2022,
+        "games": 323,
+        "observed_home_win": 0.628482972136223,
+        "mean_pred_ck": 0.6292817862995496,
+        "mean_pred_tip": 0.6300400500329397,
+        "home_win_rate_tip_obs": 0.628482972136223,
+        "log_loss_ck": 0.4961499304142164
+      }
+    ],
+    "covid_seasons": {
+      "2019": {
+        "season": 2019,
+        "games": 251,
+        "observed_home_win": 0.6215139442231076,
+        "mean_pred_ck": 0.6254068417982649,
+        "mean_pred_tip": 0.6311964067475649,
+        "home_win_rate_tip_obs": 0.6215139442231076,
+        "log_loss_ck": 0.4414086400504964
+      },
+      "2020": {
+        "season": 2020,
+        "games": 326,
+        "observed_home_win": 0.5644171779141104,
+        "mean_pred_ck": 0.6051546106711894,
+        "mean_pred_tip": 0.6331407693403102,
+        "home_win_rate_tip_obs": 0.5644171779141104,
+        "log_loss_ck": 0.5144255859169259
+      }
+    },
+    "other_seasons": [
+      2010,
+      2011,
+      2012,
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2021,
+      2022
+    ],
+    "logloss_base_incl_covid_training": 0.4363310681204415,
+    "logloss_excl_covid_training": 0.43663339678863367,
+    "delta_excl_minus_base": 0.00030232866819215827,
+    "delta_ci95": [
+      -0.00012360948257212901,
+      0.000734786525250379
+    ],
+    "games_other_seasons": 2619,
+    "recommend": "keep"
+  },
+  "T5_tipoff": {
+    "games": 3196,
+    "g_mean": -0.016813718946734724,
+    "abs_g": {
+      "mean": 0.03757200648286658,
+      "sd": 0.02454180405669292,
+      "p05": 0.003744505887312871,
+      "p95": 0.07745910734162928
+    },
+    "baseline_tipoff": {
+      "mean_abs_Pprepre_minus_baseline": 0.04582513671375204,
+      "mean_Pprepre_minus_baseline": -0.032091225528030745
+    },
+    "fade_comparison": {
+      "logloss_by_shape": {
+        "none": 0.4447422654165937,
+        "constant": 0.450074499779485,
+        "linear_tf": 0.44473001917273275,
+        "quadratic_tf2": 0.44442898495428534,
+        "exp_minus3_1mtf": 0.44431407421141056
+      },
+      "best_shape": "exp_minus3_1mtf",
+      "best_minus_linear_mean": -0.0004159449613222445,
+      "best_minus_linear_ci95": [
+        -0.001166011141186045,
+        0.00038608693018240127
+      ],
+      "note": "OT checkpoints use t = clock (section 4); tf is not 0 in OT as section 7 states."
+    },
+    "recommend": "exp_minus3_1mtf"
+  },
+  "runtime_seconds": 62.7
+}
