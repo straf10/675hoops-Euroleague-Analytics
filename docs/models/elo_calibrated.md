@@ -33,8 +33,10 @@ parameters (`config.ELOR_ELO_PARAMS`, checked against the `tuned` block of
 `reports/backtest_elo.json`). This is not the comparison Elo re-tuned in M1's backtest (E-a, E-b).
 
 **Replay convention:** Elo is replayed from 2007 (the first warm-up season), as ELOR's CV does. The
-published log replays from 2023 (`live_backtest` warm-up), so the two can differ slightly. The gap is measured once when the flag is switched on and added to this file, as ELOR's live amendment did. Any live comparison is against the published log (2023 start), not the 2007 replay. Both `(a, b)` and the
-live forecast use the 2007 replay, so the fit and the forecast see the same Elo values.
+published log replays from 2023 (`live_backtest` warm-up), so the two can differ slightly. The gap
+is measured once when the flag is switched on and added to this file, as ELOR's live amendment did.
+Any live comparison is against the published log (2023 start), not the 2007 replay. Both `(a, b)`
+and the live forecast use the 2007 replay, so the fit and the forecast see the same Elo values.
 
 ## Data
 EuroLeague games mart (`eurohoops build`). **Scored games:** the fold seasons, played, not forfeit,
