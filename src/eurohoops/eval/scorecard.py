@@ -272,6 +272,55 @@ def m1_section(
     }
 
 
+def trial_section(log_path: Path, games: pd.DataFrame, elo: pd.DataFrame) -> dict[str, Any]:
+    """A trial model's live scores (ELOR's shadow log): its earliest pre-tip-off row per finished
+    game, scored like the headline (log loss, Brier, hit rate = accuracy), with Elo's headline
+    forecast of the same games alongside. Reported only: never the headline, a decision or a
+    site forecast. ``elo``: the scored Elo rows of ``build_scorecard``."""
+    log = read_log(log_path)
+    valid = log[
+        pd.to_datetime(log["predicted_at_utc"], utc=True)
+        < pd.to_datetime(log["tipoff_utc"], utc=True)
+    ]
+    first = valid.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
+    finished = games.loc[
+        games["played"] & ~games["forfeit"],
+        ["game_id", "tipoff_utc", "home_score", "away_score"],
+    ]
+    scored = first[["game_id", "p_home", "exp_margin"]].merge(finished, on="game_id")
+    scored = scored.sort_values(["tipoff_utc", "game_id"], ignore_index=True).astype(
+        {"home_score": "float64", "away_score": "float64"}
+    )
+    margin = (scored["home_score"] - scored["away_score"]).to_numpy(dtype=np.float64)
+    metrics = score(
+        scored["p_home"].to_numpy(dtype=np.float64),
+        scored["exp_margin"].to_numpy(dtype=np.float64),
+        margin,
+    ).as_dict()
+    both = scored.merge(
+        elo[["game_id", "p_home"]].rename(columns={"p_home": "p_elo"}), on="game_id"
+    )
+    home_won = (both["home_score"] > both["away_score"]).to_numpy().astype(np.float64)
+
+    def mean_loss(column: str) -> float | None:
+        if both.empty:
+            return None
+        loss = per_game_log_loss(both[column].to_numpy(dtype=np.float64), home_won)
+        return round(float(loss.mean()), 6)
+
+    return {
+        "trial": True,
+        "rows_in_log": len(log),
+        "rows_excluded_late": len(log) - len(valid),
+        "metrics": metrics,
+        "same_games_as_elo": {
+            "n": len(both),
+            "elor_log_loss": mean_loss("p_home"),
+            "elo_log_loss": mean_loss("p_elo"),
+        },
+    }
+
+
 def build_scorecard(
     log_path: Path,
     games: pd.DataFrame,
@@ -282,6 +331,7 @@ def build_scorecard(
     odds_path: Path | None = None,
     m1_log_path: Path | None = None,
     m5_log_path: Path | None = None,
+    elor_log_path: Path | None = None,
 ) -> dict[str, Any]:
     """Score logged games that have finished; a missing log or no finished games gives n=0.
 
@@ -314,5 +364,8 @@ def build_scorecard(
             {}
             if m5_log_path is None
             else {"m5": m1_section(m5_log_path, games, headline, name="m5")}
+        ),
+        **(
+            {} if elor_log_path is None else {"elor": trial_section(elor_log_path, games, headline)}
         ),
     }

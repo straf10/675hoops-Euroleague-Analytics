@@ -9,6 +9,10 @@ both models logged before tip-off: the two-sided 97.5% paired-bootstrap CI of th
 checkpoint is complete, and ``paired_log_losses`` pairs the two logs; the CLI refuses to
 compute anything before the checkpoint is complete, because a statistic computed earlier is an
 unplanned peek.
+
+Reported next to the verdict, never in the decision: a round-clustered bootstrap of the same gap
+(``sensitivity_round_clustered``) and, in the EuroLeague, ELOR against Elo and against the
+flagship (``reported_only``). ``promote`` depends on the verdict's inputs alone.
 """
 
 from collections.abc import Sequence
@@ -21,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.eval.forecasts import REGULAR_SEASON, _finished, _provable
-from eurohoops.eval.metrics import per_game_log_loss
+from eurohoops.eval.metrics import paired_bootstrap_ci_clustered, per_game_log_loss
 from eurohoops.eval.scorecard import read_log
 from eurohoops.logs import write_json
 from eurohoops.models.elo import FloatArray
@@ -154,6 +158,81 @@ def _flagship_rows(log: pd.DataFrame) -> tuple[pd.DataFrame, str]:
     return log[log["model_version"] == latest], str(latest)
 
 
+def _season_provable(
+    log_path: Path, season: int, manual_pushes: Sequence[datetime]
+) -> pd.DataFrame:
+    """One log's pre-registered row per game of ``season`` (see ``forecasts._provable``)."""
+    log = read_log(log_path)
+    return _provable(log[log["season"] == season], manual_pushes)
+
+
+def _capped_finished(games: pd.DataFrame, season: int, last_round: int | None) -> pd.DataFrame:
+    """The season's finished games, capped at ``last_round`` (regular season) when given."""
+    finished = _finished(games, season)
+    if last_round is not None:
+        finished = finished[
+            (finished["phase"] == REGULAR_SEASON) & (finished["round"] <= last_round)
+        ]
+    return finished
+
+
+def _join(a: pd.DataFrame, b: pd.DataFrame, finished: pd.DataFrame) -> pd.DataFrame:
+    """Games both provable logs cover that have a result, in tip-off order.
+
+    ``a`` supplies the game's ``round`` (the look's cluster); its ``p_home`` becomes ``p_home_a``
+    and ``b``'s becomes ``p_home_b``, with ``b``'s ``model_version`` alongside.
+    """
+    return (
+        a[["game_id", "p_home", "round"]]
+        .merge(b[["game_id", "p_home", "model_version"]], on="game_id", suffixes=("_a", "_b"))
+        .merge(finished[["game_id", "tipoff_utc", "home_score", "away_score"]], on="game_id")
+        .sort_values(["tipoff_utc", "game_id"], ignore_index=True)
+    )
+
+
+def _losses(paired: pd.DataFrame) -> tuple[FloatArray, FloatArray]:
+    """Per-game log losses of the two sides of a joined frame (tip-off order)."""
+    home_won = (paired["home_score"] > paired["away_score"]).to_numpy().astype(np.float64)
+    return (
+        per_game_log_loss(paired["p_home_a"].to_numpy(dtype=np.float64), home_won),
+        per_game_log_loss(paired["p_home_b"].to_numpy(dtype=np.float64), home_won),
+    )
+
+
+@dataclass(frozen=True)
+class Pairing:
+    """The look's provable rows: the flagship (latest version) and Elo, and their joined games."""
+
+    flagship: pd.DataFrame
+    elo: pd.DataFrame
+    finished: pd.DataFrame
+    paired: pd.DataFrame
+    version: str
+
+
+def _pairing(
+    flagship_log: Path,
+    elo_log: Path,
+    games: pd.DataFrame,
+    season: int,
+    manual_pushes: Sequence[datetime],
+    *,
+    last_round: int | None,
+) -> Pairing:
+    flagship_all = read_log(flagship_log)
+    flagship_all = flagship_all[flagship_all["season"] == season]
+    if flagship_all.empty:
+        raise ValueError("the flagship has no logged games this season")
+    flagship_rows, version = _flagship_rows(flagship_all)
+    flagship = _provable(flagship_rows, manual_pushes)
+    elo = _season_provable(elo_log, season, manual_pushes)
+    finished = _capped_finished(games, season, last_round)
+    paired = _join(flagship, elo, finished)
+    if paired.empty:
+        raise ValueError("no game was logged by both models before tip-off and has a result")
+    return Pairing(flagship, elo, finished, paired, version)
+
+
 def paired_log_losses(
     flagship_log: Path,
     elo_log: Path,
@@ -169,35 +248,81 @@ def paired_log_losses(
     whole season. Returns the two arrays, the flagship's first round, its version and the Elo
     versions of the paired games.
     """
-    flagship_all = read_log(flagship_log)
-    flagship_all = flagship_all[flagship_all["season"] == season]
-    if flagship_all.empty:
-        raise ValueError("the flagship has no logged games this season")
-    flagship_rows, version = _flagship_rows(flagship_all)
-    flagship = _provable(flagship_rows, manual_pushes)
-    elo = _provable(read_log(elo_log), manual_pushes)
-    elo = elo[elo["season"] == season]
-    finished = _finished(games, season)
-    if last_round is not None:
-        finished = finished[
-            (finished["phase"] == REGULAR_SEASON) & (finished["round"] <= last_round)
-        ]
-    paired = (
-        flagship[["game_id", "p_home", "round"]]
-        .merge(elo[["game_id", "p_home", "model_version"]], on="game_id", suffixes=("_f", "_e"))
-        .merge(finished[["game_id", "tipoff_utc", "home_score", "away_score"]], on="game_id")
-        .sort_values(["tipoff_utc", "game_id"], ignore_index=True)
-    )
-    if paired.empty:
-        raise ValueError("no game was logged by both models before tip-off and has a result")
-    home_won = (paired["home_score"] > paired["away_score"]).to_numpy().astype(np.float64)
+    pairing = _pairing(flagship_log, elo_log, games, season, manual_pushes, last_round=last_round)
+    flagship_loss, elo_loss = _losses(pairing.paired)
     return (
-        per_game_log_loss(paired["p_home_f"].to_numpy(dtype=np.float64), home_won),
-        per_game_log_loss(paired["p_home_e"].to_numpy(dtype=np.float64), home_won),
-        int(flagship["round"].min()),
-        version,
-        sorted(set(paired["model_version"].astype(str))),
+        flagship_loss,
+        elo_loss,
+        int(pairing.flagship["round"].min()),
+        pairing.version,
+        sorted(set(pairing.paired["model_version"].astype(str))),
     )
+
+
+def _round_clustered(paired: pd.DataFrame, season: int, diff: FloatArray) -> dict[str, Any]:
+    """The look's gap with whole rounds resampled (same resamples and seed as R1). Reported only.
+
+    Games of one round share a cluster, so the spread of the gap across rounds is what the CI
+    reflects; the game-level CI in the verdict is unchanged.
+    """
+    labels = [f"{season}-R{r}" for r in paired["round"].to_numpy()]
+    mean, low, high = paired_bootstrap_ci_clustered(diff, labels, RESAMPLES, SEED, level=CI_LEVEL)
+    return {
+        "cluster": "season-round",
+        "n_games": len(diff),
+        "n_clusters": len(set(labels)),
+        "mean_diff": round(mean, 6),
+        "ci_lo": round(low, 6),
+        "ci_hi": round(high, 6),
+        "ci_level": CI_LEVEL,
+        "resamples": RESAMPLES,
+        "seed": SEED,
+    }
+
+
+def _reported_gap(
+    a: pd.DataFrame, b: pd.DataFrame, finished: pd.DataFrame, names: tuple[str, str]
+) -> dict[str, Any]:
+    """Mean, game-level CI and n of ``a - b`` log loss on the games both logs cover. Reported only.
+
+    The CI is R1's own (``bootstrap_ci``: same resamples, seed and level).
+    """
+    paired = _join(a, b, finished)
+    if not len(paired):
+        return {"n": 0, "mean_diff": None, "ci_lo": None, "ci_hi": None}
+    loss_a, loss_b = _losses(paired)
+    diff = loss_a - loss_b
+    lo, hi = bootstrap_ci(diff)
+    return {
+        "n": len(paired),
+        f"{names[0]}_log_loss": round(float(loss_a.mean()), 6),
+        f"{names[1]}_log_loss": round(float(loss_b.mean()), 6),
+        "mean_diff": round(float(diff.mean()), 6),
+        "ci_lo": round(lo, 6),
+        "ci_hi": round(hi, 6),
+        "ci_level": CI_LEVEL,
+        "resamples": RESAMPLES,
+        "seed": SEED,
+    }
+
+
+def _reported_only(
+    elor_log: Path,
+    pairing: Pairing,
+    season: int,
+    manual_pushes: Sequence[datetime],
+) -> dict[str, Any]:
+    """ELOR against Elo and against the flagship, on the games each pair logged. Reported only."""
+    elor = _season_provable(elor_log, season, manual_pushes)
+    return {
+        "elor_vs_elo": _reported_gap(elor, pairing.elo, pairing.finished, ("elor", "elo")),
+        "elor_vs_flagship": _reported_gap(
+            elor,
+            pairing.flagship,
+            pairing.finished,
+            ("elor", FLAGSHIPS["euroleague"].lower()),
+        ),
+    }
 
 
 class LookNotDueError(RuntimeError):
@@ -213,11 +338,15 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
     elo_log: Path,
     manual_pushes: Sequence[datetime],
     out_dir: Path,
+    *,
+    elor_log: Path | None = None,
 ) -> tuple[Verdict, Path]:
     """Run one look and write ``promotion_<competition>_<season>_look<look>.json`` to ``out_dir``.
 
     The guard comes first: before the checkpoint is complete (or when the look's file already
-    exists) nothing is read from the logs or computed.
+    exists) nothing is read from the logs or computed. The file holds the verdict's keys, then
+    the reported-only blocks: ``sensitivity_round_clustered`` and, with ``elor_log`` (EuroLeague),
+    ``reported_only``. Neither feeds ``promote``.
     """
     rnd = LOOK_ROUNDS[competition]
     due, why = checkpoint_status(games, season, look, rnd)
@@ -226,12 +355,15 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
     out = out_dir / f"promotion_{competition}_{season}_look{look}.json"
     if out.exists():
         raise LookNotDueError(f"{out} exists: a look is run once")
-    flagship, elo, first_round, version, elo_versions = paired_log_losses(
-        flagship_log, elo_log, games, season, manual_pushes, last_round=rnd if look == 1 else None
+    last_round = rnd if look == 1 else None
+    # The verdict's inputs come from paired_log_losses, unchanged; the reported blocks below
+    # re-pair the same logs (identical games, same order) to name each game's round.
+    flagship_loss, elo_loss, first_round, version, elo_versions = paired_log_losses(
+        flagship_log, elo_log, games, season, manual_pushes, last_round=last_round
     )
     verdict = promotion_verdict(
-        flagship,
-        elo,
+        flagship_loss,
+        elo_loss,
         competition=competition,
         season=season,
         look=look,
@@ -240,5 +372,12 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
         elo_versions=elo_versions,
         first_round=first_round,
     )
-    write_json(out, verdict.as_dict())
+    pairing = _pairing(flagship_log, elo_log, games, season, manual_pushes, last_round=last_round)
+    payload = verdict.as_dict()
+    payload["sensitivity_round_clustered"] = _round_clustered(
+        pairing.paired, season, flagship_loss - elo_loss
+    )
+    if elor_log is not None and competition == "euroleague":
+        payload["reported_only"] = _reported_only(elor_log, pairing, season, manual_pushes)
+    write_json(out, payload)
     return verdict, out

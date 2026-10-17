@@ -526,6 +526,7 @@ def score(competition: CompetitionOption = CompetitionName.euroleague) -> None:
         odds_path=comp.odds_log,
         m1_log_path=comp.m1_prediction_log,
         m5_log_path=comp.m5_prediction_log,
+        elor_log_path=comp.elor_prediction_log,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))

@@ -1,11 +1,13 @@
 """Proper scoring rules, calibration and a paired bootstrap for per-game loss differences."""
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 from scipy import special
 
 from eurohoops.models.elo import FloatArray
@@ -173,4 +175,35 @@ def paired_bootstrap_ci(diff: FloatArray, resamples: int, seed: int) -> tuple[fl
     idx = rng.integers(0, len(diff), size=(resamples, len(diff)))
     means = diff[idx].mean(axis=1)
     low, high = np.percentile(means, [2.5, 97.5])
+    return float(diff.mean()), float(low), float(high)
+
+
+def paired_bootstrap_ci_clustered(
+    diff: FloatArray,
+    clusters: Sequence[object],
+    resamples: int,
+    seed: int,
+    *,
+    level: float = 0.95,
+) -> tuple[float, float, float]:
+    """Mean of ``diff`` and the percentile CI of its mean when whole clusters are resampled.
+
+    Each resample draws ``k`` clusters with replacement (``k`` = number of distinct clusters)
+    and takes the mean of every game in them, so games sharing a cluster (a round) stay
+    together. With one game per cluster this is the game-level bootstrap of
+    ``paired_bootstrap_ci``. ``level`` is the two-sided CI level. An empty ``diff`` gives NaN.
+    """
+    if len(clusters) != len(diff):
+        raise ValueError("every game needs a cluster label")
+    if not len(diff):
+        return math.nan, math.nan, math.nan
+    codes = pd.factorize(pd.Series(list(clusters)))[0]
+    k = int(codes.max()) + 1
+    sums = np.bincount(codes, weights=diff, minlength=k)
+    sizes = np.bincount(codes, minlength=k).astype(np.float64)
+    rng = np.random.default_rng(seed)
+    pick = rng.integers(0, k, size=(resamples, k))
+    means = sums[pick].sum(axis=1) / sizes[pick].sum(axis=1)
+    tail = 100.0 * (1.0 - level) / 2.0
+    low, high = np.percentile(means, [tail, 100.0 - tail])
     return float(diff.mean()), float(low), float(high)

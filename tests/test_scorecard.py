@@ -253,3 +253,48 @@ def test_market_column_without_odds(tmp_path: Path, tuned: TunedModel) -> None:
     card = build_scorecard(log, results(played=True), tuned, NOW, odds_path=tmp_path / "none.csv")
     assert card["market"] == {"n": 0, "log_loss": None, "elo_log_loss": None, "b0_log_loss": None}
     assert build_scorecard(log, results(played=True), tuned, NOW)["market"] is None
+
+
+ELOR_LOG = f"""{HEADER}
+G1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.7,4.0,elor,e1,2026-10-01T08:00:00Z
+G2,2026,1,RS,2026-10-01T18:00:00Z,CCC,DDD,0.3,-1.0,elor,e1,2026-10-01T08:00:00Z
+G3,2026,1,RS,2026-10-01T18:00:00Z,EEE,FFF,0.9,9.0,elor,e1,2026-10-01T18:00:00Z
+G4,2026,2,RS,2026-10-08T18:00:00Z,AAA,CCC,0.6,2.0,elor,e1,2026-10-01T08:00:00Z
+"""
+
+
+def test_elor_trial_section_scores_its_own_pre_tipoff_rows(
+    tmp_path: Path, tuned: TunedModel
+) -> None:
+    log, elor = tmp_path / "log.csv", tmp_path / "elor.csv"
+    log.write_text(LOG)
+    elor.write_text(ELOR_LOG)
+    card = build_scorecard(log, results(played=True), tuned, NOW, elor_log_path=elor)
+    section = card["elor"]
+    assert section["trial"] is True
+    assert (section["rows_in_log"], section["rows_excluded_late"]) == (4, 1)  # G3 is late
+    metrics = section["metrics"]
+    # G1: p=.7, home won. G2: p=.3, home won (82-80). G4 is not played.
+    assert metrics["n"] == 2
+    assert metrics["log_loss"] == pytest.approx(-(math.log(0.7) + math.log(0.3)) / 2, abs=1e-6)
+    assert metrics["brier"] == pytest.approx((0.3**2 + 0.7**2) / 2, abs=1e-6)
+    assert metrics["accuracy"] == 0.5  # G1 hit, G2 miss
+    # Elo's headline on the same two games: G1 p=.8, G2 p=.4 (both home wins).
+    same = section["same_games_as_elo"]
+    assert same["n"] == 2
+    assert same["elor_log_loss"] == metrics["log_loss"]
+    assert same["elo_log_loss"] == pytest.approx(-(math.log(0.8) + math.log(0.4)) / 2, abs=1e-6)
+    # the existing keys are untouched
+    assert card["elo"]["n"] == 2
+    assert "elor" not in build_scorecard(log, results(played=True), tuned, NOW)
+
+
+def test_elor_section_without_a_log_is_empty(tmp_path: Path, tuned: TunedModel) -> None:
+    log, elor = tmp_path / "log.csv", tmp_path / "missing.csv"
+    log.write_text(LOG)
+    section = build_scorecard(log, results(played=True), tuned, NOW, elor_log_path=elor)["elor"]
+    assert (section["rows_in_log"], section["metrics"]["n"], section["same_games_as_elo"]["n"]) == (
+        0,
+        0,
+        0,
+    )

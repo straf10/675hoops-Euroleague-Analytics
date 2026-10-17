@@ -235,7 +235,9 @@ def test_run_writes_the_verdict_once(tmp_path: Path) -> None:
     flagship, elo = write_logs(tmp_path)
     verdict, out = run_look("euroleague", 1, games(19), SEASON, flagship, elo, (), tmp_path)
     assert out.name == "promotion_euroleague_2026_look1.json"
-    assert json.loads(out.read_text()) == verdict.as_dict()
+    payload = json.loads(out.read_text())
+    assert {k: payload[k] for k in verdict.as_dict()} == verdict.as_dict()
+    assert set(payload) - set(verdict.as_dict()) == {"sensitivity_round_clustered"}
     assert verdict.n_games == 16
     assert verdict.promote  # p=0.8 vs 0.6 on home wins: -0.288 every game
     assert verdict.flagship == "M5"
@@ -249,3 +251,94 @@ def test_gbl_uses_round_13(tmp_path: Path) -> None:
         run_look("gbl", 1, games(12), SEASON, flagship, elo, (), tmp_path)
     verdict, _ = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path)
     assert (verdict.n_games, verdict.flagship, verdict.first_round) == (13, "M1", 1)
+
+
+def write_elor(tmp_path: Path, p: float = 0.7) -> Path:
+    """ELOR's shadow log: every round 1-22, home wins always, stamped 10 h before tip-off."""
+    rows = []
+    for r in range(1, 23):
+        rows.append(
+            {
+                "game_id": f"G{r}",
+                "season": SEASON,
+                "round": r,
+                "phase": "RS",
+                "tipoff_utc": tip(r).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "home": "H",
+                "away": "A",
+                "p_home": p,
+                "exp_margin": 5.0,
+                "model": "elor",
+                "model_version": "0.2.0+elor.test",
+                "predicted_at_utc": (tip(r) - pd.Timedelta(hours=10)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+            }
+        )
+    path = tmp_path / "elor.csv"
+    pd.DataFrame(rows).reindex(columns=list(LOG_COLUMNS)).to_csv(path, index=False)
+    return path
+
+
+def test_reported_blocks_do_not_change_the_decision(tmp_path: Path) -> None:
+    flagship, elo = write_logs(tmp_path)
+    elor = write_elor(tmp_path)
+    plain_dir, full_dir = tmp_path / "plain", tmp_path / "full"
+    plain, plain_out = run_look("euroleague", 1, games(19), SEASON, flagship, elo, (), plain_dir)
+    full, full_out = run_look(
+        "euroleague", 1, games(19), SEASON, flagship, elo, (), full_dir, elor_log=elor
+    )
+    assert full.as_dict() == plain.as_dict()
+    assert full.promote is plain.promote is True
+    with_blocks = json.loads(full_out.read_text())
+    without = json.loads(plain_out.read_text())
+    assert "reported_only" not in without
+    for key in plain.as_dict():
+        assert with_blocks[key] == without[key]
+    assert with_blocks["promote"] is True
+
+
+def test_reported_blocks_hold_their_games_and_gaps(tmp_path: Path) -> None:
+    flagship, elo = write_logs(tmp_path)  # M5 (0.8) from round 4; Elo (0.6) from round 1
+    elor = write_elor(tmp_path)  # ELOR (0.7) from round 1, capped at round 19 for look 1
+    verdict, out = run_look(
+        "euroleague", 1, games(19), SEASON, flagship, elo, (), tmp_path, elor_log=elor
+    )
+    payload = json.loads(out.read_text())
+    blocks = payload["reported_only"]
+    # ELOR vs Elo: rounds 1-19 are logged by both; ELOR vs M5: rounds 4-19 (M5's first round).
+    assert blocks["elor_vs_elo"]["n"] == 19
+    assert blocks["elor_vs_elo"]["mean_diff"] == pytest.approx(
+        -np.log(0.7) - (-np.log(0.6)), abs=1e-6
+    )
+    assert blocks["elor_vs_elo"]["elor_log_loss"] == pytest.approx(-np.log(0.7), abs=1e-6)
+    assert blocks["elor_vs_elo"]["elo_log_loss"] == pytest.approx(-np.log(0.6), abs=1e-6)
+    assert blocks["elor_vs_flagship"]["n"] == 16
+    assert blocks["elor_vs_flagship"]["mean_diff"] == pytest.approx(
+        -np.log(0.7) - (-np.log(0.8)), abs=1e-6
+    )
+    assert blocks["elor_vs_flagship"]["m5_log_loss"] == pytest.approx(-np.log(0.8), abs=1e-6)
+    assert blocks["elor_vs_flagship"]["ci_level"] == 0.975
+    assert blocks["elor_vs_flagship"]["resamples"] == promotion.RESAMPLES
+    assert blocks["elor_vs_flagship"]["seed"] == promotion.SEED
+    # R1's own numbers stay the same: M5 vs Elo on rounds 4-19.
+    assert verdict.n_games == 16
+
+
+def test_round_clustered_sensitivity_is_reported_with_r1_settings(tmp_path: Path) -> None:
+    flagship, elo = write_logs(tmp_path)
+    verdict, out = run_look("euroleague", 1, games(19), SEASON, flagship, elo, (), tmp_path)
+    sens = json.loads(out.read_text())["sensitivity_round_clustered"]
+    assert (sens["n_games"], sens["n_clusters"]) == (16, 16)  # one game per round
+    assert sens["mean_diff"] == pytest.approx(verdict.mean_diff)
+    assert (sens["resamples"], sens["seed"], sens["ci_level"]) == (10_000, promotion.SEED, 0.975)
+    # the gap is the same in every game, so both intervals collapse to the mean
+    assert sens["ci_lo"] == pytest.approx(verdict.mean_diff, abs=1e-9)
+    assert sens["ci_hi"] == pytest.approx(verdict.mean_diff, abs=1e-9)
+
+
+def test_gbl_look_has_no_elor_blocks(tmp_path: Path) -> None:
+    flagship, elo = write_logs(tmp_path, flagship_from=1)
+    elor = write_elor(tmp_path)
+    _, out = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path, elor_log=elor)
+    assert "reported_only" not in json.loads(out.read_text())

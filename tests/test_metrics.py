@@ -3,7 +3,14 @@ import math
 import numpy as np
 import pytest
 
-from eurohoops.eval.metrics import crps_normal, ece, reliability, score
+from eurohoops.eval.metrics import (
+    crps_normal,
+    ece,
+    paired_bootstrap_ci,
+    paired_bootstrap_ci_clustered,
+    reliability,
+    score,
+)
 
 # Four games: bins 1 (two games), 7 and 9.
 P = np.array([0.15, 0.18, 0.72, 0.95])
@@ -79,3 +86,45 @@ def test_score_reports_crps_only_with_a_sigma() -> None:
     assert score(p, exp, margin).margin_crps is None
     expected = crps_normal(exp, 12.0, margin).mean()
     assert score(p, exp, margin, 12.0).margin_crps == pytest.approx(expected)
+
+
+# ---- round-clustered paired bootstrap
+
+
+def test_clustered_with_singletons_is_the_game_level_bootstrap() -> None:
+    diff = np.random.default_rng(3).normal(-0.02, 0.2, 57)
+    clusters = list(range(len(diff)))  # one game per cluster
+    clustered = paired_bootstrap_ci_clustered(diff, clusters, 2_000, 99)
+    game_level = paired_bootstrap_ci(diff, 2_000, 99)
+    assert clustered == pytest.approx(game_level, abs=1e-12)
+
+
+def test_correlated_clusters_widen_the_interval() -> None:
+    rng = np.random.default_rng(5)
+    # 20 rounds of 5 games; each round shares one shock, so games within a round are correlated.
+    shock = np.repeat(rng.normal(0.0, 0.3, 20), 5)
+    diff = shock + rng.normal(0.0, 0.01, 100)
+    rounds = [r for r in range(20) for _ in range(5)]
+    _, g_lo, g_hi = paired_bootstrap_ci(diff, 4_000, 1)
+    _, c_lo, c_hi = paired_bootstrap_ci_clustered(diff, rounds, 4_000, 1)
+    assert (c_hi - c_lo) > 2 * (g_hi - g_lo)
+
+
+def test_clustered_is_deterministic_with_the_seed() -> None:
+    diff = np.linspace(-0.3, 0.2, 40)
+    rounds = [i // 4 for i in range(40)]
+    first = paired_bootstrap_ci_clustered(diff, rounds, 500, 7)
+    assert first == paired_bootstrap_ci_clustered(diff, rounds, 500, 7)
+    assert first != paired_bootstrap_ci_clustered(diff, rounds, 500, 8)
+
+
+def test_clustered_mean_and_level_and_edge_cases() -> None:
+    diff = np.array([1.0, 2.0, 3.0, 4.0])
+    mean, low, high = paired_bootstrap_ci_clustered(diff, ["a", "a", "b", "b"], 1_000, 2)
+    assert mean == pytest.approx(2.5)
+    wide = paired_bootstrap_ci_clustered(diff, ["a", "a", "b", "b"], 1_000, 2, level=0.99)
+    assert wide[1] <= low and wide[2] >= high
+    empty = paired_bootstrap_ci_clustered(np.array([]), [], 10, 1)
+    assert all(math.isnan(x) for x in empty)
+    with pytest.raises(ValueError, match="cluster label"):
+        paired_bootstrap_ci_clustered(diff, ["a"], 10, 1)
