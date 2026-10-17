@@ -58,7 +58,7 @@ const scoreRows = [
 ].filter(Boolean) as { name: string; n: number; hit: string; brier: string; log: string }[];
 ---
 
-<Base description={description} current="forecasts">
+<Base title="EuroLeague 2026-27 win forecasts" description={description} current="forecasts">
   <script slot="head" type="application/ld+json" set:html={JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebSite",
