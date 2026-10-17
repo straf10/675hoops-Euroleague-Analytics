@@ -200,8 +200,8 @@ export interface Trend {
 /** The one-line headline above the latest round: called, Brier against the baseline, the biggest miss. */
 export function headlineText(h: RoundHeadline, groupName: string): string {
   const { winner, loser, p_winner } = h.biggest_miss;
-  const brier = h.brier === null ? dash : h.brier.toFixed(2);
-  const base = h.baseline_brier === null ? dash : h.baseline_brier.toFixed(2);
+  const brier = h.brier === null ? dash : score3(h.brier);
+  const base = h.baseline_brier === null ? dash : score3(h.baseline_brier);
   return `${groupName}: ${h.called} of ${h.games} called, Brier ${brier} vs home-win baseline ${base}; biggest miss: ${winner.code} beat ${loser.code} at ${share(p_winner)}.`;
 }
 
