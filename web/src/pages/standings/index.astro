@@ -4,7 +4,7 @@ import StandingsTable from "../../components/StandingsTable.astro";
 import "../../styles/stats.css";
 import raw from "../../data/site.json";
 import type { SiteData } from "../../lib/format";
-import { displayCode, simulation } from "../../lib/live";
+import { count, displayCode, simulation } from "../../lib/live";
 import { meta } from "../../lib/stats";
 import { teamHref } from "../../lib/players";
 
@@ -26,6 +26,9 @@ const comps = await Promise.all(
     return { c, sim, clubs };
   }),
 );
+// The lede names the simulation count; a competition without one (e.g. no projection yet) adds nothing.
+const nSims = comps.map(({ sim }) => sim?.n_sims).find((n): n is number => typeof n === "number" && n > 0);
+const lede = `Simulated projections of how each EuroLeague season may finish.${nSims ? ` Based on ${count(nSims)} simulated seasons, updated daily.` : ""}`;
 const known = new Set(stats ? Object.keys(stats.teams) : []);
 const href = (code: string) => (known.has(code) ? teamHref(base, code) : null);
 const description = "Simulated season projection for the EuroLeague: each club's expected wins and its chances of the playoffs, play-in and title.";
@@ -34,7 +37,7 @@ const description = "Simulated season projection for the EuroLeague: each club's
 <Base title="Season projection" description={description} current="standings">
   <header class="wrap head">
     <h1>Season projection</h1>
-    <p class="lede">Simulated projections of how each EuroLeague season may finish.</p>
+    <p class="lede">{lede}</p>
   </header>
 
   {
