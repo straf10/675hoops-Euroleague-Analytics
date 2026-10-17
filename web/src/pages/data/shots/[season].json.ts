@@ -1,10 +1,11 @@
 // One season's located attempts for the Shots explorer (fetched on first use and on a season
 // change), packed: see packAttempts in lib/shots.ts.
 import type { APIRoute, GetStaticPaths } from "astro";
-import { packAttempts } from "../../../lib/shots";
+import { PUBLISH_SHOTS_DATA, packAttempts } from "../../../lib/shots";
 import { explorerData, meta } from "../../../lib/stats";
 
 export const getStaticPaths: GetStaticPaths = async () => {
+  if (!PUBLISH_SHOTS_DATA) return [];
   const m = await meta();
   return (m?.seasons ?? []).map((s) => ({ params: { season: String(s.season) } }));
 };

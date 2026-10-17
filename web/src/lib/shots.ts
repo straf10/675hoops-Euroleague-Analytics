@@ -27,6 +27,13 @@ export interface Attempts {
   opp: number[];
 }
 
+/**
+ * Publish the packed season files at /data/shots/{season}.json (~2.9 MB, src/pages/data/shots).
+ * Only the hidden Shots page (src/pages/_shots) fetches them, so they are off while it is hidden.
+ * Turn this on together with un-hiding that page; the player pages keep their own attempts.json.
+ */
+export const PUBLISH_SHOTS_DATA = false;
+
 /** data/shots/{season}.json: the attempts with each shot's club and opponent folded into runs of
  * one game's pair ([club, club, shots]) plus a side bit in the flags (set when the second club shot). */
 export type PackedAttempts = Omit<Attempts, "team" | "opp"> & { games: [number, number, number][] };
