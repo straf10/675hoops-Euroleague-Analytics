@@ -120,6 +120,7 @@ Also in the plan: R1 Kubatko et al. (2007), R2 Oliver (2004), R3 Glickman & Ster
 
 ## License
 
-All rights reserved; see [`LICENSE`](LICENSE). Public for portfolio and reference purposes; not licensed for reuse.
+- **Code:** all rights reserved; see [`LICENSE`](LICENSE). Public for portfolio and reference purposes; not licensed for reuse.
+- **Data:** the project's own outputs (forecast logs, scorecards, published model outputs) are CC BY 4.0; see [`LICENSE-DATA`](LICENSE-DATA). EuroLeague statistics are not ours to license (see "Data sources and terms" above).
 
 <!-- Open items: confirm the 0.6600 home-team baseline covers the same 732 games; cold-cache download and extract commands for a local run; links for R2, R3, R11 and R12 (the plan has none). -->
