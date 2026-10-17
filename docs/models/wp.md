@@ -185,7 +185,8 @@ Inputs: `m`, `tf`, `ot`, `m_tf`, `z`, `logit_pre`, `neutral`, and `m · logit_pr
 interaction. L2 penalty with `C = 1`, fixed, not tuned. Standardise inputs using training seasons.
 
 ### (b) Gradient boosting (`sklearn` `GradientBoostingClassifier` or equivalent)
-Pre-declared grid, **chosen on validation only** by log loss on 2023 scoring-event rows:
+Pre-declared grid, **chosen on validation only** by raw (uncalibrated) log loss on 2023, scored at
+the section 6 checkpoints with the same game weighting:
 
 | Setting | `n_estimators` | `max_depth` | `learning_rate` |
 |---|---|---|---|
@@ -198,11 +199,14 @@ Subsample 1.0, all other settings default. Ties go to the smaller setting in the
 The grid is not widened after seeing validation results. Four settings is the whole grid.
 
 ### Family choice
-The family (a) or (b) is chosen on the validation season, by log loss at the checkpoints in section 6.
-The chosen family is then fitted on 2007–2022 and frozen. There is no refit on 2023 before the test.
+Both candidates, (a) and (b) at its chosen setting, get their own isotonic map (next subsection).
+The family is then chosen on the validation season by **calibrated** log loss at the section 6
+checkpoints. The chosen family, fitted on 2007–2022 with its isotonic map, is frozen. There is no
+refit on 2023 before the test.
 
 ### Calibration: isotonic on out-of-fold predictions
-1. For each season `s` in 2010–2022, fit the chosen family on seasons 2007 to `s − 1` (expanding
+For each candidate family (so both families are calibrated before the choice):
+1. For each season `s` in 2010–2022, fit the family on seasons 2007 to `s − 1` (expanding
    window), and predict season `s`. These predictions are out-of-fold. Seasons 2007–2009 are a
    warm-up.
 2. Fit an isotonic regression from raw predicted probability to outcome on all out-of-fold rows.
@@ -262,6 +266,12 @@ season bootstrap).
   overconfident probabilities (Platt slope 0.37 on n = 71).
 - The model's own output at `t = 2400` is not used as the chain start, because it can differ from
   the published `P_pre`. The chain uses `P_pre` at tip-off, always.
+- **Tip-off gap.** Let `g = P_pre − WP_model(t = 2400, m = 0)`. The displayed line is
+  `WP(e) = clip(WP_model(e) + g · tf(e), 0.001, 0.999)`, so it starts exactly at `P_pre` and the gap
+  fades linearly to zero at the final buzzer (in OT, `tf` is 0 and the gap is gone). Every ΔWP, and so
+  every WPA in section 8, is taken on this line. No play is credited with the gap itself: without
+  this rule the first play of every game would absorb `g`. The fade shape is an owner decision
+  (section 10).
 
 ## 8. Downstream outputs (defined, not built)
 
@@ -336,3 +346,5 @@ The parts are computed from the chosen WP line. If the gate fails, from the base
 9. Should the baseline's pre-game margin `mu_pre` use the same margin scale `s` as the Elo
    forecast, or a separate fit on the WP training seasons? Proposed: the Elo scale, as the
    baseline and the chain both depend on it.
+10. Tip-off gap (section 7): fade the gap between `P_pre` and the model's tip-off value linearly
+    with time left (proposed), or hold it constant, or let it decay faster?
