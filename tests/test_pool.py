@@ -204,8 +204,8 @@ def test_read_component_ignores_other_versions_and_rejects_duplicates(tmp_path: 
         live_pool.read_component(path, "v-elo")
 
 
-def test_live_is_disabled_by_default_and_writes_nothing(tmp_path: Path) -> None:
-    assert config.POOL_LIVE_ENABLED is False
+def test_disabled_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "POOL_LIVE_ENABLED", False)
     rows = {name: _all_four("E1")[name] for name in COMPONENTS}
     pins = _write_components(tmp_path, rows)
     target = tmp_path / "pool.csv"

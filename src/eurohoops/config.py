@@ -191,8 +191,8 @@ EUROLEAGUE = Competition(
 )
 
 # POOL (docs/models/pool.md): an equal-weight logarithmic pool of four live EuroLeague logs.
-# Off until the owner approves the protocol; live_pool.predict_pool writes nothing while False.
-POOL_LIVE_ENABLED = False
+# Switched on by the owner on 2026-10-17 after approving the protocol (pins re-checked that day).
+POOL_LIVE_ENABLED = True
 # The pinned component versions (the protocol's table). Rows at any other version are ignored.
 POOL_COMPONENTS: dict[str, tuple[Path, str]] = {
     "elo": (Path("predictions/euroleague_2026-27.csv"), "0.2.0+425e6393"),
