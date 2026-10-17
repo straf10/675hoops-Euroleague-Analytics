@@ -1,8 +1,8 @@
 # Equal-weight forecast pool ("POOL"): protocol v1
 
-**DRAFT — awaiting owner approval.** Nothing here has been run. No evaluation is run, and live
-logging stays off (`POOL_LIVE_ENABLED = False` in `src/eurohoops/config.py`) until the owner
-approves this document. Approval authorises this protocol, not the model's numbers.
+**Approved by the owner on 2026-10-17** (option ii, live-only; pinned versions confirmed). Live
+logging starts with `POOL_LIVE_ENABLED = True` in `src/eurohoops/config.py`, set in its own commit.
+Approval authorises this protocol, not the model's numbers.
 
 Season labels are start years: `2024` is 2024-25, `2025` is 2025-26.
 

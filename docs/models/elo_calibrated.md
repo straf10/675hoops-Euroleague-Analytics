@@ -1,9 +1,8 @@
 # Calibrated Elo (ELOC): protocol v1
 
-**Status: DRAFT, awaiting owner approval. Nothing has been run, and nothing is logged.** The
-harness is built and tested, but `eurohoops backtest --model eloc --cv` (the one-shot run) must
-not be run, and `ELOC_LIVE_ENABLED` (`src/eurohoops/config.py`) stays `False`, until the owner
-approves this protocol. Approval authorises the protocol below, not the model.
+**Status: approved by the owner on 2026-10-17, before the one-shot run.** Approval authorises the
+protocol below, not the model. `ELOC_LIVE_ENABLED` (`src/eurohoops/config.py`) stays `False` until
+the criteria pass and the owner switches it on in a separate commit.
 
 ## Question
 Live Elo (`src/eurohoops/models/elo.py`, card `docs/models/elo.md`) is the published flagship. Its
