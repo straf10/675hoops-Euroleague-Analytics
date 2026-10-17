@@ -64,7 +64,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.config import M7Backtest
-from eurohoops.eval.m3_backtest import _data_sha256
+from eurohoops.eval.common import data_sha256, round_finite, table_cell
 from eurohoops.eval.metrics import reliability
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.models.elo import EloParams, FloatArray, prepare, season_ratings
@@ -135,10 +135,6 @@ TEAMS_SCHEMA = pa.DataFrameSchema(
     strict=True,
     ordered=True,
 )
-
-
-def _round(value: float | None) -> float | None:
-    return None if value is None or not math.isfinite(value) else round(float(value), 6)
 
 
 # --- Inputs, variants and the choice ------------------------------------------------------------
@@ -223,10 +219,10 @@ def gate_block(
     return {
         "rule": GATE_RULE,
         "variant": variant,
-        "brier_chosen": _round(brier_chosen),
-        "brier_point_sim": _round(brier_point_sim),
-        "brier_standings_now": _round(brier_standings_now),
-        "spiegelhalter_z_pooled": _round(z_pooled),
+        "brier_chosen": round_finite(brier_chosen),
+        "brier_point_sim": round_finite(brier_point_sim),
+        "brier_standings_now": round_finite(brier_standings_now),
+        "spiegelhalter_z_pooled": round_finite(z_pooled),
         "passed": passed,
         **differences,
     }
@@ -763,11 +759,11 @@ def _metrics(rows: pd.DataFrame) -> dict[str, Any]:
     s = _scores(rows)
     return {
         "n": s["n"],
-        "brier": _round(s["brier"]),
-        "rps": _round(s["rps"]),
-        "log_loss": _round(s["log_loss"]),
-        "brier_top10": _round(s["brier_top10"]),
-        "spiegelhalter_z": _round(s["z"]),
+        "brier": round_finite(s["brier"]),
+        "rps": round_finite(s["rps"]),
+        "log_loss": round_finite(s["log_loss"]),
+        "brier_top10": round_finite(s["brier_top10"]),
+        "spiegelhalter_z": round_finite(s["z"]),
     }
 
 
@@ -819,8 +815,8 @@ def _brier_differences(
             diff, cluster.astype(np.int64), spec.bootstrap_resamples, spec.bootstrap_seed
         )
         out[f"brier_vs_{baseline}"] = {
-            "mean": _round(mean),
-            "ci95": [_round(low), _round(high)],
+            "mean": round_finite(mean),
+            "ci95": [round_finite(low), round_finite(high)],
             "clusters": int(cluster.max()) + 1,
             "resamples": spec.bootstrap_resamples,
             "seed": spec.bootstrap_seed,
@@ -927,7 +923,7 @@ def _report(
             }
             for season, info in seasons.items()
         },
-        "data_sha256": _data_sha256(inputs.games, inputs.team_games),
+        "data_sha256": data_sha256(inputs.games, inputs.team_games),
         "tuning_only": tuning_only,
         "validation_scored": not tuning_only,
         "test_scored": score_test and not tuning_only,
@@ -943,8 +939,8 @@ def _report(
             "spread": chosen_variant.spread,
             "net": chosen_variant.net,
             **({"fixed": "the EuroLeague verdict (K-a), not chosen here"} if fixed else {}),
-            "tuning_rps": _round(tuning_scores[chosen]["rps"]),
-            "tuning_brier": _round(tuning_scores[chosen]["brier"]),
+            "tuning_rps": round_finite(tuning_scores[chosen]["rps"]),
+            "tuning_brier": round_finite(tuning_scores[chosen]["brier"]),
         },
         "metrics": {s: {m: _metrics(of(by_split[s], m)) for m in keys} for s in splits},
         "per_checkpoint": {
@@ -969,7 +965,7 @@ def _report(
             for s in splits
         },
         "title_brier": {
-            s: {m: _round(_title_brier(of(by_split[s], m))) for m in keys} for s in splits
+            s: {m: round_finite(_title_brier(of(by_split[s], m))) for m in keys} for s in splits
         },
         "differences": {s: _brier_differences(by_split[s], chosen, spec) for s in splits},
     }
@@ -998,9 +994,6 @@ def _gate(
 
 
 def format_m7_table(report: dict[str, Any]) -> str:
-    def cell(value: float | None, width: int, digits: int) -> str:
-        return f"{'-' if value is None else f'{value:.{digits}f}':>{width}}"
-
     chosen = report["chosen"]
     lines = [f"chosen: {chosen['key']}; tuning RPS {chosen['tuning_rps']}"]
     header = f"{'split':<11}{'model':<17}{'n':>5}{'brier':>8}{'rps':>8}{'logloss':>9}{'z':>8}"
@@ -1008,8 +1001,9 @@ def format_m7_table(report: dict[str, Any]) -> str:
     for split, by_model in report["metrics"].items():
         for name, m in by_model.items():
             lines.append(
-                f"{split:<11}{name:<17}{m['n']:>5}{cell(m['brier'], 8, 4)}{cell(m['rps'], 8, 4)}"
-                f"{cell(m['log_loss'], 9, 4)}{cell(m['spiegelhalter_z'], 8, 2)}"
+                f"{split:<11}{name:<17}{m['n']:>5}"
+                f"{table_cell(m['brier'], 8, 4)}{table_cell(m['rps'], 8, 4)}"
+                f"{table_cell(m['log_loss'], 9, 4)}{table_cell(m['spiegelhalter_z'], 8, 2)}"
             )
     gate = report.get("gate")
     if gate is not None:

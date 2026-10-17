@@ -29,6 +29,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from eurohoops.config import M2Seasons
+from eurohoops.eval.common import round6
 from eurohoops.eval.shot_metrics import (
     calibrated,
     cluster_bootstrap,
@@ -64,10 +65,6 @@ Progress = Callable[[str], None]
 
 def _labels(shots: pd.DataFrame) -> FloatArray:
     return shots["made"].to_numpy(dtype=np.float64)
-
-
-def _r(value: float) -> float:
-    return round(float(value), 6)
 
 
 LATER = -1  # target "the later seasons" in a fit job
@@ -349,7 +346,7 @@ def _ece_diff_ci(
 
 def _diff_ci(diff: FloatArray, games: npt.NDArray[Any]) -> dict[str, Any]:
     mean, low, high = cluster_bootstrap(diff, games, BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED)
-    return {"n": len(diff), "mean": _r(mean), "ci95": [_r(low), _r(high)]}
+    return {"n": len(diff), "mean": round6(mean), "ci95": [round6(low), round6(high)]}
 
 
 def gate(
@@ -396,8 +393,8 @@ def gate(
         "log_loss_challenger_minus_baseline": ll,
         "brier_challenger_minus_baseline": _diff_ci(brier, games),
         "ece_challenger_minus_baseline": {
-            "mean": _r(variants[challenger][split]["ece"] - variants[baseline][split]["ece"]),
-            "ci95": [_r(ece_low), _r(ece_high)],
+            "mean": round6(variants[challenger][split]["ece"] - variants[baseline][split]["ece"]),
+            "ci95": [round6(ece_low), round6(ece_high)],
         },
         "single_seed_would_flip": flips,
         "any_seed_flips": any(flips.values()),
@@ -420,7 +417,7 @@ def calibration_in_the_large(p: FloatArray, shots: pd.DataFrame) -> dict[str, fl
         {"season": shots["season"].to_numpy(), "x": p * value, "a": _labels(shots) * value}
     )
     sums = frame.groupby("season")[["x", "a"]].sum()
-    return {str(s): _r(row["x"] / row["a"]) for s, row in sums.iterrows()}
+    return {str(s): round6(row["x"] / row["a"]) for s, row in sums.iterrows()}
 
 
 def _vs_base(p: FloatArray, base: FloatArray, shots: pd.DataFrame) -> dict[str, Any]:
@@ -434,7 +431,7 @@ def _vs_base(p: FloatArray, base: FloatArray, shots: pd.DataFrame) -> dict[str, 
     return {
         "log_loss": _diff_ci(shot_log_loss(p, y) - shot_log_loss(base, y), games),
         "brier": _diff_ci((p - y) ** 2 - (base - y) ** 2, games),
-        "ece": {"mean": _r(diff), "ci95": [_r(low), _r(high)]},
+        "ece": {"mean": round6(diff), "ci95": [round6(low), round6(high)]},
     }
 
 
@@ -474,7 +471,7 @@ def level_variants(
             "label": POST_HOC,
             "cv": split_scores(lp.oof, dev),
             "cv_per_season": {
-                str(s): _r(shot_log_loss(lp.oof[rows], y_dev[rows]).mean())
+                str(s): round6(shot_log_loss(lp.oof[rows], y_dev[rows]).mean())
                 for s, rows in folds.index.items()
             },
             "validation": split_scores(lp.later[val], later[val]),
@@ -495,7 +492,7 @@ def level_variants(
             "shrinkage": lp.shrinkage,
             "priors": lp.priors,
             "mean_offset": {
-                str(s): _r(float(o))
+                str(s): round6(float(o))
                 for s, o in pd.Series(np.r_[lp.offsets_oof, lp.offsets_later])
                 .groupby(np.r_[dev["season"].to_numpy(), later_season])
                 .mean()
@@ -511,7 +508,7 @@ def level_variants(
     level = out["lgbm_level"]
     condition = {
         "meets_f_f_on_validation": level["meets_f_f"]["validation"],
-        "cv_log_loss_below_lgbm": bool(level["cv"]["log_loss"] < _r(lgbm_cv)),
+        "cv_log_loss_below_lgbm": bool(level["cv"]["log_loss"] < round6(lgbm_cv)),
     }
     return {
         "declaration": LEVEL_DECLARATION,
@@ -555,7 +552,9 @@ def spline_search(
             fit = spline_fitter(n_knots, l2)
             folds = Folds(dev, development, fit, False, later[:0], pool=pool)
             runs[(n_knots, l2)] = folds
-            grid.append({"knots": n_knots, "l2": l2, "cv_log_loss": _r(cv_log_loss(folds, y_dev))})
+            grid.append(
+                {"knots": n_knots, "l2": l2, "cv_log_loss": round6(cv_log_loss(folds, y_dev))}
+            )
             progress(f"spline knots {n_knots} l2 {l2}: CV log loss {grid[-1]['cv_log_loss']}")
             lap(f"spline grid knots {n_knots} l2 {l2} (12 LOSO fits)")
     best = min(grid, key=lambda g: (g["cv_log_loss"], g["knots"], g["l2"]))
@@ -578,8 +577,8 @@ def seed_robustness(
         seed_held["lgbm"][seed], seed_held["lgbm_iso"][seed] = folds.later, iso_later
         per_seed[str(seed)] = {
             variant: {
-                "cv_log_loss": _r(shot_log_loss(o, y_dev).mean()),
-                "validation_log_loss": _r(shot_log_loss(h[val], y_later[val]).mean()),
+                "cv_log_loss": round6(shot_log_loss(o, y_dev).mean()),
+                "validation_log_loss": round6(shot_log_loss(h[val], y_later[val]).mean()),
             }
             for variant, o, h in (
                 ("lgbm", folds.oof, folds.later),
@@ -589,8 +588,8 @@ def seed_robustness(
     summary = {
         variant: {
             key: {
-                "mean_of_seeds": _r(np.mean([per_seed[str(s)][variant][key] for s in seeds])),
-                "sd": _r(np.std([per_seed[str(s)][variant][key] for s in seeds], ddof=1)),
+                "mean_of_seeds": round6(np.mean([per_seed[str(s)][variant][key] for s in seeds])),
+                "sd": round6(np.std([per_seed[str(s)][variant][key] for s in seeds], ddof=1)),
             }
             for key in ("cv_log_loss", "validation_log_loss")
         }
@@ -651,7 +650,7 @@ def run_m2_backtest(
             "post_hoc": False,
             "cv": split_scores(oof[variant], dev),
             "cv_per_season": {
-                str(s): _r(shot_log_loss(oof[variant][rows], y_dev[rows]).mean())
+                str(s): round6(shot_log_loss(oof[variant][rows], y_dev[rows]).mean())
                 for s, rows in spline.index.items()
             },
             "validation": split_scores(held[variant][val], later[val]),

@@ -67,9 +67,9 @@ if TYPE_CHECKING:
     # plain name lookup on a partially-initialised module, genuinely broken regardless of import
     # order (whichever of the two modules a caller imports first, its own top-level import of
     # the other runs before that other's names exist). `tune_rapm_dummy` (the only function that
-    # actually constructs a `TunedRapm` or calls `rapm_margins`/`_finite_rmse`/`_round`) imports
-    # them locally instead, deferred until it is actually called, by which point both modules
-    # have long finished loading however the caller reached them.
+    # actually constructs a `TunedRapm` or calls `rapm_margins`/`_finite_rmse`/`round_finite`)
+    # imports them locally instead, deferred until it is actually called, by which point both
+    # modules have long finished loading however the caller reached them.
     from eurohoops.eval.m3_backtest import Data, RapmFitInputs, TunedRapm
 
 IntArray = npt.NDArray[np.int64]
@@ -455,10 +455,10 @@ def tune_rapm_dummy(
     point, and this variant's fit reproduces it exactly, so it is not retried). Tuning RMSE is
     computed exactly as ``tune_rapm`` does: the same tuning-season game subset, the same
     ``rapm_margins`` reader."""
+    from eurohoops.eval.common import round_finite  # noqa: PLC0415
     from eurohoops.eval.m3_backtest import (  # noqa: PLC0415 -- deferred: see module docstring
         TunedRapm,
         _finite_rmse,
-        _round,
         rapm_margins,
     )
 
@@ -505,7 +505,7 @@ def tune_rapm_dummy(
     best_threshold, best_rmse = min(candidates, key=lambda c: c[1])
     grid_report = {
         "dummy_minutes": list(thresholds),
-        "candidates": [{"dummy_minutes": t, "tuning_rmse": _round(r)} for t, r in candidates],
+        "candidates": [{"dummy_minutes": t, "tuning_rmse": round_finite(r)} for t, r in candidates],
         "size": len(candidates),
     }
     return TunedRapm(

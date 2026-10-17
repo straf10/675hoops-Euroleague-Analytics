@@ -21,10 +21,10 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import Backtest, Grid
+from eurohoops.eval.common import paired_ci
 from eurohoops.eval.metrics import (
     crps_normal,
     mean_absolute_error,
-    paired_bootstrap_ci,
     per_game_log_loss,
     score,
 )
@@ -111,13 +111,7 @@ def _log_loss(diffs: FloatArray, home_won: FloatArray) -> float:
 
 
 def _ci(diff: FloatArray) -> dict[str, Any]:
-    mean, low, high = paired_bootstrap_ci(diff, BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED)
-    return {
-        "mean": round(mean, 6),
-        "ci95": [round(low, 6), round(high, 6)],
-        "resamples": BOOTSTRAP_RESAMPLES,
-        "seed": BOOTSTRAP_SEED,
-    }
+    return paired_ci(diff, BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED)
 
 
 def grid_edges(grid: Grid, best: EloParams) -> list[str]:

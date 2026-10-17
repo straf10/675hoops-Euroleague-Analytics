@@ -9,23 +9,19 @@ Greek EuroLeague clubs play within 3 days of a game in the other competition. No
 for forecasting: this is a description of committed predictions.
 """
 
-import math
 from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.common import round_finite
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.rest import rest_features
 
 FEATURES = ("days_rest", "short_rest", "games_last_7d", "other_comp_prev")
 Z90 = 1.6448536269514722  # two-sided 90% Normal quantile
 GREEK_WINDOW_DAYS = 3.0
-
-
-def _round(value: float) -> float | None:
-    return round(float(value), 6) if math.isfinite(value) else None
 
 
 def rest_diff(
@@ -57,9 +53,9 @@ def ols_hc0(x: FloatArray, y: FloatArray) -> dict[str, Any]:
             continue
         k = 1 + varying.index(j)
         out[name] = {
-            "coef": _round(beta[k]),
-            "se": _round(se[k]),
-            "ci90": [_round(beta[k] - Z90 * se[k]), _round(beta[k] + Z90 * se[k])],
+            "coef": round_finite(beta[k]),
+            "se": round_finite(se[k]),
+            "ci90": [round_finite(beta[k] - Z90 * se[k]), round_finite(beta[k] + Z90 * se[k])],
         }
     return out
 
@@ -70,10 +66,10 @@ def _distribution(diff_long: pd.DataFrame, seasons: tuple[int, ...]) -> dict[str
     return {
         "team_games": len(rows),
         "days_rest_quantiles": {
-            str(q): _round(float(days.quantile(q))) for q in (0.05, 0.25, 0.5, 0.75, 0.95)
+            str(q): round_finite(float(days.quantile(q))) for q in (0.05, 0.25, 0.5, 0.75, 0.95)
         },
-        "short_rest_share": _round(float(rows["short_rest"].mean())),
-        "games_last_7d_mean": _round(float(rows["games_last_7d"].mean())),
+        "short_rest_share": round_finite(float(rows["short_rest"].mean())),
+        "games_last_7d_mean": round_finite(float(rows["games_last_7d"].mean())),
     }
 
 

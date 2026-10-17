@@ -29,12 +29,10 @@ use that one game set.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
-from importlib.metadata import version
 from itertools import product
 from typing import Any
 
@@ -44,9 +42,10 @@ import pandas as pd
 
 from eurohoops.config import M5Backtest
 from eurohoops.eval.backtest import totals_baseline, win_probabilities
+from eurohoops.eval.common import data_sha256, paired_ci, round_finite, table_cell, tagged_version
 from eurohoops.eval.m1_backtest import EARLY_ROUNDS, Predictions, _metrics
-from eurohoops.eval.m3_backtest import _data_sha256, rmse_diff_bootstrap_ci
-from eurohoops.eval.metrics import crps_normal, paired_bootstrap_ci, per_game_log_loss
+from eurohoops.eval.m3_backtest import rmse_diff_bootstrap_ci
+from eurohoops.eval.metrics import crps_normal, per_game_log_loss
 from eurohoops.models.elo import EloParams, FloatArray, prepare, replay
 from eurohoops.models.m5 import apply_platt, blend_by_season, fit_platt, fit_residual
 from eurohoops.models.minutes import oracle_shares
@@ -93,10 +92,6 @@ FRAME_COLUMNS = (
     "actual_margin",
     "actual_total",
 )
-
-
-def _round(value: float | None) -> float | None:
-    return None if value is None or not math.isfinite(value) else round(float(value), 6)
 
 
 # --- Inputs and the declared choice -----------------------------------------------------------
@@ -187,8 +182,8 @@ def gate_block(
     return {
         "rule": GATE_RULE,
         "variant": variant,
-        "m5_log_loss": _round(m5_log_loss),
-        "m1_log_loss": _round(m1_log_loss),
+        "m5_log_loss": round_finite(m5_log_loss),
+        "m1_log_loss": round_finite(m1_log_loss),
         "passed": passed,
         **differences,
     }
@@ -551,7 +546,7 @@ def _platt_by_season(
         a, b = fit_platt(p[train], ctx.home_won[train])
         now = ctx.season == s
         out[now] = apply_platt(p[now], a, b)
-        coefficients[str(s)] = [_round(a), _round(b)]
+        coefficients[str(s)] = [round_finite(a), round_finite(b)]
     return out, coefficients
 
 
@@ -633,19 +628,13 @@ def _ci(diff: FloatArray, spec: M5Backtest) -> dict[str, Any] | None:
     """Mean and paired bootstrap 95% CI; None for an empty set."""
     if not len(diff):
         return None
-    mean, low, high = paired_bootstrap_ci(diff, spec.bootstrap_resamples, spec.bootstrap_seed)
-    return {
-        "mean": _round(mean),
-        "ci95": [_round(low), _round(high)],
-        "resamples": spec.bootstrap_resamples,
-        "seed": spec.bootstrap_seed,
-    }
+    return paired_ci(diff, spec.bootstrap_resamples, spec.bootstrap_seed, round_finite)
 
 
 def _model_metrics(ctx: _Context, pred: Predictions, mask: BoolArray) -> dict[str, Any]:
     n = int(mask.sum())
     rmse = float(np.sqrt(np.mean((pred.margin[mask] - ctx.margin[mask]) ** 2))) if n else None
-    return {**_metrics(pred, mask, ctx.margin, ctx.total), "margin_rmse": _round(rmse)}
+    return {**_metrics(pred, mask, ctx.margin, ctx.total), "margin_rmse": round_finite(rmse)}
 
 
 def _differences(
@@ -689,10 +678,10 @@ def _segments(
         n = int(sel.sum())
         out[name] = {
             "n": n,
-            "m5_log_loss": _round(_mean_log_loss(ctx, m5.p_home, sel)) if n else None,
-            "m1_log_loss": _round(_mean_log_loss(ctx, ctx.m1.p_home, sel)) if n else None,
-            "m5_margin_crps": _round(float(m5.margin_crps[sel].mean())) if n else None,
-            "m1_margin_crps": _round(float(ctx.m1.margin_crps[sel].mean())) if n else None,
+            "m5_log_loss": round_finite(_mean_log_loss(ctx, m5.p_home, sel)) if n else None,
+            "m1_log_loss": round_finite(_mean_log_loss(ctx, ctx.m1.p_home, sel)) if n else None,
+            "m5_margin_crps": round_finite(float(m5.margin_crps[sel].mean())) if n else None,
+            "m1_margin_crps": round_finite(float(ctx.m1.margin_crps[sel].mean())) if n else None,
         }
     return out
 
@@ -843,8 +832,7 @@ def _decide(
 
 
 def model_version(choice: Choice) -> str:
-    key = json.dumps(asdict(choice), sort_keys=True)
-    return f"{version('eurohoops')}+m5.{hashlib.sha256(key.encode()).hexdigest()[:8]}"
+    return tagged_version("m5", json.dumps(asdict(choice), sort_keys=True))
 
 
 def _edge_flags(spec: M5Backtest, choice: Choice) -> dict[str, bool]:
@@ -881,13 +869,15 @@ def _chosen_details(ctx: _Context, player_part: FloatArray, choice: Choice) -> d
         ctx, player_part, choice.residual_half_life_days, choice.residual_ridge, choice.rest_ridge
     )
     details["rest_coefficients"] = {
-        season: {name: _round(float(v)) for name, v in zip(REST_COLUMNS, row, strict=True)}
+        season: {name: round_finite(float(v)) for name, v in zip(REST_COLUMNS, row, strict=True)}
         for season, row in _season_rows(ctx, coef, last=True).items()
     }
     if choice.form == "blend":
         _, weights = _blend_weights(ctx, core)
         details["blend_weights"] = {
-            season: {name: _round(float(w)) for name, w in zip(BLEND_COMPONENTS, row, strict=True)}
+            season: {
+                name: round_finite(float(w)) for name, w in zip(BLEND_COMPONENTS, row, strict=True)
+            }
             for season, row in _season_rows(ctx, weights, last=False).items()
         }
     return details
@@ -970,7 +960,7 @@ def _other_variants(sc: _Scoring, selection: _Selection, decision: _Decision) ->
             "choice": asdict(choice),
             "key": candidate_key(choice),
             "chosen": pick == selection.index,
-            "tuning_log_loss": _round(selection.table[pick][1]),
+            "tuning_log_loss": round_finite(selection.table[pick][1]),
             **{
                 split: _model_metrics(sc.ctx, pred, sc.scored[split] & _finite(pred))
                 for split in sc.splits
@@ -1110,7 +1100,7 @@ def run_m5_backtest(
             "validation": list(spec.validation),
             "test": list(spec.test),
         },
-        "data_sha256": _data_sha256(
+        "data_sha256": data_sha256(
             ctx.frame,
             inputs.team_games,
             inputs.player_games,
@@ -1123,24 +1113,26 @@ def run_m5_backtest(
             "objective": "mean log loss on the common tuning set",
             "size": len(selection.table),
             "common_tuning_games": int(selection.common.sum()),
-            "candidates": {candidate_key(c): _round(loss) for c, loss in selection.table},
+            "candidates": {candidate_key(c): round_finite(loss) for c, loss in selection.table},
             "best_on_edge": _edge_flags(spec, final),
         },
         "chosen": {
             "choice": asdict(final),
             "key": sc.key,
             **({"fixed": "the EuroLeague verdict (J-g), not chosen here"} if fixed else {}),
-            "tuning_log_loss": _round(selection.table[selection.index][1]),
+            "tuning_log_loss": round_finite(selection.table[selection.index][1]),
             "platt": {
                 "kept": final.platt,
-                "log_loss_with": _round(decision.platt_loss["with"]),
-                "log_loss_without": _round(decision.platt_loss["without"]),
+                "log_loss_with": round_finite(decision.platt_loss["with"]),
+                "log_loss_without": round_finite(decision.platt_loss["without"]),
                 "coefficients": platt_reported,
             },
             "total": {
                 "variant": final.total,
-                "tuning_crps": {name: _round(v) for name, v in decision.totals_crps.items()},
-                "tuning_sigma": {name: _round(v) for name, v in decision.totals_sigma.items()},
+                "tuning_crps": {name: round_finite(v) for name, v in decision.totals_crps.items()},
+                "tuning_sigma": {
+                    name: round_finite(v) for name, v in decision.totals_sigma.items()
+                },
             },
             "margin_model": {
                 "variant": m5.model.variant,
@@ -1166,9 +1158,6 @@ projected_for_option = _projected
 
 
 def format_m5_table(report: dict[str, Any]) -> str:
-    def cell(value: float | None, width: int, digits: int) -> str:
-        return f"{'-' if value is None else f'{value:.{digits}f}':>{width}}"
-
     chosen = report["chosen"]
     platt = "Platt" if chosen["platt"]["kept"] else "no Platt"
     lines = [
@@ -1183,10 +1172,10 @@ def format_m5_table(report: dict[str, Any]) -> str:
     for split, by_model in report["metrics"].items():
         for name, m in {**by_model, "oracle": report["oracle"][split]}.items():
             lines.append(
-                f"{split:<11}{name:<10}{m['n']:>5}{cell(m['log_loss'], 9, 4)}"
-                f"{cell(m['brier'], 8, 4)}{cell(m['margin_rmse'], 8, 3)}"
-                f"{cell(m['margin_crps'], 7, 2)}{cell(m['totals_mae'], 7, 2)}"
-                f"{cell(m['totals_crps'], 7, 2)}"
+                f"{split:<11}{name:<10}{m['n']:>5}{table_cell(m['log_loss'], 9, 4)}"
+                f"{table_cell(m['brier'], 8, 4)}{table_cell(m['margin_rmse'], 8, 3)}"
+                f"{table_cell(m['margin_crps'], 7, 2)}{table_cell(m['totals_mae'], 7, 2)}"
+                f"{table_cell(m['totals_crps'], 7, 2)}"
             )
     gate = report.get("gate")
     if gate is not None:

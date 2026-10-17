@@ -28,12 +28,12 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import GATE_V2_MARGIN, M7Backtest
+from eurohoops.eval.common import round_finite
 from eurohoops.eval.m7_backtest import (
     BASELINES,
     Z_LIMIT,
     M7Inputs,
     _metrics,
-    _round,
     _scores,
     cluster_bootstrap_ci,
     run_m7_backtest,
@@ -173,8 +173,8 @@ def evaluate(
     def rounded(diff: dict[str, Any]) -> dict[str, Any]:
         return {
             **diff,
-            "mean": _round(diff["mean"]),
-            "ci95": [_round(x) for x in diff["ci95"]],
+            "mean": round_finite(diff["mean"]),
+            "ci95": [round_finite(x) for x in diff["ci95"]],
         }
 
     block: dict[str, Any] = {
@@ -187,7 +187,7 @@ def evaluate(
                 "season": o.season,
                 "seen_seasons": list(o.seen),
                 "chosen": o.chosen,
-                "pooled_rps": {k: _round(v) for k, v in o.rps.items()},
+                "pooled_rps": {k: round_finite(v) for k, v in o.rps.items()},
             }
             for o in origins
         ],
@@ -207,10 +207,10 @@ def evaluate(
         },
         "brier_vs_point_sim": rounded(vs_point),
         "brier_vs_standings_now": rounded(vs_table),
-        "spiegelhalter_z_pooled": _round(pooled["z"]),
-        "brier_chosen": _round(pooled["brier"]),
-        "brier_point_sim": _round(_scores(point)["brier"]),
-        "brier_standings_now": _round(_scores(table)["brier"]),
+        "spiegelhalter_z_pooled": round_finite(pooled["z"]),
+        "brier_chosen": round_finite(pooled["brier"]),
+        "brier_point_sim": round_finite(_scores(point)["brier"]),
+        "brier_standings_now": round_finite(_scores(table)["brier"]),
         "criteria": criteria,
         "passed": criteria["passed"],
     }

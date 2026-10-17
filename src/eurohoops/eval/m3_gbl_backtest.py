@@ -23,12 +23,11 @@ import numpy.typing as npt
 import pandas as pd
 
 from eurohoops.config import M3, M3Backtest
+from eurohoops.eval.common import data_sha256, round_finite
 from eurohoops.eval.m3_backtest import (
     BaselineFn,
     Data,
-    _data_sha256,
     _model_metrics,
-    _round,
     b0_margin,
     build_rapm_inputs,
     m1_margins_for,
@@ -264,7 +263,7 @@ def run_m3_gbl_backtest(
     shares = projected_shares(frame, gbl_player_games, spec.projection_games)
     oracle = oracle_shares(frame, gbl_player_games)
     possessions = expected_possessions(frame, gbl_team_games)
-    snapshot = _data_sha256(frame, through(gbl_team_games, last), through(gbl_player_games, last))
+    snapshot = data_sha256(frame, through(gbl_team_games, last), through(gbl_player_games, last))
     data = Data(
         games=frame,
         margin=home - away,
@@ -359,18 +358,18 @@ def run_m3_gbl_backtest(
                 "EL SpmModel of the latest EL season whose fit time (its first round cutoff; "
                 "data strictly before it) is at or before the GBL round cutoff"
             ),
-            "k": _round(el.k),
-            "half_life_days": _round(el.half_life_days),
+            "k": round_finite(el.k),
+            "half_life_days": round_finite(el.half_life_days),
             "no_gbl_rapm_reason": NO_GBL_RAPM_REASON,
         },
         "el_spm_seasons_fitted": sorted(el.models),
         "transfer_params": {
-            "spm_transfer": {"h": _round(h)},
-            "spm_transfer_scaled": {"h": _round(h_scaled), "c": _round(c)},
+            "spm_transfer": {"h": round_finite(h)},
+            "spm_transfer_scaled": {"h": round_finite(h_scaled), "c": round_finite(c)},
         },
         "box_only_params": box_result.params,
         "pir_params": pir_result.params,
-        "b0": {"home_margin": _round(b0_home_margin)},
+        "b0": {"home_margin": round_finite(b0_home_margin)},
         "games_per_split": {
             split: {
                 "rated": int(data.split[split].sum()),

@@ -100,7 +100,7 @@ import pandera.pandas as pa
 from scipy import special
 
 from eurohoops.config import M6Backtest
-from eurohoops.eval.m3_backtest import _data_sha256
+from eurohoops.eval.common import data_sha256, round_finite, table_cell
 from eurohoops.eval.m7_backtest import checkpoint_cutoff
 from eurohoops.eval.metrics import crps_normal
 from eurohoops.models.aging import AgingCurve, aging_curve, apply
@@ -175,10 +175,6 @@ PLAYERS_SCHEMA = pa.DataFrameSchema(
     strict=True,
     ordered=True,
 )
-
-
-def _round(value: float | None) -> float | None:
-    return None if value is None or not math.isfinite(value) else round(float(value), 6)
 
 
 # --- Inputs, cells and the choice -----------------------------------------------------------------
@@ -268,12 +264,12 @@ def gate_block(
         "gated": gated,
         "variant": variant,
         "half_life": half_life,
-        "loss_chosen": _round(loss_chosen),
-        "loss_marcel": _round(loss_marcel),
-        "loss_same_as_last": _round(loss_same_as_last),
+        "loss_chosen": round_finite(loss_chosen),
+        "loss_marcel": round_finite(loss_marcel),
+        "loss_same_as_last": round_finite(loss_same_as_last),
         "loss_ok": loss_ok,
-        "coverage_pooled": {k: _round(v) for k, v in coverage.items()},
-        "coverage_validation": {k: _round(v) for k, v in (coverage_validation or {}).items()},
+        "coverage_pooled": {k: round_finite(v) for k, v in coverage.items()},
+        "coverage_validation": {k: round_finite(v) for k, v in (coverage_validation or {}).items()},
         "coverage_band": list(band),
         "coverage_ok": coverage_ok,
         "passed": passed,
@@ -1089,11 +1085,11 @@ def model_scores(rows: pd.DataFrame, stats: Sequence[str]) -> dict[str, Any]:
 
 def _rounded(scores: dict[str, Any]) -> dict[str, Any]:
     def each(values: dict[str, float | None] | None) -> dict[str, float | None] | None:
-        return None if values is None else {k: _round(v) for k, v in values.items()}
+        return None if values is None else {k: round_finite(v) for k, v in values.items()}
 
     return {
         "n": scores["n"],
-        "loss": _round(scores["loss"]),
+        "loss": round_finite(scores["loss"]),
         "mae": each(scores["mae"]),
         "coverage": each(scores["coverage"]),
         "crps": each(scores["crps"]),
@@ -1133,8 +1129,8 @@ def loss_difference(
         weight * diff, weight, cluster, spec.bootstrap_resamples, spec.bootstrap_seed
     )
     return {
-        "mean": _round(mean),
-        "ci95": [_round(low), _round(high)],
+        "mean": round_finite(mean),
+        "ci95": [round_finite(low), round_finite(high)],
         "clusters": int(cluster.max()) + 1,
         "resamples": spec.bootstrap_resamples,
         "seed": spec.bootstrap_seed,
@@ -1183,7 +1179,7 @@ def _data_hash(inputs: M6Inputs) -> str:
     frames = [
         f for comp in sorted(inputs.games) for f in (inputs.games[comp], inputs.player_games[comp])
     ]
-    return _data_sha256(*frames, inputs.xwalk, inputs.ages, inputs.brapm, translations)
+    return data_sha256(*frames, inputs.xwalk, inputs.ages, inputs.brapm, translations)
 
 
 def run_m6_backtest(
@@ -1353,7 +1349,7 @@ def _report(
         "checkpoints": list(spec.checkpoints),
         "min_poss": spec.min_poss,
         "interval": spec.interval,
-        "sd": {s: _round(v) for s, v in sds.items()},
+        "sd": {s: round_finite(v) for s, v in sds.items()},
         "grid": {
             "objective": "next-season projection loss on the tuning seasons",
             "variants": list(VARIANTS),
@@ -1394,7 +1390,7 @@ def _report(
         "rule": "D19: sd x sqrt(c), c the mean squared standardised error of the chosen cell's "
         "tuning forecasts; a tuning block uses the earlier tuning seasons, later blocks all "
         "of them",
-        "scale": {f"{f:g}": {k: _round(v) for k, v in c.items()} for f, c in scales.items()},
+        "scale": {f"{f:g}": {k: round_finite(v) for k, v in c.items()} for f, c in scales.items()},
     }
     report["movers"] = {
         name: {m: _mover_slice(nxt[(nxt["split"] == name) & (nxt["model"] == m)]) for m in models}
@@ -1419,7 +1415,10 @@ def _report(
 def _mover_slice(rows: pd.DataFrame) -> dict[str, Any]:
     movers = player_losses(rows)
     movers = movers[movers["mover"].astype(bool)]
-    return {"n": len(movers), "loss": _round(_weighted_mean(movers["loss"], movers["weight"]))}
+    return {
+        "n": len(movers),
+        "loss": round_finite(_weighted_mean(movers["loss"], movers["weight"])),
+    }
 
 
 def _gate(
@@ -1460,9 +1459,6 @@ def _gate(
 
 
 def format_m6_table(report: dict[str, Any]) -> str:
-    def cell(value: float | None, width: int, digits: int) -> str:
-        return f"{'-' if value is None else f'{value:.{digits}f}':>{width}}"
-
     chosen = report["chosen"]
     lines = [
         f"chosen: {chosen['variant']} half-life {chosen['half_life']:g} "
@@ -1473,7 +1469,7 @@ def format_m6_table(report: dict[str, Any]) -> str:
 
     def block(split: str, label: str, models: dict[str, Any]) -> None:
         for name, m in models.items():
-            lines.append(f"{split:<11}{label:<9}{name:<18}{m['n']:>6}{cell(m['loss'], 9, 4)}")
+            lines.append(f"{split:<11}{label:<9}{name:<18}{m['n']:>6}{table_cell(m['loss'], 9, 4)}")
 
     block("tuning", "next", report["tuning"]["next_season"])
     for split in ("validation", "test"):

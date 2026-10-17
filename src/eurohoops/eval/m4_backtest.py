@@ -32,6 +32,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from eurohoops.config import M4Backtest
+from eurohoops.eval.common import round_finite
 from eurohoops.models.box_impact import STAT_COLUMNS
 from eurohoops.models.translation import StatFit, fit_translation, fits_report, to_el, to_gbl
 
@@ -45,10 +46,6 @@ GATE_RULE = (
     "upper bound < 0; loss = EL-minutes-weighted mean of the per-mover mean over 11 stats of "
     "the squared error standardised by the stat's EL between-player sd (tuning seasons)"
 )
-
-
-def _round(value: float) -> float | None:
-    return None if not np.isfinite(value) else round(float(value), 6)
 
 
 def _gbl_cols() -> list[str]:
@@ -125,7 +122,7 @@ def net_offset(
         )
         for season in sorted(gbl.index.intersection(el.index)):
             gap = float(gbl.loc[season, "net"]) - float(el.loc[season, "net"])
-            rows.append({"club": el_team, "season": int(season), "gap": _round(gap)})
+            rows.append({"club": el_team, "season": int(season), "gap": round_finite(gap)})
     gaps = np.array([r["gap"] for r in rows], dtype=np.float64)
     if not len(gaps):
         return {"club_seasons": [], "mean": None, "ci95": [None, None]}
@@ -136,8 +133,8 @@ def net_offset(
         "label": "points per 100 possessions the average GBL team is below the average "
         "EuroLeague team, from PAO/OLY in both leagues (reported, not gated)",
         "club_seasons": rows,
-        "mean": _round(float(gaps.mean())),
-        "ci95": [_round(float(low)), _round(float(high))],
+        "mean": round_finite(float(gaps.mean())),
+        "ci95": [round_finite(float(low)), round_finite(float(high))],
         "resamples": resamples,
         "seed": seed,
     }
@@ -235,8 +232,8 @@ def person_bootstrap(
     stats = sums[draws].sum(axis=1) / wsum[draws].sum(axis=1)
     low, high = np.percentile(stats, [2.5, 97.5])
     return {
-        "mean": _round(float(sums.sum() / wsum.sum())),
-        "ci95": [_round(float(low)), _round(float(high))],
+        "mean": round_finite(float(sums.sum() / wsum.sum())),
+        "ci95": [round_finite(float(low)), round_finite(float(high))],
         "resamples": resamples,
         "seed": seed,
     }
@@ -247,9 +244,10 @@ def _split_block(scores: Sequence[SeasonScores]) -> dict[str, Any]:
     return {
         "n": len(table),
         "seasons": {str(s.season): len(s.movers) for s in scores},
-        "loss": {m: _round(weighted_loss(table, m)) for m in MODELS},
+        "loss": {m: round_finite(weighted_loss(table, m)) for m in MODELS},
         "per_season": {
-            str(s.season): {m: _round(weighted_loss(s.movers, m)) for m in MODELS} for s in scores
+            str(s.season): {m: round_finite(weighted_loss(s.movers, m)) for m in MODELS}
+            for s in scores
         },
     }
 
@@ -299,7 +297,7 @@ def run_m4_backtest(
             "test": list(spec.test),
         },
         "movers_gbl_to_el": {str(s): int(n) for s, n in sorted(movers.items())},
-        "sd": {k: _round(v) for k, v in sds.items()},
+        "sd": {k: round_finite(v) for k, v in sds.items()},
         "chosen": {"variant": chosen, "rule": choice_rule, "tuning_loss": tuning_block["loss"]},
         "metrics": {"tuning": tuning_block},
         "validation_scored": False,
@@ -349,7 +347,7 @@ def run_m4_backtest(
             "seasons": reverse_seasons,
             "n": len(reverse),
             "loss": {
-                m: _round(weighted_loss(reverse, m, "minutes_gbl"))
+                m: round_finite(weighted_loss(reverse, m, "minutes_gbl"))
                 for m in ("same_stats", "translate")
             },
         }

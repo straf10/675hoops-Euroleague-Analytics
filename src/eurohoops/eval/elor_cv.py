@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import ElorCv
+from eurohoops.eval.common import round6
 from eurohoops.eval.m7_backtest import cluster_bootstrap_ci
 from eurohoops.eval.metrics import per_game_log_loss
 from eurohoops.models import elo
@@ -46,10 +47,6 @@ from eurohoops.models.roster import (
     start_date_counts,
     unmatched_clubs,
 )
-
-
-def _round(value: float) -> float:
-    return round(float(value), 6)
 
 
 @dataclass(frozen=True)
@@ -151,15 +148,15 @@ def _metrics(p: np.ndarray, ctx: ElorContext, folds: tuple[int, ...]) -> dict[st
     per_season = {
         str(s): {
             "games": int((season == s).sum()),
-            "log_loss": _round(loss[season == s].mean()),
-            "brier": _round(brier[season == s].mean()),
+            "log_loss": round6(loss[season == s].mean()),
+            "brier": round6(brier[season == s].mean()),
         }
         for s in folds
         if (season == s).any()
     }
     return {
-        "log_loss": _round(loss.mean()),
-        "brier": _round(brier.mean()),
+        "log_loss": round6(loss.mean()),
+        "brier": round6(brier.mean()),
         "per_season": per_season,
     }
 
@@ -239,20 +236,20 @@ def run_cv(
         "elo": _metrics(p_elo, ctx, spec.folds),
         "settings": {s.key(): _metrics(probs[s.key()], ctx, spec.folds) for s in settings},
         "best": best_key,
-        "se_log_loss_gap_to_best": {k: _round(v) for k, v in se.items()},
-        "log_loss_gap_to_best": {k: _round(pooled[k] - pooled[best_key]) for k in pooled},
+        "se_log_loss_gap_to_best": {k: round6(v) for k, v in se.items()},
+        "log_loss_gap_to_best": {k: round6(pooled[k] - pooled[best_key]) for k in pooled},
         "within_one_se": within,
         "settings_within_one_se": len(within),
         "selected": {**asdict(selected), "key": selected.key()},
         "one_se_band": {
-            "best_log_loss": _round(pooled[best_key]),
-            "selected_log_loss": _round(pooled[selected.key()]),
-            "selected_gap_to_best": _round(pooled[selected.key()] - pooled[best_key]),
-            "selected_se": _round(se[selected.key()]),
+            "best_log_loss": round6(pooled[best_key]),
+            "selected_log_loss": round6(pooled[selected.key()]),
+            "selected_gap_to_best": round6(pooled[selected.key()] - pooled[best_key]),
+            "selected_se": round6(se[selected.key()]),
         },
         "selected_minus_elo": {
-            "mean": _round(mean),
-            "ci95": [_round(low), _round(high)],
+            "mean": round6(mean),
+            "ci95": [round6(low), round6(high)],
             "superior": bool(high < 0.0),
         },
         "shadow_criteria": {**criteria, "all": all(criteria.values())},
@@ -308,12 +305,12 @@ def roster_coverage(ctx: ElorContext, spec: ElorCv) -> dict[str, Any]:
         "scored_games": n,
         "min_rostered": spec.min_rostered,
         "both_sides_min_rostered": both,
-        "both_sides_min_rostered_share": _round(both / n) if n else math.nan,
+        "both_sides_min_rostered_share": round6(both / n) if n else math.nan,
         "rostered_slots": slots,
         "share_prior_slots": share_prior,
-        "share_prior_slots_share": _round(share_prior / slots) if slots else math.nan,
+        "share_prior_slots_share": round6(share_prior / slots) if slots else math.nan,
         "rating_prior_slots": rating_prior,
-        "rating_prior_slots_share": _round(rating_prior / slots) if slots else math.nan,
+        "rating_prior_slots_share": round6(rating_prior / slots) if slots else math.nan,
         "prior_available_games": int((ctx.scored & ctx.offsets.available).sum()),
     }
 
@@ -362,22 +359,22 @@ def prior_summary(ctx: ElorContext, spec: ElorCv) -> dict[str, Any]:
     first = ctx.scored & (ctx.rounds == 1) & ctx.offsets.available
     offs = np.concatenate([ctx.offsets.home[first], ctx.offsets.away[first]])
     return {
-        "margin_scale": {str(s): _round(ctx.scales[s]) for s in spec.folds if s in ctx.scales},
-        "round1_offset_sd": _round(float(np.std(offs))) if len(offs) else math.nan,
-        "round1_offset_abs_max": _round(float(np.abs(offs).max())) if len(offs) else math.nan,
+        "margin_scale": {str(s): round6(ctx.scales[s]) for s in spec.folds if s in ctx.scales},
+        "round1_offset_sd": round6(float(np.std(offs))) if len(offs) else math.nan,
+        "round1_offset_abs_max": round6(float(np.abs(offs).max())) if len(offs) else math.nan,
     }
 
 
 def priors_report(priors: dict[int, NewcomerPrior]) -> dict[str, dict[str, Any]]:
     return {
         str(s): {
-            "rating": _round(p.rating),
-            "anchor": _round(p.anchor),
-            "gap": _round(p.gap),
-            "all_mean": {str(k): _round(v) for k, v in sorted(p.all_mean.items())},
-            "share": _round(p.share),
+            "rating": round6(p.rating),
+            "anchor": round6(p.anchor),
+            "gap": round6(p.gap),
+            "all_mean": {str(k): round6(v) for k, v in sorted(p.all_mean.items())},
+            "share": round6(p.share),
             "rating_players": p.rating_players,
-            "rating_seconds": _round(p.rating_seconds),
+            "rating_seconds": round6(p.rating_seconds),
             "share_player_games": p.share_player_games,
             "history": [p.history[0], p.history[-1]] if p.history else [],
         }

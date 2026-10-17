@@ -24,6 +24,7 @@ import pandas as pd
 from scipy import special, stats
 
 from eurohoops.config import M3Backtest
+from eurohoops.eval.common import round6
 from eurohoops.eval.m3_backtest import RapmFitInputs, TunedRapm, fit_rapm
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.minutes import round_cutoffs
@@ -43,13 +44,9 @@ SNAPSHOT_SENTENCE = (
 )
 
 
-def _round6(value: float) -> float:
-    return round(float(value), 6)
-
-
 def _round_tree(obj: Any) -> Any:
     if isinstance(obj, float):
-        return _round6(obj) if math.isfinite(obj) else obj
+        return round6(obj) if math.isfinite(obj) else obj
     if isinstance(obj, dict):
         return {k: _round_tree(v) for k, v in obj.items()}
     if isinstance(obj, list):

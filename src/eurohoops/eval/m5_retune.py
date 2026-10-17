@@ -11,11 +11,11 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import M5Backtest, M5Grid, M5Retune
+from eurohoops.eval.common import round_finite
 from eurohoops.eval.m5_backtest import (
     M5Inputs,
     PlayerPartFn,
     _Option,
-    _round,
     prepare_context,
     projected_for_option,
 )
@@ -292,25 +292,25 @@ def run_retune(
         "addendum": retune.addendum,
         "folds": list(retune.folds),
         "scored_games": int(scored.sum()),
-        "settings": {s.key(): _round(per_setting_loss[s.key()]) for s in settings},
-        "se_log_loss_gap_to_best": {k: _round(v) for k, v in se_by_key.items()},
+        "settings": {s.key(): round_finite(per_setting_loss[s.key()]) for s in settings},
+        "se_log_loss_gap_to_best": {k: round_finite(v) for k, v in se_by_key.items()},
         "baseline": asdict(baseline),
         "selected": asdict(selected),
         "baseline_stands": selected.key() == baseline.key(),
         "pooled_log_loss": {
-            "baseline": _round(base_loss),
-            "selected": _round(sel_loss),
+            "baseline": round_finite(base_loss),
+            "selected": round_finite(sel_loss),
         },
         "selected_minus_baseline": {
-            "mean": _round(gap_mean),
-            "ci95": [_round(gap_low), _round(gap_high)],
+            "mean": round_finite(gap_mean),
+            "ci95": [round_finite(gap_low), round_finite(gap_high)],
         },
         "shadow_criteria": {
             "not_baseline": selected.key() != baseline.key(),
             "non_inferior": bool(gap_high < retune.shadow_log_loss_margin),
             "worth_it": bool(gap_mean <= -retune.shadow_log_loss_margin),
         },
-        "totals_crps_m1_rest": _round(totals_crps),
+        "totals_crps_m1_rest": round_finite(totals_crps),
     }
     detail = pd.DataFrame(rows)
     return report, detail

@@ -11,12 +11,10 @@ paired bootstrap CIs of the per-game differences in log loss, margin CRPS and to
 Test seasons are scored only with ``score_test`` (after the verdict is committed).
 """
 
-import hashlib
 import json
 import math
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from importlib.metadata import version
 from itertools import product
 from typing import Any
 
@@ -34,7 +32,8 @@ from eurohoops.eval.backtest import (
     totals_baseline,
     win_probabilities,
 )
-from eurohoops.eval.metrics import crps_normal, paired_bootstrap_ci, per_game_log_loss, score
+from eurohoops.eval.common import paired_ci, round6, tagged_version
+from eurohoops.eval.metrics import crps_normal, per_game_log_loss, score
 from eurohoops.eval.tracking import data_hash
 from eurohoops.models.elo import EloParams, FloatArray, prepare, replay
 from eurohoops.models.team_eff import (
@@ -54,10 +53,6 @@ LOPSIDED = 0.75  # comparison-Elo P(favourite) at or above this counts as a lops
 EARLY_ROUNDS = 5  # regular-season rounds 1-5 count as early season
 SPLITS = ("tuning", "validation", "test")
 BoolArray = npt.NDArray[np.bool_]
-
-
-def _round(value: float) -> float:
-    return round(float(value), 6)
 
 
 def _grid(grid: DecayGrid) -> list[DecayParams]:
@@ -80,13 +75,7 @@ def _ci(diff: FloatArray) -> dict[str, Any] | None:
     """Mean and paired bootstrap 95% CI; None for an empty split."""
     if not len(diff):
         return None
-    mean, low, high = paired_bootstrap_ci(diff, BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED)
-    return {
-        "mean": _round(mean),
-        "ci95": [_round(low), _round(high)],
-        "resamples": BOOTSTRAP_RESAMPLES,
-        "seed": BOOTSTRAP_SEED,
-    }
+    return paired_ci(diff, BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED)
 
 
 @dataclass(frozen=True)
@@ -107,9 +96,9 @@ def _metrics(
     n = int(mask.sum())
     return {
         **base,
-        "margin_crps": _round(pred.margin_crps[mask].mean()) if n else None,
-        "totals_mae": _round(np.abs(pred.total[mask] - total[mask]).mean()) if n else None,
-        "totals_crps": _round(pred.total_crps[mask].mean()) if n else None,
+        "margin_crps": round6(pred.margin_crps[mask].mean()) if n else None,
+        "totals_mae": round6(np.abs(pred.total[mask] - total[mask]).mean()) if n else None,
+        "totals_crps": round6(pred.total_crps[mask].mean()) if n else None,
     }
 
 
@@ -213,23 +202,23 @@ def tune(data: Data, spec: M1Backtest) -> Tuned:
         for variant, model in models.items()
     }
     chosen = min(VARIANTS, key=lambda v: (variant_loss[v], VARIANTS.index(v)))
-    totals_sigma = _round(np.sqrt(np.mean((data.total[tuning] - forecast.total[tuning]) ** 2)))
+    totals_sigma = round6(np.sqrt(np.mean((data.total[tuning] - forecast.total[tuning]) ** 2)))
     grids = {
         "pace": {
             **{axis: list(values) for axis, values in asdict(spec.pace_grid).items()},
             "size": len(pace_grid),
             "objective": "tuning MSE of possessions per 40 minutes",
-            "best": {**asdict(best_pace), "tuning_mse": _round(min(pace_mse))},
+            "best": {**asdict(best_pace), "tuning_mse": round6(min(pace_mse))},
             "best_on_edge": _decay_edges(spec.pace_grid, best_pace),
         },
         "rating": {
             **{axis: list(values) for axis, values in asdict(spec.rating_grid).items()},
             "size": len(rating_grid),
             "objective": "tuning log loss, Normal margin with tuning-RMS sigma",
-            "best": {**asdict(best_rating), "tuning_log_loss": _round(min(losses))},
+            "best": {**asdict(best_rating), "tuning_log_loss": round6(min(losses))},
             "best_on_edge": _decay_edges(spec.rating_grid, best_rating),
         },
-        "variant_tuning_log_loss": {v: _round(loss) for v, loss in variant_loss.items()},
+        "variant_tuning_log_loss": {v: round6(loss) for v, loss in variant_loss.items()},
     }
     return Tuned(best_pace, best_rating, forecast, models, chosen, totals_sigma, grids)
 
@@ -271,7 +260,7 @@ def baselines(games: pd.DataFrame, data: Data, spec: M1Backtest) -> Baselines:
     seasons = data.games["season"].to_numpy()
     baseline = {int(s): totals_baseline(games, int(s)) for s in np.unique(seasons)}
     total = np.array([baseline[int(s)] or np.nan for s in seasons], dtype=np.float64)
-    totals_sigma = _round(np.sqrt(np.nanmean((data.total[tuning] - total[tuning]) ** 2)))
+    totals_sigma = round6(np.sqrt(np.nanmean((data.total[tuning] - total[tuning]) ** 2)))
     total_crps = crps_normal(total, totals_sigma, data.total)
     b0_p = np.where(neutral, 0.5, b0_rate)
     b0_m = np.where(neutral, 0.0, b0_margin)
@@ -302,7 +291,7 @@ def baselines(games: pd.DataFrame, data: Data, spec: M1Backtest) -> Baselines:
             * len(spec.elo_grid.reversion),
             "best_on_edge": grid_edges(spec.elo_grid, params),
         },
-        b0_params={"home_win_rate": _round(b0_rate), "home_margin": _round(b0_margin)},
+        b0_params={"home_win_rate": round6(b0_rate), "home_margin": round6(b0_margin)},
         totals_sigma=totals_sigma,
     )
 
@@ -340,14 +329,14 @@ def _segments(m1: Predictions, elo: Predictions, data: Data, mask: BoolArray) ->
         n = int(sel.sum())
         out[name] = {
             "n": n,
-            "m1_log_loss": _round(per_game_log_loss(m1.p_home[sel], data.home_won[sel]).mean())
+            "m1_log_loss": round6(per_game_log_loss(m1.p_home[sel], data.home_won[sel]).mean())
             if n
             else None,
-            "elo_log_loss": _round(per_game_log_loss(elo.p_home[sel], data.home_won[sel]).mean())
+            "elo_log_loss": round6(per_game_log_loss(elo.p_home[sel], data.home_won[sel]).mean())
             if n
             else None,
-            "m1_margin_crps": _round(m1.margin_crps[sel].mean()) if n else None,
-            "elo_margin_crps": _round(elo.margin_crps[sel].mean()) if n else None,
+            "m1_margin_crps": round6(m1.margin_crps[sel].mean()) if n else None,
+            "elo_margin_crps": round6(elo.margin_crps[sel].mean()) if n else None,
         }
     return out
 
@@ -371,10 +360,10 @@ def heteroscedasticity(forecast: Forecast, data: Data, mask: BoolArray) -> dict[
     def row(i: int) -> dict[str, float]:
         z = float(beta[i] / se[i])
         return {
-            "coef": _round(beta[i]),
-            "se": _round(se[i]),
-            "z": _round(z),
-            "p_value": _round(math.erfc(abs(z) / math.sqrt(2.0))),
+            "coef": round6(beta[i]),
+            "se": round6(se[i]),
+            "z": round6(z),
+            "p_value": round6(math.erfc(abs(z) / math.sqrt(2.0))),
         }
 
     raw = data.margin[mask] - forecast.margin[mask]
@@ -392,15 +381,14 @@ def heteroscedasticity(forecast: Forecast, data: Data, mask: BoolArray) -> dict[
         "intercept": row(0),
         "expected_pace": row(1),
         "abs_expected_margin": row(2),
-        "pace_scaled_sigma_log_likelihood_ratio": _round(lr),
-        "pace_scaled_sigma_p_value": _round(math.erfc(math.sqrt(max(lr, 0.0) / 2.0))),
+        "pace_scaled_sigma_log_likelihood_ratio": round6(lr),
+        "pace_scaled_sigma_p_value": round6(math.erfc(math.sqrt(max(lr, 0.0) / 2.0))),
     }
 
 
 def model_version(tuned: Tuned) -> str:
     """Short hash of every tuned value the live predictor reads, plus the package version."""
-    key = json.dumps(tuned_block(tuned), sort_keys=True)
-    return f"{version('eurohoops')}+m1.{hashlib.sha256(key.encode()).hexdigest()[:8]}"
+    return tagged_version("m1", json.dumps(tuned_block(tuned), sort_keys=True))
 
 
 def tuned_block(tuned: Tuned) -> dict[str, Any]:

@@ -38,6 +38,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.common import round_finite
 from eurohoops.eval.m6_backtest import (
     M6Inputs,
     TargetInputs,
@@ -168,10 +169,6 @@ def inputs_digest(blocks: Sequence[TargetInputs]) -> str:
     return h.hexdigest()
 
 
-def _r(value: float) -> float | None:
-    return None if not math.isfinite(value) else round(float(value), DIGITS)
-
-
 def player_rows(
     projections: pd.DataFrame,
     seasons: pd.DataFrame,
@@ -188,7 +185,11 @@ def player_rows(
     for key in sorted(grouped):
         rows, row = grouped[key], meta[key]
         stats = {
-            str(r["stat"]): {"mean": _r(r["mean"]), "lo80": _r(r["lo80"]), "hi80": _r(r["hi80"])}
+            str(r["stat"]): {
+                "mean": round_finite(r["mean"], DIGITS),
+                "lo80": round_finite(r["lo80"], DIGITS),
+                "hi80": round_finite(r["hi80"], DIGITS),
+            }
             for r in rows
             if math.isfinite(r["mean"])
         }
@@ -202,7 +203,7 @@ def player_rows(
                 "name": names.get(key[0], key[0]),
                 "debut_season": int(row["debut_season"]),
                 "stats": stats,
-                "exposure": _r(float(pts["exposure"])),
+                "exposure": round_finite(float(pts["exposure"]), DIGITS),
                 "n_seasons": int(pts["n_seasons"]),
                 "flags": flags,
             }
@@ -272,10 +273,12 @@ def undervalued(
             "team": teams.get(ids[i], last_team[i]),
             "name": names.get(ids[i], ids[i]),
             "seasons_since_debut": int(since[i]),
-            "minutes": _r(float(mpg[i])),
+            "minutes": round_finite(float(mpg[i]), DIGITS),
             "projected_brapm": None,
-            "projected_spm": _r(float(value[i])),
-            "translated_el": {s: _r(float(translated[i, columns.index(s)])) for s in COUNT_STATS},
+            "projected_spm": round_finite(float(value[i]), DIGITS),
+            "translated_el": {
+                s: round_finite(float(translated[i, columns.index(s)]), DIGITS) for s in COUNT_STATS
+            },
             "reason": (
                 f"translated EuroLeague SPM {value[i]:+.1f} (GBL rotation top quarter: "
                 f">= {cut:+.1f}) at {mpg[i]:.1f} minutes per game in {last_season[i]}, "
@@ -331,18 +334,21 @@ def board_report(
         stab = stabilities[dim]
         k = None if not 0.0 < stab.r < 1.0 else stab.mean_n * (1.0 - stab.r) / stab.r
         dims[dim] = {
-            "stability": _r(stab.r),
+            "stability": round_finite(stab.r, DIGITS),
             "pairs": stab.pairs,
             "n_min": stab.n_min,
             "labelled": dim not in UNLABELLED,
-            "k": None if k is None else _r(k),
+            "k": None if k is None else round_finite(k, DIGITS),
         }
     out = []
     for r in rows.to_dict("records"):
         key = (str(r["person_id"]), str(r["competition"]))
         out.append(
             {
-                **{k: (_r(v) if isinstance(v, float) else v) for k, v in r.items()},
+                **{
+                    k: (round_finite(v, DIGITS) if isinstance(v, float) else v)
+                    for k, v in r.items()
+                },
                 "season": int(r["season"]),
                 "name": names.get(key[0], key[0]),
                 "team": teams.get(key, ""),
@@ -384,7 +390,7 @@ def similarity_report(
                 "competition": str(r["match_competition"]),
                 "season": int(r["match_season"]),
                 "name": names.get(match, match),
-                "score": _r(float(r["score"])),
+                "score": round_finite(float(r["score"]), DIGITS),
                 "query_season": int(r["season"]),
             }
         )

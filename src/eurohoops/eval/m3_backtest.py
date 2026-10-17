@@ -25,12 +25,10 @@ per-game values, so ``eval.metrics.paired_bootstrap_ci`` does not apply here).
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from importlib.metadata import version
 from typing import Any, Protocol
 
 import numpy as np
@@ -39,6 +37,7 @@ import pandas as pd
 from scipy import special
 
 from eurohoops.config import M3Backtest, M3Grid
+from eurohoops.eval.common import data_sha256, round_finite, tagged_version
 from eurohoops.eval.metrics import per_game_log_loss
 from eurohoops.models.box_impact import BaselineResult
 from eurohoops.models.elo import FloatArray
@@ -63,10 +62,6 @@ BoolArray = npt.NDArray[np.bool_]
 SPLITS = ("tuning", "validation", "test")
 
 
-def _round(value: float | None) -> float | None:
-    return None if value is None or not math.isfinite(value) else round(float(value), 6)
-
-
 # --- The comparison-model protocol (box_only/pir: models.box_impact) ----------------------------
 
 
@@ -85,14 +80,6 @@ class BaselineFn(Protocol):
 
 
 # --- Data preparation -----------------------------------------------------------------------
-
-
-def _data_sha256(*frames: pd.DataFrame) -> str:
-    """sha256 of every input table's canonical CSV, in the order given."""
-    digest = hashlib.sha256()
-    for frame in frames:
-        digest.update(frame.to_csv(index=False, lineterminator="\n").encode())
-    return digest.hexdigest()
 
 
 def through(table: pd.DataFrame, last: int) -> pd.DataFrame:
@@ -146,7 +133,7 @@ def prepare_data(
         shares=projected_shares(frame, player_games, spec.projection_games),
         oracle=oracle_shares(frame, player_games),
         possessions=expected_possessions(frame, team_games),
-        snapshot=_data_sha256(
+        snapshot=data_sha256(
             frame, *(through(t, last) for t in (team_games, player_games, stints, checks))
         ),
         player_games=player_games,
@@ -296,16 +283,16 @@ def tune_rapm(
         "shared_best": {
             "half_life_days": best_half_life,
             "ridge": best_shared_ridge,
-            "tuning_rmse": _round(shared_best_rmse),
+            "tuning_rmse": round_finite(shared_best_rmse),
         },
         "separate_o": {
             "ridge": best_o_ridge,
-            "tuning_rmse": _round(best_o_rmse),
+            "tuning_rmse": round_finite(best_o_rmse),
             "improved": o_improved,
         },
         "separate_d": {
             "ridge": best_d_ridge,
-            "tuning_rmse": _round(best_d_rmse),
+            "tuning_rmse": round_finite(best_d_rmse),
             "improved": d_improved,
         },
     }
@@ -410,7 +397,7 @@ def _model_metrics(margin: FloatArray, data: Data, scored: dict[str, BoolArray])
                 "rmse": None,
                 "mae": None,
                 "log_loss": None,
-                "sigma": _round(sigma),
+                "sigma": round_finite(sigma),
             }
             continue
         r = residual[mask]
@@ -420,10 +407,10 @@ def _model_metrics(margin: FloatArray, data: Data, scored: dict[str, BoolArray])
         log_loss = float(per_game_log_loss(p, data.home_won[mask]).mean())
         out[split] = {
             "n": int(mask.sum()),
-            "rmse": _round(rmse),
-            "mae": _round(mae),
-            "log_loss": _round(log_loss),
-            "sigma": _round(sigma),
+            "rmse": round_finite(rmse),
+            "mae": round_finite(mae),
+            "log_loss": round_finite(log_loss),
+            "sigma": round_finite(sigma),
         }
     return out
 
@@ -444,8 +431,8 @@ def rmse_diff_bootstrap_ci(
     rmse_b = np.sqrt((residual_b[idx] ** 2).mean(axis=1))
     low, high = np.percentile(rmse_a - rmse_b, [2.5, 97.5])
     return {
-        "mean": _round(point),
-        "ci95": [_round(float(low)), _round(float(high))],
+        "mean": round_finite(point),
+        "ci95": [round_finite(float(low)), round_finite(float(high))],
         "resamples": resamples,
         "seed": seed,
     }
@@ -462,7 +449,7 @@ def model_version(tuned: TunedRapm, chosen: str) -> str:
         },
         sort_keys=True,
     )
-    return f"{version('eurohoops')}+m3.{hashlib.sha256(key.encode()).hexdigest()[:8]}"
+    return tagged_version("m3", key)
 
 
 # --- The report -----------------------------------------------------------------------------
@@ -501,7 +488,7 @@ def run_m3_backtest(
         "half_life_days": chosen.half_life_days,
         "ridge_o": chosen.ridge_o,
         "ridge_d": chosen.ridge_d,
-        "tuning_rmse": _round(chosen.tuning_rmse),
+        "tuning_rmse": round_finite(chosen.tuning_rmse),
         **chosen.extra,
     }
     report: dict[str, Any] = {
@@ -565,7 +552,7 @@ def run_m3_backtest(
         }
         for split in splits
     }
-    report["b0"] = {"home_margin": _round(b0_home_margin)}
+    report["b0"] = {"home_margin": round_finite(b0_home_margin)}
     report["box_only_params"] = box_result.params
     report["pir_params"] = pir_result.params
     oracle_scored = {split: scored[split] & finite["rapm"] for split in splits}
