@@ -376,7 +376,7 @@ export const TERMS: GlossaryTerm[] = [
     id: "clutch",
     term: "Clutch",
     group: "Rates and samples",
-    def: "The last 5 minutes of the fourth quarter and all of any overtime (overtime included), with the score within 5 points. Shown: his minutes, his points, and his team's net per 100 possessions while he is on the floor.",
+    def: "The last 5 minutes of the fourth quarter, or at any point in overtime, with the score within 5 points. Shown: his minutes, his points, and his team's net per 100 possessions while he is on the floor.",
     shownOn: [PP],
   },
   {
