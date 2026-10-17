@@ -63,8 +63,8 @@ const cols = [
             <td class="num" data-k="o" data-v={p.o}>{signed(p.o)}</td>
             <td class="num" data-k="d" data-v={p.d}>{signed(p.d)}</td>
             <td class="num strong" data-k="total" data-v={p.total}>{signed(p.total)}</td>
-            <td class="num">{range(p.ci90_total)}</td>
             <td class="num" data-k="minutes" data-v={p.minutes}>{thousands(p.minutes)}</td>
+            <td class="num">{range(p.ci90_total)}</td>
           </tr>
         ))}
       </tbody>
