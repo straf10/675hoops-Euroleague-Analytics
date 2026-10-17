@@ -143,3 +143,25 @@ these margins is reported and not required. Failing the criteria means ELOC is n
 5. Criteria: margins of ±0.002 and the three-part rule above.
 6. Live: frozen `(a, b)`, shadow log `predictions/euroleague_eloc_2026-27.csv`, not displayed, behind
    `ELOC_LIVE_ENABLED = False`.
+
+## Result (run once, 2026-10-17, at c06c4c6): negative
+`reports/eloc_cv.json`, `reports/eloc_cv_games.csv`. 2,535 scored games; the Elo baseline matched
+ELOR's (0.605151).
+
+| | Log loss | Brier | ECE |
+|---|---|---|---|
+| Elo (2007 replay) | 0.605151 | 0.208911 | 0.021872 |
+| ELOC | 0.607589 | 0.209744 | 0.034228 |
+
+- Gap ELOC minus Elo: mean +0.002439, 95% CI [−0.002686, +0.007635]. Below Elo: no.
+  Non-inferior: no. Worth a version: no. **ELOC is not logged**; `ELOC_LIVE_ENABLED` stays `False`.
+- Every fold fits `b` above 1 (1.72 in 2015 falling to 1.32 in 2023) and `a` below 0 (−0.25 to
+  −0.09): on the 2007 replay Elo is under-confident, not over-confident, and the intercept moves
+  away from home wins, the opposite of the `diag_home_court` hypothesis. The fitted slope does not
+  carry forward: ELOC beats Elo in 2018, 2019 and 2023 and loses in the other six folds.
+- The 2007 replay's ECE on 2015–2023 (0.022) is less than half the published 2023-start Elo's test
+  ECE on 2025 (0.049). The seasons differ, so this is not a like-for-like comparison: the short
+  replay may explain part of the motivating miscalibration, but that is a hypothesis, not tested here.
+- Live fit, for the record only: `a` −0.063462, `b` 1.262976 (2011–2025, 4,189 games).
+- Per the run-once rule, no re-run and no other form under this protocol. A new idea (e.g. a longer
+  replay for the published log) needs its own protocol.

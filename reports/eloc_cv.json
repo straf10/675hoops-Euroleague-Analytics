@@ -1,0 +1,268 @@
+{
+  "model": "eloc",
+  "protocol": "docs/models/elo_calibrated.md (protocol v1)",
+  "git_head": "c06c4c6fc0f96243000f2ec235af8be6b6d97fc3",
+  "elo_params": {
+    "k": 20.0,
+    "hca": 90.0,
+    "reversion": 0.25
+  },
+  "elo_warmup": [
+    2007,
+    2008,
+    2009,
+    2010,
+    2011,
+    2012,
+    2013,
+    2014
+  ],
+  "folds": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+  ],
+  "fit_from": 2011,
+  "calibration": "p = sigmoid(a + b * logit(p_elo)); unpenalised maximum likelihood",
+  "bootstrap": {
+    "resamples": 10000,
+    "seed": 20261015
+  },
+  "scored_games": 2535,
+  "per_fold": {
+    "2015": {
+      "fit_seasons": [
+        2011,
+        2014
+      ],
+      "fit_games": 929,
+      "scored_games": 246,
+      "a": -0.251189,
+      "b": 1.718626,
+      "iterations": 5
+    },
+    "2016": {
+      "fit_seasons": [
+        2011,
+        2015
+      ],
+      "fit_games": 1175,
+      "scored_games": 255,
+      "a": -0.184889,
+      "b": 1.610129,
+      "iterations": 5
+    },
+    "2017": {
+      "fit_seasons": [
+        2011,
+        2016
+      ],
+      "fit_games": 1430,
+      "scored_games": 256,
+      "a": -0.161817,
+      "b": 1.530013,
+      "iterations": 5
+    },
+    "2018": {
+      "fit_seasons": [
+        2011,
+        2017
+      ],
+      "fit_games": 1686,
+      "scored_games": 256,
+      "a": -0.127507,
+      "b": 1.461729,
+      "iterations": 5
+    },
+    "2019": {
+      "fit_seasons": [
+        2011,
+        2018
+      ],
+      "fit_games": 1942,
+      "scored_games": 252,
+      "a": -0.130077,
+      "b": 1.46984,
+      "iterations": 5
+    },
+    "2020": {
+      "fit_seasons": [
+        2011,
+        2019
+      ],
+      "fit_games": 2194,
+      "scored_games": 324,
+      "a": -0.13358,
+      "b": 1.469472,
+      "iterations": 5
+    },
+    "2021": {
+      "fit_seasons": [
+        2011,
+        2020
+      ],
+      "fit_games": 2518,
+      "scored_games": 295,
+      "a": -0.139081,
+      "b": 1.382319,
+      "iterations": 5
+    },
+    "2022": {
+      "fit_seasons": [
+        2011,
+        2021
+      ],
+      "fit_games": 2813,
+      "scored_games": 324,
+      "a": -0.106295,
+      "b": 1.347716,
+      "iterations": 5
+    },
+    "2023": {
+      "fit_seasons": [
+        2011,
+        2022
+      ],
+      "fit_games": 3137,
+      "scored_games": 327,
+      "a": -0.093533,
+      "b": 1.317262,
+      "iterations": 5
+    }
+  },
+  "elo": {
+    "n": 2535,
+    "log_loss": 0.605151,
+    "brier": 0.208911,
+    "ece": 0.021872,
+    "per_season": {
+      "2015": {
+        "games": 246,
+        "log_loss": 0.589799,
+        "brier": 0.20228
+      },
+      "2016": {
+        "games": 255,
+        "log_loss": 0.608367,
+        "brier": 0.210417
+      },
+      "2017": {
+        "games": 256,
+        "log_loss": 0.602617,
+        "brier": 0.207309
+      },
+      "2018": {
+        "games": 256,
+        "log_loss": 0.568451,
+        "brier": 0.192401
+      },
+      "2019": {
+        "games": 252,
+        "log_loss": 0.587551,
+        "brier": 0.201777
+      },
+      "2020": {
+        "games": 324,
+        "log_loss": 0.65477,
+        "brier": 0.23004
+      },
+      "2021": {
+        "games": 295,
+        "log_loss": 0.608218,
+        "brier": 0.210753
+      },
+      "2022": {
+        "games": 324,
+        "log_loss": 0.624434,
+        "brier": 0.217867
+      },
+      "2023": {
+        "games": 327,
+        "log_loss": 0.587434,
+        "brier": 0.200931
+      }
+    }
+  },
+  "eloc": {
+    "n": 2535,
+    "log_loss": 0.607589,
+    "brier": 0.209744,
+    "ece": 0.034228,
+    "per_season": {
+      "2015": {
+        "games": 246,
+        "log_loss": 0.595543,
+        "brier": 0.204718
+      },
+      "2016": {
+        "games": 255,
+        "log_loss": 0.614112,
+        "brier": 0.212264
+      },
+      "2017": {
+        "games": 256,
+        "log_loss": 0.607992,
+        "brier": 0.208594
+      },
+      "2018": {
+        "games": 256,
+        "log_loss": 0.558093,
+        "brier": 0.188877
+      },
+      "2019": {
+        "games": 252,
+        "log_loss": 0.580288,
+        "brier": 0.200106
+      },
+      "2020": {
+        "games": 324,
+        "log_loss": 0.671733,
+        "brier": 0.233801
+      },
+      "2021": {
+        "games": 295,
+        "log_loss": 0.61166,
+        "brier": 0.212962
+      },
+      "2022": {
+        "games": 324,
+        "log_loss": 0.627682,
+        "brier": 0.219593
+      },
+      "2023": {
+        "games": 327,
+        "log_loss": 0.583905,
+        "brier": 0.199726
+      }
+    }
+  },
+  "eloc_minus_elo": {
+    "mean": 0.002439,
+    "ci95": [
+      -0.002686,
+      0.007635
+    ]
+  },
+  "shadow_criteria": {
+    "below_elo": false,
+    "non_inferior": false,
+    "worth_a_version": false,
+    "all": false
+  },
+  "live_fit": {
+    "a": -0.063462,
+    "b": 1.262976,
+    "seasons": [
+      2011,
+      2025
+    ],
+    "games": 4189,
+    "iterations": 5
+  }
+}
