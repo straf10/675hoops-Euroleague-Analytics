@@ -7,7 +7,8 @@ import { clubIndex, defaultSeason, meta, published, season, type TeamIndexRow } 
 import { clubRowsHtml, type ClubCells } from "../../lib/clubs";
 import { tip } from "../../lib/tip";
 import { GROUPS, colsHtml } from "../../lib/cols";
-import { clubCells } from "../../lib/team";
+import { clubCells, clubPlot } from "../../lib/team";
+import { paceChart, ratingsChart, type ClubPlot } from "../../lib/scatter";
 import raw from "../../data/site.json";
 import type { SiteData } from "../../lib/format";
 
@@ -18,14 +19,15 @@ const tables = m
   ? await Promise.all(
       [...m.seasons].reverse().map(async (s) => {
         const data = await season(s.season, "teams");
-        return { s, rows: clubCells(data.fields, data.teams) };
+        return { s, rows: clubCells(data.fields, data.teams), plot: clubPlot(data.fields, data.teams, data.league) };
       }),
     )
   : [];
 const shown = tables.find(({ s }) => s.season === open);
 // Only the open season is in the page; the switch draws the others from these cells.
-const others: Record<string, [string, ClubCells[]]> = Object.fromEntries(
-  tables.filter((t) => t !== shown).map(({ s, rows }) => [s.season, [s.label, rows]]),
+// The charts' points come from the same factors, so the season switch redraws them from this too.
+const others: Record<string, [string, ClubCells[], ClubPlot]> = Object.fromEntries(
+  tables.filter((t) => t !== shown).map(({ s, rows, plot }) => [s.season, [s.label, rows, plot]]),
 );
 const clubs = await clubIndex();
 // EuroLeague titles, all-time since 1958, by display code (clubs with at least one).
@@ -100,6 +102,33 @@ const COLS = [
   }
 
   {
+    shown && (
+      <section class="wrap band" aria-labelledby="charts-title">
+        <header class="sec-head">
+          <h2 id="charts-title">Offence, defence and pace</h2>
+          <p>One dot per club for the season selected above, from the same ratings as the table.</p>
+        </header>
+        <div class="charts">
+          <figure class="panel">
+            <figcaption class="cap">
+              <h3>Offence against defence</h3>
+              <p>Up and right is better: the defensive axis is reversed. Dashed lines are the league average; the diagonal is net 0.</p>
+            </figcaption>
+            <div id="ratings-chart" set:html={ratingsChart(shown.plot, shown.s.label)} />
+          </figure>
+          <figure class="panel">
+            <figcaption class="cap">
+              <h3>Pace against net rating</h3>
+              <p>Right is faster, up is better. Dashed lines are the league pace and net 0.</p>
+            </figcaption>
+            <div id="pace-chart" set:html={paceChart(shown.plot, shown.s.label)} />
+          </figure>
+        </div>
+      </section>
+    )
+  }
+
+  {
     clubs.length > 0 && (
       <section class="wrap band" aria-labelledby="all-title">
         <header class="sec-head">
@@ -146,20 +175,79 @@ const COLS = [
 
 <script>
   import { clubRowsHtml, type ClubCells } from "../../lib/clubs";
+  import { paceChart, ratingsChart, type ClubPlot } from "../../lib/scatter";
 
   const select = document.getElementById("season") as HTMLSelectElement | null;
   const box = document.getElementById("clubs");
+  const ratings = document.getElementById("ratings-chart");
+  const pace = document.getElementById("pace-chart");
   if (select && box) {
-    const others = JSON.parse(box.dataset.others!) as Record<string, [string, ClubCells[]]>;
+    const others = JSON.parse(box.dataset.others!) as Record<string, [string, ClubCells[], ClubPlot]>;
     const caption = box.querySelector("caption")!;
     const body = box.querySelector("tbody")!;
-    const open = [caption.textContent!, body.innerHTML];
+    const open = [caption.textContent!, body.innerHTML, ratings?.innerHTML ?? "", pace?.innerHTML ?? ""];
     select.addEventListener("change", () => {
       const s = others[select.value];
-      [caption.textContent, body.innerHTML] = s ? [`${s[0]} clubs by net rating`, clubRowsHtml(box.dataset.base!, Number(select.value), s[1])] : open;
+      if (s) {
+        caption.textContent = `${s[0]} clubs by net rating`;
+        body.innerHTML = clubRowsHtml(box.dataset.base!, Number(select.value), s[1]);
+        if (ratings) ratings.innerHTML = ratingsChart(s[2], s[0]);
+        if (pace) pace.innerHTML = paceChart(s[2], s[0]);
+      } else {
+        caption.textContent = open[0];
+        body.innerHTML = open[1];
+        if (ratings) ratings.innerHTML = open[2];
+        if (pace) pace.innerHTML = open[3];
+      }
     });
   }
 </script>
+
+<style is:global>
+  /* The scatter SVG is built in lib/scatter.ts and also swapped in by the season switch, so its
+   * classes are global rather than scoped to this page. */
+  .scatter {
+    display: block;
+    width: 100%;
+    max-width: 460px;
+    height: auto;
+    overflow: visible;
+  }
+  .scatter .plot {
+    fill: var(--surface);
+  }
+  .scatter .grid line {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .scatter .ref {
+    stroke: var(--ink-2);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    opacity: 0.6;
+  }
+  .scatter .zero {
+    stroke: var(--ink-2);
+    stroke-width: 1;
+    opacity: 0.35;
+  }
+  .scatter .tick,
+  .scatter .axis {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .scatter .pt circle {
+    fill: var(--data-2);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .scatter .pt text {
+    fill: var(--ink-2);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
 
 <style>
   .code,
@@ -218,6 +306,29 @@ const COLS = [
   .all a:focus-visible {
     outline: 2px solid var(--data-1);
     outline-offset: 2px;
+  }
+  .charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    gap: 48px 56px;
+  }
+  .panel {
+    margin: 0;
+    min-width: 0;
+  }
+  .cap {
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .cap h3 {
+    font-size: 1.0625rem;
+  }
+  .cap p {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    max-width: 60ch;
   }
   @media (max-width: 560px) {
     /* Long club names wrap so Net, the ranking, stays on screen. */

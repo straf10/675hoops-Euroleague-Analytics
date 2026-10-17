@@ -10,6 +10,7 @@ import { dataTip, tip } from "./tip";
 import { SEASON_COLS, bandRows, totalsOf, type Totals } from "./player";
 import type { ClubLine, TeamSeason } from "./stats";
 import type { ClubCells } from "./clubs";
+import type { ClubPlot } from "./scatter";
 
 /** Ratings and four factors of one side, from its totals and its opponents'. */
 export function factors(fields: string[], own: number[], against: number[]) {
@@ -223,4 +224,16 @@ export function clubCells(fields: string[], teams: ClubLine[]): ClubCells[] {
     .map((t) => ({ t, f: factors(fields, t.totals, t.opp) }))
     .sort((a, b) => b.f.net - a.f.net)
     .map(({ t, f }) => [t.code, t.name, `${t.w}–${t.l}`, f.ortg.toFixed(1), f.drtg.toFixed(1), signed(f.net), f.pace.toFixed(1)]);
+}
+
+/** The same factors as clubCells, unrounded, for the index charts; the league line is the league's own totals. */
+export function clubPlot(fields: string[], teams: ClubLine[], league: { totals: number[] }): ClubPlot {
+  const lg = factors(fields, league.totals, league.totals);
+  return {
+    league: { ortg: lg.ortg, drtg: lg.drtg, pace: lg.pace },
+    clubs: teams.map((t) => {
+      const f = factors(fields, t.totals, t.opp);
+      return { code: t.code, name: t.name, ortg: f.ortg, drtg: f.drtg, net: f.net, pace: f.pace };
+    }),
+  };
 }
