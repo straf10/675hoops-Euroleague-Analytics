@@ -128,6 +128,9 @@ class Competition:
     m1_prediction_log: Path | None = None  # live M1 log (E-g), separate from the Elo log
     m5_prediction_log: Path | None = None  # live M5 shadow log (EuroLeague only; not gated for GBL)
     elor_prediction_log: Path | None = None  # live ELOR shadow log (EuroLeague only)
+    eloc_prediction_log: Path | None = (
+        None  # live ELOC shadow log (EuroLeague only; see ELOC_LIVE_ENABLED)
+    )
 
     @property
     def raw_dir(self) -> Path:
@@ -182,6 +185,7 @@ EUROLEAGUE = Competition(
     m1_prediction_log=Path("predictions/euroleague_m1_2026-27.csv"),
     m5_prediction_log=Path("predictions/euroleague_m5_2026-27.csv"),
     elor_prediction_log=Path("predictions/euroleague_elor_2026-27.csv"),
+    eloc_prediction_log=Path("predictions/euroleague_eloc_2026-27.csv"),
 )
 
 GBL_ELO_GRID = Grid(
@@ -445,6 +449,42 @@ ELOR_CV = ElorCv(
     elo_warmup=_seasons(2007, 2014),
     folds=_seasons(2015, 2023),
 )
+# Calibrated Elo (ELOC, docs/models/elo_calibrated.md). The shadow log stays off until the owner
+# approves the protocol and flips this flag: predict then writes nothing for ELOC.
+ELOC_LIVE_ENABLED = False
+
+
+@dataclass(frozen=True)
+class ElocCv:
+    """ELOC protocol v1 (docs/models/elo_calibrated.md): rolling-origin CV, run once.
+
+    Fixed before any fold is scored: the folds, the calibration fit window (seasons ``fit_from``
+    up to the fold season, exclusive), the live fit window, the bootstrap and the criteria.
+    There is no grid: (a, b) are the unpenalised maximum-likelihood fit, nothing is tuned."""
+
+    report: Path
+    games_report: Path
+    elo_warmup: tuple[int, ...]
+    folds: tuple[int, ...]
+    fit_from: int
+    live_fit_seasons: tuple[int, int]  # inclusive; the frozen live (a, b) fit on these seasons
+    elo_params: EloParams = ELOR_ELO_PARAMS  # the published flagship's; never searched
+    bootstrap_resamples: int = 10000
+    bootstrap_seed: int = 20261015
+    shadow_log_loss_margin: float = 0.002
+    protocol: str = "docs/models/elo_calibrated.md (protocol v1)"
+
+
+ELOC_CV = ElocCv(
+    Path("reports/eloc_cv.json"),
+    Path("reports/eloc_cv_games.csv"),
+    elo_warmup=_seasons(2007, 2014),
+    folds=_seasons(2015, 2023),
+    fit_from=2011,
+    live_fit_seasons=(2011, LIVE_SEASON - 1),
+)
+
+
 M5_GBL = M5Backtest(
     Path("reports/backtest_m5_gbl.json"),
     Path("reports/backtest_m5_gbl_games.csv"),

@@ -32,6 +32,7 @@ from eurohoops.cli.backtest import (
 )
 from eurohoops.config import (
     COMPETITIONS,
+    ELOC_CV,
     ELOR_CV,
     EUROLEAGUE,
     GBL,
@@ -65,6 +66,7 @@ from eurohoops.eval.m6_backtest import M6Inputs, TargetInputs, World, prepare
 from eurohoops.eval.scorecard import build_scorecard
 from eurohoops.ingest.http import make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
+from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
 from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import live_spec, load_m5, predict_upcoming_m5
@@ -321,6 +323,28 @@ class _LiveFrame:
         )
 
 
+def _predict_eloc(games: pd.DataFrame, season: int, comp: Competition, window_hours: float) -> None:
+    """The ELOC shadow log: off unless ELOC_LIVE_ENABLED (config.py) is set, and then it needs
+    its CV report. A shadow model never blocks the Elo and M1 logs."""
+    eloc = load_eloc(ELOC_CV.report) if eloc_logging_on(comp) else None
+    if eloc is None or comp.eloc_prediction_log is None:
+        return
+    try:
+        added = predict_upcoming_eloc(
+            games,
+            eloc,
+            log_path=comp.eloc_prediction_log,
+            season=season,
+            window=timedelta(hours=window_hours),
+            clock=utc_now,
+        )
+        typer.echo(f"{added} ELOC predictions appended to {comp.eloc_prediction_log}")
+    except LatePredictionError:
+        raise
+    except Exception:
+        log.exception("ELOC skipped: its forecast failed; nothing appended to its log")
+
+
 def predict(
     competition: CompetitionOption = CompetitionName.euroleague,
     window_hours: Annotated[float, typer.Option(help="Predict games tipping off within")] = 36.0,
@@ -391,6 +415,7 @@ def predict(
                 raise
             except Exception:
                 log.exception("ELOR skipped: its forecast failed; nothing appended to its log")
+        _predict_eloc(live.games, live.season, comp, window_hours)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc

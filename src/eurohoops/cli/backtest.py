@@ -15,6 +15,7 @@ from eurohoops import research
 from eurohoops.cli._shared import CompetitionName, CompetitionOption, ModelName, _live, log
 from eurohoops.config import (
     COMPETITIONS,
+    ELOC_CV,
     ELOR_CV,
     EUROLEAGUE,
     GBL,
@@ -41,6 +42,7 @@ from eurohoops.config import (
     M6Backtest,
     M7Backtest,
 )
+from eurohoops.eval import eloc_cv
 from eurohoops.eval.backtest import format_table, run_backtest
 from eurohoops.eval.elor_cv import ElorInputs, cv_check, run_cv
 from eurohoops.eval.m1_backtest import format_m1_table, run_m1_backtest
@@ -95,7 +97,7 @@ from eurohoops.models.board import (
     stability,
 )
 from eurohoops.models.box_impact import STAT_COLUMNS, BoxGrid, box_only_margins, pir_margins
-from eurohoops.models.elo import FloatArray
+from eurohoops.models.elo import EloParams, FloatArray
 from eurohoops.models.elor import Appearances, NewcomerPrior, WalkForwardRatings, newcomer_priors
 from eurohoops.models.minutes import expected_possessions
 from eurohoops.models.player_part import (
@@ -371,14 +373,62 @@ def _elor_live_priors() -> dict[int, NewcomerPrior]:
     return newcomer_priors(appearances, source.at_season_end, [*ELOR_CV.folds, LIVE_SEASON])
 
 
-def _live_elo_params_match() -> bool:
+def _live_elo_params_match(params: EloParams = ELOR_CV.elo_params) -> bool:
     report = EUROLEAGUE.live_backtest.report
     if not report.exists():
         return False
     tuned = json.loads(report.read_text(encoding="utf-8"))["tuned"]
     live = (float(tuned["k"]), float(tuned["hca"]), float(tuned["reversion"]))
-    params = ELOR_CV.elo_params
     return live == (params.k, params.hca, params.reversion)
+
+
+def _eloc_games() -> pd.DataFrame:
+    """ELOC's input: the EuroLeague games mart (Elo's replay and the calibration seasons)."""
+    return read_games(MART_PATH, EUROLEAGUE.name)
+
+
+def _cv_backtest(
+    model: ModelName, competition: CompetitionName, cv: bool, check_only: bool
+) -> None:
+    """ELOR and ELOC: exactly one of --cv or --cv-check, EuroLeague only."""
+    if model not in (ModelName.elor, ModelName.eloc) or cv == check_only:
+        log.error("%s runs as --model %s with exactly one of --cv or --cv-check", model, model)
+        raise typer.Exit(code=1)
+    if competition is not CompetitionName.euroleague:
+        log.error("%s is the EuroLeague's", model.upper())
+        raise typer.Exit(code=1)
+    if model is ModelName.eloc:
+        _backtest_eloc(check_only=check_only)
+    else:
+        _backtest_elor(check_only=check_only)
+
+
+def _backtest_eloc(check_only: bool) -> None:
+    """``backtest --model eloc --cv`` or ``--cv-check`` (docs/models/elo_calibrated.md)."""
+    if not _live_elo_params_match(ELOC_CV.elo_params):
+        log.error("ELOC's fixed Elo parameters differ from %s", EUROLEAGUE.live_backtest.report)
+        raise typer.Exit(code=1)
+    if not check_only:
+        if ELOC_CV.report.exists():
+            log.error("refusing to run: %s already exists", ELOC_CV.report)
+            raise typer.Exit(code=1)
+        if not is_clean_tree():
+            log.error("refusing to run: the working tree is not clean")
+            raise typer.Exit(code=1)
+        if not _on_origin_main():
+            log.error("refusing to run: HEAD is not the same as origin/main")
+            raise typer.Exit(code=1)
+    started = time.perf_counter()
+    games = _eloc_games()
+    if check_only:
+        typer.echo(json.dumps(eloc_cv.cv_check(games, ELOC_CV), indent=2))
+        typer.echo(f"RUNTIME backtest eloc cv-check: {time.perf_counter() - started:.0f} s")
+        return
+    report, detail = eloc_cv.run_cv(games, spec=ELOC_CV, git_head=git_head_sha())
+    write_json(ELOC_CV.report, report)
+    detail.to_csv(ELOC_CV.games_report, index=False, lineterminator="\n")
+    typer.echo(f"{ELOC_CV.report}\n{json.dumps(report['shadow_criteria'], indent=2)}")
+    typer.echo(f"RUNTIME backtest eloc cv: {time.perf_counter() - started:.0f} s")
 
 
 def _backtest_elor(check_only: bool) -> None:
@@ -786,7 +836,7 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
         typer.Option(
             help=(
                 "elo (live), elor (roster prior CV), m1, m2, m3 (players), m4, m5 (roster), "
-                "m6 (projections), m7 (season)"
+                "m6 (projections), m7 (season), eloc (calibrated Elo CV: --cv or --cv-check)"
             )
         ),
     ] = ModelName.elo,
@@ -830,14 +880,8 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
     ] = False,
 ) -> None:
     """Tune and score a model vs its baselines; the Elo live report holds the live parameters."""
-    if cv or cv_check_only or model is ModelName.elor:
-        if model is not ModelName.elor or cv == cv_check_only:
-            log.error("ELOR runs as --model elor with exactly one of --cv or --cv-check")
-            raise typer.Exit(code=1)
-        if competition is not CompetitionName.euroleague:
-            log.error("ELOR is the EuroLeague's")
-            raise typer.Exit(code=1)
-        _backtest_elor(check_only=cv_check_only)
+    if cv or cv_check_only or model in (ModelName.elor, ModelName.eloc):
+        _cv_backtest(model, competition, cv, cv_check_only)
         return
     if retune or retune_check:
         if model is not ModelName.m5:

@@ -25,6 +25,7 @@ class CompetitionName(StrEnum):
 class ModelName(StrEnum):
     elo = "elo"
     elor = "elor"
+    eloc = "eloc"
     m1 = "m1"
     m2 = "m2"
     m3 = "m3"
