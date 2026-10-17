@@ -23,10 +23,6 @@ const fc = comp.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
 const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
 const season = fc?.season.find((r) => r.model === model);
-const market = fc?.market ?? null;
-const marketName = market?.label ?? "Bookmakers";
-const acc = fc?.accuracy ?? [];
-const both = acc.at(-1)?.to_date ?? null;
 const ours: Headline | null = season
   ? {
       n: season.n,
@@ -37,8 +33,6 @@ const ours: Headline | null = season
       log_loss: season.log_loss,
     }
   : null;
-const sameGames = both !== null && ours !== null && both.model.n !== ours.n;
-
 const keyOf = (g: FcGame) => groupKey(g.phase, g.phase === "RS" ? g.round : null);
 const called = fc && model ? fc.games.filter((g) => g.models[model]) : [];
 const latestKey = called.length ? keyOf(called[0]) : null;
@@ -46,7 +40,6 @@ const latest = called.filter((g) => keyOf(g) === latestKey);
 const latestName = called.length ? groupLabel(called[0].phase, called[0].phase === "RS" ? called[0].round : null) : "";
 
 const rounds = fc && model ? [...fc.rounds].reverse().filter((g) => g.models[model]) : [];
-const lineOf = (phase: string, round: number | null) => acc.find((a) => a.phase === phase && a.round === round);
 // Every model with a scored round, the published one first: a side-by-side view, not a verdict.
 const roundModels = fc && model
   ? [model, ...fc.models.map((m) => m.key).filter((k) => k !== model && rounds.some((g) => g.models[k]))]
@@ -75,28 +68,6 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
               Picked the winner in <b>{rightText(ours)}</b> games
             </p>
           </div>
-          {market && both && (
-            <div class="stat">
-              <p class="who">Against the bookmakers</p>
-              <div class="pair">
-                <div>
-                  <p class="mid">{share(both.model.right_pct)}</p>
-                  <p class="what">
-                    {label}: <b>{rightText(both.model)}</b>
-                  </p>
-                </div>
-                <div>
-                  <p class="mid">{share(both.market.right_pct)}</p>
-                  <p class="what">
-                    {marketName}: <b>{rightText(both.market)}</b>
-                  </p>
-                </div>
-              </div>
-              <p class="aside">
-                Picked the winner, on the {both.games} games with a bookmakers' line.
-              </p>
-            </div>
-          )}
         </section>
 
         <Tonight comp={comp} />
@@ -112,7 +83,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
         <section aria-labelledby={`fc-season-${comp.key}`}>
           <h3 id={`fc-season-${comp.key}`}>Season scores</h3>
           <p class="sub">
-            {both ? `On the ${both.games} games with a bookmaker line.` : `On all ${ours.n} finished games.`}
+            {`On all ${ours.n} finished games.`}
           </p>
           <div class="scroll">
             <table class="plain">
@@ -147,46 +118,18 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                 </tr>
               </thead>
               <tbody>
-                {both && (
-                  <>
-                    <tr>
-                      <th scope="row">{label}</th>
-                      <td class="n">{both.model.n}</td>
-                      <td class="n">
-                        {rightText(both.model)} ({share(both.model.right_pct)})
-                      </td>
-                      <td class="n">{score3(both.model.brier)}</td>
-                      <td class="n">{score3(both.model.log_loss)}</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">{marketName}</th>
-                      <td class="n">{both.market.n}</td>
-                      <td class="n">
-                        {rightText(both.market)} ({share(both.market.right_pct)})
-                      </td>
-                      <td class="n">{score3(both.market.brier)}</td>
-                      <td class="n">{score3(both.market.log_loss)}</td>
-                    </tr>
-                  </>
-                )}
-                {(!both || sameGames) && (
-                  <tr>
-                    <th scope="row">
-                      {label}
-                      {both ? ", every game" : ""}
-                    </th>
-                    <td class="n">{ours.n}</td>
-                    <td class="n">
-                      {rightText(ours)} ({share(ours.right_pct)})
-                    </td>
-                    <td class="n">{score3(ours.brier)}</td>
-                    <td class="n">{score3(ours.log_loss)}</td>
-                  </tr>
-                )}
+                <tr>
+                  <th scope="row">{label}</th>
+                  <td class="n">{ours.n}</td>
+                  <td class="n">
+                    {rightText(ours)} ({share(ours.right_pct)})
+                  </td>
+                  <td class="n">{score3(ours.brier)}</td>
+                  <td class="n">{score3(ours.log_loss)}</td>
+                </tr>
               </tbody>
             </table>
           </div>
-          {!market && <p class="note">No bookmaker line is recorded for these games yet.</p>}
         </section>
 
         {others && (
@@ -237,7 +180,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
           <h3 id={`fc-rounds-${comp.key}`}>Round by round</h3>
           <p class="sub">
             Newest first. Each cell is the winners picked, then the Brier score (lower is better). Every model
-            is counted on the games it called; {marketName} on the games with a recorded line.
+            is counted on the games it called.
           </p>
           <div class="scroll">
             <table class="plain">
@@ -255,16 +198,10 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                       {k === model ? label : labelOf(k)}
                     </th>
                   ))}
-                  {market && (
-                    <th scope="col" class="n">
-                      {marketName}
-                    </th>
-                  )}
                 </tr>
               </thead>
               <tbody>
                 {rounds.map((g) => {
-                  const m = lineOf(g.phase, g.round)?.market;
                   return (
                     <tr>
                       <th scope="row">{groupLabel(g.phase, g.round)}</th>
@@ -284,18 +221,6 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                           </td>
                         );
                       })}
-                      {market && (
-                        <td class="n">
-                          {m ? (
-                            <>
-                              {rightText(m)}
-                              <span class="bri">{score3(m.brier)}</span>
-                            </>
-                          ) : (
-                            dash
-                          )}
-                        </td>
-                      )}
                     </tr>
                   );
                 })}

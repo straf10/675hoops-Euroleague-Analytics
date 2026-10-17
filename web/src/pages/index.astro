@@ -15,17 +15,15 @@ const data = raw as SiteData;
 const comps = data.competitions;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const description =
-  "EuroLeague win forecasts, scored against a home-win baseline and the bookmakers' closing line.";
+  "EuroLeague win forecasts, scored against a home-win baseline and pre-registered in public.";
 
 // The headline is the published model's record on the games it called before tip-off, the same
-// figures as the forecast record page. The bookmakers are on the games with a closing line.
+// figures as the forecast record page.
 const main = comps[0];
 const fc = main.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
 const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
 const ours = fc?.season.find((r) => r.model === model) ?? null;
-const both = fc?.accuracy.at(-1)?.to_date ?? null;
-const marketName = fc?.market?.label ?? "Bookmakers";
 const held = main.backtest;
 const gap = held.log_loss_diff;
 const live = main.scorecard;
@@ -46,7 +44,7 @@ const margins: MarginGame[] = finished.map((g, i) => ({
 }));
 const games = finished.length;
 const homeWins = (fc?.games ?? []).filter((g) => model && g.models[model] && g.home_score > g.away_score).length;
-// Same games, three ways. The bookmakers only have a line on some games, so their row says how many.
+// Same games, two ways.
 const b0 = live.b0;
 const scoreRows = [
   ours && { name: label, n: ours.n, hit: share(ours.right_pct), brier: score3(ours.brier), log: score3(ours.log_loss) },
@@ -56,13 +54,6 @@ const scoreRows = [
     hit: share(homeWins / games),
     brier: score3(b0?.brier ?? null),
     log: score3(b0?.log_loss ?? null),
-  },
-  fc?.market && {
-    name: `${marketName}, closing line`,
-    n: fc.market.season.n,
-    hit: share(fc.market.season.right_pct),
-    brier: score3(fc.market.season.brier),
-    log: score3(fc.market.season.log_loss),
   },
 ].filter(Boolean) as { name: string; n: number; hit: string; brier: string; log: string }[];
 ---
@@ -95,7 +86,7 @@ const scoreRows = [
           <dt>Chances, not picks</dt>
           <dd>
             Every game gets a percentage. A 70% call that loses costs less than a 90% call that loses, so the
-            scores reward honest odds.
+            scores reward honest chances.
           </dd>
         </div>
         <div>
@@ -130,17 +121,6 @@ const scoreRows = [
             <p class="what">
               <b>{rightText(ours)}</b> finished games called before tip-off
             </p>
-            {both && (
-              <p class="pair">
-                <span>
-                  {label}, same games: <b>{share(both.model.right_pct)}</b>
-                </span>
-                <span>
-                  {marketName}: <b>{share(both.market.right_pct)}</b>
-                </span>
-                <span class="aside">on the {both.games} games with a bookmakers' line</span>
-              </p>
-            )}
           </div>
         )
       }
@@ -314,25 +294,6 @@ const scoreRows = [
     color: var(--ink);
     font-weight: 600;
   }
-  .pair {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 18px;
-    margin-top: 10px;
-    color: var(--ink-2);
-    font-size: 0.875rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .pair b {
-    color: var(--ink);
-    font-weight: 600;
-  }
-  .pair .aside {
-    width: 100%;
-    color: var(--muted);
-    font-size: 0.8125rem;
-  }
-
   .band {
     padding-top: 88px;
   }

@@ -38,22 +38,19 @@ export interface Headline {
   log_loss: number | null;
 }
 
-/** One round (or postseason phase) of the published model against the bookmakers, on the games
- * both called, and the same pair over every round up to and including this one. */
+/** One round (or postseason phase) of the published model, and the model's record over every round
+ * up to and including this one. */
 export interface AccuracyRound {
   phase: string;
   round: number | null;
   games: number;
   model: Headline;
-  market: Headline;
-  to_date: { model: Headline; market: Headline; games: number };
+  to_date: { model: Headline; games: number };
 }
 
 export interface Forecasts {
   /** Key of the model the page leads with (config.SITE_FORECAST_MODEL). */
   published: string | null;
-  /** The bookmakers' closing line scored on every finished game with one; null without odds. */
-  market: { label: string; season: Headline } | null;
   accuracy: AccuracyRound[];
   models: { key: string; label: string; first_round: number | null }[];
   season: ({ model: string } & FcMetrics)[];
@@ -110,17 +107,16 @@ export interface BrierChart {
   xs: { x: number; label: string }[];
   /** Path data per series, null when it has fewer than two points. */
   model: { d: string | null; pts: { x: number; y: number; v: number }[] };
-  market: { d: string | null; pts: { x: number; y: number; v: number }[] };
-  /** End labels, pushed apart so they never overlap. */
-  ends: { y: number; text: string; series: "model" | "market" }[];
+  /** End label of the model's line. */
+  ends: { y: number; text: string }[];
   coin: number | null;
 }
 
 const STEPS = [0.002, 0.005, 0.01, 0.02, 0.05, 0.1];
 
-/** Brier score to date, by round: both series on one shared, non-zero y scale. */
+/** Brier score to date, by round, on a non-zero y scale. */
 export function brierChart(acc: AccuracyRound[], spec: ChartSpec): BrierChart {
-  const vals = acc.flatMap((a) => [a.to_date.model.brier, a.to_date.market.brier]).filter((v): v is number => v !== null);
+  const vals = acc.map((a) => a.to_date.model.brier).filter((v): v is number => v !== null);
   let lo = Math.min(...vals);
   let hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * 0.25, 0.01);
@@ -135,34 +131,22 @@ export function brierChart(acc: AccuracyRound[], spec: ChartSpec): BrierChart {
   const y = (v: number) => t + (1 - (v - lo) / (hi - lo)) * (h - t - b);
   const n = acc.length;
   const x = (i: number) => (n === 1 ? (l + w - r) / 2 : l + (i / (n - 1)) * (w - r - l));
-  const line = (pick: "model" | "market") => {
+  const line = () => {
     const pts = acc
-      .map((a, i) => ({ x: x(i), v: a.to_date[pick].brier }))
+      .map((a, i) => ({ x: x(i), v: a.to_date.model.brier }))
       .filter((p): p is { x: number; v: number } => p.v !== null)
       .map((p) => ({ x: p.x, y: y(p.v), v: p.v }));
     const d = pts.length > 1 ? pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join("") : null;
     return { d, pts };
   };
-  const model = line("model");
-  const market = line("market");
-  const ends = [
-    { series: "model" as const, pt: model.pts.at(-1) },
-    { series: "market" as const, pt: market.pts.at(-1) },
-  ]
-    .filter((e): e is { series: "model" | "market"; pt: { x: number; y: number; v: number } } => !!e.pt)
-    .map((e) => ({ y: e.pt.y, text: e.pt.v.toFixed(3), series: e.series }))
-    .sort((p, q) => p.y - q.y);
-  if (ends.length === 2 && ends[1].y - ends[0].y < 15) {
-    const mid = (ends[0].y + ends[1].y) / 2;
-    ends[0].y = mid - 7.5;
-    ends[1].y = mid + 7.5;
-  }
+  const model = line();
+  const last = model.pts.at(-1);
+  const ends = last ? [{ y: last.y, text: last.v.toFixed(3) }] : [];
   return {
     spec,
     ticks: values.map((v) => ({ y: y(v), label: v.toFixed(digits) })),
     xs: acc.map((a, i) => ({ x: x(i), label: shortGroup(a.phase, a.round) })),
     model,
-    market,
     ends,
     coin: lo < 0.25 && hi > 0.25 ? y(0.25) : null,
   };

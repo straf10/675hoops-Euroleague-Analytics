@@ -10,7 +10,6 @@ const { comp } = Astro.props;
 const fc = comp.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
 const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
-const marketName = fc?.market?.label ?? "Bookmakers";
 const acc = fc?.accuracy ?? [];
 
 const wide: ChartSpec = { w: 720, h: 280, l: 46, r: 64, t: 16, b: 34 };
@@ -30,17 +29,13 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
                 <span class="key model" aria-hidden="true" />
                 {label}
               </li>
-              <li>
-                <span class="key market" aria-hidden="true" />
-                {marketName}
-              </li>
             </ul>
             {charts.map((c, k) => (
               <svg
                 class:list={["chart", k === 0 ? "wide" : "narrow"]}
                 viewBox={`0 0 ${c.spec.w} ${c.spec.h}`}
                 role="img"
-                aria-label={`Brier score by round, ${label} against ${marketName}. The table below has the figures.`}
+                aria-label={`Brier score by round, ${label}. The table below has the figures.`}
               >
                 <rect
                   class="plot"
@@ -70,11 +65,7 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
                     {x.label}
                   </text>
                 ))}
-                {c.market.d && <path class="ln market" d={c.market.d} />}
                 {c.model.d && <path class="ln model" d={c.model.d} />}
-                {c.market.pts.map((p) => (
-                  <circle class="dot market" cx={p.x} cy={p.y} r="4" />
-                ))}
                 {c.model.pts.map((p) => (
                   <circle class="dot model" cx={p.x} cy={p.y} r="4" />
                 ))}
@@ -94,15 +85,15 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
                       width={half * 2}
                       height={c.spec.h - c.spec.t - c.spec.b}
                       tabindex="0"
-                      data-tip={tip`<b>${groupLabel(a.phase, a.round)}</b>, after ${a.to_date.games} games<br>${label}: ${score3(a.to_date.model.brier)}<br>${marketName}: ${score3(a.to_date.market.brier)}`}
-                      aria-label={`${groupLabel(a.phase, a.round)}, after ${a.to_date.games} games. ${label} ${score3(a.to_date.model.brier)}, ${marketName} ${score3(a.to_date.market.brier)}.`}
+                      data-tip={tip`<b>${groupLabel(a.phase, a.round)}</b>, after ${a.to_date.games} games<br>${label}: ${score3(a.to_date.model.brier)}`}
+                      aria-label={`${groupLabel(a.phase, a.round)}, after ${a.to_date.games} games. ${label} ${score3(a.to_date.model.brier)}.`}
                     />
                   );
                 })}
               </svg>
             ))}
             <p class="note">
-              Scored on the games where both had a call. A few rounds is a small sample, so early lines move a lot.
+              A few rounds is a small sample, so early lines move a lot.
             </p>
             <table class="sr-only">
               <caption>
@@ -113,7 +104,6 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
                   <th scope="col">Round</th>
                   <th scope="col">Games to date</th>
                   <th scope="col">{label}</th>
-                  <th scope="col">{marketName}</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,7 +112,6 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
                     <th scope="row">{groupLabel(a.phase, a.round)}</th>
                     <td>{a.to_date.games}</td>
                     <td>{score3(a.to_date.model.brier)}</td>
-                    <td>{score3(a.to_date.market.brier)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -153,9 +142,6 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
     height: 0;
     border-top: 2px solid var(--data-1);
     border-radius: 1px;
-  }
-  .key.market {
-    border-top-color: var(--data-2);
   }
   .chart {
     display: block;
@@ -200,18 +186,12 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
   .ln.model {
     stroke: var(--data-1);
   }
-  .ln.market {
-    stroke: var(--data-2);
-  }
   .dot {
     stroke: var(--page);
     stroke-width: 2;
   }
   .dot.model {
     fill: var(--data-1);
-  }
-  .dot.market {
-    fill: var(--data-2);
   }
   .hit {
     fill: transparent;

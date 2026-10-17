@@ -415,13 +415,6 @@ export const TERMS: GlossaryTerm[] = [
     shownOn: [FC],
   },
   {
-    id: "bookmakers",
-    term: "Bookmakers",
-    group: "Forecasts",
-    def: "The bookmakers' implied chance of a home win, with their margin removed, as the median across books from the last reading taken before tip-off. Games without such a reading are left out of the comparison.",
-    shownOn: [FC],
-  },
-  {
     id: "other-models",
     term: "M1, M5",
     group: "Forecasts",
