@@ -113,6 +113,11 @@ Full list in [`docs/PLAN.md`](docs/PLAN.md#sources). Cited above:
 
 Also in the plan: R1 Kubatko et al. (2007), R2 Oliver (2004), R3 Glickman & Stern (1998), R11 Efron & Morris (1975), R12 Vaci et al. (2019), R13 Terner & Franks (2021).
 
+## Data sources and terms
+
+- **EuroLeague statistics.** Source: Euroleague Basketball. These statistics remain the property of Euroleague Basketball; they are shared for non-commercial analysis and are not covered by our licence. This covers the games, team box scores, player box scores and shots on the [Downloads page](https://675hoops.com/downloads/).
+- **Our own outputs.** The forecast logs (`predictions/*.csv`), the scorecards (`reports/live_scorecard*.json`) and the model outputs the project publishes are licensed under CC BY 4.0, attributed as "6.75 Analytics (https://675hoops.com)". The terms are in [`LICENSE-DATA`](LICENSE-DATA).
+
 ## License
 
 All rights reserved; see [`LICENSE`](LICENSE). Public for portfolio and reference purposes; not licensed for reuse.
