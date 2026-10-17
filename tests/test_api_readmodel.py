@@ -379,6 +379,19 @@ def test_a_player_has_his_euroleague_seasons_and_the_impact_reports(store: rm.St
     ]
 
 
+def test_the_rapm_board_ranks_the_latest_season_from_the_minimum_minutes(
+    store: rm.Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    board = rm.rapm_board(store)
+    assert (board["season"], board["minimum_minutes"], board["interval"]) == (2024, 500.0, 0.9)
+    assert {p["person_id"] for p in board["players"]} == {EL_PERSON, "P:P006835"}
+    assert {p["team"] for p in board["players"]} == {"TEL"}
+    assert sorted(p["rank"] for p in board["players"]) == [1, 2]
+    monkeypatch.setattr(rm, "RAPM_MIN_MINUTES", 1150.0)  # EL_PERSON has 1100 minutes
+    ranked = {p["person_id"]: p["rank"] for p in rm.rapm_board(store)["players"]}
+    assert ranked == {EL_PERSON: None, "P:P006835": 1}
+
+
 def test_players_outside_the_crosswalk_get_the_source_scheme_and_other_names(
     store: rm.Store,
 ) -> None:
