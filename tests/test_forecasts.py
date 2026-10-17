@@ -5,8 +5,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.live_m1 import M1_LOG_COLUMNS
+from eurohoops.models.elo import EloParams
 from eurohoops.predict import LOG_COLUMNS
 
 LABELS = {"elo": "Elo", "m1": "M1", "m5": "M5"}
@@ -255,3 +257,71 @@ def test_published_defaults_to_the_first_model_and_must_be_present(
     assert build_forecasts(logs, LABELS, games(), 2026)["published"] == "elo"
     assert build_forecasts(logs, LABELS, games(), 2026, published="m1")["published"] == "m1"
     assert build_forecasts(logs, LABELS, games(), 2026, published="m5")["published"] == "elo"
+
+
+def baseline() -> TunedModel:
+    """B0 at a constant 60% home-win rate (no neutral games in the fixture)."""
+    return TunedModel(EloParams(k=20.0, hca=90.0, reversion=0.3), 1.0, 0.6, 3.0)
+
+
+def test_round_headline_is_the_latest_completed_round(logs: dict[str, Path | None]) -> None:
+    # PO has G6 still to play, so round 2 is the latest completed group.
+    head = build_forecasts(logs, LABELS, games(), 2026, baseline=baseline())["headline"]
+    assert (head["phase"], head["round"], head["games"]) == ("RS", 2, 2)
+    assert head["called"] == 1  # G3 at exactly 50% is not called; G4 right
+    assert head["brier"] == pytest.approx((0.25 + 0.09) / 2, abs=1e-6)
+    assert head["baseline_brier"] == pytest.approx((0.36 + 0.16) / 2, abs=1e-6)
+    # Lowest pre-game probability of the winner: G3, the away side at 50%.
+    assert head["biggest_miss"] == {"winner": "AG3", "loser": "HG3", "p_winner": 0.5}
+
+
+def test_round_headline_skips_a_round_still_to_play(logs: dict[str, Path | None]) -> None:
+    unplayed = games()
+    unplayed.loc[unplayed["game_id"] == "G4", "played"] = False  # round 2 is not finished
+    unplayed.loc[unplayed["game_id"] == "G4", "home_score"] = None
+    unplayed.loc[unplayed["game_id"] == "G4", "away_score"] = None
+    head = build_forecasts(logs, LABELS, unplayed, 2026, baseline=baseline())["headline"]
+    assert (head["round"], head["games"]) == (1, 2)
+    assert head["called"] == 1  # G1 right; G2 (40%) called away and was wrong
+    assert head["brier"] == pytest.approx((0.04 + 0.36) / 2, abs=1e-6)
+    assert head["biggest_miss"] == {"winner": "HG2", "loser": "AG2", "p_winner": 0.4}
+
+
+def test_round_headline_needs_the_baseline_and_a_finished_round(
+    logs: dict[str, Path | None],
+) -> None:
+    assert build_forecasts(logs, LABELS, games(), 2026)["headline"] is None
+    none_done = games()
+    none_done["played"] = False
+    none_done["home_score"] = None
+    none_done["away_score"] = None
+    none_done["forfeit"] = False
+    fc = build_forecasts(logs, LABELS, none_done, 2026, baseline=baseline())
+    assert fc["headline"] is None
+
+
+def test_calibration_bins_are_equal_width_and_empty_bins_are_dropped(
+    logs: dict[str, Path | None],
+) -> None:
+    cal = build_forecasts(logs, LABELS, games(), 2026)["calibration"]
+    assert cal["games"] == 5  # Elo's scored games
+    # Predicted 0.4 and 0.5 share [0.4, 0.6); 0.6 and 0.7 share [0.6, 0.8); 0.8 is [0.8, 1.0].
+    assert [(b["lo"], b["hi"], b["n"]) for b in cal["bins"]] == [
+        (0.4, 0.6, 2),
+        (0.6, 0.8, 2),
+        (0.8, 1.0, 1),
+    ]
+    low, mid, top = cal["bins"]
+    assert low["predicted"] == pytest.approx(0.45) and low["observed"] == pytest.approx(0.5)
+    assert mid["predicted"] == pytest.approx(0.65) and mid["observed"] == pytest.approx(1.0)
+    assert top["predicted"] == pytest.approx(0.8) and top["observed"] == pytest.approx(1.0)
+    # Wilson 95%: 2 of 2 wins gives [0.342, 1.0]; 1 of 1 gives [0.207, 1.0].
+    assert mid["low"] == pytest.approx(0.3423, abs=1e-3) and mid["high"] == 1.0
+    assert top["low"] == pytest.approx(0.2065, abs=1e-3) and top["high"] == 1.0
+    assert low["low"] == pytest.approx(0.0945, abs=1e-3)  # 1 of 2
+    assert low["high"] == pytest.approx(0.9055, abs=1e-3)
+
+
+def test_calibration_without_games(tmp_path: Path) -> None:
+    fc = build_forecasts({"elo": tmp_path / "none.csv"}, LABELS, games(), 2026)
+    assert fc["calibration"] == {"games": 0, "bins": []}

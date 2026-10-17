@@ -4,6 +4,7 @@ import {
   dash,
   groupKey,
   groupLabel,
+  headlineText,
   rightText,
   score3,
   share,
@@ -11,6 +12,7 @@ import {
   type Headline,
 } from "../lib/forecasts";
 import { tip } from "../lib/tip";
+import Calibration from "./Calibration.astro";
 import ForecastGames from "./ForecastGames.astro";
 import Tonight from "./Tonight.astro";
 
@@ -72,6 +74,10 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
 
         <Tonight comp={comp} />
 
+        {fc?.headline && (
+          <p class="headline">{headlineText(fc.headline, groupLabel(fc.headline.phase, fc.headline.round))}</p>
+        )}
+
         {latest.length > 0 && (
           <section aria-labelledby={`fc-latest-${comp.key}`}>
             <h3 id={`fc-latest-${comp.key}`}>Latest round</h3>
@@ -131,6 +137,8 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
             </table>
           </div>
         </section>
+
+        <Calibration comp={comp} />
 
         {others && (
           <section aria-labelledby={`fc-others-${comp.key}`}>
@@ -256,6 +264,13 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 44px;
+  }
+  .headline {
+    margin: 0;
+    color: var(--ink);
+    font-size: 1rem;
+    line-height: 1.5;
+    max-width: 72ch;
   }
   .pair {
     display: grid;

@@ -2458,7 +2458,271 @@
             }
           }
         ],
-        "trend": []
+        "trend": [
+          {
+            "n": 1,
+            "label": "AAA 80-102 BBB",
+            "logloss": {
+              "baseline": 0.105
+            }
+          },
+          {
+            "n": 2,
+            "label": "AAA 94-80 CCC",
+            "logloss": {
+              "baseline": 0.099
+            }
+          },
+          {
+            "n": 3,
+            "label": "AAA 80-91 DDD",
+            "logloss": {
+              "baseline": -0.239
+            }
+          },
+          {
+            "n": 4,
+            "label": "AAA 94-80 EEE",
+            "logloss": {
+              "baseline": -0.256
+            }
+          },
+          {
+            "n": 5,
+            "label": "AAA 81-80 FFF",
+            "logloss": {
+              "baseline": -0.02
+            }
+          },
+          {
+            "n": 6,
+            "label": "BBB 93-80 AAA",
+            "logloss": {
+              "baseline": 0.289
+            }
+          },
+          {
+            "n": 7,
+            "label": "BBB 88-80 CCC",
+            "logloss": {
+              "baseline": 0.582
+            }
+          },
+          {
+            "n": 8,
+            "label": "BBB 80-87 DDD",
+            "logloss": {
+              "baseline": -0.199
+            }
+          },
+          {
+            "n": 9,
+            "label": "BBB 101-80 EEE",
+            "logloss": {
+              "baseline": 0.073
+            }
+          },
+          {
+            "n": 10,
+            "label": "BBB 107-80 FFF",
+            "logloss": {
+              "baseline": 0.468
+            }
+          },
+          {
+            "n": 11,
+            "label": "CCC 81-80 AAA",
+            "logloss": {
+              "baseline": 0.612
+            }
+          },
+          {
+            "n": 12,
+            "label": "CCC 80-83 BBB",
+            "logloss": {
+              "baseline": 0.814
+            }
+          },
+          {
+            "n": 13,
+            "label": "CCC 85-80 DDD",
+            "logloss": {
+              "baseline": 0.92
+            }
+          },
+          {
+            "n": 14,
+            "label": "CCC 80-87 EEE",
+            "logloss": {
+              "baseline": 0.718
+            }
+          },
+          {
+            "n": 15,
+            "label": "CCC 99-80 FFF",
+            "logloss": {
+              "baseline": 0.975
+            }
+          },
+          {
+            "n": 16,
+            "label": "DDD 80-88 AAA",
+            "logloss": {
+              "baseline": 0.786
+            }
+          },
+          {
+            "n": 17,
+            "label": "DDD 80-85 BBB",
+            "logloss": {
+              "baseline": 1.1
+            }
+          },
+          {
+            "n": 18,
+            "label": "DDD 80-89 CCC",
+            "logloss": {
+              "baseline": 1.081
+            }
+          },
+          {
+            "n": 19,
+            "label": "DDD 80-87 EEE",
+            "logloss": {
+              "baseline": 1.151
+            }
+          },
+          {
+            "n": 20,
+            "label": "DDD 80-90 FFF",
+            "logloss": {
+              "baseline": 0.857
+            }
+          },
+          {
+            "n": 21,
+            "label": "EEE 94-80 AAA",
+            "logloss": {
+              "baseline": 1.012
+            }
+          },
+          {
+            "n": 22,
+            "label": "EEE 80-83 BBB",
+            "logloss": {
+              "baseline": 1.179
+            }
+          },
+          {
+            "n": 23,
+            "label": "EEE 93-80 CCC",
+            "logloss": {
+              "baseline": 1.301
+            }
+          },
+          {
+            "n": 24,
+            "label": "EEE 86-80 DDD",
+            "logloss": {
+              "baseline": 1.624
+            }
+          },
+          {
+            "n": 25,
+            "label": "EEE 80-81 FFF",
+            "logloss": {
+              "baseline": 0.954
+            }
+          },
+          {
+            "n": 26,
+            "label": "FFF 80-87 AAA",
+            "logloss": {
+              "baseline": 1.001
+            }
+          },
+          {
+            "n": 27,
+            "label": "FFF 80-91 BBB",
+            "logloss": {
+              "baseline": 1.466
+            }
+          },
+          {
+            "n": 28,
+            "label": "FFF 80-81 CCC",
+            "logloss": {
+              "baseline": 1.641
+            }
+          },
+          {
+            "n": 29,
+            "label": "FFF 80-82 DDD",
+            "logloss": {
+              "baseline": 1.509
+            }
+          }
+        ],
+        "headline": {
+          "phase": "RS",
+          "round": 10,
+          "games": 2,
+          "called": 1,
+          "brier": 0.30939,
+          "baseline_brier": 0.321111,
+          "biggest_miss": {
+            "winner": {
+              "code": "DDD",
+              "name": "Team DDD & Co"
+            },
+            "loser": {
+              "code": "FFF",
+              "name": "Team FFF & Co"
+            },
+            "p_winner": 0.3799
+          }
+        },
+        "calibration": {
+          "games": 29,
+          "bins": [
+            {
+              "lo": 0.2,
+              "hi": 0.4,
+              "n": 1,
+              "predicted": 0.31,
+              "observed": 0.0,
+              "low": 0.0,
+              "high": 0.793451
+            },
+            {
+              "lo": 0.4,
+              "hi": 0.6,
+              "n": 10,
+              "predicted": 0.5143,
+              "observed": 0.2,
+              "low": 0.056682,
+              "high": 0.509838
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.8,
+              "n": 16,
+              "predicted": 0.6967,
+              "observed": 0.625,
+              "low": 0.38641,
+              "high": 0.815188
+            },
+            {
+              "lo": 0.8,
+              "hi": 1.0,
+              "n": 2,
+              "predicted": 0.8211,
+              "observed": 0.5,
+              "low": 0.094531,
+              "high": 0.905469
+            }
+          ]
+        }
       }
     },
     {
@@ -4004,7 +4268,243 @@
             }
           }
         ],
-        "trend": []
+        "trend": [
+          {
+            "n": 1,
+            "label": "AAA 80-102 BBB",
+            "logloss": {
+              "baseline": 0.161
+            }
+          },
+          {
+            "n": 2,
+            "label": "AAA 94-80 CCC",
+            "logloss": {
+              "baseline": 0.193
+            }
+          },
+          {
+            "n": 3,
+            "label": "AAA 80-91 DDD",
+            "logloss": {
+              "baseline": -0.075
+            }
+          },
+          {
+            "n": 4,
+            "label": "AAA 94-80 EEE",
+            "logloss": {
+              "baseline": -0.156
+            }
+          },
+          {
+            "n": 5,
+            "label": "AAA 81-80 FFF",
+            "logloss": {
+              "baseline": -0.001
+            }
+          },
+          {
+            "n": 6,
+            "label": "BBB 93-80 AAA",
+            "logloss": {
+              "baseline": 0.255
+            }
+          },
+          {
+            "n": 7,
+            "label": "BBB 80-87 DDD",
+            "logloss": {
+              "baseline": -0.424
+            }
+          },
+          {
+            "n": 8,
+            "label": "BBB 101-80 EEE",
+            "logloss": {
+              "baseline": -0.22
+            }
+          },
+          {
+            "n": 9,
+            "label": "BBB 107-80 FFF",
+            "logloss": {
+              "baseline": 0.1
+            }
+          },
+          {
+            "n": 10,
+            "label": "CCC 81-80 AAA",
+            "logloss": {
+              "baseline": 0.134
+            }
+          },
+          {
+            "n": 11,
+            "label": "CCC 80-83 BBB",
+            "logloss": {
+              "baseline": 0.465
+            }
+          },
+          {
+            "n": 12,
+            "label": "CCC 85-80 DDD",
+            "logloss": {
+              "baseline": 0.463
+            }
+          },
+          {
+            "n": 13,
+            "label": "CCC 99-80 FFF",
+            "logloss": {
+              "baseline": 0.629
+            }
+          },
+          {
+            "n": 14,
+            "label": "DDD 80-88 AAA",
+            "logloss": {
+              "baseline": 0.516
+            }
+          },
+          {
+            "n": 15,
+            "label": "DDD 80-85 BBB",
+            "logloss": {
+              "baseline": 0.89
+            }
+          },
+          {
+            "n": 16,
+            "label": "DDD 80-89 CCC",
+            "logloss": {
+              "baseline": 0.926
+            }
+          },
+          {
+            "n": 17,
+            "label": "DDD 80-87 EEE",
+            "logloss": {
+              "baseline": 1.029
+            }
+          },
+          {
+            "n": 18,
+            "label": "DDD 80-90 FFF",
+            "logloss": {
+              "baseline": 0.873
+            }
+          },
+          {
+            "n": 19,
+            "label": "EEE 80-83 BBB",
+            "logloss": {
+              "baseline": 1.164
+            }
+          },
+          {
+            "n": 20,
+            "label": "EEE 93-80 CCC",
+            "logloss": {
+              "baseline": 1.196
+            }
+          },
+          {
+            "n": 21,
+            "label": "EEE 86-80 DDD",
+            "logloss": {
+              "baseline": 1.439
+            }
+          },
+          {
+            "n": 22,
+            "label": "EEE 80-81 FFF",
+            "logloss": {
+              "baseline": 1.001
+            }
+          },
+          {
+            "n": 23,
+            "label": "FFF 80-87 AAA",
+            "logloss": {
+              "baseline": 1.114
+            }
+          },
+          {
+            "n": 24,
+            "label": "FFF 80-91 BBB",
+            "logloss": {
+              "baseline": 1.614
+            }
+          },
+          {
+            "n": 25,
+            "label": "FFF 80-82 DDD",
+            "logloss": {
+              "baseline": 1.481
+            }
+          }
+        ],
+        "headline": {
+          "phase": "PO",
+          "round": null,
+          "games": 1,
+          "called": 0,
+          "brier": 0.418092,
+          "baseline_brier": 0.3554,
+          "biggest_miss": {
+            "winner": {
+              "code": "DDD",
+              "name": "Team DDD & Co"
+            },
+            "loser": {
+              "code": "FFF",
+              "name": "Team FFF & Co"
+            },
+            "p_winner": 0.3534
+          }
+        },
+        "calibration": {
+          "games": 25,
+          "bins": [
+            {
+              "lo": 0.2,
+              "hi": 0.4,
+              "n": 1,
+              "predicted": 0.3342,
+              "observed": 0.0,
+              "low": 0.0,
+              "high": 0.793451
+            },
+            {
+              "lo": 0.4,
+              "hi": 0.6,
+              "n": 9,
+              "predicted": 0.5181,
+              "observed": 0.2222,
+              "low": 0.063225,
+              "high": 0.547411
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.8,
+              "n": 14,
+              "predicted": 0.6912,
+              "observed": 0.5714,
+              "low": 0.325906,
+              "high": 0.786192
+            },
+            {
+              "lo": 0.8,
+              "hi": 1.0,
+              "n": 1,
+              "predicted": 0.8213,
+              "observed": 1.0,
+              "low": 0.206549,
+              "high": 1.0
+            }
+          ]
+        }
       }
     }
   ],

@@ -58,6 +58,37 @@ export interface Forecasts {
   rounds: { phase: string; round: number | null; games: number; models: Record<string, FcMetrics> }[];
   games: FcGame[];
   trend?: Trend[];
+  headline: RoundHeadline | null;
+  calibration: Calibration;
+}
+
+/** The latest completed round (or phase) of the published model, against the home-win baseline. */
+export interface RoundHeadline {
+  phase: string;
+  round: number | null;
+  games: number;
+  /** Games whose side with P above 0.5 won; a game at exactly 0.5 is not called. */
+  called: number;
+  brier: number | null;
+  baseline_brier: number | null;
+  biggest_miss: { winner: Team; loser: Team; p_winner: number };
+}
+
+/** One bin of the reliability plot: predicted home-win chance against the observed rate. */
+export interface CalibrationBin {
+  lo: number;
+  hi: number;
+  n: number;
+  predicted: number;
+  observed: number;
+  /** Wilson 95% interval of the observed rate. */
+  low: number;
+  high: number;
+}
+
+export interface Calibration {
+  games: number;
+  bins: CalibrationBin[];
 }
 
 const PHASES: Record<string, string> = {
@@ -164,4 +195,33 @@ export interface Trend {
   n: number;
   label: string;
   logloss: { baseline: number };
+}
+
+/** The one-line headline above the latest round: called, Brier against the baseline, the biggest miss. */
+export function headlineText(h: RoundHeadline, groupName: string): string {
+  const { winner, loser, p_winner } = h.biggest_miss;
+  const brier = h.brier === null ? dash : h.brier.toFixed(2);
+  const base = h.baseline_brier === null ? dash : h.baseline_brier.toFixed(2);
+  return `${groupName}: ${h.called} of ${h.games} called, Brier ${brier} vs home-win baseline ${base}; biggest miss: ${winner.code} beat ${loser.code} at ${share(p_winner)}.`;
+}
+
+export interface CalibrationPoint extends CalibrationBin {
+  x: number;
+  y: number;
+  yLow: number;
+  yHigh: number;
+}
+
+/** The reliability plot's points: x = predicted, y = observed, on the plot area of `spec`. */
+export function calibrationPlot(cal: Calibration, spec: ChartSpec): CalibrationPoint[] {
+  const { l, r, t, b, w, h } = spec;
+  const pw = w - l - r;
+  const ph = h - t - b;
+  return cal.bins.map((bin) => ({
+    ...bin,
+    x: l + bin.predicted * pw,
+    y: t + (1 - bin.observed) * ph,
+    yLow: t + (1 - bin.high) * ph,
+    yHigh: t + (1 - bin.low) * ph,
+  }));
 }
