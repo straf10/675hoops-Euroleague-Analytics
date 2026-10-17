@@ -619,18 +619,22 @@
       }
     },
     "2026": {
-      "games": 15,
+      "games": 16,
       "passed": 14,
-      "pass_rate": 0.9333,
+      "pass_rate": 0.875,
       "failures_by_reason": {
         "missing_box": 0,
-        "points_mismatch": 0,
-        "minutes_off": 1,
+        "points_mismatch": 1,
+        "minutes_off": 2,
         "bad_shot_lines": 0,
         "bad_point_lines": 0
       },
       "failed_games": {
         "GBL2026_28F71477": [
+          "minutes_off"
+        ],
+        "GBL2026_4A05E464": [
+          "points_mismatch",
           "minutes_off"
         ]
       }
@@ -654,6 +658,13 @@
       "filled_points_match_result": 60
     },
     "2022": {
+      "teams": 2,
+      "by_fill": {
+        "not_filled": 2
+      },
+      "filled_points_match_result": 0
+    },
+    "2026": {
       "teams": 2,
       "by_fill": {
         "not_filled": 2
