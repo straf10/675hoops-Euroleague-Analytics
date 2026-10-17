@@ -1,4 +1,6 @@
 ---
+import { readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import Base from "../../layouts/Base.astro";
 import JsonLd from "../../components/JsonLd.astro";
 import { dataset, type JsonLdObject } from "../../lib/jsonld";
@@ -48,11 +50,18 @@ const built = manifest ? manifest.built.slice(0, 10) : "";
 const description =
   "Download 6.75 Analytics EuroLeague data as CSV: games, team and player box scores and shots, one gzipped file per season.";
 
-// One Dataset per dataset (games, team lines, ...), its files as DataDownloads. No license is set:
-// the repository's LICENSE grants no reuse terms, only a visibility notice.
 const origin = Astro.site ?? "https://675hoops.com";
 const abs = (path: string) => new URL(path, origin).href;
 const root = import.meta.env.BASE_URL.replace(/\/$/, "");
+const EUROLEAGUE = { name: "Euroleague Basketball", url: "https://www.euroleaguebasketball.net" };
+const EUROLEAGUE_CREDIT =
+  "Source: Euroleague Basketball. These statistics remain the property of Euroleague Basketball; they are shared for non-commercial analysis and are not covered by our licence.";
+const CC_BY = "https://creativecommons.org/licenses/by/4.0/";
+const RAW = "https://raw.githubusercontent.com/straf10/675hoops-Euroleague-Analytics/main";
+
+// One Dataset per EuroLeague-derived dataset (games, team lines, ...), its files as DataDownloads.
+// No license: the statistics are Euroleague's, so they are credited to it and carry no licence of ours.
+
 const DESCRIPTIONS: Record<string, string> = {
   games: "One row per EuroLeague game, one gzipped CSV file per season.",
   team_games: "One row per club in each EuroLeague game, one gzipped CSV file per season.",
@@ -61,7 +70,7 @@ const DESCRIPTIONS: Record<string, string> = {
 };
 const byDataset = new Map<string, Entry[]>();
 for (const f of manifest?.files ?? []) byDataset.set(f.dataset, [...(byDataset.get(f.dataset) ?? []), f]);
-const datasets: JsonLdObject[] = [...byDataset].map(([name, files]) => {
+const leagueDatasets: JsonLdObject[] = [...byDataset].map(([name, files]) => {
   const seasons = files.map((f) => f.season);
   return dataset({
     name: `EuroLeague ${(LABELS[name] ?? name).toLowerCase()}`,
@@ -70,6 +79,8 @@ const datasets: JsonLdObject[] = [...byDataset].map(([name, files]) => {
     siteUrl: abs(`${root}/`),
     dateModified: manifest!.built.slice(0, 10),
     temporalCoverage: `${Math.min(...seasons)}/${Math.max(...seasons) + 1}`,
+    isBasedOn: EUROLEAGUE,
+    creditText: EUROLEAGUE_CREDIT,
     distribution: files.map((f) => ({
       name: `${LABELS[name] ?? name} ${season(f.season)}`,
       contentUrl: abs(`${root}/${f.path}`),
@@ -78,6 +89,29 @@ const datasets: JsonLdObject[] = [...byDataset].map(([name, files]) => {
     })),
   });
 });
+
+// The project's own forecast log, CC BY 4.0. The files are read from the predictions folder at build
+// time; this Dataset is emitted even when the downloads manifest is absent.
+const predictionsDir = fileURLToPath(new URL("../../../../predictions/", import.meta.url));
+const forecastFiles = readdirSync(predictionsDir)
+  .filter((f) => /^euroleague(_[a-z0-9]+)*_2026-27\.csv$/.test(f))
+  .sort();
+const forecastLog = dataset({
+  name: "6.75 Analytics pre-registered EuroLeague forecast log 2026-27",
+  description:
+    "Pre-registered EuroLeague 2026-27 game forecasts, one CSV per model. Rows are appended before tip-off and never edited; git history dates every row.",
+  url: abs(`${root}/downloads/`),
+  siteUrl: abs(`${root}/`),
+  temporalCoverage: "2026/2027",
+  license: CC_BY,
+  distribution: forecastFiles.map((f) => ({
+    name: f,
+    contentUrl: `${RAW}/predictions/${f}`,
+    encodingFormat: "text/csv",
+  })),
+});
+
+const datasets: JsonLdObject[] = [...leagueDatasets, forecastLog];
 ---
 
 <Base title="Downloads" description={description} current="downloads">

@@ -11,6 +11,7 @@ WEB = REPO / "web" / "src"
 JSONLD = WEB / "lib" / "jsonld.ts"
 JSONLD_COMPONENT = WEB / "components" / "JsonLd.astro"
 GAMES_COMPONENT = WEB / "components" / "GamesJsonLd.astro"
+DOWNLOADS = WEB / "pages" / "downloads" / "index.astro"
 # Betting language and the forecast fields that carry win chances: none belong in markup.
 BETTING = re.compile(
     r"\b(?:odds|bookmakers?|betting|bet|picks?|p_home|exp_margin|closing)\b",
@@ -39,6 +40,20 @@ def test_builders_and_markup_mention_no_odds_or_picks() -> None:
     for path in (JSONLD, JSONLD_COMPONENT, GAMES_COMPONENT):
         text = path.read_text(encoding="utf-8")
         assert not BETTING.search(text), f"{path.relative_to(WEB)} mentions betting or win chances"
+
+
+def test_forecast_log_dataset_is_cc_by_and_euroleague_datasets_carry_no_license() -> None:
+    text = DOWNLOADS.read_text(encoding="utf-8")
+    # One license in the page, the CC BY 4.0 URL on the project's own forecast log.
+    assert len(re.findall(r"^\s*license:", text, re.MULTILINE)) == 1
+    assert 'const CC_BY = "https://creativecommons.org/licenses/by/4.0/"' in text
+    forecast = text[text.index("const forecastLog") : text.index("const datasets")]
+    assert "license: CC_BY" in forecast
+    # The EuroLeague-derived datasets are credited to Euroleague and carry no license.
+    league = text[text.index("const leagueDatasets") : text.index("const predictionsDir")]
+    assert "license" not in league
+    assert "isBasedOn: EUROLEAGUE" in league
+    assert "creditText: EUROLEAGUE_CREDIT" in league
 
 
 def test_builders_stay_pure() -> None:

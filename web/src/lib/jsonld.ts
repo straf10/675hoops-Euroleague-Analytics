@@ -110,6 +110,10 @@ export interface DatasetInput {
   distribution: DownloadFile[];
   /** Only when the repository grants a license; the default is none. */
   license?: string;
+  /** The organization whose data this is, when it is not the site's own. */
+  isBasedOn?: Ref;
+  /** A credit line for the source, when the data is not the site's own. */
+  creditText?: string;
 }
 
 export function dataset(d: DatasetInput): JsonLdObject {
@@ -124,6 +128,8 @@ export function dataset(d: DatasetInput): JsonLdObject {
     ...(d.dateModified ? { dateModified: d.dateModified } : {}),
     ...(d.temporalCoverage ? { temporalCoverage: d.temporalCoverage } : {}),
     ...(d.license ? { license: d.license } : {}),
+    ...(d.isBasedOn ? { isBasedOn: ref("Organization", d.isBasedOn) } : {}),
+    ...(d.creditText ? { creditText: d.creditText } : {}),
     distribution: d.distribution.map((f) => ({
       "@type": "DataDownload",
       name: f.name,
