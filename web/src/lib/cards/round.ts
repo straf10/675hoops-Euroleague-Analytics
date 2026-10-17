@@ -83,10 +83,10 @@ const sign3 = (x: number | null) => (x === null ? "–" : x.toFixed(3));
 /** Tip-off clock in Athens, as the site shows it. */
 const clock = (iso: string) => athensTime(iso);
 
-export function previewSvg(round: number, games: PreviewGame[], loggedAt: string): string {
+export function previewSvg(round: number, games: PreviewGame[], loggedAt: string, seasonName: string): string {
   const b: string[] = [];
   b.push(logo(X0, 40));
-  b.push(text(X1, 66, "EuroLeague 2026-27", { size: 22, fill: MUTED, anchor: "end" }));
+  b.push(text(X1, 66, seasonName, { size: 22, fill: MUTED, anchor: "end" }));
   b.push(text(X0, 196, `Round ${round}`, { size: 104, weight: 620, track: -0.035 }));
   b.push(text(X0, 246, `Home win chance and expected margin, all ${games.length} games.`, { size: 26, fill: INK_SOFT }));
   b.push(text(X0, 286, `Logged ${loggedAt} UTC, before tip-off.`, { size: 20, fill: MUTED }));

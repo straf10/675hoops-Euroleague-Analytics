@@ -97,7 +97,7 @@ export function roundSvg(name: string): string | null {
   const c = euroleague();
   if (!c) return null;
   const preview = previewCard(c);
-  if (preview && name === `round-${preview.round}`) return previewSvg(preview.round, preview.games, preview.loggedAt);
+  if (preview && name === `round-${preview.round}`) return previewSvg(preview.round, preview.games, preview.loggedAt, `EuroLeague ${c.season}`);
   const recap = recapCards(c).find((r) => name === `round-${r.round}-recap`);
   return recap ? recapSvg(recap) : null;
 }
