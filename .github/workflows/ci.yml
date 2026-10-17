@@ -11,13 +11,13 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  # Static checks. Runs in parallel with `test`, and independently of it, so the dead-code check
+  # reports even when a test fails.
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -28,6 +28,20 @@ jobs:
         run: uv run ruff format --check .
       - name: Types
         run: uv run mypy src
+      - name: Dead code
+        run: uv run vulture src scripts/vulture_whitelist.py --min-confidence 60
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
       # The tests marked slow (the M5/M6 leakage and backtest files, half the suite's time) run on
       # pull requests, the nightly schedule, manual runs and any push that touches the code they
       # guard. Other pushes run the rest; the coverage gate is measured on full runs only, since
@@ -51,8 +65,22 @@ jobs:
       - name: Tests (fast, slow-marked skipped)
         if: steps.tests.outputs.full != 'true'
         run: uv run pytest -q -n auto --dist loadfile -m "not slow"
-      - name: Dead code
-        run: uv run vulture src scripts/vulture_whitelist.py --min-confidence 60
+
+  # Single status for branch protection that used to be the `check` job. It runs even when a
+  # needed job fails, and passes only if both lint and test succeeded.
+  check:
+    needs: [lint, test]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require lint and test to pass
+        env:
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+        run: |
+          echo "lint: $LINT, test: $TEST"
+          [ "$LINT" = success ] && [ "$TEST" = success ]
 
   # Builds the Astro site from the committed fixtures (tests/fixtures/site.json and stats/, kept
   # in step with the real schema by tests/test_site_fixture.py and tests/test_stats.py), so a
