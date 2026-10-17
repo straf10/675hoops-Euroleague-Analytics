@@ -2,9 +2,8 @@
 
 import numpy as np
 
-from eurohoops.eval.m5_backtest import run_m5_backtest
 from eurohoops.eval.m5_rest import FEATURES, Z90, ols_hc0, rest_report
-from tests.m5_synthetic import CLUB_MAP, build_inputs, fake_player_part, small_spec
+from tests.m5_synthetic import CLUB_MAP, build_inputs, default_run, small_spec
 
 
 def test_ols_hc0_recovers_a_planted_effect_and_matches_a_direct_computation() -> None:
@@ -48,7 +47,7 @@ def test_ols_hc0_reports_a_constant_feature_as_unidentified() -> None:
 def test_rest_report_on_the_synthetic_league() -> None:
     inputs = build_inputs()
     spec = small_spec()
-    _, predictions = run_m5_backtest(inputs, spec=spec, player_part=fake_player_part)
+    _, predictions = default_run()
     report = rest_report(
         inputs.games,
         inputs.other_games,

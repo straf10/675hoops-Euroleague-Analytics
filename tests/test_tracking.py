@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 
 from eurohoops.eval.m1_backtest import run_m1_backtest
-from eurohoops.eval.m5_backtest import run_m5_backtest
 from eurohoops.eval.tracking import (
     data_hash,
     default_tracking_uri,
@@ -19,7 +18,7 @@ from eurohoops.eval.tracking import (
     log_m5_backtest,
 )
 from tests.conftest import REPO, make_games, make_team_games
-from tests.m5_synthetic import build_inputs, fake_player_part, small_spec
+from tests.m5_synthetic import default_run
 from tests.test_m1_backtest import SPEC
 
 
@@ -81,9 +80,7 @@ def test_one_parent_and_a_child_per_variant(tmp_path: Path, report: dict[str, An
 def test_m5_backtest_is_one_run_with_the_choice_and_the_report(tmp_path: Path) -> None:
     import mlflow  # noqa: PLC0415 - the dev dependency under test
 
-    m5_report, _ = run_m5_backtest(
-        build_inputs(), spec=small_spec(), player_part=fake_player_part, tuning_only=True
-    )
+    m5_report, _ = default_run(tuning_only=True)
     uri = default_tracking_uri(tmp_path / "mlruns")
     run_id = log_m5_backtest(m5_report, "euroleague", uri)
     assert run_id is not None

@@ -35,7 +35,7 @@ from eurohoops.eval.m5_backtest import (
     predict_games,
     run_m5_backtest,
 )
-from tests.m5_synthetic import build_inputs, fake_player_part, small_spec
+from tests.m5_synthetic import build_inputs, default_run, fake_player_part, small_spec
 
 # Heavy (whole synthetic leagues per test): CI runs it on PRs, nightly and model changes.
 pytestmark = pytest.mark.slow
@@ -80,18 +80,18 @@ def inputs() -> M5Inputs:
 
 
 @pytest.fixture(scope="module")
-def validation_run(inputs: M5Inputs) -> tuple[dict[str, Any], pd.DataFrame]:
-    return run_m5_backtest(inputs, spec=SPEC, player_part=fake_player_part)
+def validation_run() -> tuple[dict[str, Any], pd.DataFrame]:
+    return default_run()
 
 
 @pytest.fixture(scope="module")
-def full_run(inputs: M5Inputs) -> tuple[dict[str, Any], pd.DataFrame]:
-    return run_m5_backtest(inputs, spec=SPEC, player_part=fake_player_part, score_test=True)
+def full_run() -> tuple[dict[str, Any], pd.DataFrame]:
+    return default_run(score_test=True)
 
 
 @pytest.fixture(scope="module")
-def tuning_run(inputs: M5Inputs) -> tuple[dict[str, Any], pd.DataFrame]:
-    return run_m5_backtest(inputs, spec=SPEC, player_part=fake_player_part, tuning_only=True)
+def tuning_run() -> tuple[dict[str, Any], pd.DataFrame]:
+    return default_run(tuning_only=True)
 
 
 def _choice(report: dict[str, Any]) -> Choice:

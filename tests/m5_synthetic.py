@@ -17,6 +17,7 @@ One 2019 game is a forfeit and one 2021 game is unplayed.
 from __future__ import annotations
 
 import copy
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import M5Backtest, M5Grid
-from eurohoops.eval.m5_backtest import M5Inputs
+from eurohoops.eval.m5_backtest import M5Inputs, run_m5_backtest
 from eurohoops.models.elo import FloatArray
 from eurohoops.parse.games import conform
 from tests.conftest import make_team_games
@@ -213,6 +214,30 @@ def _other_season(rng: np.random.Generator, season: int) -> list[dict[str, Any]]
                 }
             )
     return games
+
+
+@cache
+def _default_run(tuning_only: bool, score_test: bool) -> tuple[dict[str, Any], pd.DataFrame]:
+    return run_m5_backtest(
+        build_inputs(0),
+        spec=small_spec(),
+        player_part=fake_player_part,
+        tuning_only=tuning_only,
+        score_test=score_test,
+    )
+
+
+def default_run(
+    *, tuning_only: bool = False, score_test: bool = False
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """``run_m5_backtest`` on ``build_inputs()`` with ``small_spec()`` and ``fake_player_part``.
+
+    Deterministic, so computed once per worker process and shared by every module that asks for
+    it. Each caller gets its own copy, so a test that mutates the report or frame cannot leak
+    into another test.
+    """
+    report, frame = _default_run(tuning_only, score_test)
+    return copy.deepcopy(report), frame.copy(deep=True)
 
 
 def build_inputs(seed: int = 0) -> M5Inputs:
