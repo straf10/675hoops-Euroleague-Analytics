@@ -24,7 +24,7 @@ Pre-registered, out-of-sample predictions for a whole season: forecasts cannot b
 
 ## Operating Context
 
-Pipeline ingest → build → backtest → predict → score → publish runs daily at 08:00 UTC. The page updates once a day. Tip-off times are shown in Athens time. Code and logs live at https://github.com/straf10/EuroHoops-Analytics (linked from the site).
+Pipeline ingest → build → backtest → predict → score → publish runs daily at 08:00 UTC. The page updates once a day. Tip-off times are shown in Athens time. Code and logs live at https://github.com/straf10/675hoops-Euroleague-Analytics (linked from the site).
 
 ## Capabilities and Constraints
 

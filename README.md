@@ -5,7 +5,7 @@
 - Live site: https://675hoops.com/
 - The repository also has a Greek Basket League (GBL) pipeline, logged in `predictions/`. The site shows EuroLeague only.
 
-[![ci](https://github.com/straf10/EuroHoops-Analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/straf10/EuroHoops-Analytics/actions/workflows/ci.yml) [![daily predictions](https://github.com/straf10/EuroHoops-Analytics/actions/workflows/daily.yml/badge.svg)](https://github.com/straf10/EuroHoops-Analytics/actions/workflows/daily.yml)
+[![ci](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/ci.yml) [![daily predictions](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/daily.yml/badge.svg)](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/daily.yml)
 
 "6.75" is the EuroLeague and FIBA three-point distance in metres. The repository, package and CLI are named `eurohoops`.
 

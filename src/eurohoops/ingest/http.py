@@ -7,7 +7,7 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 
 # A 429 from the EuroLeague API clears within a minute or two: back off up to ~4 min in all.
 MAX_ATTEMPTS = 8
-USER_AGENT = "EuroHoops-Analytics/0.1 (+https://github.com/straf10/EuroHoops-Analytics)"
+USER_AGENT = "EuroHoops-Analytics/0.1 (+https://github.com/straf10/675hoops-Euroleague-Analytics)"
 
 
 def make_client() -> httpx.Client:  # pragma: no cover - real network transport

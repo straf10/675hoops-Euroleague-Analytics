@@ -165,7 +165,8 @@ EUROLEAGUE = Competition(
     ),
     prediction_log=Path("predictions/euroleague_2026-27.csv"),
     scorecard=Path("reports/live_scorecard.json"),
-    # From the repository's activity feed (gh api repos/straf10/EuroHoops-Analytics/activity).
+    # From the repository's activity feed
+    # (gh api repos/straf10/675hoops-Euroleague-Analytics/activity).
     manual_pushes=(
         datetime(2026, 9, 24, 16, 24, 29, tzinfo=UTC),  # branch creation, round-1 rows v0.1.0
         datetime(2026, 9, 24, 20, 29, 32, tzinfo=UTC),  # round-1 rows v0.2.0
