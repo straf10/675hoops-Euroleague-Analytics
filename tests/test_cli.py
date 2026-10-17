@@ -11,6 +11,10 @@ import pytest
 from typer.testing import CliRunner
 
 from eurohoops import cli
+from eurohoops.cli import backtest as backtest_mod
+from eurohoops.cli import ingest as ingest_mod
+from eurohoops.cli import live as live_mod
+from eurohoops.cli import publish as publish_mod
 from eurohoops.config import (
     BOX_INVARIANTS_REPORT,
     EUROLEAGUE,
@@ -59,7 +63,8 @@ def pipeline(workdir: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         make_games({s: True for s in range(2007, 2026)} | {2026: False}),
         make_games({s: True for s in range(2018, 2026)} | {2026: False}, gbl_like=True),
     )
-    monkeypatch.setattr(cli, "utc_now", lambda: NOW)
+    monkeypatch.setattr(live_mod, "utc_now", lambda: NOW)
+    monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     return workdir
 
 
@@ -82,7 +87,7 @@ def seed_schedule(season: int) -> None:
 def test_ingest_both_competitions_then_build(monkeypatch: pytest.MonkeyPatch) -> None:
     el_api, esake = FakeApi(), FakeEsake()
     transports = iter([httpx.MockTransport(el_api), httpx.MockTransport(esake)])
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=next(transports)))
+    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=next(transports)))
     seed_schedule(2024)
     invoke("ingest", "--seasons", "2024", "2026", "--details")
     # the finished season comes from the cache; only the live schedule is fetched
@@ -109,8 +114,8 @@ def test_ingest_from_season_adds_the_range_to_the_chosen_seasons(
 ) -> None:
     api = FakeApi()
     transport = httpx.MockTransport(api)
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
-    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
     invoke("ingest", "--from-season", "2026")
     assert list(pd.read_parquet(EUROLEAGUE.staging_games)["season"].unique()) == [2026]
     seed_schedule(2024)
@@ -126,8 +131,8 @@ def test_default_ingest_keeps_the_2007_history(monkeypatch: pytest.MonkeyPatch) 
         seed_schedule(season)
     api = FakeApi()
     transport = httpx.MockTransport(api)
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
-    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
     invoke("ingest")
     assert len(api.calls) == 1 and api.calls[0].endswith("/seasons/E2026/games")
     staged = pd.read_parquet(EUROLEAGUE.staging_games)
@@ -140,8 +145,8 @@ def test_current_only_stages_the_live_season_and_rejects_season_options(
 ) -> None:
     api = FakeApi()
     transport = httpx.MockTransport(api)
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
-    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
     invoke("ingest", "--current-only")
     assert len(api.calls) == 1
     assert list(pd.read_parquet(EUROLEAGUE.staging_games)["season"].unique()) == [2026]
@@ -155,8 +160,8 @@ def test_ingest_stops_with_an_error_when_a_finished_season_is_not_cached(
 ) -> None:
     api = FakeApi()
     transport = httpx.MockTransport(api)
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=transport))
-    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=transport))
+    monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
     result = runner.invoke(cli.app, ["ingest"])
     assert result.exit_code == 1
     assert api.calls == []
@@ -220,7 +225,7 @@ def test_predict_exits_non_zero_when_stamp_is_not_before_tipoff(
 ) -> None:
     invoke("backtest")
     ticks: Iterator[datetime] = iter([NOW, datetime(2026, 10, 1, 18, 0, tzinfo=UTC)])
-    monkeypatch.setattr(cli, "utc_now", lambda: next(ticks))
+    monkeypatch.setattr(live_mod, "utc_now", lambda: next(ticks))
     result = runner.invoke(cli.app, ["predict"])
     assert result.exit_code == 1
     assert not EUROLEAGUE.prediction_log.exists()
@@ -233,8 +238,8 @@ def test_a_failing_m5_forecast_never_blocks_the_elo_log(monkeypatch: pytest.Monk
     def broken(*_args: object, **_kwargs: object) -> int:
         raise ValueError("no tuning game with finite forecasts to fit the margin model on")
 
-    monkeypatch.setattr(cli, "load_m5", lambda _path: object())
-    monkeypatch.setattr(cli, "predict_upcoming_m5", broken)
+    monkeypatch.setattr(live_mod, "load_m5", lambda _path: object())
+    monkeypatch.setattr(live_mod, "predict_upcoming_m5", broken)
     result = runner.invoke(cli.app, ["predict"])
     assert result.exit_code == 0
     assert EUROLEAGUE.prediction_log.exists()
@@ -247,8 +252,8 @@ def test_a_failing_elor_forecast_never_blocks_the_elo_log(monkeypatch: pytest.Mo
     def broken(*_args: object, **_kwargs: object) -> int:
         raise ValueError("roster club codes do not match the games mart")
 
-    monkeypatch.setattr(cli, "load_elor", lambda _path: object())
-    monkeypatch.setattr(cli, "predict_upcoming_elor", broken)
+    monkeypatch.setattr(live_mod, "load_elor", lambda _path: object())
+    monkeypatch.setattr(live_mod, "predict_upcoming_elor", broken)
     result = runner.invoke(cli.app, ["predict"])
     assert result.exit_code == 0
     assert EUROLEAGUE.prediction_log.exists()
@@ -286,7 +291,7 @@ def test_odds_records_a_consensus_row(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ODDS_API_KEY", "fake-key")
     ODDS_TEAMS.parent.mkdir(parents=True, exist_ok=True)
     ODDS_TEAMS.write_text("odds_api_name,team,verified\nAlpha,AAA,no\nBravo,BBB,no\n")
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=odds_api(200)))
+    monkeypatch.setattr(live_mod, "make_client", lambda: httpx.Client(transport=odds_api(200)))
     output = invoke("odds")
     assert "1 consensus rows from 1 events" in output
     assert "requests remaining 400" in output
@@ -307,7 +312,7 @@ def test_odds_fails_cleanly(monkeypatch: pytest.MonkeyPatch) -> None:
     result = runner.invoke(cli.app, ["odds"])
     assert result.exit_code == 1
     monkeypatch.setenv("ODDS_API_KEY", "fake-key")
-    monkeypatch.setattr(cli, "make_client", lambda: httpx.Client(transport=odds_api(401)))
+    monkeypatch.setattr(live_mod, "make_client", lambda: httpx.Client(transport=odds_api(401)))
     result = runner.invoke(cli.app, ["odds"])
     assert result.exit_code == 1
     assert "fake-key" not in result.output
@@ -323,13 +328,13 @@ def test_injuries_records_a_snapshot_and_never_fails(monkeypatch: pytest.MonkeyP
             transport=httpx.MockTransport(lambda r: httpx.Response(status, content=body))
         )
 
-    monkeypatch.setattr(cli, "make_client", lambda: serve(200))
+    monkeypatch.setattr(live_mod, "make_client", lambda: serve(200))
     output = invoke("injuries")
     assert "appended; 5 rows, 3 teams" in output
     assert "Anadolu Efes Istanbul" in output  # the fixture season has no such team: unmapped
     assert len(pd.read_csv(INJURY_LOG)) == 5
     assert "unchanged" in invoke("injuries")
-    monkeypatch.setattr(cli, "make_client", lambda: serve(503))
+    monkeypatch.setattr(live_mod, "make_client", lambda: serve(503))
     assert "failed" in invoke("injuries")
     assert len(pd.read_csv(INJURY_LOG)) == 5
 
@@ -341,7 +346,7 @@ def test_injuries_probe_writes_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     client = httpx.Client(
         transport=httpx.MockTransport(lambda r: httpx.Response(200, content=body))
     )
-    monkeypatch.setattr(cli, "make_client", lambda: client)
+    monkeypatch.setattr(live_mod, "make_client", lambda: client)
     before = INJURY_LOG.read_bytes() if INJURY_LOG.exists() else b""
     assert "probe ok; 5 rows" in invoke("injuries", "--probe")
     assert (INJURY_LOG.read_bytes() if INJURY_LOG.exists() else b"") == before
@@ -408,7 +413,8 @@ def small_m1(pipeline: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             pace_grid=M1_SPEC.pace_grid,
         )
         comps[comp.name] = dataclasses.replace(comp, m1=spec)
-    monkeypatch.setattr(cli, "COMPETITIONS", comps)
+    monkeypatch.setattr(backtest_mod, "COMPETITIONS", comps)
+    monkeypatch.setattr(live_mod, "COMPETITIONS", comps)
     return pipeline
 
 
@@ -471,7 +477,7 @@ def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
         specs.append(spec)
         raise _Stop
 
-    monkeypatch.setattr(cli, "_m5_inputs", fake_inputs)
+    monkeypatch.setattr(backtest_mod, "_m5_inputs", fake_inputs)
     result = runner.invoke(cli.app, ["backtest", "--model", "m5", "--retune-check"])
     assert isinstance(result.exception, _Stop), result.output
     (spec,) = specs
@@ -511,7 +517,7 @@ def test_ingest_gbl_pbp_caches_exports_and_keeps_every_season(
         return (hotel if request.url.host == "widgets.baskethotel.com" else esake)(request)
 
     monkeypatch.setattr(
-        cli, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(route))
+        ingest_mod, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(route))
     )
     invoke("ingest", "--competition", "gbl", "--seasons", "2018", "--pbp")
     assert len(hotel.calls) == 2 * 4  # widget + export for each played, non-forfeit game

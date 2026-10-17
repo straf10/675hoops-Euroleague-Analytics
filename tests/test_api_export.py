@@ -30,6 +30,7 @@ from eurohoops.api.export import (
     stats_files,
 )
 from eurohoops.api.readmodel import Store
+from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH
 from tests.api_check import load_script
 from tests.api_tree import EL_PERSON, GBL_ONLY_PERSON, NOW, build_tree
@@ -62,7 +63,7 @@ def tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """The fixture tree as the working directory, with the CLI clock fixed."""
     build_tree(tmp_path)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "utc_now", lambda: NOW)
+    monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     return tmp_path
 
 

@@ -47,7 +47,8 @@ from eurohoops.api.export import (
     write_stats_files,
 )
 from eurohoops.api.readmodel import FORECAST_MODELS, Store
-from eurohoops.cli import _live, utc_now
+from eurohoops.cli._shared import _live
+from eurohoops.cli.publish import utc_now
 from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH, SITE_FORECAST_MODEL
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import write_json

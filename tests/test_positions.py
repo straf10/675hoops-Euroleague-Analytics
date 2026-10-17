@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from eurohoops import cli
+from eurohoops.cli import ingest as ingest_mod
 from eurohoops.ingest.bios import el_people_path, refresh_people
 from eurohoops.ingest.http import Fetcher
 from eurohoops.stats.positions import games_by_club, season_positions
@@ -128,7 +129,7 @@ def test_people_command_refetches_only_the_live_season(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
     body = json.dumps({"data": [person("000001", "Forward", "AAA")]}).encode()
     urls: list[str] = []
 
@@ -137,9 +138,9 @@ def test_people_command_refetches_only_the_live_season(
         return httpx.Response(200, content=body)
 
     monkeypatch.setattr(
-        cli, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(api))
+        ingest_mod, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(api))
     )
-    raw = cli.EUROLEAGUE.raw_dir
+    raw = ingest_mod.EUROLEAGUE.raw_dir
     for season in (2022, 2023, 2024, 2025):  # earlier site seasons already cached
         write_people(raw, season, [person("000001", "Guard", "AAA")])
     result = runner.invoke(cli.app, ["people"])
@@ -153,8 +154,8 @@ def test_people_command_fills_missing_earlier_seasons_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "LIVE_SEASON", 2026)
-    monkeypatch.setattr(cli, "SITE_SEASONS", 3)
+    monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "SITE_SEASONS", 3)
     body = json.dumps({"data": [person("000001", "Forward", "AAA")]}).encode()
     urls: list[str] = []
 
@@ -163,9 +164,9 @@ def test_people_command_fills_missing_earlier_seasons_once(
         return httpx.Response(200, content=body)
 
     monkeypatch.setattr(
-        cli, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(api))
+        ingest_mod, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(api))
     )
-    raw = cli.EUROLEAGUE.raw_dir
+    raw = ingest_mod.EUROLEAGUE.raw_dir
     write_people(raw, 2025, [person("000001", "Guard", "AAA")])
     result = runner.invoke(cli.app, ["people"])
     assert result.exit_code == 0, result.output

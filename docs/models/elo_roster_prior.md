@@ -18,7 +18,7 @@ over the first rounds, improves EuroLeague home-win log loss over live Elo.
   parameters stay fixed: k 20, hca 90, reversion 0.25. Elo is not re-tuned inside this proposal.
 - **Roster rating P_t (Elo points):** the M3 player part, `rapm_spm` (committed in
   `reports/backtest_m3.json`, the same player part M5 uses; built by `_m5_player_part_el` in
-  `src/eurohoops/cli.py`), weighted by the team's projected minute shares. Shares come from
+  `src/eurohoops/cli/backtest.py`), weighted by the team's projected minute shares. Shares come from
   `models/minutes.py:projected_shares` or `models/rotation.py:projected_shares_variant`, computed
   from box scores before the season-start cutoff. **Roster membership (decision 0, option A):**
   a team's roster for a game is the players (`type == "J"`) listed for that club in the cached
@@ -34,7 +34,7 @@ over the first rounds, improves EuroLeague home-win log loss over live Elo.
   The margin is converted to Elo points by `elo.fit_margin_scale`, fitted on earlier seasons only.
   P_t is centred on the league mean of P in that season, so the blend moves teams relative to
   each other, not the league level.
-  Note: `_m5_player_part_el` is private to `cli.py`. An implementation would need to move it
+  Note: `_m5_player_part_el` is private to `cli/backtest.py`. An implementation would need to move it
   into `models/`. That is out of scope for this draft.
 - **Cutoffs:** `models/minutes.py:round_cutoffs` gives each game's information cutoff.
 

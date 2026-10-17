@@ -22,6 +22,7 @@ import pytest
 from typer.testing import CliRunner
 
 from eurohoops import cli
+from eurohoops.cli import publish as publish_mod
 from eurohoops.config import MART_PATH
 from eurohoops.marts import write_tables
 from eurohoops.publish import DISPLAY_CODES
@@ -368,7 +369,7 @@ def test_cli_exports_from_the_cache_and_from_the_marts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "utc_now", lambda: NOW)
+    monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     _repo_layout(tmp_path)
     cached = runner.invoke(cli.app, ["export-stats", "--from-cache", "--out", "cached"])
     assert cached.exit_code == 0, cached.output

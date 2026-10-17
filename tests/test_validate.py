@@ -13,6 +13,7 @@ import typer
 from typer.testing import CliRunner
 
 from eurohoops import cli
+from eurohoops.cli import publish as publish_mod
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats import export
 from eurohoops.stats.box import BoxGames, build_box_games
@@ -186,7 +187,7 @@ def test_cli_writes_the_json_and_fails_after_writing_it_on_a_published_schema_br
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(path.read_bytes())
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "utc_now", lambda: NOW)
+    monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     ok = runner.invoke(cli.app, ["export-stats", "--from-cache", "--out", "ok"])
     assert ok.exit_code == 0, ok.output
     written = json.loads((tmp_path / "ok" / "validation.json").read_text(encoding="utf-8"))
@@ -194,7 +195,7 @@ def test_cli_writes_the_json_and_fails_after_writing_it_on_a_published_schema_br
     assert (tmp_path / "ok" / "seasons").exists()
 
     broken = replace(inputs, games=inputs.games.drop(columns=["round"]))
-    monkeypatch.setattr(cli, "stats_inputs", lambda store: broken)
+    monkeypatch.setattr(publish_mod, "stats_inputs", lambda store: broken)
     failed = runner.invoke(cli.app, ["export-stats", "--from-cache", "--out", "bad"])
     assert failed.exit_code == 1
     assert (tmp_path / "bad" / "validation.json").exists()

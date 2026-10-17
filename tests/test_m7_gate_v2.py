@@ -20,6 +20,7 @@ import pytest
 from typer.testing import CliRunner
 
 from eurohoops import cli
+from eurohoops.cli import backtest as backtest_mod
 from eurohoops.config import GATE_V2_MARGIN, M7, M7_V2
 from eurohoops.eval import m7_gate_v2
 from eurohoops.eval.m7_backtest import (
@@ -471,10 +472,10 @@ def test_the_cli_writes_the_report_and_rows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     report, rows = _run()
-    spec = replace(cli.M7_V2, report=tmp_path / "r.json", teams_report=tmp_path / "t.csv")
-    monkeypatch.setattr(cli, "M7_V2", spec)
-    monkeypatch.setattr(cli, "_m7_inputs", lambda *_: _inputs("base"))
-    monkeypatch.setattr(cli, "run_gate_v2", lambda *_, **__: (report, rows))
+    spec = replace(backtest_mod.M7_V2, report=tmp_path / "r.json", teams_report=tmp_path / "t.csv")
+    monkeypatch.setattr(backtest_mod, "M7_V2", spec)
+    monkeypatch.setattr(backtest_mod, "_m7_inputs", lambda *_: _inputs("base"))
+    monkeypatch.setattr(backtest_mod, "run_gate_v2", lambda *_, **__: (report, rows))
     result = CliRunner().invoke(cli.app, ["backtest", "--model", "m7", "--gate-v2"])
     assert result.exit_code == 0, result.output
     assert json.loads(spec.report.read_text(encoding="utf-8")) == report

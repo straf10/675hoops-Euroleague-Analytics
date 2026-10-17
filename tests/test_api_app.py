@@ -24,6 +24,7 @@ from eurohoops import cli
 from eurohoops.api import app as api_app
 from eurohoops.api.app import CompactJSON, IndentedJSON, create_app
 from eurohoops.api.readmodel import Store
+from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, MART_PATH, SITE_DATA
 from eurohoops.logs import write_json
 from eurohoops.publish import DISPLAY_CODES
@@ -238,7 +239,7 @@ def test_site_is_the_bytes_eurohoops_publish_writes(
 ) -> None:
     build_tree(tmp_path)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "utc_now", lambda: NOW)
+    monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     assert runner.invoke(cli.app, ["publish"]).exit_code == 0
     written = (tmp_path / SITE_DATA).read_bytes()
     assert make_client(tmp_path).get("/site").content == written

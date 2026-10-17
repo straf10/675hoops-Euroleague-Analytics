@@ -1,7 +1,7 @@
 """The local M2 and M3 research commands (``eurohoops shots``, ``free-throws``, ``shot-quality``,
 ``shot-charts``, ``backtest --model m2`` and ``gbl-stints``): the daily workflow never runs them.
-cli.py registers them under their names; nothing here is fetched, everything reads the marts and
-the raw cache."""
+``eurohoops.cli`` registers them under their names; nothing here is fetched, everything reads the
+marts and the raw cache."""
 
 import hashlib
 import json
