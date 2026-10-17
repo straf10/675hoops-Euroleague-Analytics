@@ -13,14 +13,17 @@ interface Props {
   description: string;
   /** Which top-bar page is current. */
   current?: "players" | "leaders" | "compare" | "teams" | "standings" | "forecasts" | "methodology" | "about" | "glossary" | "downloads";
+  /** A share card under the site root (e.g. /cards/players/x.png) in place of the default social card. */
+  image?: { path: string; width: number; height: number };
 }
-const { title, description, current } = Astro.props;
+const { title, description, current, image: card } = Astro.props;
 const fullTitle = title ? `${title} · 6.75 Analytics` : "6.75 Analytics";
 const url = new URL(Astro.url.pathname, Astro.site ?? "https://675hoops.com").href;
 const home = import.meta.env.BASE_URL;
 const root = home.replace(/\/$/, "");
-// The social card, the same on every page. It needs public/og.png (1200x630).
-const image = new URL(`${root}/og.png`, Astro.site ?? "https://675hoops.com").href;
+// The social card, the same on every page unless a page passes its own. The default needs public/og.png (1200x630).
+const shareCard = card ?? { path: "/og.png", width: 1200, height: 630 };
+const image = new URL(`${root}${shareCard.path}`, Astro.site ?? "https://675hoops.com").href;
 const pages = [
   { key: "players", href: `${root}/players/`, label: "Players" },
   { key: "leaders", href: `${root}/leaders/`, label: "Leaders" },
@@ -52,8 +55,8 @@ const footLinks = [
     <meta property="og:type" content="website" />
     <meta property="og:url" content={url} />
     <meta property="og:image" content={image} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:width" content={String(shareCard.width)} />
+    <meta property="og:image:height" content={String(shareCard.height)} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />

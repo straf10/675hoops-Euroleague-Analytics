@@ -73,6 +73,9 @@ const clutch = stints ? clutchView(stints) : null;
 
 // 7. Season-end projection: only for the live season, and only with an M6 projection
 const live = m.seasons.find((s) => s.live);
+// A player in the live season has a share card, and his schema.org affiliation is his current clubs.
+const current = live !== undefined && latest.season === live.season;
+const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, height: 1350 } : undefined;
 const projection = m6.projection;
 const proj = projection?.projections[0];
 const end =
@@ -86,16 +89,18 @@ const end =
     : null;
 ---
 
-<Base title={data.name} description={description} current="players">
+<Base title={data.name} description={description} current="players" image={card}>
   <JsonLd
     slot="head"
     data={person({
       name: data.name,
       url: abs(`${base}/players/${data.slug}/`),
-      affiliation: latest.teams.map((code) => ({
-        name: m.teams[code] ?? code,
-        url: abs(`${base}/teams/${code.toLowerCase()}/`),
-      })),
+      affiliation: current
+        ? latest.teams.map((code) => ({
+            name: m.teams[code] ?? code,
+            url: abs(`${base}/teams/${code.toLowerCase()}/`),
+          }))
+        : undefined,
     })}
   />
   <div class="accented" style={accentStyle}>
@@ -114,6 +119,7 @@ const end =
       {pos && <span>{pos}</span>}
       <span>{seasonCount}, {span}</span>
       <a href={`${base}/compare/?p=${data.slug}:${latest.season}`}>Compare with others</a>
+      {card && <a href={`${base}${card.path}`} download>Share card</a>}
     </p>
     <p class="lede">{lede}</p>
     {
