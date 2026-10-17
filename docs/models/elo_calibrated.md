@@ -33,8 +33,7 @@ parameters (`config.ELOR_ELO_PARAMS`, checked against the `tuned` block of
 `reports/backtest_elo.json`). This is not the comparison Elo re-tuned in M1's backtest (E-a, E-b).
 
 **Replay convention:** Elo is replayed from 2007 (the first warm-up season), as ELOR's CV does. The
-published log replays from 2023 (`live_backtest` warm-up), so the two can differ slightly. At the
-live step the shadow reports that difference the way the ELOR amendment did. Both `(a, b)` and the
+published log replays from 2023 (`live_backtest` warm-up), so the two can differ slightly. The gap is measured once when the flag is switched on and added to this file, as ELOR's live amendment did. Any live comparison is against the published log (2023 start), not the 2007 replay. Both `(a, b)` and the
 live forecast use the 2007 replay, so the fit and the forecast see the same Elo values.
 
 ## Data
@@ -92,8 +91,17 @@ these margins is reported and not required. Failing the criteria means ELOC is n
   guard as the Elo log (`refuse_late`). No backfill, so logging starts when the flag is flipped.
 - **Judgement:** no promotion rule is declared here. Any use of ELOC beyond the shadow needs a new
   protocol, written and approved before the season it judges.
-- **Disclosed:** the live Elo parameters were chosen on 2024 and 2025, so the live fit's seasons
-  overlap those tuning seasons. Calibration selects nothing, but the overlap is stated.
+- **Disclosed:** the live Elo parameters were tuned on 2024 (2025 was Elo's test season), so the live
+  fit's seasons include Elo's tuning and test seasons; on 2024 Elo's `d` is in-sample, which can pull
+  `b` toward 1. Calibration selects nothing, but the overlap is stated.
+- The hypothesis came from `docs/models/diag_home_court.md`, which looked at 2015–2025 and so includes
+  the fold seasons: the idea was formed on the data that tests it.
+- Elo's fixed parameters were tuned on 2024, after the folds. Both arms share them, so the paired gap
+  stays fair.
+- The 95% CI resamples only nine season clusters, so the percentile interval runs narrow (ELOR used
+  the same method).
+- Per-season or intercept-only (b = 1) fits are not tested: either would be a second arm, i.e.
+  multiple testing. The reported per-fold `b` shows whether the slope matters.
 
 ## Run-once rule
 - `eurohoops backtest --model eloc --cv` is the one-shot run. It refuses when `reports/eloc_cv.json`
@@ -101,6 +109,9 @@ these margins is reported and not required. Failing the criteria means ELOC is n
   guards). It writes `reports/eloc_cv.json` and `reports/eloc_cv_games.csv` once.
 - `eurohoops backtest --model eloc --cv-check` is read-only. It prints the game count per fold (fit
   and scored) and the live fit's game count. It fits nothing and scores nothing.
+- Sanity check: the run aborts and writes nothing unless its scored games are ELOR's 2,535 and Elo's
+  pooled log loss on them equals ELOR's (`reports/elor_cv.json` → `elo.log_loss`, 0.605151, to 6
+  decimals). Both use the same replay, parameters and scored games.
 - **No second run.** A change to any setting in this file is a new protocol (v2), declared and
   approved before it is run.
 

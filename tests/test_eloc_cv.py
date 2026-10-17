@@ -100,6 +100,55 @@ def test_run_cv_is_deterministic(tmp_path: Path) -> None:
     assert first == second
 
 
+def _elo_baseline(spec: ElocCv) -> tuple[float, int]:
+    report, _ = eloc_cv.run_cv(syn.games(), spec=spec, git_head="test")
+    return report["elo"]["log_loss"], report["scored_games"]
+
+
+def test_baseline_check_passes_when_elo_and_games_match(tmp_path: Path) -> None:
+    spec = syn.spec(tmp_path / "r.json")
+    loss, games = _elo_baseline(spec)
+    report, _ = eloc_cv.run_cv(
+        syn.games(), spec=spec, git_head="test", baseline_log_loss=loss, baseline_games=games
+    )
+    assert report["scored_games"] == games
+
+
+def test_baseline_check_raises_when_elo_log_loss_differs(tmp_path: Path) -> None:
+    spec = syn.spec(tmp_path / "r.json")
+    loss, games = _elo_baseline(spec)
+    with pytest.raises(ValueError, match="log loss"):
+        eloc_cv.run_cv(
+            syn.games(),
+            spec=spec,
+            git_head="test",
+            baseline_log_loss=round(loss + 1e-6, 6),
+            baseline_games=games,
+        )
+
+
+def test_baseline_check_raises_when_game_count_differs(tmp_path: Path) -> None:
+    spec = syn.spec(tmp_path / "r.json")
+    loss, games = _elo_baseline(spec)
+    with pytest.raises(ValueError, match="games"):
+        eloc_cv.run_cv(
+            syn.games(),
+            spec=spec,
+            git_head="test",
+            baseline_log_loss=loss,
+            baseline_games=games + 1,
+        )
+
+
+def test_baseline_check_is_skipped_when_none(tmp_path: Path) -> None:
+    spec = syn.spec(tmp_path / "r.json")
+    unchecked, _ = eloc_cv.run_cv(syn.games(), spec=spec, git_head="test")
+    checked, _ = eloc_cv.run_cv(
+        syn.games(), spec=spec, git_head="test", baseline_log_loss=None, baseline_games=None
+    )
+    assert checked == unchecked
+
+
 def test_elo_replay_in_the_harness_is_the_flagship_replay(tmp_path: Path) -> None:
     """The harness replays Elo with the spec's parameters, from the warm-up season."""
     spec = syn.spec(tmp_path / "r.json")
@@ -120,6 +169,10 @@ def _stop() -> None:
 def eloc(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ElocCv:
     """A tmp report location, the live-parameter check passing and a games loader that stops."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "reports").mkdir()
+    (tmp_path / "reports" / "elor_cv.json").write_text(  # ELOR's baseline, read before any run
+        '{"elo": {"log_loss": 0.5}, "scored_games": 1}', encoding="utf-8"
+    )
     spec = syn.spec(tmp_path / "reports" / "eloc_cv.json")
     monkeypatch.setattr(backtest_mod, "ELOC_CV", spec)
     monkeypatch.setattr(backtest_mod, "_live_elo_params_match", lambda params=None: True)
@@ -148,7 +201,7 @@ def test_eloc_flags_refuse_bad_combinations(args: list[str]) -> None:
 def test_cv_refuses_when_the_report_exists(eloc: ElocCv, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(backtest_mod, "is_clean_tree", lambda: True)
     monkeypatch.setattr(backtest_mod, "_on_origin_main", lambda: True)
-    eloc.report.parent.mkdir(parents=True)
+    eloc.report.parent.mkdir(parents=True, exist_ok=True)
     eloc.report.write_text("{}", encoding="utf-8")
     result = runner.invoke(cli.app, ["backtest", "--model", "eloc", "--cv"])
     assert result.exit_code == 1 and not isinstance(result.exception, _Stop)

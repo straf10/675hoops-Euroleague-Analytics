@@ -404,6 +404,12 @@ def _cv_backtest(
         _backtest_elor(check_only=check_only)
 
 
+def _elor_baseline() -> tuple[float, int]:
+    """ELOR's report: Elo's pooled log loss and scored games, the ELOC sanity check's baseline."""
+    report = json.loads(ELOR_CV.report.read_text(encoding="utf-8"))
+    return float(report["elo"]["log_loss"]), int(report["scored_games"])
+
+
 def _backtest_eloc(check_only: bool) -> None:
     """``backtest --model eloc --cv`` or ``--cv-check`` (docs/models/elo_calibrated.md)."""
     if not _live_elo_params_match(ELOC_CV.elo_params):
@@ -412,6 +418,9 @@ def _backtest_eloc(check_only: bool) -> None:
     if not check_only:
         if ELOC_CV.report.exists():
             log.error("refusing to run: %s already exists", ELOC_CV.report)
+            raise typer.Exit(code=1)
+        if not ELOR_CV.report.exists():
+            log.error("refusing to run: ELOR's report %s is missing", ELOR_CV.report)
             raise typer.Exit(code=1)
         if not is_clean_tree():
             log.error("refusing to run: the working tree is not clean")
@@ -425,7 +434,14 @@ def _backtest_eloc(check_only: bool) -> None:
         typer.echo(json.dumps(eloc_cv.cv_check(games, ELOC_CV), indent=2))
         typer.echo(f"RUNTIME backtest eloc cv-check: {time.perf_counter() - started:.0f} s")
         return
-    report, detail = eloc_cv.run_cv(games, spec=ELOC_CV, git_head=git_head_sha())
+    baseline_log_loss, baseline_games = _elor_baseline()
+    report, detail = eloc_cv.run_cv(
+        games,
+        spec=ELOC_CV,
+        git_head=git_head_sha(),
+        baseline_log_loss=baseline_log_loss,
+        baseline_games=baseline_games,
+    )
     write_json(ELOC_CV.report, report)
     detail.to_csv(ELOC_CV.games_report, index=False, lineterminator="\n")
     typer.echo(f"{ELOC_CV.report}\n{json.dumps(report['shadow_criteria'], indent=2)}")

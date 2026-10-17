@@ -98,8 +98,15 @@ def _metrics(
 
 
 def run_cv(
-    games: pd.DataFrame, *, spec: ElocCv, git_head: str
+    games: pd.DataFrame,
+    *,
+    spec: ElocCv,
+    git_head: str,
+    baseline_log_loss: float | None = None,
+    baseline_games: int | None = None,
 ) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Runs the folds. Raises before anything is returned (so before anything is written) when
+    the scored games or Elo's pooled log loss differ from ELOR's report; ``None`` skips a check."""
     ctx = build_context(games, spec)
     p_elo = expit(ctx.x)  # == elo.win_probability(d): the same logistic in the rating difference
     p_cal = np.full(len(ctx.x), np.nan)
@@ -115,6 +122,13 @@ def run_cv(
     cluster = pd.factorize(ctx.season[mask], sort=True)[0].astype(np.int64)
     loss_elo = per_game_log_loss(p_elo[mask], y)
     loss_cal = per_game_log_loss(p_cal[mask], y)
+    if baseline_games is not None and int(mask.sum()) != baseline_games:
+        raise ValueError(f"ELOC scores {int(mask.sum())} games; ELOR's report has {baseline_games}")
+    if baseline_log_loss is not None and round6(loss_elo.mean()) != baseline_log_loss:
+        raise ValueError(
+            f"Elo's log loss on the scored games is {round6(loss_elo.mean())}; "
+            f"ELOR's report has {baseline_log_loss}"
+        )
     mean, low, high = cluster_bootstrap_ci(
         loss_cal - loss_elo, cluster, spec.bootstrap_resamples, spec.bootstrap_seed
     )
