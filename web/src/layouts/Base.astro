@@ -1,5 +1,7 @@
 ---
 import "@fontsource-variable/geist";
+// The Latin subset is what visitors use; the other subsets stay on demand via unicode-range.
+import geistLatin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import "../styles/global.css";
 import sun from "@phosphor-icons/core/assets/regular/sun.svg?raw";
 import { buildDate, buildId } from "../lib/build";
@@ -57,6 +59,7 @@ const footLinks = [
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={image} />
     <link rel="canonical" href={url} />
+    <link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin />
     <slot name="head" />
     <link rel="icon" href={`${root}/favicon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${root}/favicon.ico`} sizes="32x32" />
@@ -122,9 +125,20 @@ const footLinks = [
 
     <script>
       // Error reports only (no traces, no replay). Off when the build has no DSN.
-      import * as Sentry from "@sentry/browser";
+      // The SDK is a separate chunk, fetched only after the page has loaded and gone idle, so it
+      // stays off the first-paint path. Safari has no requestIdleCallback: fall back to a timeout.
       const dsn = import.meta.env.PUBLIC_SENTRY_DSN;
-      if (dsn) Sentry.init({ dsn, environment: import.meta.env.MODE, tracesSampleRate: 0 });
+      if (dsn) {
+        const start = async () => {
+          // Named import so the bundler can drop the SDK's unused exports.
+          const { init } = await import("@sentry/browser");
+          init({ dsn, environment: import.meta.env.MODE, tracesSampleRate: 0 });
+        };
+        const whenIdle = () =>
+          "requestIdleCallback" in window ? requestIdleCallback(start) : setTimeout(start, 1);
+        if (document.readyState === "complete") whenIdle();
+        else addEventListener("load", whenIdle, { once: true });
+      }
     </script>
 
     <script>
