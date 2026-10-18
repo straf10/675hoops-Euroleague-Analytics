@@ -4,7 +4,7 @@
 
 import type { HexCell } from "./court";
 import { freqHeat, qualityHeat } from "./heat";
-import { deltaHtml, type BetterIs } from "./delta";
+import { deltaHtml, signClass, type BetterIs } from "./delta";
 import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
 import { SEASON_COLS, bandRows, totalsOf, type Totals } from "./player";
@@ -165,7 +165,8 @@ export function headCells(t: TeamSeason) {
   const place = ordinal(t.standing);
   return {
     record: `${t.w}–${t.l} <span class="muted">${esc(t.label)}</span>`,
-    net: deltaHtml(f.net, { better: "higher" }),
+    // Net is a signed figure against zero (the league average is 0), so it takes the Sign Colour Rule, not a Delta arrow.
+    net: `<span class="${signClass(f.net)}">${signed(f.net)}</span>`,
     netSub: `${f.ortg.toFixed(1)} off · ${f.drtg.toFixed(1)} def`,
     pace: f.pace.toFixed(1),
     paceSub: `per 40 min · ${ordinal(pace + 1)} fastest`,
@@ -223,7 +224,15 @@ export function clubCells(fields: string[], teams: ClubLine[]): ClubCells[] {
   return teams
     .map((t) => ({ t, f: factors(fields, t.totals, t.opp) }))
     .sort((a, b) => b.f.net - a.f.net)
-    .map(({ t, f }) => [t.code, t.name, `${t.w}–${t.l}`, f.ortg.toFixed(1), f.drtg.toFixed(1), signed(f.net), f.pace.toFixed(1)]);
+    .map(({ t, f }) => [
+      t.code,
+      t.name,
+      `${t.w}–${t.l}`,
+      f.ortg.toFixed(1),
+      f.drtg.toFixed(1),
+      `<span class="${signClass(f.net)}">${signed(f.net)}</span>`,
+      f.pace.toFixed(1),
+    ]);
 }
 
 /** The same factors as clubCells, unrounded, for the index charts; the league line is the league's own totals. */

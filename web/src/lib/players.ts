@@ -3,6 +3,7 @@
 // paint) and in the browser (every filter change), so the two can never disagree. Values are per
 // game; `rated` also serves the Compare page's per-36 and per-100 columns.
 
+import { signClass } from "./delta";
 import { esc } from "./format";
 import { position, type Position } from "./position";
 import { dataTip, tip } from "./tip";
@@ -285,7 +286,7 @@ function niceTicks(lo: number, hi: number, count = 6): number[] {
 
 export interface Chart {
   title: string;
-  rows: { line: Line; x: number; text: string }[];
+  rows: { line: Line; x: number; text: string; sc: string }[];
   ticks: { x: number; text: string }[];
   avg: { x: number; text: string; n: number } | null;
 }
@@ -309,7 +310,12 @@ export function chart(ls: Line[], view: View): Chart {
   const end = view.dir === "desc" ? "Highest" : "Lowest";
   return {
     title: `${end} ${top.length}: ${measureTitle(view)}`,
-    rows: top.map((line) => ({ line, x: x(line.values[m.key] as number), text: format(m, line.values[m.key]) })),
+    rows: top.map((line) => ({
+      line,
+      x: x(line.values[m.key] as number),
+      text: format(m, line.values[m.key]),
+      sc: m.signed ? signClass(line.values[m.key], m.digits) : "",
+    })),
     ticks: niceTicks(lo, hi).map((v) => ({ x: x(v), text: format({ ...m, digits: Number.isInteger(v) ? 0 : 1 }, v) })),
     avg: mean === null ? null : { x: x(mean), text: format(m, mean), n: values.length },
   };
@@ -326,7 +332,7 @@ export function chartHtml(c: Chart, base: string): string {
     .map((s, i) => {
       const { row } = s.line;
       const body = slotTip(row, c, s.text);
-      return `<li class="slot" style="--x:${s.x.toFixed(2)}"><span class="rk">${i + 1}</span><a class="nm" href="${playerHref(base, row.slug)}">${esc(row.name)}</a><span class="track"${dataTip(body)} tabindex="-1"><span class="pos"></span></span><span class="val">${s.text}</span></li>`;
+      return `<li class="slot" style="--x:${s.x.toFixed(2)}"><span class="rk">${i + 1}</span><a class="nm" href="${playerHref(base, row.slug)}">${esc(row.name)}</a><span class="track"${dataTip(body)} tabindex="-1"><span class="pos"></span></span><span class="val${s.sc ? ` ${s.sc}` : ""}">${s.text}</span></li>`;
     })
     .join("");
 }
@@ -369,7 +375,9 @@ export function bodyHtml(ls: Line[], view: View, base: string): string {
           const v = l.values[key];
           const short = m.qualifies && !m.qualifies(l.totals);
           const cls = ["num", key === view.metric ? "on" : "", short ? "short" : ""].filter(Boolean).join(" ");
-          return `<td class="${cls}">${format(m, v)}</td>`;
+          // Sign Colour Rule: the +/- figure (signed measures) wears green or red; the sign is printed.
+          const sc = m.signed ? signClass(v, m.digits) : "";
+          return `<td class="${cls}">${sc ? `<span class="${sc}">${format(m, v)}</span>` : format(m, v)}</td>`;
         })
         .join("");
       return `<tr><td class="c-rk">${l.ranked ? rank : ""}</td><th scope="row" class="c-nm"><a href="${playerHref(base, l.row.slug)}">${esc(l.row.name)}</a>${teamCell(l.row.teams, base, view.season)}</th>${cells}</tr>`;
