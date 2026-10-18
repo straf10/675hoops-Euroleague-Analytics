@@ -99,7 +99,7 @@ def test_site_without_a_log_is_json_ready() -> None:
         2026,
         2026,
     )
-    data = site_data([empty], NOW)
+    data = site_data([empty], NOW, {"games": 0, "seasons": 0, "shots_with_coordinates": 0})
     json.dumps(data)
     comp = data["competitions"][0]
     assert comp["upcoming"] == comp["results"] == []

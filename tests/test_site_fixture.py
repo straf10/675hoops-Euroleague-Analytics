@@ -25,6 +25,7 @@ from tests.conftest import FIXTURES, make_games, teams_table
 
 FIXTURE = FIXTURES / "site.json"
 NOW = datetime(2027, 9, 30, 8, tzinfo=UTC)  # before the synthetic 2027 season tips off
+VOLUME = {"games": 12, "seasons": 2, "shots_with_coordinates": 3400}
 SPEC = Backtest(
     Path("report.json"),
     warmup=(2022,),
@@ -158,7 +159,7 @@ def fixture_data(tmp: Path) -> dict[str, Any]:
         # 29 scored games: below the window, the honest empty state.
         section(tmp, "gbl", "Greek Basket League", True, (2026,)),
     ]
-    return site_data(sections, NOW)
+    return site_data(sections, NOW, VOLUME)
 
 
 def test_committed_site_fixture_matches_site_data(tmp_path: Path) -> None:

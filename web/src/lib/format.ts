@@ -91,6 +91,8 @@ export interface Competition {
 export interface SiteData {
   generated_at_utc: string;
   competitions: Competition[];
+  /** Headline data counts, from the marts (`marts.data_volume`). */
+  data_volume: { games: number; seasons: number; shots_with_coordinates?: number };
   /** EuroLeague titles, all-time since `since`: titles by display code (clubs with one or more). */
   el_titles: {
     since: number;

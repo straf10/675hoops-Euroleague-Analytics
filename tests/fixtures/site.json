@@ -4050,5 +4050,10 @@
         "titles": 1
       }
     ]
+  },
+  "data_volume": {
+    "games": 12,
+    "seasons": 2,
+    "shots_with_coordinates": 3400
   }
 }

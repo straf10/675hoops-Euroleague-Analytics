@@ -64,7 +64,7 @@ from eurohoops.eval.backtest import TunedModel, load_tuned_model
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.live_m6 import person_names
 from eurohoops.logs import TIME_FORMAT
-from eurohoops.marts import read_games, read_table, read_teams
+from eurohoops.marts import data_volume, read_games, read_table, read_teams
 from eurohoops.models.board import LABELS
 from eurohoops.models.elo import prepare, season_ratings
 from eurohoops.models.player_seasons import (
@@ -407,7 +407,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                 ),
             )
         )
-    return site_data(sections, now)
+    return site_data(sections, now, data_volume(_mart(store)))
 
 
 # ---- stats ----
