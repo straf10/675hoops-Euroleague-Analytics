@@ -637,3 +637,21 @@ export interface OnOffFile {
 export async function onOffData(): Promise<OnOffFile | null> {
   return (await load<OnOffFile>("onoff.json")) ?? null;
 }
+
+// ---- Achievements (stats/achievements.json) -------------------------------------------------
+
+/** Furthest stage: RS, PI, PO, FF (Final Four), F (lost the final), W (champion). */
+export type Reached = "RS" | "PI" | "PO" | "FF" | "F" | "W";
+
+/** Club and player furthest stage per season since 2007-08, before the live season. */
+export interface AchievementsFile {
+  seasons: number[];
+  /** season (string) -> source club code -> stage */
+  clubs: Record<string, Record<string, Reached>>;
+  /** player id -> [season, source club code, stage, champion (1 when that club won)] per club */
+  players: Record<string, [season: number, club: string, reached: Reached, champion: 0 | 1][]>;
+}
+
+export async function achievements(): Promise<AchievementsFile | null> {
+  return (await load<AchievementsFile>("achievements.json")) ?? null;
+}

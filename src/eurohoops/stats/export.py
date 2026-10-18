@@ -41,6 +41,7 @@ from eurohoops.ingest.cache import read_cached
 from eurohoops.ingest.euroleague import RawGame
 from eurohoops.parse.games import ATHENS, build_games_table, build_teams_table
 from eurohoops.standings import Result, rank
+from eurohoops.stats.achievements import achievements_payload
 from eurohoops.stats.box import STATS, BoxGames
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
 
@@ -511,6 +512,9 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
         )
     }
     files["splits.json"] = _splits_payload(career[career["player_id"].isin(names)], inputs)
+    files["achievements.json"] = achievements_payload(
+        inputs.games, inputs.box.players, inputs.live_season
+    )
     codes = sorted(set(inputs.box.teams[inputs.box.teams["season"].isin(window)]["team"]))
     files["meta.json"] = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%MZ"),
