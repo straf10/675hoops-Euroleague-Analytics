@@ -1,6 +1,6 @@
 # In-game win probability (WP): protocol v1
 
-**Status: Draft complete, values settled 2026-10-18; awaiting owner approval.** Every value filled from the pre-study is listed in section 11 with its source.
+**Status: v1 approved by the owner on 2026-10-18,** with the answers in section 10. Every value filled from the pre-study is listed in section 11 with its source.
 
 **Draft, not approved.** Written 2026-10-18 for owner review. Nothing here is built or run. Approval
 would authorise this protocol, not any fitted model's numbers.
@@ -114,8 +114,9 @@ and applied to all plays.
   whose possession ends there (`count_possessions` in the same file is built on it). The team with
   the ball at a play can therefore be derived from the sequence of ends, but this is not yet checked
   against the cached files.
-- Not used in model v1. It is listed as an optional feature for a v1.1 comparison, and the base
-  model must not depend on it.
+- Not used, in v1 or as a v1.1 comparison (owner decision 2026-10-18, section 10 question 7).
+  Possession is unmeasured and error-prone in play-by-play. Using it later needs a new protocol
+  version.
 
 ### Assists (for section 8)
 - `AS` rows name the passer. In 126,952 of 166,507 assist rows (76%) the previous event is a made
@@ -332,9 +333,11 @@ row is linked.
 **Validity of the WPA metric.** The event-only credit did not pass its validity gate. WPA is
 therefore not validated against plus-minus. The gate was not changed. A post-gate diagnostic
 (season-level, n = 896) found raw box points per 40 minutes at r = 0.127 against plus-minus per 40,
-so the benchmark itself is weak. WPA is reported with this caveat. A different benchmark (the
-pre-study suggests within-season on-court net rating, or a team-adjusted plus-minus) needs a new
-protocol version before it is used.
+so the benchmark itself is weak. **WPA per player is therefore not published** (owner decision
+2026-10-18): not on the site, not in downloads, and not as a layer of the MVP ladder. The definition
+above stays so that the failed gate can be read later. A different benchmark (the pre-study suggests
+within-season on-court net rating, or a team-adjusted plus-minus) needs a new protocol version
+before any player WPA is shown. The game-level WP line and its biggest swings are published.
 
 ### Game-control parts (`IDEAS.md` §13)
 Defined exactly on the checkpoint grid of section 6, for one game with eventual winner `W`, with
@@ -347,11 +350,10 @@ Defined exactly on the checkpoint grid of section 6, for one game with eventual 
 | Drama | Total variation of WP over the checkpoints: `Σ |WP(c) − WP(c − 1)|`. No upper bound; shown raw. |
 | Comeback | `1 − min_c WP_W(c)`. Range [0, 1]; high when the winner was far behind. |
 | Crunch | `Σ |ΔWP_e|` over events with regulation `t ≤ 300`. Shown raw. |
-| Killer instinct | Mean of `WP_W(c)` over checkpoints with regulation `t ≤ 600`. Range [0, 1]. |
 
-The thresholds (0.6 for control, 300 s for crunch, 600 s for killer instinct) are pre-declared
-here and are owner decisions. Other parts are shown per game and per team. **No composite** (`IDEAS.md`
-§13).
+The thresholds, 0.6 for control and 300 s for crunch, are stated conventions for display, chosen by
+the owner on 2026-10-18 and not fitted. Killer instinct is dropped. The parts are shown per game and
+per team. **No composite** (`IDEAS.md` §13).
 
 The parts are computed from the chosen WP line. If the gate fails, from the baseline.
 
@@ -372,19 +374,22 @@ The parts are computed from the chosen WP line. If the gate fails, from the base
 
 ## 10. Open questions for the owner
 
-1. Approve the protocol as drafted, or amend it.
-2. Clock gap in 2016 (open, owner decision): keep the exclusion of the 173 `ND` and sentinel games
-   (the draft's rule, kept here), or adopt the pre-study repair? The pre-study recommends repair (T2:
-   MAE 4.0 s, 95th percentile 11.5 s under random blanking). Its own caveat applies: the test does
-   not cover clustered gaps, so a clustered test is needed first.
+Answered by the owner on 2026-10-18.
+
+1. Approval: **approved** with the answers below.
+2. Clock gap: **exclude** the 173 `ND` and sentinel games. The pre-study repair (T2: MAE 4.0 s,
+   95th percentile 11.5 s under random blanking) is not adopted, because the test does not cover
+   clustered gaps.
 3. Assist split: **settled 2026-10-18 (D14): 100/0 convention, section 8.**
-4. Assist linkage: **measured; owner to confirm.** The pre-study's chosen rule is D (section 2). It
+4. Assist linkage: **rule D, confirmed.** The pre-study's chosen rule is D (section 2). It
    links 94.9% of `AS` rows, against 90.1% for the draft's rule A. The 98% target is not met. Under
    the 100/0 convention, linkage changes no WPA value.
 5. Playoffs: **include** in training and test (pre-study T3: no phase flag).
-6. Game-control thresholds (0.6 control, 300 s crunch, 600 s killer instinct) and the killer
-   instinct definition: keep, change or drop? **Not measured by the pre-study; open.**
-7. Possession as an optional feature (v1.1 comparison) or not at all? **Not measured; open.**
+6. Game control: **keep 0.6 control and 300 s crunch as stated display conventions; drop killer
+   instinct** (section 8).
+7. Possession: **not at all** in v1 or v1.1 (section 4).
+11. Player WPA: **not published**, because it failed its validity gate (section 8). The game WP line
+    and its swings are published.
 8. The 2019 and 2020 COVID seasons: **keep** in training (pre-study T4: dropping them changes log
    loss by +0.0003, CI [−0.0001, +0.0007]).
 9. Baseline margin scale: **Elo scale**, refitted each evaluation season on earlier seasons only
