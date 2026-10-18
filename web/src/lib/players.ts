@@ -163,10 +163,15 @@ export const PHONE_GROUPS: { set: ColumnSet; keys: string[] }[] = [
   { set: "shooting", keys: ["fta", "ft_pct", "efg", "ts", "usg"] },
 ];
 
-/** Minutes-per-game presets beside the typed field: from 2025-26, 275 players pass the games
+/** Minutes-per-game presets (the only minutes choices): from 2025-26, 275 players pass the games
  *  floor; 251 average 10+, 190 15+, 107 20+ and 32 25+. */
 export const MIN_PRESETS = [0, 10, 15, 20, 25];
-export const MIN_MAX = 40;
+/** The preset at or below n, so a free value from an old link lands on a preset (12 -> 10). */
+export const presetAtOrBelow = (n: number): number => {
+  let best = MIN_PRESETS[0];
+  for (const p of MIN_PRESETS) if (p <= n && p > best) best = p;
+  return best;
+};
 /** "Show top" choices; 0 is All. */
 export const TOPS = [5, 10, 25, 50, 100, 0];
 export const topLabel = (n: number) => (n ? String(n) : "All");
@@ -395,13 +400,15 @@ export function fromQuery(search: string, seasons: number[], defaultSeason: numb
   };
   const season = Number(p.get("season"));
   const min = p.has("min") && p.get("min") !== "" ? Number(p.get("min")) : NaN;
+  // Any non-negative value from an old link snaps to a preset; junk keeps the default.
+  const minMin = Number.isFinite(min) && min >= 0 ? presetAtOrBelow(min) : DEFAULT_VIEW.minMin;
   const top = p.has("top") ? Number(p.get("top")) : NaN;
   const metric = pick("metric", MEASURES.map((m) => m.key), DEFAULT_VIEW.metric);
   return {
     season: seasons.includes(season) ? season : defaultSeason,
     metric,
     dir: pick("dir", ["desc", "asc"] as const, DEFAULT_VIEW.dir),
-    minMin: Number.isInteger(min) && min >= 0 && min <= MIN_MAX ? min : DEFAULT_VIEW.minMin,
+    minMin,
     top: TOPS.includes(top) ? top : DEFAULT_VIEW.top,
     pos: pick("pos", ["Guard", "Wing", "Big"] as const, DEFAULT_VIEW.pos as Position | "") as Position | "",
     set: pick("set", ["box", "shooting"] as const, setOf(metric)),

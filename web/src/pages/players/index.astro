@@ -4,7 +4,6 @@ import Base from "../../layouts/Base.astro";
 import {
   BY_KEY,
   METRIC_GROUPS,
-  MIN_MAX,
   MIN_PRESETS,
   POSITION_CHOICES,
   TOPS,
@@ -94,25 +93,13 @@ const description =
 
           <fieldset class="field">
             <legend>Min/game</legend>
-            <div class="minutes">
-              <input
-                type="number"
-                name="minMin"
-                min="0"
-                max={MIN_MAX}
-                step="1"
-                inputmode="numeric"
-                value={view.minMin}
-                aria-label="Minutes per game, at least"
-              />
-              <div class="seg" role="radiogroup" aria-label="Minutes per game presets">
-                {MIN_PRESETS.map((n) => (
-                  <>
-                    <input type="radio" name="minPreset" id={`mp-${n}`} value={n} checked={n === view.minMin} />
-                    <label for={`mp-${n}`}>{n}</label>
-                  </>
-                ))}
-              </div>
+            <div class="seg" role="radiogroup" aria-label="Minutes per game, at least">
+              {MIN_PRESETS.map((n) => (
+                <>
+                  <input type="radio" name="minPreset" id={`mp-${n}`} value={n} checked={n === view.minMin} />
+                  <label for={`mp-${n}`}>{n}</label>
+                </>
+              ))}
             </div>
           </fieldset>
 
@@ -144,25 +131,6 @@ const description =
         </form>
 
         <div class="board">
-          <figure class="rank" aria-labelledby="rank-title">
-            <figcaption>
-              <h2 id="rank-title">{c.title}</h2>
-              <p class="legend" id="rank-legend">
-                <i class="k-dot" aria-hidden="true" />
-                Player
-                <i class="k-avg" aria-hidden="true" />
-                <span id="avg-text">
-                  {c.avg ? `Average of the ${c.avg.n} players ranked, ${c.avg.text}` : "No players ranked"}
-                </span>
-              </p>
-            </figcaption>
-            <div class="plot">
-              <span class="ticks" id="ticks" aria-hidden="true" set:html={ticksHtml(c)} />
-              <span class="gridlines" id="gridlines" aria-hidden="true" set:html={gridHtml(c)} />
-              <ol class="rows" id="rows" style={`--avg:${c.avg?.x.toFixed(2) ?? -10}`} set:html={chartHtml(c, base)} />
-            </div>
-          </figure>
-
           <div class="list">
             <div class="list-tools">
               <fieldset class="seg" aria-label="Columns">
@@ -187,6 +155,25 @@ const description =
             </div>
             <button type="button" class="more" id="more" hidden>Show all {rows.length} players</button>
           </div>
+
+          <figure class="rank" aria-labelledby="rank-title">
+            <figcaption>
+              <h2 id="rank-title">{c.title}</h2>
+              <p class="legend" id="rank-legend">
+                <i class="k-dot" aria-hidden="true" />
+                Player
+                <i class="k-avg" aria-hidden="true" />
+                <span id="avg-text">
+                  {c.avg ? `Average of the ${c.avg.n} players ranked, ${c.avg.text}` : "No players ranked"}
+                </span>
+              </p>
+            </figcaption>
+            <div class="plot">
+              <span class="ticks" id="ticks" aria-hidden="true" set:html={ticksHtml(c)} />
+              <span class="gridlines" id="gridlines" aria-hidden="true" set:html={gridHtml(c)} />
+              <ol class="rows" id="rows" style={`--avg:${c.avg?.x.toFixed(2) ?? -10}`} set:html={chartHtml(c, base)} />
+            </div>
+          </figure>
         </div>
 
         <p class="note">
@@ -208,7 +195,6 @@ const description =
     gridHtml,
     headHtml,
     lines,
-    MIN_MAX,
     PHONE_GROUPS,
     setOf,
     shown,
@@ -251,10 +237,8 @@ const description =
       if (el instanceof RadioNodeList) el.value = value;
       else if (el instanceof HTMLSelectElement || el instanceof HTMLInputElement) el.value = value;
     };
-    // The typed minutes and the preset buttons are one value: a preset lights when it matches.
-    const syncMinutes = (typed: boolean) => {
-      const box = form.elements.namedItem("minMin") as HTMLInputElement;
-      if (typed) box.value = String(view.minMin);
+    // Min/game is the preset radios alone: the checked one is the view's minimum.
+    const syncMinutes = () => {
       for (const r of form.querySelectorAll<HTMLInputElement>('input[name="minPreset"]')) {
         r.checked = Number(r.value) === view.minMin;
       }
@@ -265,7 +249,7 @@ const description =
       setField("top", String(view.top));
       setField("pos", view.pos);
       setField("set", view.set);
-      syncMinutes(true);
+      syncMinutes();
     };
 
     const paint = (data: SeasonPlayers) => {
@@ -344,7 +328,6 @@ const description =
       setField("set", view.set);
     };
 
-    let typing = 0;
     host.addEventListener("input", (e) => {
       const el = e.target as HTMLInputElement;
       if (el.form !== form) return;
@@ -366,18 +349,8 @@ const description =
           break;
         case "minPreset":
           view = { ...view, minMin: Number(el.value) };
-          syncMinutes(true);
+          syncMinutes();
           break;
-        case "minMin": {
-          // Typing: wait for a whole number in range (an empty or half-typed box changes nothing).
-          const n = Number(el.value);
-          clearTimeout(typing);
-          if (el.value === "" || !Number.isInteger(n) || n < 0 || n > MIN_MAX) return;
-          view = { ...view, minMin: n };
-          syncMinutes(false);
-          typing = window.setTimeout(update, 200);
-          return;
-        }
         default:
           return;
       }
@@ -465,14 +438,12 @@ const description =
   .field legend {
     margin-bottom: 6px;
   }
-  .select,
-  .minutes {
+  .select {
     position: relative;
     display: flex;
     align-items: center;
   }
-  select,
-  input[type="number"] {
+  select {
     appearance: none;
     height: 32px;
     border: 0;
@@ -491,28 +462,12 @@ const description =
     cursor: pointer;
     text-overflow: ellipsis;
   }
-  /* Min/game: the typed number, then the presets. */
-  .minutes {
-    gap: 8px;
-  }
-  input[type="number"] {
-    width: 3.75rem;
-    padding: 0 8px 0 10px;
-    -moz-appearance: textfield;
-  }
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
   @media (hover: hover) and (pointer: fine) {
-    select:hover,
-    input[type="number"]:hover {
+    select:hover {
       box-shadow: inset 0 0 0 1px var(--ink-2);
     }
   }
-  select:focus-visible,
-  input[type="number"]:focus-visible {
+  select:focus-visible {
     outline: 2px solid var(--data-1);
     outline-offset: 1px;
   }
@@ -532,10 +487,10 @@ const description =
     fill: currentColor;
   }
 
-  /* Board: ranked chart (5) beside the table (7), one viewport tall. */
+  /* Board: players table (7) beside the ranked chart (5); stacked, the table comes first. */
   .board {
     display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     gap: 48px;
     align-items: start;
   }
