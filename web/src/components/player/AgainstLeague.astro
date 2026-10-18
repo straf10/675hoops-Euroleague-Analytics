@@ -72,17 +72,17 @@ const rankText = (b: MetricBoard & { mine: number }) => {
           })
         }
       </ul>
-      <figcaption class="key">
-        <span class="league-only"><span class="swatch dot" aria-hidden="true"></span><span>Him</span></span>
-        <span class="league-only"><span class="swatch avg" aria-hidden="true"></span><span>League average</span></span>
+      <figcaption class="key lg-key">
+        <span class="key-item league-only"><span class="swatch dot" aria-hidden="true"></span><span>Him</span></span>
+        <span class="key-item league-only"><span class="swatch avg" aria-hidden="true"></span><span>League average</span></span>
         {
           withPosition && (
-            <span class="pos-only"><span class="swatch dot" aria-hidden="true"></span><span>Him</span></span>
+            <span class="key-item pos-only"><span class="swatch dot" aria-hidden="true"></span><span>Him</span></span>
           )
         }
         {
           withPosition && (
-            <span class="pos-only"><span class="swatch avg" aria-hidden="true"></span><span>Position average</span></span>
+            <span class="key-item pos-only"><span class="swatch avg" aria-hidden="true"></span><span>Position average</span></span>
           )
         }
       </figcaption>

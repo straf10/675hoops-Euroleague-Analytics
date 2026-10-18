@@ -1,6 +1,20 @@
 ﻿import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clubShotsOf, DEEP_MIN_M, RIM_MAX_M, sideDots, zoneOf, zoneRowsHtml, zoneTotals, type RawShots } from "./zones.ts";
+import {
+  clubShotsOf,
+  DEEP_MIN_M,
+  RIM_MAX_M,
+  sideDots,
+  zoneDots,
+  zoneLineText,
+  pointsFilter,
+  zoneLit,
+  zoneOf,
+  zoneRowsHtml,
+  zoneSummary,
+  zoneTotals,
+  type RawShots,
+} from "./zones.ts";
 
 // Court centimetres: x sideways from the centre, y in front of the basket.
 test("the rim, the paint and the mid-range", () => {
@@ -69,4 +83,46 @@ test("the zone table: a row per zone, unpicked rows dimmed, FG% against the leag
   assert.match(html, /<tr data-zone="paint" class="off">/);
   // Rim: 100% against the league's 100% in the same zone, so no sign and a zero difference.
   assert.match(html, /<td class="num ">0\.0<\/td><\/tr>/);
+});
+
+test("zoneDots keeps the picked zones' dots, all when none is picked", () => {
+  const dots = [0, 50, 1, 0, 0, 300, 0, 0, 690, 100, 1, 1];
+  assert.equal(zoneDots(dots, new Set()), dots);
+  assert.deepEqual(zoneDots(dots, new Set(["rim", "corner3"])), [0, 50, 1, 0, 690, 100, 1, 1]);
+  assert.deepEqual(zoneDots(dots, new Set(["deep3"])), []);
+});
+
+test("pointsFilter keeps two-pointers or threes, all by default", () => {
+  // made rim (2), missed corner three (3)
+  const dots = [0, 50, 1, 0, 690, 100, 0, 1];
+  assert.equal(pointsFilter(dots, "all"), dots);
+  assert.deepEqual(pointsFilter(dots, "2"), [0, 50, 1, 0]);
+  assert.deepEqual(pointsFilter(dots, "3"), [690, 100, 0, 1]);
+});
+
+test("zoneLit lights squares whose centre is in a picked zone", () => {
+  assert.equal(zoneLit(new Set())(3, 4), true, "no pick: everything is lit");
+  const lit = zoneLit(new Set(["paint"]));
+  assert.equal(lit(0, 2), true, "2 m out, centre: paint");
+  assert.equal(lit(0, 0.5), false, "the rim is not picked");
+  assert.equal(lit(5, 6), false, "beyond the paint's depth");
+});
+
+test("zoneSummary counts the picked zones against all attempts", () => {
+  // rim made, paint missed, corner three made, deep three missed
+  const dots = [0, 50, 1, 0, 0, 300, 0, 0, 690, 100, 1, 1, 0, 900, 0, 1];
+  assert.deepEqual(zoneSummary(dots, new Set()), { total: 4, att: 4, made: 2 });
+  assert.deepEqual(zoneSummary(dots, new Set(["rim", "paint"])), { total: 4, att: 2, made: 1 });
+  assert.deepEqual(zoneSummary([], new Set(["rim"])), { total: 0, att: 0, made: 0 });
+});
+
+test("zoneLineText names the zones, the share and the FG%", () => {
+  const dots = [0, 50, 1, 0, 0, 300, 0, 0, 690, 100, 1, 1, 0, 900, 0, 1];
+  assert.equal(zoneLineText(dots, new Set()), "");
+  assert.equal(zoneLineText(dots, new Set(["rim"])), "At the rim: 25.0% of his attempts, 1 of 1 made (100.0%).");
+  assert.equal(
+    zoneLineText(dots, new Set(["rim", "paint", "deep3"])),
+    "At the rim, Paint and Deep 3: 75.0% of his attempts, 1 of 3 made (33.3%).",
+  );
+  assert.equal(zoneLineText(dots, new Set(["mid"])), "Mid-range: no attempts from here.");
 });

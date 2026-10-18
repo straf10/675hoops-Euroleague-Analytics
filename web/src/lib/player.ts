@@ -2,7 +2,7 @@
 // Pure (types only from ./stats), so the build and the in-page season switch share them.
 
 import { signClass } from "./delta";
-import { qualityHeat } from "./heat";
+import { qualityHeat, type Lit } from "./heat";
 import { esc } from "./format";
 import { dataTip, tip } from "./tip";
 import type { Bands, PlayerData, PlayerSeason } from "./stats";
@@ -69,9 +69,9 @@ export const SEASON_COLS: { head: string; about: string; cell: (t: Totals) => st
 // ---- Shot quality -------------------------------------------------------------------------
 
 /** His shot quality heatmap for one season (lib/heat.ts): points above the league per attempt. */
-export function qualityChart(s: PlayerSeason, radius: number): string {
+export function qualityChart(s: PlayerSeason, radius: number, lit?: Lit): string {
   const attempts = s.hex.reduce((a, c) => a + c[2], 0);
-  return qualityHeat(s.hex, radius, `${s.label} shot quality: ${attempts} located field-goal attempts`);
+  return qualityHeat(s.hex, radius, `${s.label} shot quality: ${attempts} located field-goal attempts`, lit);
 }
 
 // ---- Distance bands ------------------------------------------------------------------------

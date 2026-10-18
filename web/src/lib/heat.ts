@@ -82,6 +82,12 @@ export function bin(hex: HexCell[], radius: number): Square[] {
   });
 }
 
+/** Whether a square's centre (court metres) is lit; with no predicate every square is. */
+export type Lit = (x: number, y: number) => boolean;
+
+/** A square outside the lit zones is faded to a fifth of its opacity, so the picked zones still read in place. */
+const dimming = (s: Square, lit?: Lit): number => (!lit || lit(s.x + s.w / 2, s.y + s.h / 2) ? 1 : 0.2);
+
 /** One square as a rect in layer coordinates (y carries the baseline offset, as lib/court.ts). */
 const rect = (s: Square, cls: string, opacity: number) =>
   `<rect class="${cls}" x="${s.x.toFixed(3)}" y="${toY(s.y).toFixed(3)}" width="${s.w}" height="${s.h.toFixed(3)}" fill-opacity="${opacity.toFixed(2)}"/>`;
@@ -92,13 +98,13 @@ export function peakShots(hex: HexCell[], radius: number): number {
 }
 
 /** Frequency: one hue, stronger where he shot more. Shaded against the busiest square. */
-export function freqHeat(hex: HexCell[], radius: number, label: string): string {
+export function freqHeat(hex: HexCell[], radius: number, label: string, lit?: Lit): string {
   const sq = bin(hex, radius);
   const top = Math.max(0, ...sq.map((s) => s.freq));
   const rects = top
     ? sq
         .filter((s) => s.freq / top >= FADE)
-        .map((s) => rect(s, "hf", Math.min(0.92, (s.freq / top) ** 0.6)))
+        .map((s) => rect(s, "hf", Math.min(0.92, (s.freq / top) ** 0.6) * dimming(s, lit)))
         .join("")
     : "";
   return court(`<g class="heat">${rects}</g>`, label);
@@ -159,12 +165,12 @@ function achromatic(hex: string): boolean {
 }
 
 /** Shot making: teal where the spot scores more than the league's shots from it, red-orange where less. */
-export function qualityHeat(hex: HexCell[], radius: number, label: string): string {
+export function qualityHeat(hex: HexCell[], radius: number, label: string, lit?: Lit): string {
   const rects = bin(hex, radius)
     .filter((s) => Math.abs(s.quality) / FULL >= FADE)
     .map((s) => {
       const strength = Math.min(1, Math.abs(s.quality) / FULL);
-      return rect(s, s.quality > 0 ? "hq pos" : "hq neg", Math.min(0.92, strength ** 0.8));
+      return rect(s, s.quality > 0 ? "hq pos" : "hq neg", Math.min(0.92, strength ** 0.8) * dimming(s, lit));
     })
     .join("");
   return court(`<g class="heat">${rects}</g>`, label);
