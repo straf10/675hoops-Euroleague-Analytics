@@ -46,11 +46,45 @@ export interface ImpactSeason {
   d: number;
   total: number;
   sd_total: number;
+  ci90_o?: [number, number];
+  ci90_d?: [number, number];
   ci90_total: [number, number];
   minutes: number;
   games: number;
   seen: boolean;
 }
+
+export interface RapmPlayer {
+  person_id: string;
+  name: string;
+  /** The source team code of his last team that season (displayCode shows it). */
+  team: string;
+  /** Points per 100 possessions: offense, defense, and their sum. */
+  o: number;
+  d: number;
+  total: number;
+  ci90_o: [number, number];
+  ci90_d: [number, number];
+  ci90_total: [number, number];
+  minutes: number;
+  games: number;
+  /** 1 is the best total among the players at the minimum minutes; null below them. */
+  rank: number | null;
+}
+
+export interface RapmBoard {
+  model: string;
+  variant: string;
+  units: string;
+  /** The posterior interval's level: 0.9 is a 90% interval. */
+  interval: number;
+  /** The season's first year (2025 is 2025-26). */
+  season: number;
+  minimum_minutes: number;
+  players: RapmPlayer[];
+}
+
+export const rapmBoard = (): Promise<RapmBoard | null> => load<RapmBoard>("rapm.json");
 
 export interface ShotMakingSeason {
   season: number;
@@ -123,6 +157,7 @@ export interface Board {
 const files = {
   ...import.meta.glob<unknown>("../data/api/players/*/*.json", { import: "default" }),
   ...import.meta.glob<unknown>("../data/api/scouting/*.json", { import: "default" }),
+  ...import.meta.glob<unknown>("../data/api/rapm.json", { import: "default" }),
 };
 const cache = new Map<string, Promise<unknown>>();
 

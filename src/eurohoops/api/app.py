@@ -167,6 +167,12 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
         """The players whose shot and box profile is closest to this person's."""
         return CompactJSON(readmodel.player_similar(store, person_id))
 
+    @app.get("/rapm", tags=["players"], response_class=CompactJSON, responses=missing)
+    def rapm() -> Response:
+        """The latest season's EuroLeague RAPM ratings (points per 100 possessions, 90% intervals,
+        rank among players at the minimum minutes). There is no GBL board."""
+        return CompactJSON(readmodel.rapm_board(store))
+
     @app.get("/scouting/board", tags=["scouting"], response_class=CompactJSON, responses=missing)
     def scouting_board() -> Response:
         """The M6 over/under board."""

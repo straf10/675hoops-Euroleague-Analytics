@@ -784,13 +784,80 @@ def _m3_index(store: Store) -> Impact | None:
             pd.DataFrame(records, columns=list(M3_ROWS_SCHEMA.columns)), M3_ROWS_SCHEMA
         )
         ids = person_ids(frame["player_id"], "euroleague", _xwalk(store))["person_id"]
-        keep = ("season", "o", "d", "total", "sd_total", "ci90_total", "minutes", "games", "seen")
+        keep = (
+            "season",
+            "o",
+            "d",
+            "total",
+            "sd_total",
+            "ci90_o",
+            "ci90_d",
+            "ci90_total",
+            "minutes",
+            "games",
+            "seen",
+        )
         rows: dict[str, list[dict[str, Any]]] = {}
         for pid, record in zip(ids, records, strict=True):
             rows.setdefault(pid, []).append({k: record[k] for k in keep})
         return Impact(str(report["units"]), rows)
 
     return store.memo("m3_index", make)
+
+
+# The RAPM leaderboard's floor: box minutes in the rated season. Under it a player has a rating
+# and an interval, but no rank and no row in the table (about one rotation player in three is
+# above it; the caption of the Leaders table states the same number).
+RAPM_MIN_MINUTES = 500.0
+
+
+def rapm_board(store: Store) -> dict[str, Any]:
+    """The latest M3 season's EuroLeague ratings (the M3 report holds no GBL, so there is no GBL
+    board): every player the stints rated, by total, with his 90% intervals and his rank among
+    the players at ``RAPM_MIN_MINUTES`` (``rank`` null below it). Nothing is fitted here."""
+    report = _required(store, M3_PLAYERS_REPORT, "the M3 player ratings")
+    season = max(int(s) for s in report["seasons"])
+    records = [
+        {"season": season, **p} for p in report["seasons"][str(season)]["players"] if p["seen"]
+    ]
+    frame = validated(pd.DataFrame(records, columns=list(M3_ROWS_SCHEMA.columns)), M3_ROWS_SCHEMA)
+    ids = person_ids(frame["player_id"], "euroleague", _xwalk(store))["person_id"]
+    names = _person_names(store)
+    players = [
+        {
+            "person_id": pid,
+            "name": names.get(pid, pid),
+            "team": p["teams"][-1],
+            "o": p["o"],
+            "d": p["d"],
+            "total": p["total"],
+            "ci90_o": p["ci90_o"],
+            "ci90_d": p["ci90_d"],
+            "ci90_total": p["ci90_total"],
+            "minutes": p["minutes"],
+            "games": p["games"],
+            "rank": None,
+        }
+        for pid, p in zip(ids, records, strict=True)
+    ]
+    players.sort(key=lambda r: -r["total"])
+    place = 0
+    for r in players:
+        if r["minutes"] >= RAPM_MIN_MINUTES:
+            place += 1
+            r["rank"] = place
+    out: dict[str, Any] = jsonable(
+        {
+            "model": "m3",
+            "variant": report["variant"],
+            "units": report["units"],
+            "interval": report["interval"],
+            "season": season,
+            "minimum_minutes": RAPM_MIN_MINUTES,
+            "players": players,
+        }
+    )
+    return out
 
 
 def _m2_index(store: Store) -> Impact | None:

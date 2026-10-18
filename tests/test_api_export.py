@@ -43,6 +43,7 @@ ROUTES = [
     "/stats/meta.json",
     "/stats/seasons/2024/players.json",
     "/scouting/board",
+    "/rapm",
     "/metrics/live",
     "/simulations/latest?competition=euroleague",
     "/simulations/latest?competition=gbl",

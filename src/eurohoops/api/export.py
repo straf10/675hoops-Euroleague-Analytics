@@ -50,6 +50,7 @@ FIXED = {
     "/site": SITE_FILE,
     OPENAPI_ROUTE: OPENAPI_FILE,
     "/metrics/live": API_PREFIX / "metrics" / "live.json",
+    "/rapm": API_PREFIX / "rapm.json",
     **{f"/scouting/{name}": API_PREFIX / "scouting" / f"{name}.json" for name in SCOUTING},
 }
 FIXED_ROUTES = {file: route for route, file in FIXED.items()}
@@ -176,6 +177,7 @@ def api_routes(store: Store, site: Mapping[str, Any]) -> list[Route]:
     routes = [Route(f"/scouting/{name}", optional=True) for name in SCOUTING]
     routes.append(Route(f"/simulations/latest?competition={EUROLEAGUE.name}", optional=True))
     routes.append(Route("/metrics/live", optional=True))
+    routes.append(Route("/rapm", optional=True))
     projected = _report(store, M6_PROJECTIONS)["players"]
     similar = _report(store, M6_SIMILARITY)["players"]
     people = [row["person_id"] for row in projected if row["competition"] == EUROLEAGUE.name]
