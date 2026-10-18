@@ -159,6 +159,11 @@ A near-neutral ground with three data inks: orange for the subject, a neutral gr
 ### Deltas
 - **Delta Up / Delta Down** (`--delta-up`, `--delta-down`; green and red): only for a metric compared with the league average, under the Delta Rule, and for signed for-minus-against figures under the Sign Colour Rule.
 
+### Series palette (Compare only)
+- **Series 1 to 5** (`--series-1` to `--series-5`): one identity per compared player in the percentile profile, filled at 12% and stroked at 2 px. Paper: violet #612e87, ochre #bc893f, brown #6e4608, magenta #de52f6, grey-mauve #7a7279. Night: lilac #e8cffd, ochre #d4770c, tan #f4d6be, magenta #d82ff1, grey-mauve #988285.
+- Chosen by search for the widest separation under deuteranopia and protanopia (Machado 2009, severity 1): the smallest CIEDE2000 between any two series is 25.0 under deuteranopia and 25.2 under protanopia on paper (CIE76 28.5 and 27.7); the night set reaches 25.2 on its own surface. The check script is not kept in the repo. No blue, green or red, so the Delta and Club-Colour rules still hold. Never a club colour, never text. Orange stays the lead dot.
+- Each shape also has its name in the legend beside it, so colour is never the only key. The night ochre sits near the accent orange; the legend and the lead dot keep them apart.
+
 ### Neutral
 - **Paper / Night**: the page ground.
 - **Chart Surface**: the plot area of every chart, one step off the page.

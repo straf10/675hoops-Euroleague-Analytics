@@ -511,4 +511,20 @@ export const TERMS: GlossaryTerm[] = [
     formula: "100 × REB × (team minutes ÷ 5) ÷ (MIN × (team REB + opponent REB))",
     shownOn: [PL],
   },
+  {
+    id: "tov-pct",
+    term: "TOV%",
+    name: "Turnover percentage",
+    group: "Box score",
+    def: "The share of his possessions that end in a turnover. Lower is better. Ranked from ten minutes a game.",
+    formula: "100 × TOV ÷ (FGA + 0.44 × FTA + TOV)",
+    shownOn: [CM],
+  },
+  {
+    id: "percentile-polygon",
+    term: "Percentile profile",
+    group: "Rates and samples",
+    def: "Each player's place among the qualified players of his season (or of the career pool), per measure: 100 is the best and 0 the worst. Rings mark 25, 50, 75 and 100. Turnover % is inverted, so fewer turnovers reach the outside. Usage has no better side, so high usage reads as 100.",
+    shownOn: [CM],
+  },
 ];

@@ -17,6 +17,7 @@ const DIRECTION = new Map<string, BetterIs>([
   ["drtg", "lower"], // defensive rating: points allowed per 100 possessions
   ["oefg", "lower"], // opponent eFG%
   ["oftr", "lower"], // opponent free-throw rate
+  ["tov_pct", "lower"], // turnover % (TOV_PCT in measures.ts): share of possessions that end in a turnover
   // Higher is better (listed where the site ranks them, so the table reads whole)
   ["pts", "higher"],
   ["reb", "higher"],

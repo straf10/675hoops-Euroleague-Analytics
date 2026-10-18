@@ -1,0 +1,352 @@
+---
+// Compare's percentile profile: one shape per compared player, drawn in the browser from the page's
+// picks (the `compare:picks` event). The pools come from data/players/{season}.json, or from
+// data/career-players.json in Career scope. Pure logic: lib/polygon.ts.
+import { CAREER_GAMES } from "../../lib/leaders";
+import { AXES, DEFAULT_AXES, PRESETS } from "../../lib/polygon";
+
+interface Props {
+  base: string;
+}
+const { base } = Astro.props;
+const root = base.replace(/\/$/, "");
+---
+
+<section class="profile" id="profile" aria-labelledby="profile-heading" data-base={root} data-career={CAREER_GAMES} hidden>
+  <h2 id="profile-heading">Percentile profile</h2>
+  <p class="profile-note">
+    Each player against the qualified players of his season, or of the career pool in Career scope. 100 is the best on each
+    measure, 0 the worst. Rings mark 25, 50, 75 and 100. Turnover % is inverted, so fewer turnovers reach further out.
+  </p>
+
+  <div class="profile-controls">
+    <fieldset class="profile-pool">
+      <legend>Pool</legend>
+      <div class="seg" style="--seg-w: 12.5rem">
+        <input type="radio" name="profile-pool" id="pool-league" value="league" checked />
+        <label for="pool-league">League</label>
+        <input type="radio" name="profile-pool" id="pool-position" value="position" />
+        <label for="pool-position">Position</label>
+      </div>
+    </fieldset>
+
+    <div class="profile-presets" role="group" aria-label="Axis presets">
+      {
+        PRESETS.map((p) => (
+          <button type="button" class="chip" data-preset={p.key} aria-pressed={p.key === "all-round" ? "true" : "false"}>
+            {p.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <fieldset class="profile-axes">
+      <legend>Axes <span class="muted">(3 to 8)</span></legend>
+      <div class="axis-grid">
+        {
+          AXES.map((a) => (
+            <label class="axis-option" title={a.about}>
+              <input type="checkbox" name="profile-axis" value={a.key} checked={DEFAULT_AXES.includes(a.key)} />
+              <span>{a.head}</span>
+              <span class="axis-name">{a.name}</span>
+            </label>
+          ))
+        }
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="profile-body">
+    <div class="profile-figure" id="profile-figure">
+      <svg viewBox="0 0 320 320" role="img" aria-labelledby="profile-fallback-title profile-fallback-desc" class="profile-svg">
+        <title id="profile-fallback-title">Percentile profile</title>
+        <desc id="profile-fallback-desc">Add a player to see his percentile profile.</desc>
+      </svg>
+    </div>
+    <div class="profile-legend">
+      <ul id="profile-legend" class="profile-list"></ul>
+      <p class="profile-status" id="profile-status" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { AXES, PRESETS, describeProfile, profile, profileSvg, toggleAxis, MIN_AXES, MAX_AXES, type Profile, type RawPlayer } from "../../lib/polygon";
+
+  type Raw = {
+    fields: string[];
+    players: { id: string; slug: string; name: string; pos?: string | null; totals: { season: number[] } }[];
+  };
+  type Pick = { slug: string; season: number; name: string };
+
+  const section = document.getElementById("profile") as HTMLElement | null;
+  if (section) {
+    const root = section.dataset.base ?? "";
+    const careerGames = Number(section.dataset.career ?? 60);
+    const figure = document.getElementById("profile-figure") as HTMLElement;
+    const list = document.getElementById("profile-legend") as HTMLElement;
+    const status = document.getElementById("profile-status") as HTMLElement;
+    const boxes = [...section.querySelectorAll<HTMLInputElement>("input[name='profile-axis']")];
+    const pools = [...section.querySelectorAll<HTMLInputElement>("input[name='profile-pool']")];
+    const presetButtons = [...section.querySelectorAll<HTMLButtonElement>("button[data-preset]")];
+    const names = new Map(AXES.map((a) => [a.key, a]));
+
+    let axes: string[] = presetButtons.length ? PRESETS[0].axes.slice() : [];
+    let picks: Pick[] = [];
+    let scope: "season" | "career" = "season";
+    let ticket = 0;
+    const cache = new Map<string, Promise<Raw>>();
+    const load = (url: string) => {
+      if (!cache.has(url)) cache.set(url, fetch(url).then((r) => (r.ok ? (r.json() as Promise<Raw>) : Promise.reject(new Error(url)))));
+      return cache.get(url)!;
+    };
+    const rows = (f: Raw): RawPlayer[] => f.players.map((p) => ({ id: p.id, slug: p.slug, name: p.name, pos: p.pos ?? null, totals: p.totals.season }));
+    const position = () => pools.find((p) => p.checked)?.value === "position";
+
+    const syncControls = () => {
+      boxes.forEach((b) => {
+        b.checked = axes.includes(b.value);
+        b.disabled = !b.checked && axes.length >= MAX_AXES;
+      });
+      boxes.forEach((b) => (b.disabled = b.disabled || (b.checked && axes.length <= MIN_AXES)));
+      presetButtons.forEach((b) => {
+        const preset = PRESETS.find((p) => p.key === b.dataset.preset);
+        const same = !!preset && preset.axes.length === axes.length && preset.axes.every((k) => axes.includes(k));
+        b.setAttribute("aria-pressed", same ? "true" : "false");
+      });
+    };
+
+    const render = async () => {
+      const mine = ++ticket;
+      if (!picks.length) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      const career = scope === "career";
+      const urlOf = (p: Pick) => (career ? `${root}/data/career-players.json` : `${root}/data/players/${p.season}.json`);
+      const urls = [...new Set(picks.map(urlOf))];
+      try {
+        const files = new Map(await Promise.all(urls.map(async (u) => [u, await load(u)] as const)));
+        if (mine !== ticket) return;
+        const pool = position();
+        const axisObjs = axes.map((k) => names.get(k)!);
+        const shapes = picks.map((p, i) => {
+          const file = files.get(urlOf(p))!;
+          const prof: Profile = profile(rows(file), file.fields, p.slug, axes, { career, careerGames, position: pool });
+          return { name: p.name, slot: (i % 5) + 1, profile: prof, text: describeProfile(p.name, prof, axisObjs) };
+        });
+        const label = career ? "career pool" : "season pool";
+        const where = pool ? `, against the same position in the ${label}` : `, against the ${label}`;
+        const desc = shapes.map((s) => s.text).join(" ");
+        figure.innerHTML = profileSvg(
+          axisObjs,
+          shapes.map((s) => ({ name: s.name, slot: s.slot, profile: s.profile })),
+          `Percentile profile${where}`,
+          desc,
+        );
+        list.replaceChildren(
+          ...shapes.map((s) => {
+            const li = document.createElement("li");
+            const sw = document.createElement("i");
+            sw.className = "swatch";
+            sw.style.background = `var(--series-${s.slot})`;
+            sw.setAttribute("aria-hidden", "true");
+            const name = document.createElement("span");
+            name.className = "series-name";
+            name.textContent = s.name;
+            const text = document.createElement("span");
+            text.className = "series-text";
+            text.textContent = s.profile.note ? s.profile.note : s.profile.axes.map((a, j) => `${axisObjs[j].head} ${a.pct === null ? "–" : Math.round(a.pct)}`).join(", ");
+            li.append(sw, name, text);
+            return li;
+          }),
+        );
+        status.textContent = "";
+      } catch {
+        status.textContent = "Could not load the percentile pools. Reload the page to try again.";
+      }
+    };
+
+    boxes.forEach((b) =>
+      b.addEventListener("change", () => {
+        axes = toggleAxis(axes, b.value);
+        // toggleAxis keeps the list when a bound blocks the change: reflect that in the box.
+        syncControls();
+        void render();
+      }),
+    );
+    presetButtons.forEach((b) =>
+      b.addEventListener("click", () => {
+        const preset = PRESETS.find((p) => p.key === b.dataset.preset);
+        if (!preset) return;
+        axes = preset.axes.slice();
+        syncControls();
+        void render();
+      }),
+    );
+    pools.forEach((p) => p.addEventListener("change", () => void render()));
+    document.addEventListener("compare:picks", (e) => {
+      const d = (e as CustomEvent<{ scope: "season" | "career"; picks: Pick[] }>).detail;
+      scope = d.scope;
+      picks = d.picks;
+      void render();
+    });
+    syncControls();
+  }
+</script>
+
+<style>
+  .profile {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+  }
+  .profile h2 {
+    margin: 0;
+  }
+  .profile-note {
+    margin: 8px 0 0;
+    max-width: 64ch;
+    color: var(--ink-2);
+  }
+  .profile-controls {
+    display: grid;
+    gap: 18px;
+    margin: 22px 0;
+  }
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  legend {
+    margin-bottom: 8px;
+    padding: 0;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+  .muted {
+    color: var(--muted);
+  }
+  .profile-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    padding: 6px 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--sunk);
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+  .chip:focus-visible,
+  .axis-option input:focus-visible {
+    outline: 2px solid var(--data-1);
+    outline-offset: 2px;
+  }
+  .axis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 6px 14px;
+  }
+  .axis-option {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.8125rem;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .axis-option input {
+    accent-color: var(--ink);
+    margin: 0;
+  }
+  .axis-option input:disabled + span {
+    color: var(--muted);
+  }
+  .axis-name {
+    color: var(--muted);
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .profile-body {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .profile-figure {
+    width: 100%;
+    max-width: 360px;
+  }
+  .profile-figure :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .profile-figure :global(.ring-label),
+  .profile-figure :global(.axis-label) {
+    fill: var(--muted);
+    font-size: 10px;
+    font-family: var(--font);
+  }
+  .profile-figure :global(.axis-label) {
+    fill: var(--ink-2);
+    font-size: 11px;
+  }
+  .profile-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--rule);
+  }
+  .profile-list li {
+    display: grid;
+    grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr);
+    gap: 4px 10px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.875rem;
+  }
+  .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    transform: translateY(1px);
+  }
+  .series-name {
+    font-weight: 600;
+  }
+  .series-text {
+    grid-column: 2 / -1;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8125rem;
+  }
+  .profile-status {
+    margin: 8px 0 0;
+    color: var(--ink-2);
+  }
+  @media (max-width: 720px) {
+    .profile-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
