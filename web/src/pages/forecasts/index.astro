@@ -5,18 +5,9 @@ import "../../styles/stats.css";
 import raw from "../../data/site.json";
 import type { SiteData } from "../../lib/format";
 
-import { previewCard, recapCards } from "../../lib/cards/site";
-
 const data = raw as SiteData;
 const description =
   "The season's forecast record, round by round and game by game.";
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-// Share-card links: the next round's preview and the latest finished round's recap (PNG, round cards).
-const shareLinks = (c: SiteData["competitions"][number]) => {
-  const preview = previewCard(c);
-  const recap = recapCards(c).at(-1);
-  return { preview, recap };
-};
 ---
 
 <Base title="Forecast record" description={description} current="forecasts">
@@ -34,20 +25,6 @@ const shareLinks = (c: SiteData["competitions"][number]) => {
           <h2 id={`rec-${c.key}`}>{c.title}</h2>
         </header>
         <ForecastRecord comp={c} />
-        {
-          (() => {
-            const s = shareLinks(c);
-            if (!s.preview && !s.recap) return null;
-            return (
-              <p class="note">
-                Share cards (PNG):{" "}
-                {s.preview && <a href={`${base}/cards/round-${s.preview.round}.png`} download>Round {s.preview.round} preview</a>}
-                {s.preview && s.recap && ", "}
-                {s.recap && <a href={`${base}/cards/round-${s.recap.round}-recap.png`} download>Round {s.recap.round} recap</a>}
-              </p>
-            );
-          })()
-        }
       </section>
     ))
   }

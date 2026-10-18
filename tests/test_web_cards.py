@@ -56,10 +56,11 @@ def test_base_layout_takes_an_optional_share_card() -> None:
     assert 'card ?? { path: "/og.png"' in text, "the default social card stays /og.png"
 
 
-def test_forecasts_page_links_the_round_cards() -> None:
+def test_forecasts_page_hides_the_round_card_links() -> None:
+    # Share-card links are hidden while their use is measured; the PNG routes stay.
     text = FORECASTS_PAGE.read_text(encoding="utf-8")
-    assert "/cards/round-${s.preview.round}.png" in text
-    assert "/cards/round-${s.recap.round}-recap.png" in text
+    assert "/cards/round-" not in text
+    assert "Share cards (PNG)" not in text
 
 
 def test_misses_are_crosses_not_rings() -> None:
