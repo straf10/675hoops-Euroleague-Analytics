@@ -6,20 +6,24 @@ import {
   METRIC_GROUPS,
   MIN_PRESETS,
   POSITION_CHOICES,
+  RATE_CHOICES,
   TOPS,
   bodyHtml,
-  chart,
-  chartHtml,
   countText,
   DEFAULT_VIEW,
+  dotsHtml,
   gridHtml,
   headHtml,
   lines,
+  rapmData,
   shown,
+  strip,
   ticksHtml,
   topLabel,
+  type RapmData,
   type View,
 } from "../../lib/players";
+import { rapmBoard } from "../../lib/m6";
 import { defaultSeason, meta, season } from "../../lib/stats";
 import { GROUPS, colsHtml } from "../../lib/cols";
 
@@ -28,15 +32,20 @@ const base = import.meta.env.BASE_URL;
 const first = m ? defaultSeason(m) : null;
 const data = first ? await season(first.season, "players") : null;
 const view: View = { ...DEFAULT_VIEW, season: first?.season ?? 0 };
-const ls = data ? lines(data, view) : [];
-const rows = shown(ls, view);
-const c = chart(ls, view);
 const seasons = m ? [...m.seasons].reverse() : [];
-const early = seasons.filter((s) => !s.coords_validated).map((s) => s.label);
+const label = (year: number) => seasons.find((x) => x.season === year)?.label ?? `${year}-${String((year + 1) % 100).padStart(2, "0")}`;
+const board = await rapmBoard();
+const rapm: RapmData | null = board ? rapmData(board, label(board.season)) : null;
+const hasRapm = (year: number) => rapm !== null && rapm.season === year;
+const ls = data ? lines(data, view, rapm) : [];
+const rows = shown(ls, view);
+const plot = strip(ls, view);
+const early = seasons.filter((x) => !x.coords_validated).map((x) => x.label);
 const cfg = {
   base,
   defaultSeason: first?.season ?? 0,
-  seasons: seasons.map((s) => s.season),
+  seasons: seasons.map((x) => x.season),
+  rapm,
 };
 const description =
   "Every EuroLeague player of the season ranked on any measure, per game, by position and minutes.";
@@ -57,7 +66,7 @@ const description =
         </p>
       </section>
     ) : (
-      <section class="wrap" id="players" data-cfg={JSON.stringify(cfg)}>
+      <section class="wrap" id="players" data-cfg={JSON.stringify(cfg)} data-set={view.set}>
         <form class="filters" id="filters" aria-label="Filters">
           <label class="field">
             <span>Metric</span>
@@ -65,11 +74,13 @@ const description =
               <select name="metric" style="--select-w: 11.5rem">
                 {METRIC_GROUPS.map((g) => (
                   <optgroup label={g.label}>
-                    {g.keys.map((k) => (
-                      <option value={k} selected={k === view.metric}>
-                        {BY_KEY[k].name}
-                      </option>
-                    ))}
+                    {g.keys
+                      .filter((k) => k !== "rapm" || hasRapm(view.season))
+                      .map((k) => (
+                        <option value={k} selected={k === view.metric}>
+                          {BY_KEY[k].name}
+                        </option>
+                      ))}
                   </optgroup>
                 ))}
               </select>
@@ -98,6 +109,18 @@ const description =
                 <>
                   <input type="radio" name="minPreset" id={`mp-${n}`} value={n} checked={n === view.minMin} />
                   <label for={`mp-${n}`}>{n}</label>
+                </>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Rate</legend>
+            <div class="seg" role="radiogroup" aria-label="Rate: per game, per 36 minutes or per 100 possessions">
+              {RATE_CHOICES.map((r) => (
+                <>
+                  <input type="radio" name="rate" id={`rate-${r.key}`} value={r.key} checked={r.key === view.rate} />
+                  <label for={`rate-${r.key}`}>{r.label}</label>
                 </>
               ))}
             </div>
@@ -138,6 +161,8 @@ const description =
                 <label for="set-box">Box score</label>
                 <input type="radio" name="set" id="set-shooting" value="shooting" form="filters" />
                 <label for="set-shooting">Shooting</label>
+                <input type="radio" name="set" id="set-advanced" value="advanced" form="filters" />
+                <label for="set-advanced">Advanced</label>
               </fieldset>
               <Fragment set:html={colsHtml("cols", GROUPS.players)} />
               <p class="count" id="count" aria-live="polite">
@@ -149,8 +174,8 @@ const description =
                 <caption class="sr-only">
                   Players, sorted by the chosen measure
                 </caption>
-                <thead id="thead" set:html={headHtml(view)} />
-                <tbody id="tbody" set:html={bodyHtml(rows, view, base)} />
+                <thead id="thead" set:html={headHtml(view, hasRapm(view.season))} />
+                <tbody id="tbody" set:html={bodyHtml(rows, view, base, hasRapm(view.season))} />
               </table>
             </div>
             <button type="button" class="more" id="more" hidden>Show all {rows.length} players</button>
@@ -158,20 +183,25 @@ const description =
 
           <figure class="rank" aria-labelledby="rank-title">
             <figcaption>
-              <h2 id="rank-title">{c.title}</h2>
+              <h2 id="rank-title">{plot.title}</h2>
               <p class="legend" id="rank-legend">
                 <i class="k-dot" aria-hidden="true" />
-                Player
+                <span id="top-text">{view.top ? `Top ${view.top}` : "All ranked"}</span>
+                <span class="key" id="key-rest" hidden={view.top === 0}>
+                  <i class="k-rest" aria-hidden="true" />
+                  Others
+                </span>
                 <i class="k-avg" aria-hidden="true" />
                 <span id="avg-text">
-                  {c.avg ? `Average of the ${c.avg.n} players ranked, ${c.avg.text}` : "No players ranked"}
+                  {plot.avg ? `Average of the ${plot.avg.n} players ranked, ${plot.avg.text}` : "No players ranked"}
                 </span>
               </p>
             </figcaption>
-            <div class="plot">
-              <span class="ticks" id="ticks" aria-hidden="true" set:html={ticksHtml(c)} />
-              <span class="gridlines" id="gridlines" aria-hidden="true" set:html={gridHtml(c)} />
-              <ol class="rows" id="rows" style={`--avg:${c.avg?.x.toFixed(2) ?? -10}`} set:html={chartHtml(c, base)} />
+            <div class="strip" id="strip">
+              <span class="ticks" id="ticks" aria-hidden="true" set:html={ticksHtml(plot)} />
+              <span class="gridlines" id="gridlines" aria-hidden="true" set:html={gridHtml(plot)} />
+              <i class="avg" id="avg" aria-hidden="true" hidden={!plot.avg} style={`--y:${plot.avg?.y.toFixed(2) ?? 0}`} />
+              <div class="plot" id="plot" set:html={dotsHtml(plot, base)} />
             </div>
           </figure>
         </div>
@@ -179,6 +209,10 @@ const description =
         <p class="note">
           Players need at least a quarter of the most games played; a percentage ranks only players with enough
           attempts.{early.length > 0 && ` Shot locations for ${early[early.length - 1]} to ${early[0]} are approximate.`}
+        </p>
+        <p class="note" id="rapm-note" hidden={hasRapm(view.season)}>
+          RAPM is published for finished seasons only, so it is hidden for this one. The latest season with a board is{" "}
+          {rapm?.label ?? "none yet"}.
         </p>
       </section>
     )
@@ -188,9 +222,9 @@ const description =
 <script>
   import {
     bodyHtml,
-    chart,
-    chartHtml,
     countText,
+    dirOf,
+    dotHtml,
     fromQuery,
     gridHtml,
     headHtml,
@@ -198,9 +232,12 @@ const description =
     PHONE_GROUPS,
     setOf,
     shown,
-    slotTip,
+    strip,
     ticksHtml,
     toQuery,
+    type Rate,
+    type RapmData,
+    type Strip,
     type View,
   } from "../../lib/players";
   import type { SeasonPlayers } from "../../lib/stats";
@@ -211,9 +248,10 @@ const description =
       base: string;
       defaultSeason: number;
       seasons: number[];
+      rapm: RapmData | null;
     };
     const form = document.getElementById("filters") as HTMLFormElement;
-    const rows = document.getElementById("rows") as HTMLOListElement;
+    const plot = document.getElementById("plot") as HTMLDivElement;
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
     const cache = new Map<number, Promise<SeasonPlayers>>();
     const root = cfg.base.replace(/\/$/, "");
@@ -243,44 +281,96 @@ const description =
         r.checked = Number(r.value) === view.minMin;
       }
     };
+
+    // RAPM is offered only for the season that has a board. Its option is added and removed as the
+    // season changes; a view on RAPM in another season falls back to points.
+    const hasRapm = () => cfg.rapm !== null && cfg.rapm.season === view.season;
+    const advanced = form.querySelector<HTMLOptGroupElement>('optgroup[label="Advanced"]')!;
+    const rapmOption =
+      advanced.querySelector<HTMLOptionElement>('option[value="rapm"]') ??
+      Object.assign(document.createElement("option"), { value: "rapm", textContent: "RAPM" });
+    const syncRapm = () => {
+      const on = hasRapm();
+      if (on && !rapmOption.isConnected) advanced.append(rapmOption);
+      if (!on && rapmOption.isConnected) rapmOption.remove();
+      $("rapm-note").hidden = on;
+      if (!on && view.metric === "rapm") {
+        view = { ...view, metric: "pts", dir: dirOf("pts"), set: setOf("pts") };
+        setField("metric", view.metric);
+        setField("set", view.set);
+      }
+    };
     const syncForm = () => {
       setField("season", String(view.season));
       setField("metric", view.metric);
       setField("top", String(view.top));
       setField("pos", view.pos);
       setField("set", view.set);
+      setField("rate", view.rate);
       syncMinutes();
     };
 
-    const paint = (data: SeasonPlayers) => {
-      const ls = lines(data, view);
-      const top = shown(ls, view);
-      const c = chart(ls, view);
-      $("rank-title").textContent = c.title;
-      $("avg-text").textContent = c.avg ? `Average of the ${c.avg.n} players ranked, ${c.avg.text}` : "No players ranked";
-      $("ticks").innerHTML = ticksHtml(c);
-      $("gridlines").innerHTML = gridHtml(c);
-      rows.style.setProperty("--avg", c.avg ? c.avg.x.toFixed(2) : "-10");
-      if (rows.children.length !== c.rows.length) {
-        // A new Show top: rebuild the slots (dots only slide while the row count stays).
-        rows.innerHTML = chartHtml(c, cfg.base);
-      } else {
-        c.rows.forEach((s, i) => {
-          const slot = rows.children[i] as HTMLLIElement;
-          const { row } = s.line;
-          slot.style.setProperty("--x", s.x.toFixed(2));
-          const name = slot.querySelector(".nm") as HTMLAnchorElement;
-          name.textContent = row.name;
-          name.href = `${root}/players/${row.slug}/`;
-          const val = slot.querySelector(".val") as HTMLElement;
-          val.textContent = s.text;
-          val.classList.toggle("sign-pos", s.sc === "sign-pos");
-          val.classList.toggle("sign-neg", s.sc === "sign-neg");
-          (slot.querySelector(".track") as HTMLElement).dataset.tip = slotTip(row, c, s.text);
-        });
+    const syncAvg = (s: Strip) => {
+      const avg = $("avg");
+      avg.hidden = !s.avg;
+      if (s.avg) avg.style.setProperty("--y", s.avg.y.toFixed(2));
+      $("avg-text").textContent = s.avg ? `Average of the ${s.avg.n} players ranked, ${s.avg.text}` : "No players ranked";
+    };
+
+    // Dots are kept by player, so a change slides them (CSS transition) instead of redrawing.
+    const syncDots = (s: Strip) => {
+      const old = new Map<string, HTMLAnchorElement>();
+      plot.querySelectorAll<HTMLAnchorElement>("a.dot").forEach((a) => old.set(a.dataset.id!, a));
+      const template = document.createElement("template");
+      for (const p of s.points) {
+        const id = p.line.row.id;
+        template.innerHTML = dotHtml(p, s, cfg.base);
+        const next = template.content.firstElementChild as HTMLAnchorElement;
+        const prev = old.get(id);
+        if (prev) {
+          old.delete(id);
+          for (const name of ["class", "href", "data-tip", "aria-label"]) {
+            prev.setAttribute(name, next.getAttribute(name) ?? "");
+          }
+          prev.style.setProperty("--dx", String(p.dot.dx));
+          prev.style.setProperty("--y", String(p.dot.y));
+        } else {
+          plot.append(next);
+        }
       }
-      $("thead").innerHTML = headHtml(view);
-      $("tbody").innerHTML = bodyHtml(top, view, cfg.base);
+      old.forEach((el) => el.remove());
+    };
+
+    // Hovering a dot highlights its row, and a row highlights its dot.
+    const hot = (id: string | null) => {
+      host.querySelectorAll(".hot").forEach((el) => el.classList.remove("hot"));
+      if (id) host.querySelectorAll<HTMLElement>(`[data-id="${id}"]`).forEach((el) => el.classList.add("hot"));
+    };
+    plot.addEventListener("pointerover", (e) => {
+      const dot = (e.target as Element).closest<HTMLElement>("a.dot");
+      if (dot) hot(dot.dataset.id!);
+    });
+    plot.addEventListener("pointerleave", () => hot(null));
+    $("tbody").addEventListener("pointerover", (e) => {
+      const tr = (e.target as Element).closest<HTMLElement>("tr[data-id]");
+      if (tr) hot(tr.dataset.id!);
+    });
+    $("tbody").addEventListener("pointerleave", () => hot(null));
+
+    const paint = (data: SeasonPlayers) => {
+      const ls = lines(data, view, cfg.rapm);
+      const top = shown(ls, view);
+      const s = strip(ls, view);
+      const rapm = hasRapm();
+      $("rank-title").textContent = s.title;
+      $("top-text").textContent = view.top ? `Top ${view.top}` : "All ranked";
+      $("key-rest").hidden = view.top === 0;
+      $("ticks").innerHTML = ticksHtml(s);
+      $("gridlines").innerHTML = gridHtml(s);
+      syncAvg(s);
+      syncDots(s);
+      $("thead").innerHTML = headHtml(view, rapm);
+      $("tbody").innerHTML = bodyHtml(top, view, cfg.base, rapm);
       $("count").textContent = countText(top.length, ls.length);
       shorten(top.length);
       syncCols(false);
@@ -327,7 +417,7 @@ const description =
 
     // A new metric starts from its best end and shows in a column set that has it.
     const choose = (metric: string) => {
-      view = { ...view, metric, dir: "desc", set: setOf(metric) };
+      view = { ...view, metric, dir: dirOf(metric), set: setOf(metric) };
       setField("set", view.set);
     };
 
@@ -337,6 +427,7 @@ const description =
       switch (el.name) {
         case "season":
           view = { ...view, season: Number(el.value) };
+          syncRapm();
           break;
         case "metric":
           choose(el.value);
@@ -354,9 +445,13 @@ const description =
           view = { ...view, minMin: Number(el.value) };
           syncMinutes();
           break;
+        case "rate":
+          view = { ...view, rate: el.value as Rate };
+          break;
         default:
           return;
       }
+      host.dataset.set = view.set;
       update();
     });
     form.addEventListener("submit", (e) => e.preventDefault());
@@ -371,9 +466,11 @@ const description =
     });
 
     // Phones pick one of four column groups (PHONE_GROUPS), two per column set: a group of the
-    // other set switches the set. The ranked column shows in every group.
+    // other set switches the set. The ranked column shows in every group. The advanced set has no
+    // groups on a phone: it shows all its columns, and the group control hides (see the CSS).
     const cols = [...host.querySelectorAll<HTMLInputElement>('input[name="cols"]')];
     const syncCols = (toSort: boolean) => {
+      if (view.set === "advanced") return;
       const at = cols.findIndex((c) => c.checked);
       if (!toSort && PHONE_GROUPS[at]?.set === view.set) return;
       const own = PHONE_GROUPS.findIndex((g) => g.set === view.set && g.keys.includes(view.metric));
@@ -385,10 +482,13 @@ const description =
         if (set === view.set) return;
         view = { ...view, set };
         setField("set", set);
+        host.dataset.set = set;
         update();
       }),
     );
 
+    host.dataset.set = view.set;
+    syncRapm();
     syncForm();
     syncCols(true);
     if (location.search) update();
@@ -490,7 +590,7 @@ const description =
     fill: currentColor;
   }
 
-  /* Board: players table (7) beside the ranked chart (5); stacked, the table comes first. */
+  /* Board: players table (7) beside the strip plot (5); stacked, the table comes first. */
   .board {
     display: grid;
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
@@ -523,11 +623,26 @@ const description =
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
-  .k-dot {
+  .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .key[hidden] {
+    display: none;
+  }
+  .k-dot,
+  .k-rest {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+  }
+  .k-dot {
     background: var(--data-1);
+  }
+  .k-rest {
+    background: var(--muted);
+    opacity: 0.45;
   }
   .k-avg {
     width: 0;
@@ -536,29 +651,26 @@ const description =
     border-left: 1.5px dashed var(--data-2);
   }
 
-  /* One grid for the axis, the gridlines and every row (rows are subgrids), so they line up. */
-  .plot {
-    display: grid;
-    grid-template-columns: 1.6rem minmax(0, 10.5rem) minmax(0, 1fr) 3.2rem;
-    grid-template-rows: 30px auto;
-    column-gap: 10px;
-  }
-  .ticks,
-  .gridlines {
+  /* The strip: a value axis on the left (ticks), the dots in the column to its right. Dots are
+     placed by lib/strip.ts (px from the top, and an offset from the centre line). */
+  .strip {
     position: relative;
-    grid-column: 3;
+    height: 360px;
+    margin: 12px 0 0 3.25rem;
+    font-size: 0.8125rem;
   }
   .ticks {
-    grid-row: 1;
-  }
-  .gridlines {
-    grid-row: 2;
+    position: absolute;
+    top: 0;
+    right: 100%;
+    bottom: 0;
+    width: 3rem;
   }
   .ticks :global(span) {
     position: absolute;
-    bottom: 6px;
-    left: calc(var(--x) * 1%);
-    translate: -50% 0;
+    right: 10px;
+    top: calc(var(--y) * 1px);
+    translate: 0 -50%;
     font-size: 11px;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
@@ -566,98 +678,51 @@ const description =
   }
   .gridlines :global(i) {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc(var(--x) * 1%);
-    border-left: 1px solid var(--rule);
+    left: 0;
+    right: 0;
+    top: calc(var(--y) * 1px);
+    border-top: 1px solid var(--rule);
   }
-  .rows {
-    position: relative;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    display: grid;
-    grid-template-columns: subgrid;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    overflow-x: clip; /* each dot's track-wide slider runs past the chart; the page must not */
-  }
-  .rows :global(.slot) {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: subgrid;
-    align-items: center;
-  }
-  .rows :global(.slot) {
-    height: 27px;
-    font-size: 0.8125rem;
-    border-radius: 4px;
-  }
-  .rows :global(.rk) {
-    color: var(--muted);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-  .rows :global(.nm) {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .rows :global(.val) {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-  .rows :global(.track) {
-    position: relative;
-    height: 100%;
-    outline: none;
-  }
-  /* guide line, then the dashed average at --avg (set on the list) */
-  .rows :global(.track)::before {
-    content: "";
+  .avg {
     position: absolute;
     left: 0;
     right: 0;
-    top: 50%;
-    border-top: 1px dotted var(--rule-strong);
-  }
-  .rows :global(.track)::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-left: 1.5px dashed var(--data-2);
-    transform: translateX(calc(var(--avg) * 1%));
+    top: 0;
+    border-top: 1.5px dashed var(--data-2);
+    transform: translateY(calc(var(--y) * 1px));
     transition: transform 200ms var(--ease-out);
   }
-  .rows :global(.pos) {
+  .avg[hidden] {
+    display: none;
+  }
+  .plot {
     position: absolute;
     inset: 0;
-    z-index: 1;
-    transform: translateX(calc(var(--x) * 1%));
-    transition: transform 200ms var(--ease-out);
   }
-  .rows :global(.pos)::before {
-    content: "";
+  .plot :global(.dot) {
     position: absolute;
-    top: 50%;
-    left: 0;
+    left: 50%;
+    top: 0;
     width: 10px;
     height: 10px;
     margin: -5px 0 0 -5px;
     border-radius: 50%;
-    background: var(--data-1);
+    background: var(--muted);
+    opacity: 0.45;
     box-shadow: 0 0 0 2px var(--page);
+    transform: translate(calc(var(--dx) * 1px), calc(var(--y) * 1px));
+    transition: transform 200ms var(--ease-out);
   }
-  @media (hover: hover) and (pointer: fine) {
-    .rows :global(.slot:hover) {
-      background: var(--sunk);
-    }
-    .rows :global(.slot:hover .nm) {
-      text-decoration: underline;
-      text-decoration-color: var(--rule-strong);
-    }
+  .plot :global(.dot.top) {
+    background: var(--data-1);
+    opacity: 1;
+  }
+  .plot :global(.dot.hot) {
+    z-index: 2;
+    opacity: 1;
+    box-shadow:
+      0 0 0 2px var(--page),
+      0 0 0 4px var(--ink);
   }
 
   /* Table */
@@ -758,6 +823,10 @@ const description =
       background: var(--sunk);
     }
   }
+  tbody :global(tr.hot) :global(td),
+  tbody :global(tr.hot) :global(th) {
+    background: var(--sunk);
+  }
   tbody :global(td),
   tbody :global(th) {
     padding: 7px 0 7px 10px;
@@ -824,6 +893,9 @@ const description =
     color: var(--muted);
     font-size: 0.8125rem;
   }
+  .note[hidden] {
+    display: none;
+  }
   .empty-state {
     margin-top: 32px;
     color: var(--ink-2);
@@ -863,13 +935,11 @@ const description =
     h1 {
       font-size: 1.875rem;
     }
-    .plot {
-      grid-template-columns: 1.4rem minmax(0, 10.25rem) minmax(0, 1fr) 2.8rem;
-      column-gap: 8px;
+    .strip {
+      margin-left: 2.75rem;
     }
-    /* Every other tick label, so the narrower phone axis never crowds (gridlines stay). */
-    .ticks :global(span:nth-child(even)) {
-      display: none;
+    .ticks {
+      width: 2.5rem;
     }
     /* A phone shows one column group (PHONE_GROUPS in lib/players.ts, by place in SETS) plus the
        sorted column, beside names that wrap. */
@@ -888,6 +958,10 @@ const description =
       display: inline-flex;
       flex: none;
       margin: 0;
+    }
+    /* The advanced set has no phone groups: its columns all show, so the group control goes. */
+    #players[data-set="advanced"] .list-tools > :global(.cols) {
+      display: none;
     }
     :global(.list:has(.cols > :nth-child(1) > :checked) #table:has([data-sort="gp"]) :is(th, td):nth-child(n + 6):nth-child(-n + 10):not(.on)),
     :global(.list:has(.cols > :nth-child(2) > :checked) #table:has([data-sort="gp"]) :is(th, td):is(:nth-child(n + 3):nth-child(-n + 5), :nth-child(n + 11)):not(.on)),
