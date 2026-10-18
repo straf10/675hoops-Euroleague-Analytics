@@ -293,8 +293,8 @@ The pre-declared recommendation is therefore **S = 0 (100/0)**.
 **Linkage.** Rule D (A, then B, then C) was chosen as the best team-game exact-agreement rule
 (47.0%). It links 94.9% of AS rows, and 94.9% of box-score assists. The target of 98% is not met.
 Per-season coverage for D is in `T1c_measured_split.linkage.variants.D_all.per_season`. Coverage is
-98–99% in 2007–2008, 94–96% in 2011–2015 and 94–95% in 2016–2022. Team-game exact agreement
-falls from 87% (2007) to 36–41% (2014–2022). Box totals are used only for the agreement check.
+98–99% in 2007–2008, 94–96% in 2009–2010, 94–95% in 2011–2015 and about 94% in 2016–2022. Team-game exact agreement
+falls from 87% (2007) to 32–41% (2014–2022). Box totals are used only for the agreement check.
 Rule D gives 3,376 makes that are linked by more than one AS row. The first AS row is kept as the
 passer, and the rest are dropped.
 
