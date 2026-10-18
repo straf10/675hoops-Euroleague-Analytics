@@ -79,6 +79,7 @@ from eurohoops.models.player_seasons import (
 from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
+from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import BoxGames, build_box_games
 from eurohoops.stats.export import (
     Inputs,
@@ -451,6 +452,7 @@ def stats_inputs(store: Store) -> Inputs:
             official_standings=load_cached_standings(store.path(EUROLEAGUE.raw_dir)),
             positions=season_positions(store.path(EUROLEAGUE.raw_dir), games_by_club(box.players)),
             runs=game_runs(store.path(EUROLEAGUE.raw_dir), played),
+            assists=game_assists(store.path(EUROLEAGUE.raw_dir), played),
         )
 
     return store.memo("stats_inputs", make)

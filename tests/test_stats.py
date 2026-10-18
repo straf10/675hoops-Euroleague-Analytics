@@ -27,6 +27,7 @@ from eurohoops.cli import publish as publish_mod
 from eurohoops.config import MART_PATH
 from eurohoops.marts import write_tables
 from eurohoops.publish import DISPLAY_CODES
+from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games, game_lines, seconds
 from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
 from eurohoops.stats.export import (
@@ -81,6 +82,7 @@ def inputs() -> Inputs:
         live_season=2026,
         positions=season_positions(RAW, games_by_club(box.players)),
         runs=game_runs(RAW, games[games["played"]]),
+        assists=game_assists(RAW, games[games["played"]]),
     )
 
 

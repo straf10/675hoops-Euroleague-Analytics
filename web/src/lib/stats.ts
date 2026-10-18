@@ -2,6 +2,7 @@
 // Every number is a raw total; lib/players.ts derives the rates.
 
 import type { Attempts } from "./shots";
+import type { AssistsFile } from "./passing";
 import { clubShotsOf, type ClubShots } from "./zones";
 import { careers, failsFloor, LEADER_FIELDS, type Entry, type Pool, type Wire } from "./leaders";
 
@@ -696,4 +697,11 @@ export interface RunsFile {
 /** One season's scoring runs; null when the season has no runs file. */
 export async function runsData(year: number): Promise<RunsFile | null> {
   return (await load<RunsFile>(`seasons/${year}/runs.json`)) ?? null;
+}
+
+// ---- Assist network (seasons/{season}/assists.json, stats/assists.py) -----------------------
+
+/** One season's assist network; null when the season has no assists file. */
+export async function assistsData(year: number): Promise<AssistsFile | null> {
+  return (await load<AssistsFile>(`seasons/${year}/assists.json`)) ?? null;
 }

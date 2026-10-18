@@ -28,6 +28,7 @@ from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, MART_PATH, SITE_DATA
 from eurohoops.logs import write_json
 from eurohoops.publish import DISPLAY_CODES
+from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import (
     Inputs,
@@ -228,6 +229,13 @@ def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
                     & games["season"].isin(site_window(box.players["season"].unique()))
                 ],
             ),
+            assists=game_assists(
+                raw,
+                games[
+                    games["played"]
+                    & games["season"].isin(site_window(box.players["season"].unique()))
+                ],
+            ),
         ),
         now,
     )
@@ -241,7 +249,7 @@ def test_stats_responses_are_the_bytes_write_stats_writes(
     written = tmp_path / "written"
     write_stats(written, _independent_stats(finished_root / EUROLEAGUE.raw_dir, STATS_NOW))
     paths = sorted(p.relative_to(written).as_posix() for p in written.rglob("*.json"))
-    assert client.get("/stats").json()["files"] == paths and len(paths) == 16
+    assert client.get("/stats").json()["files"] == paths and len(paths) == 18
     for path in paths:
         response = client.get(f"/stats/{path}")
         assert response.content == (written / path).read_bytes(), path

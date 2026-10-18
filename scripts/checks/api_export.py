@@ -54,6 +54,7 @@ from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import write_json
 from eurohoops.marts import data_volume, read_games, read_teams
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
+from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import (
     Inputs,
@@ -132,6 +133,12 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
         live_season=LIVE_SEASON,
         positions=season_positions(raw_dir, games_by_club(box.players)),
         runs=game_runs(
+            raw_dir,
+            games[
+                games["played"] & games["season"].isin(site_window(box.players["season"].unique()))
+            ],
+        ),
+        assists=game_assists(
             raw_dir,
             games[
                 games["played"] & games["season"].isin(site_window(box.players["season"].unique()))

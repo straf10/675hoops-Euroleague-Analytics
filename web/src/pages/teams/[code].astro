@@ -10,6 +10,7 @@ import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, tea
 import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
 import InfoTip from "../../components/InfoTip.astro";
+import Passing from "../../components/team/Passing.astro";
 import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
 import { markChart } from "../../lib/shotmarks";
@@ -111,6 +112,7 @@ const bandHead = [
       <div role="tablist" aria-label="Team sections" class="tablist">
         <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview" aria-selected="true" tabindex="0">Overview</button>
         <button type="button" role="tab" id="tab-shots" data-tab="shots" aria-controls="panel-shots" aria-selected="false" tabindex="-1">Shots</button>
+        <button type="button" role="tab" id="tab-passing" data-tab="passing" aria-controls="panel-passing" aria-selected="false" tabindex="-1">Passing</button>
         {
           schedule && schedule.value !== null && (
             <button
@@ -357,6 +359,7 @@ const bandHead = [
   </section>
   </div>
 
+  <Passing code={club.code} season={t.season} roster={t.roster} fields={t.rosterFields} />
   {
     schedule && schedule.value !== null && (
       <div class="wrap tabpanel" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" hidden={t.season !== liveSeason}>
