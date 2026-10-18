@@ -1,0 +1,70 @@
+---
+// A round's share cards as a page (so their use can be counted): /cards/round-{n}/ shows the PNGs
+// from /cards/round-{n}.png (the preview) and /cards/round-{n}-recap.png (the recap), where they exist.
+import Base from "../../../layouts/Base.astro";
+import { euroleague, roundCardNames } from "../../../lib/cards/site";
+import "../../../styles/stats.css";
+
+export function getStaticPaths() {
+  const c = euroleague();
+  if (!c) return [];
+  const names = roundCardNames(c);
+  const rounds = [...new Set(names.map((r) => r.round))];
+  return rounds.map((round) => ({
+    params: { n: String(round) },
+    props: { round, cards: names.filter((r) => r.round === round) },
+  }));
+}
+
+const { round, cards } = Astro.props as {
+  round: number;
+  cards: { name: string; kind: "preview" | "recap" }[];
+};
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const title = `Round ${round} share card`;
+const description = `Share cards for round ${round} of the EuroLeague season: the preview and the recap.`;
+const alt = {
+  preview: `EuroLeague round ${round} preview: home win chance and expected margin for each game.`,
+  recap: `EuroLeague round ${round} recap: results and scoring, game by game.`,
+};
+---
+
+<Base title={title} description={description} current="forecasts" noindex>
+  <header class="wrap head">
+    <h1>{title}</h1>
+    <p class="lede">
+      Each card as a 1080 x 1350 PNG. <a href={`${base}/forecasts/`}>Back to Forecasts</a>.
+    </p>
+  </header>
+  {
+    cards.map((card) => {
+      const src = `${base}/cards/${card.name}.png`;
+      return (
+        <section class="wrap band">
+          <figure class="card-figure">
+            <img src={src} width="1080" height="1350" alt={alt[card.kind]} />
+            <figcaption>
+              <a href={src} download>
+                Download PNG
+              </a>
+            </figcaption>
+          </figure>
+        </section>
+      );
+    })
+  }
+</Base>
+
+<style>
+  .card-figure {
+    margin: 0;
+  }
+  .card-figure img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .card-figure figcaption {
+    margin-top: 0.75rem;
+  }
+</style>

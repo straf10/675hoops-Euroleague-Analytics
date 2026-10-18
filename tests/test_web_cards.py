@@ -56,11 +56,30 @@ def test_base_layout_takes_an_optional_share_card() -> None:
     assert 'card ?? { path: "/og.png"' in text, "the default social card stays /og.png"
 
 
-def test_forecasts_page_hides_the_round_card_links() -> None:
-    # Share-card links are hidden while their use is measured; the PNG routes stay.
+def test_forecasts_page_links_the_round_share_pages() -> None:
+    # The links go to the HTML share pages (countable by Web Analytics), not to the PNGs.
     text = FORECASTS_PAGE.read_text(encoding="utf-8")
-    assert "/cards/round-" not in text
-    assert "Share cards (PNG)" not in text
+    assert "/cards/round-${s.preview.round}/" in text
+    assert "/cards/round-${s.recap.round}/" in text
+    assert ".png" not in text
+
+
+def test_share_pages_exist_and_are_noindex() -> None:
+    cards = WEB / "pages" / "cards"
+    player = (cards / "players" / "[slug]" / "index.astro").read_text(encoding="utf-8")
+    rnd = (cards / "round-[n]" / "index.astro").read_text(encoding="utf-8")
+    for text in (player, rnd):
+        assert "noindex" in text
+        assert ".png" in text and "download" in text
+    assert "roundCardNames" in rnd
+    assert "currentPlayers" in player
+    assert "noindex" in BASE.read_text(encoding="utf-8")
+
+
+def test_player_page_links_its_share_page() -> None:
+    text = PLAYER_PAGE.read_text(encoding="utf-8")
+    assert "Share card</a>" in text
+    assert "/cards/players/${data.slug}/" in text
 
 
 def test_misses_are_crosses_not_rings() -> None:

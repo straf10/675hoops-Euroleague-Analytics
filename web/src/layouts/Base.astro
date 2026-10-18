@@ -15,8 +15,10 @@ interface Props {
   current?: "players" | "leaders" | "compare" | "teams" | "standings" | "forecasts" | "methodology" | "about" | "glossary" | "downloads";
   /** A share card under the site root (e.g. /cards/players/x.png) in place of the default social card. */
   image?: { path: string; width: number; height: number };
+  /** Keeps the page out of search results (the share-card pages). */
+  noindex?: boolean;
 }
-const { title, description, current, image: card } = Astro.props;
+const { title, description, current, image: card, noindex } = Astro.props;
 const fullTitle = title ? `${title} · 6.75 Analytics` : "6.75 Analytics";
 const url = new URL(Astro.url.pathname, Astro.site ?? "https://675hoops.com").href;
 const home = import.meta.env.BASE_URL;
@@ -62,6 +64,7 @@ const footLinks = [
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={image} />
     <link rel="canonical" href={url} />
+    {noindex && <meta name="robots" content="noindex" />}
     <link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin />
     <slot name="head" />
     <link rel="icon" href={`${root}/favicon.svg`} type="image/svg+xml" />
