@@ -17,6 +17,7 @@ Layout (every number a raw total; the site derives per-game, per-36 and per-100 
 - ``seasons/{season}/attempts.json``: every located attempt (court centimetres, packed flags for
   make, value, fastbreak, second chance, band and period, player and team indices) for the
   Shots explorer's filters.
+- ``seasons/{season}/runs.json``: each game's top scoring runs per team (``stats/runs.py``).
 
 Team codes are the source codes up to here; ``codes`` renames them for display (DISPLAY_CODES).
 """
@@ -43,6 +44,7 @@ from eurohoops.parse.games import ATHENS, build_games_table, build_teams_table
 from eurohoops.standings import Result, rank
 from eurohoops.stats.achievements import achievements_payload
 from eurohoops.stats.box import STATS, BoxGames
+from eurohoops.stats.runs import runs_payload
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
 
 STATS_DIR = Path("web/src/data/stats")  # read by the Astro build in web/
@@ -70,6 +72,8 @@ class Inputs:
     positions: Mapping[str, Mapping[int, str]] = field(
         default_factory=dict
     )  # id -> season -> G/F/C
+    # game id -> top scoring runs per side (stats/runs.py); no entry without a cached play-by-play
+    runs: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -494,6 +498,9 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
         files[f"{base}/games.json"] = _games_payload(season, lines, games, inputs)
         files[f"{base}/shots.json"] = _shots_payload(season, shots, inputs)
         files[f"{base}/attempts.json"] = _attempts_payload(season, shots, inputs)
+        files[f"{base}/runs.json"] = runs_payload(
+            season, games.loc[games["played"], "game_id"].astype(str), inputs.runs
+        )
         cover = coverage.get(season)
         seasons.append(
             {

@@ -46,6 +46,7 @@ from eurohoops.stats.export import (
     write_stats,
 )
 from eurohoops.stats.positions import games_by_club, season_positions
+from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import (
     BANDS,
     HEX_RADIUS_M,
@@ -79,6 +80,7 @@ def inputs() -> Inputs:
         codes=DISPLAY_CODES["euroleague"],
         live_season=2026,
         positions=season_positions(RAW, games_by_club(box.players)),
+        runs=game_runs(RAW, games[games["played"]]),
     )
 
 

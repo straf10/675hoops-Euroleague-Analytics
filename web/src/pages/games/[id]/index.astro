@@ -1,0 +1,230 @@
+---
+// One EuroLeague game: the final score, the box score of each team and each team's three biggest
+// scoring runs. The id is the game id of games.json (E{season}_{game code}). No model output here:
+// win chances and odds never go on this page.
+import Base from "../../../layouts/Base.astro";
+import JsonLd from "../../../components/JsonLd.astro";
+import "../../../styles/stats.css";
+import { meta, runsData, season, type RunRow } from "../../../lib/stats";
+import { clockText, gameBox, phaseLabel, type LogEntry, type PersonRef } from "../../../lib/game";
+import { signClass } from "../../../lib/delta";
+import { playerHref, teamHref } from "../../../lib/players";
+
+type Game = [date: string, round: number, phase: string, home: string, away: string, homeScore: number, awayScore: number];
+
+interface Props {
+  gameId: string;
+  year: number;
+  label: string;
+  game: Game;
+  fields: string[];
+  entries: LogEntry[];
+  people: Record<string, PersonRef>;
+  runs: { home: RunRow[]; away: RunRow[] } | null;
+  names: Record<string, string>;
+}
+
+/** Every played game of the published seasons, one page each. */
+export async function getStaticPaths() {
+  const m = await meta();
+  if (!m) return [];
+  const paths: { params: { id: string }; props: Props }[] = [];
+  for (const info of m.seasons) {
+    const games = await season(info.season, "games");
+    const runs = await runsData(info.season);
+    const players = new Map((await season(info.season, "players")).players.map((p) => [p.id, p]));
+    const at = games.log_fields.indexOf("game_id");
+    const byGame = new Map<string, LogEntry[]>();
+    for (const [id, lines] of Object.entries(games.logs)) {
+      for (const line of lines) {
+        const gid = String(line[at]);
+        byGame.set(gid, [...(byGame.get(gid) ?? []), { id, line }]);
+      }
+    }
+    for (const [gameId, game] of Object.entries(games.games)) {
+      const entries = byGame.get(gameId) ?? [];
+      const people = Object.fromEntries(
+        entries.flatMap((e) => {
+          const p = players.get(e.id);
+          return p ? [[e.id, { name: p.name, slug: p.slug }]] : [];
+        }),
+      );
+      const [, , , home, away] = game as Game;
+      paths.push({
+        params: { id: gameId },
+        props: {
+          gameId,
+          year: info.season,
+          label: info.label,
+          game: game as Game,
+          fields: games.log_fields,
+          entries,
+          people,
+          runs: runs?.games[gameId] ?? null,
+          names: { ...m.teams, [home]: m.teams[home] ?? home, [away]: m.teams[away] ?? away },
+        },
+      });
+    }
+  }
+  return paths;
+}
+
+const { gameId, year, label, game, fields, entries, people, runs, names } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const [date, round, phase, home, away, homeScore, awayScore] = game;
+const name = (code: string) => names[code] ?? code;
+const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const phrase = phaseLabel(phase, round);
+const boxes = [
+  { code: home, side: "home", ...gameBox(fields, entries, home, people), margin: homeScore - awayScore },
+  { code: away, side: "away", ...gameBox(fields, entries, away, people), margin: awayScore - homeScore },
+];
+const finalLine = `${name(away)} ${awayScore}, ${name(home)} ${homeScore}`;
+const description = `${finalLine}, ${label} EuroLeague. Box score per team and the top scoring runs.`;
+const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "");
+// Runs are [points, start period, start left, end period, end left, from home, from away, to home, to away].
+const runScore = (r: RunRow) => `${r[6]}–${r[5]} to ${r[8]}–${r[7]}`;
+---
+
+<Base title={`${name(away)} at ${name(home)}, ${label}`} description={description}>
+  <JsonLd
+    data={{
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      name: `${name(away)} at ${name(home)}`,
+      startDate: date,
+      eventStatus: "https://schema.org/EventCompleted",
+      sport: "Basketball",
+      superEvent: { "@type": "SportsEvent", name: `EuroLeague ${label}` },
+      homeTeam: { "@type": "SportsTeam", name: name(home) },
+      awayTeam: { "@type": "SportsTeam", name: name(away) },
+    }}
+  />
+  <header class="game-head">
+    <p class="kicker">{label} EuroLeague · {phrase} · {day}</p>
+    <h1>{name(away)} at {name(home)}</h1>
+    <p class="final">
+      <span class="score">{awayScore}–{homeScore}</span>
+      <span class="final-note">Final, away–home</span>
+    </p>
+  </header>
+
+  <section class="box" aria-labelledby="box-title">
+    <h2 id="box-title">Box score</h2>
+    {
+      boxes.map((b) => (
+        <div class="box-team">
+          <h3>
+            <a href={teamHref(base, b.code, year)}>{name(b.code)}</a>
+          </h3>
+          <div class="scroll">
+            <table class="grid log">
+              <thead>
+                <tr>
+                  <th scope="col">Player</th>
+                  <th scope="col" class="num">MIN</th>
+                  <th scope="col" class="num">PTS</th>
+                  <th scope="col" class="num">REB</th>
+                  <th scope="col" class="num">AST</th>
+                  <th scope="col" class="num">STL</th>
+                  <th scope="col" class="num">BLK</th>
+                  <th scope="col" class="num">TOV</th>
+                  <th scope="col" class="num">PF</th>
+                  <th scope="col" class="num">+/-</th>
+                  <th scope="col" class="num">FG</th>
+                  <th scope="col" class="num">3P</th>
+                  <th scope="col" class="num">FT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {b.players.map((p) => (
+                  <tr>
+                    <th scope="row">
+                      {p.slug ? <a href={playerHref(base, p.slug)}>{p.name}</a> : p.name}
+                      {p.starter && <span class="starter" title="Starter"> *</span>}
+                    </th>
+                    <td class="num">{Math.round(p.sec / 60)}</td>
+                    <td class="num strong">{p.pts}</td>
+                    <td class="num">{p.reb}</td>
+                    <td class="num">{p.ast}</td>
+                    <td class="num">{p.stl}</td>
+                    <td class="num">{p.blk}</td>
+                    <td class="num">{p.tov}</td>
+                    <td class="num">{p.pf}</td>
+                    <td class="num"><span class={signClass(p.pm, 0)}>{sign(p.pm)}{Math.abs(p.pm)}</span></td>
+                    <td class="num">{p.fg[0]}-{p.fg[1]}</td>
+                    <td class="num">{p.tp[0]}-{p.tp[1]}</td>
+                    <td class="num">{p.ft[0]}-{p.ft[1]}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Team</th>
+                  <td class="num">{Math.round(b.totals.sec / 60)}</td>
+                  <td class="num strong">{b.totals.pts}</td>
+                  <td class="num">{b.totals.reb}</td>
+                  <td class="num">{b.totals.ast}</td>
+                  <td class="num">{b.totals.stl}</td>
+                  <td class="num">{b.totals.blk}</td>
+                  <td class="num">{b.totals.tov}</td>
+                  <td class="num">{b.totals.pf}</td>
+                  <td class="num"><span class={signClass(b.margin, 0)}>{sign(b.margin)}{Math.abs(b.margin)}</span></td>
+                  <td class="num">{b.totals.fg[0]}-{b.totals.fg[1]}</td>
+                  <td class="num">{b.totals.tp[0]}-{b.totals.tp[1]}</td>
+                  <td class="num">{b.totals.ft[0]}-{b.totals.ft[1]}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      ))
+    }
+    <p class="note">* Starter. The team's +/- is its final margin. Scores read away–home.</p>
+  </section>
+
+  <section class="runs" aria-labelledby="runs-title">
+    <h2 id="runs-title">Scoring runs</h2>
+    <p class="lede">
+      A scoring run is a stretch of points by one team that the other team does not interrupt. The top
+      three runs of each team, by points, are below.
+    </p>
+    {
+      runs === null ? (
+        <p class="note">No play-by-play for this game, so no scoring runs.</p>
+      ) : (
+        <div class="run-teams">
+          {(["home", "away"] as const).map((side) => {
+            const code = side === "home" ? home : away;
+            return (
+              <div class="run-team">
+                <h3>{name(code)}</h3>
+                {runs[side].length === 0 ? (
+                  <p class="note">No scoring runs.</p>
+                ) : (
+                  <ol class="run-list">
+                    {runs[side].map((r) => (
+                      <li>
+                        <span class="run-pts">+{r[0]}</span>{" "}
+                        <span class="run-clock">
+                          {clockText(r[1] as number, r[2])} to {clockText(r[3] as number, r[4])}
+                        </span>{" "}
+                        <span class="run-score">{runScore(r)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )
+    }
+  </section>
+</Base>
