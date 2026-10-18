@@ -226,7 +226,14 @@ One agent each:
 
 Changes from the draft: F8 waits for Play. F9 is dropped; each Wave C branch adds its own glossary entries, and the orchestrator resolves glossary conflicts at merge. Writing entries now would put terms in the glossary for features that don't exist yet.
 
-### Wave C: page rebuilds, one branch per page so no two branches edit the same file
+### Wave C: page rebuilds, one branch per page so no two branches edit the same file — DONE 2026-10-18 (except play-0, moved late per D10), merged to main
+Results:
+- **Players:** strip plot (`lib/strip.ts`), a per game / per 36 / per 100 switch, and an Advanced group: Net (15 poss/g), AST/TOV (1 TOV/g), AST% and REB% (10 min/g; Basketball-Reference form on whole-game team totals), and RAPM for the board's season only (500 min).
+- **Player page:** All / 2PT / 3PT filter; League / Position switch with "Nth of N · Nth of M guards" (`lib/league_rank.ts`); On/off and Clutch season panels. The live season is missing until 90% of its games pass the stint checks (`onoff.py qualifying_seasons`).
+- **Teams index:** any metric (`lib/ranking.ts`); club discs behind `CLUB_MARK` (`lib/mark.ts`). Pace and 3PA rates are "neither" in `better.ts`.
+- **Team page:** Overview / Shots / Schedule tabs (no Lineups tab until lineup content exists); a taken/allowed zone chart (`lib/zones.ts`: rim ≤ 1.5 m, deep ≥ 8.0 m). It adds 94 club-season files, 4.3 MB, fetched on season change.
+- **Compare:** 11 curated presets. Dropped: #1, #8, #9, #11 (players not in the data) and #16. Achievements: a title counts only if he played in the final.
+- **Game pages:** `/games/E{season}_{code}/` with box scores and the top 3 scoring runs per side (`stats/runs.py`, `seasons/{y}/runs.json`, from cached play-by-play; the sums match the final score in all 5,069 games). 1,431 pages. They are linked from the player game log only, since the team page has no results list. `lib/jsonld` sportsEvent hard-codes EventScheduled, so the page builds its own EventCompleted.
 | Branch | Tasks | Needs |
 |--------|-------|-------|
 | players | P2, P3, P5, P6 | F1, F5, F9, D2, D13 |
