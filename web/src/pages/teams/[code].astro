@@ -5,13 +5,15 @@ import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import { SEASON_COLS } from "../../lib/player";
-import { defaultSeason, meta, teamIndex, teamSeason, type TeamIndexRow } from "../../lib/stats";
+import { clubShots, defaultSeason, meta, teamIndex, teamSeason, type TeamIndexRow } from "../../lib/stats";
 import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, teamBands, teamCharts } from "../../lib/team";
 import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
 import InfoTip from "../../components/InfoTip.astro";
 import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
+import { markChart } from "../../lib/shotmarks";
+import { ZONES, zoneRowsHtml, type ClubShots } from "../../lib/zones";
 import JsonLd from "../../components/JsonLd.astro";
 import { sportsTeam } from "../../lib/jsonld";
 
@@ -40,6 +42,11 @@ const abs = (path: string) => new URL(path, Astro.site ?? "https://675hoops.com"
 const factors = await teamFactors("euroleague", sourceCode("euroleague", club.code));
 const liveSeason = factors?.season ?? m.seasons.find((s) => s.live)?.season ?? open;
 const schedule = factors?.schedule_strength;
+// The live season's shots are inlined; any other season is fetched when the visitor picks it.
+const liveShots: ClubShots | null = club.seasons.includes(liveSeason) ? await clubShots(club.code, liveSeason) : null;
+// When the page opens on the live season, its chart is drawn here too, so it shows without JavaScript.
+const preShots = liveShots && t.season === liveShots.season ? liveShots : null;
+const shotLabel = `${t.name}: shots taken, ${t.season}`;
 const bandHead = [
   ["Shots", ""],
   ["Share", ""],
@@ -63,6 +70,8 @@ const bandHead = [
   />
   <div class="accented" style={accentStyle}>
   <script is:inline define:vars={{ shown: String(t.season) }}>
+    // Tabs need JavaScript; without it every panel shows, stacked.
+    document.documentElement.classList.add("js");
     // A link to another season: hide the season's numbers until they arrive, so they never flash.
     const asked = new URLSearchParams(location.search).get("season");
     if (asked && asked !== shown) document.documentElement.classList.add("season-pending");
@@ -83,7 +92,7 @@ const bandHead = [
         <label class="field">
           <span>Season</span>
           <span class="select">
-            <select id="season" aria-controls="cells ranks shots roster">
+            <select id="season" aria-controls="cells ranks roster shots attempts-court">
               {[...club.seasons].reverse().map((s) => (
                 <option value={s} selected={s === t.season}>
                   {labels.get(s) ?? s}
@@ -98,6 +107,32 @@ const bandHead = [
   </header>
 
   <div class="wrap">
+    <nav class="tabs" aria-label="Team sections">
+      <div role="tablist" aria-label="Team sections" class="tablist">
+        <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview" aria-selected="true" tabindex="0">Overview</button>
+        <button type="button" role="tab" id="tab-shots" data-tab="shots" aria-controls="panel-shots" aria-selected="false" tabindex="-1">Shots</button>
+        {
+          schedule && schedule.value !== null && (
+            <button
+              type="button"
+              role="tab"
+              id="tab-schedule"
+              data-tab="schedule"
+              data-season={liveSeason}
+              aria-controls="panel-schedule"
+              aria-selected="false"
+              tabindex="-1"
+              hidden={t.season !== liveSeason}
+            >
+              Schedule
+            </button>
+          )
+        }
+      </div>
+    </nav>
+  </div>
+
+  <div class="wrap tabpanel" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
     <dl class="cells seasonal" id="cells">
       <div class="cell">
         <dt>Record</dt>
@@ -134,9 +169,8 @@ const bandHead = [
         <dd class="sub" id="c-playoff-sub">{head.playoffSub}</dd>
       </div>
     </dl>
-  </div>
 
-  <section class="wrap band" id="ranks" aria-labelledby="ranks-title">
+  <section class="band" id="ranks" aria-labelledby="ranks-title">
     <header class="sec-head">
       <h2 id="ranks-title">Where they rank</h2>
       <p class="ff-key">
@@ -161,20 +195,84 @@ const bandHead = [
     <p class="note">Ranks count from the best. The arrow compares with the league average.</p>
   </section>
 
-  {
-    schedule && schedule.value !== null && (
-      <section class="wrap band" id="schedule" aria-labelledby="schedule-title" data-season={liveSeason} hidden={t.season !== liveSeason}>
-        <header class="sec-head">
-          <h2 id="schedule-title">Schedule strength</h2>
-          <p>
-            Mean opponent rating <b class="strength">{schedule.value.toFixed(1)}</b> over {plural(schedule.games ?? 0, "scheduled game")}.
-          </p>
-        </header>
-      </section>
-    )
-  }
+  <section class="band" id="roster" aria-labelledby="roster-title">
+    <header class="sec-head">
+      <h2 id="roster-title">Roster</h2>
+      <p>Everyone who played for the club that season, by minutes. Per game, for this club only.</p>
+    </header>
+    <Fragment set:html={colsHtml("rc", GROUPS.line)} />
+    <div class="scroll busy-fade seasonal">
+      <table class="grid roster">
+        <thead>
+          <tr>
+            <th scope="col" class="num">#</th>
+            <th scope="col">Player</th>
+            {SEASON_COLS.map((c) => (
+              <th scope="col" class="num">
+                <span data-tip={tip`<b>${c.head}</b><br>${c.about}`} tabindex="0">{c.head}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody id="roster-body" set:html={rosterHtml(t, base)} />
+      </table>
+    </div>
+  </section>
+  </div>
 
-  <section class="wrap band" id="shots" aria-labelledby="shots-title">
+  <div class="wrap tabpanel" role="tabpanel" id="panel-shots" aria-labelledby="tab-shots">
+  <section class="band" id="attempts" aria-labelledby="attempts-title">
+    <header class="sec-head split">
+      <div>
+        <h2 id="attempts-title">Shot attempts</h2>
+        <p>Every shot the club took, or every shot taken against it, by where it was taken. Filled circles are makes, crosses misses.</p>
+      </div>
+      <div class="controls">
+        <fieldset class="seg" aria-label="Shots taken or allowed" style="--seg-w:14rem">
+          <input type="radio" name="attempts-side" id="as-taken" value="taken" checked />
+          <label for="as-taken">Taken</label>
+          <input type="radio" name="attempts-side" id="as-allowed" value="allowed" />
+          <label for="as-allowed">Allowed</label>
+        </fieldset>
+      </div>
+    </header>
+    <div class="chips" role="group" aria-label="Shot zones">
+      <button type="button" class="chip" data-zone="" aria-pressed="true">All</button>
+      {ZONES.map(([zone, label]) => (
+        <button type="button" class="chip" data-zone={zone} aria-pressed="false">
+          {label}
+        </button>
+      ))}
+    </div>
+    <div class="attempts">
+      <figure class="chart-box">
+        <div id="attempts-court" set:html={preShots ? markChart(preShots.taken, shotLabel) : ""} />
+      </figure>
+      <div>
+        <div class="scroll">
+          <table class="grid zones">
+            <caption class="sr-only">Shots by zone: attempts, field-goal percentage, share, points per shot and the league's field-goal percentage in the same zone</caption>
+            <thead>
+              <tr>
+                <th scope="col">Zone</th>
+                <th scope="col" class="num">FGA</th>
+                <th scope="col" class="num">FG%</th>
+                <th scope="col" class="num">Share</th>
+                <th scope="col" class="num">Pts/shot</th>
+                <th scope="col" class="num">
+                  <span data-tip={tip`<b>vs league</b><br>The club's FG% in the zone minus the league's, in points.`} tabindex="0">vs league</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="zone-body" set:html={preShots ? zoneRowsHtml(preShots, "taken", new Set()) : ""} />
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="note" id="attempts-note">{preShots ? "" : "The shots for this season load with JavaScript."}</p>
+  </section>
+
+  <section class="band" id="shots" aria-labelledby="shots-title">
     <header class="sec-head split">
       <div>
         <h2 id="shots-title">Shots taken and allowed</h2>
@@ -257,31 +355,28 @@ const bandHead = [
       An orange caret on Allowed means opponents shot worse than the league from that distance.
     </p>
   </section>
-
-  <section class="wrap band" id="roster" aria-labelledby="roster-title">
-    <header class="sec-head">
-      <h2 id="roster-title">Roster</h2>
-      <p>Everyone who played for the club that season, by minutes. Per game, for this club only.</p>
-    </header>
-    <Fragment set:html={colsHtml("rc", GROUPS.line)} />
-    <div class="scroll busy-fade seasonal">
-      <table class="grid roster">
-        <thead>
-          <tr>
-            <th scope="col" class="num">#</th>
-            <th scope="col">Player</th>
-            {SEASON_COLS.map((c) => (
-              <th scope="col" class="num">
-                <span data-tip={tip`<b>${c.head}</b><br>${c.about}`} tabindex="0">{c.head}</span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody id="roster-body" set:html={rosterHtml(t, base)} />
-      </table>
-    </div>
-  </section>
   </div>
+
+  {
+    schedule && schedule.value !== null && (
+      <div class="wrap tabpanel" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" hidden={t.season !== liveSeason}>
+        <section class="band" id="schedule" aria-labelledby="schedule-title" data-season={liveSeason}>
+          <header class="sec-head">
+            <h2 id="schedule-title">Schedule strength</h2>
+            <p>
+              Mean opponent rating <b class="strength">{schedule.value.toFixed(1)}</b> over {plural(schedule.games ?? 0, "scheduled game")}.
+            </p>
+          </header>
+        </section>
+      </div>
+    )
+  }
+  </div>
+  {
+    liveShots && (
+      <script type="application/json" id="attempts-live" set:html={JSON.stringify(liveShots)} />
+    )
+  }
 </Base>
 
 <script>
@@ -290,11 +385,14 @@ const bandHead = [
   import type { SeasonShared, TeamOwn, TeamSeason } from "../../lib/stats";
   import { DEFENSE, OFFENSE, factorRows, headCells, patchFactorRow, rosterHtml, teamBands, teamCharts } from "../../lib/team";
   import { peakShots } from "../../lib/heat";
+  import { markChart } from "../../lib/shotmarks";
+  import { sideDots, zoneRowsHtml, type ClubShots, type ClubSide, type Zone } from "../../lib/zones";
 
   const head = document.getElementById("team");
-  const select = document.getElementById("season") as HTMLSelectElement | null;
-  if (head && select) {
+  if (head) {
+    const select = document.getElementById("season") as HTMLSelectElement | null;
     const { code, base, radius, year } = head.dataset;
+    const root = document.documentElement;
     const fetchJson = <T,>(url: string): Promise<T> =>
       fetch(url).then((r) => {
         if (!r.ok) throw new Error(String(r.status));
@@ -320,8 +418,117 @@ const bandHead = [
       for (const r of rows) patchFactorRow(root.querySelector<HTMLElement>(`.ff-row[data-key="${r.key}"]`)!, r);
     }
 
+    // ---- Tabs: one panel at a time, the choice in the URL hash. Arrow keys move between tabs.
+    const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    let selected = "overview";
+    function pick(name: string, hash: boolean, focus = false) {
+      const shown = tabs.filter((t) => !t.hidden);
+      const tab = shown.find((t) => t.dataset.tab === name) ?? shown[0];
+      if (!tab) return;
+      selected = tab.dataset.tab!;
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        const panel = document.getElementById(t.getAttribute("aria-controls")!);
+        if (panel) panel.hidden = !on;
+      }
+      if (focus) tab.focus();
+      if (hash) {
+        const url = new URL(location.href);
+        url.hash = selected;
+        history.replaceState(null, "", url);
+      }
+    }
+    document.querySelector('[role="tablist"]')?.addEventListener("keydown", (e) => {
+      const ev = e as KeyboardEvent;
+      const shown = tabs.filter((t) => !t.hidden);
+      const i = shown.findIndex((t) => t.dataset.tab === selected);
+      const next = {
+        ArrowRight: (i + 1) % shown.length,
+        ArrowLeft: (i - 1 + shown.length) % shown.length,
+        Home: 0,
+        End: shown.length - 1,
+      }[ev.key];
+      if (next === undefined) return;
+      ev.preventDefault();
+      pick(shown[next].dataset.tab!, true, true);
+    });
+    tabs.forEach((t) => t.addEventListener("click", () => pick(t.dataset.tab!, true)));
+    window.addEventListener("hashchange", () => pick(location.hash.slice(1), false));
+    pick(location.hash.slice(1), false);
+
+    // The Schedule tab exists for the live season only, as its panel did.
+    function syncSchedule(s: string) {
+      const tab = document.getElementById("tab-schedule");
+      if (!tab) return;
+      const off = s !== tab.dataset.season;
+      tab.hidden = off;
+      document.getElementById("panel-schedule")!.hidden = off;
+      pick(selected, false);
+    }
+
+    // ---- Shot attempts: the live season is inlined; other seasons are fetched on first use.
+    const live: ClubShots | null = JSON.parse(document.getElementById("attempts-live")?.textContent || "null");
+    const chartCache = new Map<number, Promise<ClubShots | null>>();
+    const chartFile = (s: number): Promise<ClubShots | null> => {
+      if (live && live.season === s) return Promise.resolve(live);
+      if (!chartCache.has(s)) chartCache.set(s, fetchJson<ClubShots | null>(`${base}/data/shots/club/${code}/${s}.json`));
+      return chartCache.get(s)!;
+    };
+    const picked = new Set<Zone>();
+    let shown: ClubShots | null = null;
+    let current = Number(year);
+    const note = document.getElementById("attempts-note")!;
+    const side = (): ClubSide => (document.querySelector<HTMLInputElement>('input[name="attempts-side"]:checked')?.value ?? "taken") as ClubSide;
+
+    function drawAttempts() {
+      const court = document.getElementById("attempts-court")!;
+      if (!shown) {
+        court.innerHTML = "";
+        document.getElementById("zone-body")!.innerHTML = "";
+        return;
+      }
+      const name = document.getElementById("t-name")?.textContent ?? "";
+      const s = side();
+      court.innerHTML = markChart(sideDots(shown, s, picked), `${name}: shots ${s === "taken" ? "taken" : "allowed"}, ${shown.season}`);
+      document.getElementById("zone-body")!.innerHTML = zoneRowsHtml(shown, s, picked);
+    }
+
+    async function loadAttempts(s: number) {
+      current = s;
+      note.textContent = "";
+      try {
+        const file = await chartFile(s);
+        if (s !== current) return; // the visitor has moved on
+        shown = file;
+        note.textContent = file ? "" : "No shots are recorded for this season.";
+        drawAttempts();
+      } catch {
+        if (s !== current) return;
+        shown = null;
+        note.textContent = "Could not load the shots for this season.";
+        drawAttempts();
+      }
+    }
+
+    document.querySelectorAll<HTMLButtonElement>(".chip").forEach((chip) =>
+      chip.addEventListener("click", () => {
+        const z = chip.dataset.zone as Zone | "";
+        if (!z) picked.clear();
+        else if (picked.has(z)) picked.delete(z);
+        else picked.add(z);
+        document.querySelectorAll<HTMLButtonElement>(".chip").forEach((c) =>
+          c.setAttribute("aria-pressed", String(c.dataset.zone ? picked.has(c.dataset.zone as Zone) : picked.size === 0)),
+        );
+        drawAttempts();
+      }),
+    );
+    document.querySelectorAll<HTMLInputElement>('input[name="attempts-side"]').forEach((r) =>
+      r.addEventListener("change", drawAttempts),
+    );
+
     async function show(s: string, push: boolean) {
-      const root = document.documentElement;
       root.setAttribute("aria-busy", "true");
       try {
         const t = await get(s);
@@ -349,9 +556,8 @@ const bandHead = [
           document.getElementById(`bands-${side}`)!.innerHTML = bands[side];
         }
         document.getElementById("roster-body")!.innerHTML = rosterHtml(t, base!);
-        const sched = document.getElementById("schedule");
-        if (sched) sched.hidden = s !== sched.dataset.season;
-        select!.value = s;
+        syncSchedule(s);
+        if (select) select.value = s;
         document.title = `${t.name} · 6.75 Analytics`;
         if (push) {
           const url = new URL(location.href);
@@ -359,21 +565,26 @@ const bandHead = [
           else url.searchParams.set("season", s);
           history.replaceState(null, "", url);
         }
+        await loadAttempts(Number(s));
       } catch {
-        select!.setCustomValidity("Could not load this season");
-        select!.reportValidity();
+        if (select) {
+          select.setCustomValidity("Could not load this season");
+          select.reportValidity();
+        }
       } finally {
         root.removeAttribute("aria-busy");
         root.classList.remove("season-pending");
       }
     }
 
-    select.addEventListener("change", () => show(select.value, true));
+    if (select) select.addEventListener("change", () => show(select.value, true));
     const asked = new URLSearchParams(location.search).get("season");
     if (asked && asked !== year) {
-      if ([...select.options].some((o) => o.value === asked)) show(asked, false);
-      else document.documentElement.classList.remove("season-pending");
+      if (select && [...select.options].some((o) => o.value === asked)) show(asked, false);
+      else root.classList.remove("season-pending");
     }
+    // The page's own season: the chart is drawn from the inlined file, or fetched when it is not the live one.
+    if (!(asked && asked !== year)) loadAttempts(Number(year));
   }
 </script>
 
@@ -386,9 +597,6 @@ const bandHead = [
   :global(.season-pending) .seasonal {
     visibility: hidden;
   }
-  #schedule[hidden] {
-    display: none;
-  }
   .strength {
     color: var(--ink);
     font-variant-numeric: tabular-nums;
@@ -398,6 +606,112 @@ const bandHead = [
     align-items: end;
     justify-content: space-between;
     gap: 24px;
+  }
+
+  /* Tabs: with JavaScript, one panel shows at a time. Without it, the tab bar is hidden and every panel shows. */
+  .tabs {
+    display: none;
+    margin: 28px 0 0;
+    border-bottom: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  :global(html.js) .tabs {
+    display: block;
+  }
+  .tablist {
+    display: flex;
+    gap: 4px;
+  }
+  .tablist [role="tab"] {
+    appearance: none;
+    margin: 0 0 -1px;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .tablist [role="tab"][aria-selected="true"] {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+  .tablist [role="tab"]:focus-visible {
+    outline: 2px solid var(--data-1);
+    outline-offset: -2px;
+  }
+  .tablist [role="tab"][hidden] {
+    display: none;
+  }
+  .tabpanel {
+    padding-top: 0;
+  }
+  :global(html.js) .tabpanel[hidden] {
+    display: none;
+  }
+  #schedule[hidden] {
+    display: none;
+  }
+
+  /* Shot attempts: zone chips and the zone table */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 20px 0 0;
+  }
+  .chip {
+    appearance: none;
+    padding: 4px 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+  .chip[aria-pressed="true"] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+  .chip:focus-visible {
+    outline: 2px solid var(--data-1);
+    outline-offset: 2px;
+  }
+  .attempts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    margin-top: 20px;
+  }
+  .attempts :global(.court .xmiss) {
+    fill: none;
+    stroke: var(--miss, var(--data-neg));
+    stroke-width: 0.06;
+    stroke-linecap: round;
+    stroke-opacity: 0.85;
+  }
+  .zones :global(tr.off th),
+  .zones :global(tr.off td) {
+    color: var(--muted);
+  }
+  .zones th[scope="row"] {
+    font-weight: 500;
+  }
+  @media (max-width: 980px) {
+    .attempts {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .chart-box {
+      max-width: 560px;
+    }
   }
 
   /* Header cells: one row split by hairlines; no fill, no shadow */
