@@ -679,3 +679,21 @@ export interface AchievementsFile {
 export async function achievements(): Promise<AchievementsFile | null> {
   return (await load<AchievementsFile>("achievements.json")) ?? null;
 }
+
+// ---- Scoring runs (seasons/{season}/runs.json, stats/runs.py) -------------------------------
+
+/** A run row: points, start period and seconds left, end period and seconds left, the running score
+ * before and after it (from_home, from_away, to_home, to_away); null where the row had no clock. */
+export type RunRow = (number | null)[];
+
+export interface RunsFile {
+  season: number;
+  run_fields: string[];
+  /** game id -> the top three scoring runs of each side (by points, ties: the earlier run first) */
+  games: Record<string, { home: RunRow[]; away: RunRow[] }>;
+}
+
+/** One season's scoring runs; null when the season has no runs file. */
+export async function runsData(year: number): Promise<RunsFile | null> {
+  return (await load<RunsFile>(`seasons/${year}/runs.json`)) ?? null;
+}

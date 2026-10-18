@@ -45,9 +45,11 @@ const CM = "compare";
 const FC = "forecasts";
 const HM = "home";
 const ST = "standings";
+const GM = "games/[id]";
 
 export const TERMS: GlossaryTerm[] = [
   // Box score
+  { id: "scoring-run", term: "Scoring run", group: "Box score", def: "A stretch of points by one team that the other team does not interrupt. Each game page shows each team's three biggest.", shownOn: [GM] },
   { id: "gp", term: "GP", name: "Games played", group: "Box score", def: "The games a player appeared in.", shownOn: [PL, PP, CM] },
   { id: "gs", term: "GS", name: "Games started", group: "Box score", def: "The games a player was in the starting five.", shownOn: [PP, CM] },
   {
