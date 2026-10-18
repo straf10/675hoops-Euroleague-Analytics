@@ -1,19 +1,48 @@
-// The teams index rows: shared by the build (the open season) and the season switch (the others).
-// No imports, so the switch's script stays small enough to inline in the page.
+// The teams index table: its head and rows, shared by the build (the open season) and the season
+// switch and metric sort in the page's script (the others). Pure, so both draw the same markup.
 
-/** One club's line in the teams index: [code, name, W–L, ORtg, DRtg, Net, Pace], as shown. Net is HTML: a span that carries the Sign Colour Rule class. */
-export type ClubCells = [string, string, string, string, string, string, string];
+import { signClass } from "./delta";
+import { esc, signed } from "./format";
+import { dataTip, tip } from "./tip";
+import { columnKeys, metricOf, type Dir, type IndexRow } from "./ranking";
 
-// Copies of format.ts's esc and players.ts's teamHref (not imported, see above): keep them the same.
-const esc = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+/** The head: rank, club, W–L (not sortable), then one sortable column per metric in columnKeys. */
+export const clubHeadHtml = (metric: string, dir: Dir): string => {
+  const cols = columnKeys(metric).map((key) => {
+    const m = metricOf(key)!;
+    const on = key === metric;
+    const sort = on ? (dir === "desc" ? "descending" : "ascending") : "none";
+    return (
+      `<th scope="col" class="num${on ? " on" : ""}" aria-sort="${sort}">` +
+      `<button type="button" data-sort="${key}"${dataTip(tip`<b>${m.name}</b><br>${m.about}`)}>${m.head}</button></th>`
+    );
+  });
+  const wl = dataTip(tip`<b>W–L</b><br>Wins and losses`);
+  return (
+    `<tr><th scope="col" class="num">#</th><th scope="col">Club</th>` +
+    `<th scope="col" class="num"><span${wl} tabindex="0">W–L</span></th>${cols.join("")}</tr>`
+  );
+};
 
-/** A season's rows in rank order; links carry the season unless it is the one team pages open on. */
-export const clubRowsHtml = (base: string, season: number | undefined, rows: ClubCells[]): string =>
-  rows
-    .map(
-      ([code, name, wl, ortg, drtg, net, pace], i) =>
-        `<tr><td class="num muted">${i + 1}</td><th scope="row"><a href="${base.replace(/\/$/, "")}/teams/${code.toLowerCase()}/${season ? `?season=${season}` : ""}"><span class="code">${esc(code)}</span>${esc(name)}</a></th>` +
-        `<td class="num">${wl}</td><td class="num">${ortg}</td><td class="num">${drtg}</td><td class="num strong">${net}</td><td class="num">${pace}</td></tr>`,
-    )
+/** One figure as the table shows it: one decimal, Net signed and carrying the Sign Colour Rule class. */
+const cell = (key: string, v: number): string => {
+  if (key === "net") return `<span class="${signClass(v)}">${signed(v)}</span>`;
+  return v.toFixed(1);
+};
+
+/** A season's rows in the order given (the caller sorts); links carry the season unless it is the one the page opens on. */
+export const clubRowsHtml = (base: string, season: number | undefined, rows: IndexRow[], metric: string): string => {
+  const keys = columnKeys(metric);
+  return rows
+    .map((r, i) => {
+      const href = `${base.replace(/\/$/, "")}/teams/${r.code.toLowerCase()}/${season ? `?season=${season}` : ""}`;
+      const figures = keys
+        .map((key) => `<td class="num${key === metric ? " strong" : ""}">${cell(key, r.f[key])}</td>`)
+        .join("");
+      return (
+        `<tr><td class="num muted">${i + 1}</td><th scope="row"><a href="${href}"><span class="code">${esc(r.code)}</span>${esc(r.name)}</a></th>` +
+        `<td class="num">${r.w}–${r.l}</td>${figures}</tr>`
+      );
+    })
     .join("");
+};

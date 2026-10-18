@@ -1,7 +1,10 @@
 // The Teams index charts: offence against defence (ORtg, DRtg) and pace against net rating, one
-// point per club. Pure (format helpers only), so the build and the in-page season switch draw the
+// mark per club. Pure (format helpers only), so the build and the in-page season switch draw the
 // same SVG. Values are per 100 possessions, pace per 40 minutes, as the table shows them.
 import { esc, signed } from "./format";
+import { colours } from "./jersey";
+import { CLUB_MARK } from "./mark";
+import { dataTip, tip } from "./tip";
 
 export interface ScatterClub {
   code: string;
@@ -24,6 +27,8 @@ const PAD = { left: 60, right: 22, top: 14, bottom: 50 };
 const IW = W - PAD.left - PAD.right;
 const IH = H - PAD.top - PAD.bottom;
 const STEPS = [1, 2, 2.5, 5, 10];
+/** A club's disc radius, in chart units (about 9 px on a phone). */
+const R = 6.5;
 
 interface Scale {
   lo: number;
@@ -95,14 +100,28 @@ function svgFrame(f: Frame): string {
   );
 }
 
-/** A point with its code beside it and a native tooltip naming the club and both values. */
-function point(c: { code: string; name: string }, px: number, py: number, right: boolean, detail: string): string {
-  const tx = right ? px + 6 : px - 6;
+/** A two-tone disc: the left half in the club's body colour, the right half in its trim (lib/jersey.ts),
+ * with a hairline edge so a dark or pale club still reads on paper and in dark mode. The code and the
+ * figures show on hover or focus through the data-tip system. */
+function disc(c: { code: string; name: string }, px: number, py: number, detail: string): string {
+  const [body, trim] = colours(c.code);
+  const cx = px.toFixed(1);
+  const cy = py.toFixed(1);
+  const top = (py - R).toFixed(1);
+  const bottom = (py + R).toFixed(1);
   return (
-    `<g class="pt"><title>${esc(c.name)} (${esc(c.code)}): ${esc(detail)}</title>` +
-    `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4"/>` +
-    `<text x="${tx.toFixed(1)}" y="${(py + 3.5).toFixed(1)}" text-anchor="${right ? "start" : "end"}">${esc(c.code)}</text></g>`
+    `<g class="pt" tabindex="0" role="img" aria-label="${esc(c.name)} (${esc(c.code)}): ${esc(detail)}"${dataTip(tip`<b>${c.code}</b> ${c.name}<br>${detail}`)}>` +
+    `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${trim}"/>` +
+    `<path d="M${cx} ${top}A${R} ${R} 0 0 0 ${cx} ${bottom}Z" fill="${body}"/>` +
+    `<circle class="edge" cx="${cx}" cy="${cy}" r="${R}"/></g>`
   );
+}
+
+/** A club's mark, as CLUB_MARK (lib/mark.ts) says. */
+function mark(c: { code: string; name: string }, px: number, py: number, detail: string): string {
+  // A crest would be drawn here. Crests need permission (PRODUCT.md:45), so the crest option falls back to the disc.
+  if (CLUB_MARK === "crest") return disc(c, px, py, detail);
+  return disc(c, px, py, detail);
 }
 
 /** ORtg on the x axis, DRtg on the y axis reversed (lower DRtg higher up, so up and right is good).
@@ -129,10 +148,7 @@ export function ratingsChart(plot: ClubPlot, label: string): string {
         `<line class="ref" x1="${PAD.left}" x2="${PAD.left + IW}" y1="${y(plot.league.drtg).toFixed(1)}" y2="${y(plot.league.drtg).toFixed(1)}"/>`;
       const zero = `<line class="zero" x1="${x(lo).toFixed(1)}" y1="${y(lo).toFixed(1)}" x2="${x(hi).toFixed(1)}" y2="${y(hi).toFixed(1)}"/>`;
       const dots = plot.clubs
-        .map((c) => {
-          const px = x(c.ortg);
-          return point(c, px, y(c.drtg), px < PAD.left + IW - 40, `ORtg ${one(c.ortg)}, DRtg ${one(c.drtg)}, net ${signed(c.net)}`);
-        })
+        .map((c) => mark(c, x(c.ortg), y(c.drtg), `ORtg ${one(c.ortg)}, DRtg ${one(c.drtg)}, net ${signed(c.net)}`))
         .join("");
       return `<g class="ref-set">${ref}${zero}</g><g class="pts">${dots}</g>`;
     },
@@ -160,10 +176,7 @@ export function paceChart(plot: ClubPlot, label: string): string {
         `<line class="ref" x1="${x(plot.league.pace).toFixed(1)}" x2="${x(plot.league.pace).toFixed(1)}" y1="${PAD.top}" y2="${PAD.top + IH}"/>` +
         `<line class="zero" x1="${PAD.left}" x2="${PAD.left + IW}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>`;
       const dots = plot.clubs
-        .map((c) => {
-          const px = x(c.pace);
-          return point(c, px, y(c.net), px < PAD.left + IW - 40, `pace ${one(c.pace)}, net ${signed(c.net)}`);
-        })
+        .map((c) => mark(c, x(c.pace), y(c.net), `pace ${one(c.pace)}, net ${signed(c.net)}`))
         .join("");
       return `<g class="ref-set">${ref}</g><g class="pts">${dots}</g>`;
     },

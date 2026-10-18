@@ -4,31 +4,43 @@ import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import { teamHref } from "../../lib/players";
 import { clubIndex, defaultSeason, meta, published, season, type TeamIndexRow } from "../../lib/stats";
-import { clubRowsHtml, type ClubCells } from "../../lib/clubs";
-import { tip } from "../../lib/tip";
+import { clubHeadHtml, clubRowsHtml } from "../../lib/clubs";
 import { GROUPS, colsHtml } from "../../lib/cols";
-import { clubCells, clubPlot } from "../../lib/team";
-import { paceChart, ratingsChart, type ClubPlot } from "../../lib/scatter";
+import { clubRows, leagueRates } from "../../lib/team";
+import { paceChart, ratingsChart } from "../../lib/scatter";
+import {
+  DEFAULT_METRIC,
+  METRIC_GROUPS,
+  bestDir,
+  captionOf,
+  headingOf,
+  metricOf,
+  plotOf,
+  sortRows,
+  type IndexSeason,
+  type View,
+} from "../../lib/ranking";
 import raw from "../../data/site.json";
 import type { SiteData } from "../../lib/format";
 
 const m = await meta();
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const open = m ? defaultSeason(m).season : 0;
-const tables = m
-  ? await Promise.all(
-      [...m.seasons].reverse().map(async (s) => {
-        const data = await season(s.season, "teams");
-        return { s, rows: clubCells(data.fields, data.teams), plot: clubPlot(data.fields, data.teams, data.league) };
-      }),
+// Every published season, by season number: the page opens on one and the season switch and the metric sort
+// draw the others from the same figures (no second fetch).
+const bySeason: Record<string, IndexSeason> = m
+  ? Object.fromEntries(
+      await Promise.all(
+        [...m.seasons].reverse().map(async (s) => {
+          const data = await season(s.season, "teams");
+          return [String(s.season), { label: s.label, league: leagueRates(data.fields, data.league), rows: clubRows(data.fields, data.teams) }] as const;
+        }),
+      ),
     )
-  : [];
-const shown = tables.find(({ s }) => s.season === open);
-// Only the open season is in the page; the switch draws the others from these cells.
-// The charts' points come from the same factors, so the season switch redraws them from this too.
-const others: Record<string, [string, ClubCells[], ClubPlot]> = Object.fromEntries(
-  tables.filter((t) => t !== shown).map(({ s, rows, plot }) => [s.season, [s.label, rows, plot]]),
-);
+  : {};
+const shown = bySeason[String(open)];
+const view: View = { season: open, metric: DEFAULT_METRIC, dir: bestDir(DEFAULT_METRIC) };
+const rows = shown ? sortRows(shown.rows, view.metric, view.dir) : [];
 const clubs = await clubIndex();
 // EuroLeague titles, all-time since 1958, by display code (clubs with at least one).
 const titles = (raw as SiteData).el_titles.titles;
@@ -36,14 +48,7 @@ const titles = (raw as SiteData).el_titles.titles;
 const uncoded = (raw as SiteData).el_titles.uncoded ?? [];
 // Clubs with a season in the published window have a page; the others are listed without one.
 const linked = (c: TeamIndexRow) => (m ? published(c, m) : false);
-// A phone shows them in groups (Record, Ratings, Pace), with Net, the ranking, in every group.
-const COLS = [
-  ["W–L", "Wins and losses"],
-  ["ORtg", "Points scored per 100 possessions"],
-  ["DRtg", "Points allowed per 100 opponent possessions"],
-  ["Net", "Offensive minus defensive rating"],
-  ["Pace", "Possessions per 40 minutes"],
-];
+const seasons = m ? [...m.seasons].reverse() : [];
 ---
 
 <Base title="Teams" description="Every EuroLeague club since 2007-08: record, ratings and pace by season." current="teams">
@@ -53,50 +58,55 @@ const COLS = [
   </header>
 
   {
-    !m ? (
+    !m || !shown ? (
       <section class="wrap band">
         <p class="note">No stats exported yet. Run eurohoops export-stats and rebuild.</p>
       </section>
     ) : (
       <section class="wrap band" aria-labelledby="table-title">
         <header class="sec-head split">
-          <h2 id="table-title">By net rating</h2>
-          <label class="field">
-            <span>Season</span>
-            <span class="select">
-              <select id="season">
-                {tables.map(({ s }) => (
-                  <option value={s.season} selected={s.season === open}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-              <span class="caret" set:html={caret} />
-            </span>
-          </label>
-        </header>
-        {shown && <Fragment set:html={colsHtml("cc", GROUPS.clubs)} />}
-        {shown && (
-          <div class="scroll" id="clubs" data-base={base} data-others={JSON.stringify(others)}>
-            <table class="grid clubs">
-              <caption class="sr-only">{shown.s.label} clubs by net rating</caption>
-              <thead>
-                <tr>
-                  <th scope="col" class="num">#</th>
-                  <th scope="col">Club</th>
-                  {COLS.map(([h, about]) => (
-                    <th scope="col" class="num">
-                      <span data-tip={tip`<b>${h}</b><br>${about}`} tabindex="0">
-                        {h}
-                      </span>
-                    </th>
+          <h2 id="table-title">{headingOf(view.metric)}</h2>
+          <div class="filters">
+            <label class="field">
+              <span>Metric</span>
+              <span class="select">
+                <select id="metric" name="metric" style="--select-w: 11.5rem">
+                  {METRIC_GROUPS.map((g) => (
+                    <optgroup label={g.label}>
+                      {g.keys.map((k) => (
+                        <option value={k} selected={k === view.metric}>
+                          {metricOf(k)?.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
-                </tr>
-              </thead>
-              <tbody set:html={clubRowsHtml(base, undefined, shown.rows)} />
-            </table>
+                </select>
+                <span class="caret" set:html={caret} />
+              </span>
+            </label>
+            <label class="field">
+              <span>Season</span>
+              <span class="select">
+                <select id="season" name="season" style="--select-w: 7.875rem">
+                  {seasons.map((s) => (
+                    <option value={s.season} selected={s.season === view.season}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <span class="caret" set:html={caret} />
+              </span>
+            </label>
           </div>
-        )}
+        </header>
+        <Fragment set:html={colsHtml("cc", GROUPS.clubs)} />
+        <div class="scroll" id="clubs" data-base={base} data-open={open} data-seasons={JSON.stringify(bySeason)}>
+          <table class="grid clubs">
+            <caption class="sr-only">{captionOf(shown.label, view.metric)}</caption>
+            <thead set:html={clubHeadHtml(view.metric, view.dir)} />
+            <tbody set:html={clubRowsHtml(base, undefined, rows, view.metric)} />
+          </table>
+        </div>
       </section>
     )
   }
@@ -106,7 +116,7 @@ const COLS = [
       <section class="wrap band" aria-labelledby="charts-title">
         <header class="sec-head">
           <h2 id="charts-title">Offence, defence and pace</h2>
-          <p>One dot per club for the season selected above, from the same ratings as the table.</p>
+          <p>One mark per club for the season selected above, from the same ratings as the table.</p>
         </header>
         <div class="charts">
           <figure class="panel">
@@ -114,14 +124,14 @@ const COLS = [
               <h3>Offence against defence</h3>
               <p>Up and right is better: the defensive axis is reversed. Dashed lines are the league average; the diagonal is net 0.</p>
             </figcaption>
-            <div id="ratings-chart" set:html={ratingsChart(shown.plot, shown.s.label)} />
+            <div id="ratings-chart" set:html={ratingsChart(plotOf(shown), shown.label)} />
           </figure>
           <figure class="panel">
             <figcaption class="cap">
               <h3>Pace against net rating</h3>
               <p>Right is faster, up is better. Dashed lines are the league pace and net 0.</p>
             </figcaption>
-            <div id="pace-chart" set:html={paceChart(shown.plot, shown.s.label)} />
+            <div id="pace-chart" set:html={paceChart(plotOf(shown), shown.label)} />
           </figure>
         </div>
       </section>
@@ -174,32 +184,75 @@ const COLS = [
 </Base>
 
 <script>
-  import { clubRowsHtml, type ClubCells } from "../../lib/clubs";
-  import { paceChart, ratingsChart, type ClubPlot } from "../../lib/scatter";
+  import { clubHeadHtml, clubRowsHtml } from "../../lib/clubs";
+  import { paceChart, ratingsChart } from "../../lib/scatter";
+  import {
+    bestDir,
+    captionOf,
+    fromQuery,
+    headingOf,
+    phoneGroup,
+    plotOf,
+    sortRows,
+    toQuery,
+    type IndexSeason,
+    type View,
+  } from "../../lib/ranking";
 
-  const select = document.getElementById("season") as HTMLSelectElement | null;
-  const box = document.getElementById("clubs");
+  const host = document.getElementById("clubs");
+  const season = document.getElementById("season") as HTMLSelectElement | null;
+  const metric = document.getElementById("metric") as HTMLSelectElement | null;
+  const title = document.getElementById("table-title");
   const ratings = document.getElementById("ratings-chart");
   const pace = document.getElementById("pace-chart");
-  if (select && box) {
-    const others = JSON.parse(box.dataset.others!) as Record<string, [string, ClubCells[], ClubPlot]>;
-    const caption = box.querySelector("caption")!;
-    const body = box.querySelector("tbody")!;
-    const open = [caption.textContent!, body.innerHTML, ratings?.innerHTML ?? "", pace?.innerHTML ?? ""];
-    select.addEventListener("change", () => {
-      const s = others[select.value];
-      if (s) {
-        caption.textContent = `${s[0]} clubs by net rating`;
-        body.innerHTML = clubRowsHtml(box.dataset.base!, Number(select.value), s[1]);
-        if (ratings) ratings.innerHTML = ratingsChart(s[2], s[0]);
-        if (pace) pace.innerHTML = paceChart(s[2], s[0]);
-      } else {
-        caption.textContent = open[0];
-        body.innerHTML = open[1];
-        if (ratings) ratings.innerHTML = open[2];
-        if (pace) pace.innerHTML = open[3];
-      }
+  const groups = [...document.querySelectorAll<HTMLInputElement>('input[name="cc"]')];
+  if (host && season && metric && title) {
+    const seasons = JSON.parse(host.dataset.seasons ?? "{}") as Record<string, IndexSeason>;
+    const open = Number(host.dataset.open);
+    const base = host.dataset.base ?? "";
+    const caption = host.querySelector("caption")!;
+    const thead = host.querySelector("thead")!;
+    const body = host.querySelector("tbody")!;
+    let view: View = fromQuery(location.search, Object.keys(seasons).map(Number), open);
+
+    // Redraws the table, the heading and the charts from the view, then writes the view to the query string.
+    const paint = () => {
+      const s = seasons[String(view.season)];
+      if (!s) return;
+      season.value = String(view.season);
+      metric.value = view.metric;
+      title.textContent = headingOf(view.metric);
+      caption.textContent = captionOf(s.label, view.metric);
+      thead.innerHTML = clubHeadHtml(view.metric, view.dir);
+      body.innerHTML = clubRowsHtml(base, view.season === open ? undefined : view.season, sortRows(s.rows, view.metric, view.dir), view.metric);
+      if (ratings) ratings.innerHTML = ratingsChart(plotOf(s), s.label);
+      if (pace) pace.innerHTML = paceChart(plotOf(s), s.label);
+      // On a phone, the column group that holds the ranked column shows.
+      const at = phoneGroup(view.metric);
+      if (at >= 0 && groups[at]) groups[at].checked = true;
+      history.replaceState(null, "", location.pathname + toQuery(view, open));
+    };
+
+    season.addEventListener("change", () => {
+      view = { ...view, season: Number(season.value) };
+      paint();
     });
+    // A new metric starts from its best end (lowest for defensive rating, highest for the rest).
+    metric.addEventListener("change", () => {
+      view = { ...view, metric: metric.value, dir: bestDir(metric.value) };
+      paint();
+    });
+    thead.addEventListener("click", (e) => {
+      const button = (e.target as Element).closest<HTMLButtonElement>("button[data-sort]");
+      if (!button) return;
+      const key = button.dataset.sort!;
+      // The same head again flips the order; another head starts from its best end.
+      const dir = key === view.metric ? (view.dir === "desc" ? "asc" : "desc") : bestDir(key);
+      view = { ...view, metric: key, dir };
+      paint();
+      (thead.querySelector(`[data-sort="${key}"]`) as HTMLElement | null)?.focus({ preventScroll: true });
+    });
+    if (location.search) paint();
   }
 </script>
 
@@ -241,15 +294,27 @@ const COLS = [
     fill: var(--muted);
     font-size: 10px;
   }
-  .scatter .pt circle {
-    fill: var(--data-2);
-    stroke: var(--surface);
-    stroke-width: 1;
+  /* A club's mark: a two-tone disc (fills set in lib/scatter.ts) with a hairline edge in the ink, so a
+   * dark or pale club reads on the paper and in dark mode. Hover and focus darken the edge. */
+  .scatter .pt {
+    cursor: default;
+    outline: none;
   }
-  .scatter .pt text {
-    fill: var(--ink-2);
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
+  .scatter .pt .edge {
+    fill: none;
+    stroke: var(--ink-2);
+    stroke-width: 0.75;
+    opacity: 0.55;
+  }
+  .scatter .pt:hover .edge {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    opacity: 1;
+  }
+  .scatter .pt:focus-visible .edge {
+    stroke: var(--data-1);
+    stroke-width: 2;
+    opacity: 1;
   }
 </style>
 
@@ -266,6 +331,34 @@ const COLS = [
   .clubs :global(td.strong) {
     color: var(--ink);
     font-weight: 600;
+  }
+  /* The sortable heads (lib/clubs.ts): a button that fills its cell, and the sorted column marked. */
+  .clubs :global(thead button) {
+    width: 100%;
+    padding: 8px 0 8px 10px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: right;
+    cursor: pointer;
+  }
+  .clubs :global(thead th.on),
+  .clubs :global(thead th[aria-sort="ascending"]),
+  .clubs :global(thead th[aria-sort="descending"]) {
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: inset 0 -2px 0 var(--ink);
+  }
+  .clubs :global(thead button:focus-visible) {
+    outline: 2px solid var(--data-1);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .clubs :global(thead button:hover) {
+      color: var(--ink);
+    }
   }
   .all {
     display: grid;
@@ -335,7 +428,7 @@ const COLS = [
     max-width: 60ch;
   }
   @media (max-width: 560px) {
-    /* Long club names wrap so Net, the ranking, stays on screen. */
+    /* Long club names wrap so the ranked column, Net by default, stays on screen. */
     .clubs tbody :global(th) {
       white-space: normal;
     }

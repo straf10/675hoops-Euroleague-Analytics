@@ -29,8 +29,11 @@ const DIRECTION = new Map<string, BetterIs>([
   ["ftr", "higher"],
   ["otov", "higher"], // turnovers forced
   ["dreb", "higher"],
-  // No better side
+  // No better side (styles, like usage and pace)
   ["usg", "neither"],
+  ["pace", "neither"], // possessions per 40 minutes: a style, not a better side
+  ["tpar", "neither"], // three-point attempt rate (club): a style
+  ["otpar", "neither"], // opponent three-point attempt rate: what the club allows, a style
 ]);
 
 /** The direction of a metric by its key. Unknown keys read as "higher". */
