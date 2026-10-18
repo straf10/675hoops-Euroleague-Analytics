@@ -4,7 +4,8 @@
 
 import type { HexCell } from "./court";
 import { freqHeat, qualityHeat } from "./heat";
-import { deltaHtml, type BetterIs } from "./delta";
+import { betterOf } from "./better";
+import { deltaHtml } from "./delta";
 import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
 import { SEASON_COLS, bandRows, totalsOf, type Totals } from "./player";
@@ -39,28 +40,26 @@ export function factors(fields: string[], own: number[], against: number[]) {
 type Factors = ReturnType<typeof factors>;
 type Key = keyof Factors;
 
-/** One measure of the Four Factors layout. `better` is the single place that says whether a
- * higher or a lower figure is good for the club (the arrow's colour and the rail's direction). */
+/** One measure of the Four Factors layout. Its direction comes from `betterOf` (./better). */
 interface Metric {
   key: Key;
   name: string;
   about: string;
-  better: BetterIs;
 }
 
 export const OFFENSE: Metric[] = [
-  { key: "ortg", name: "Offensive rating", about: "Points scored per 100 possessions", better: "higher" },
-  { key: "efg", name: "Effective FG%", about: "(FGM + 0.5 × 3PM) / FGA", better: "higher" },
-  { key: "tov", name: "Turnover rate", about: "Turnovers per 100 plays: TOV / (FGA + 0.44 × FTA + TOV)", better: "lower" },
-  { key: "oreb", name: "Offensive rebound %", about: "Share of its own misses the club rebounded", better: "higher" },
-  { key: "ftr", name: "Free-throw rate", about: "Free throws made per 100 field-goal attempts", better: "higher" },
+  { key: "ortg", name: "Offensive rating", about: "Points scored per 100 possessions" },
+  { key: "efg", name: "Effective FG%", about: "(FGM + 0.5 × 3PM) / FGA" },
+  { key: "tov", name: "Turnover rate", about: "Turnovers per 100 plays: TOV / (FGA + 0.44 × FTA + TOV)" },
+  { key: "oreb", name: "Offensive rebound %", about: "Share of its own misses the club rebounded" },
+  { key: "ftr", name: "Free-throw rate", about: "Free throws made per 100 field-goal attempts" },
 ];
 export const DEFENSE: Metric[] = [
-  { key: "drtg", name: "Defensive rating", about: "Points allowed per 100 opponent possessions", better: "lower" },
-  { key: "oefg", name: "Opponent eFG%", about: "Opponents' effective FG%", better: "lower" },
-  { key: "otov", name: "Turnovers forced", about: "Opponent turnovers per 100 opponent plays", better: "higher" },
-  { key: "dreb", name: "Defensive rebound %", about: "Share of opponents' misses the club rebounded", better: "higher" },
-  { key: "oftr", name: "Opponent free-throw rate", about: "Opponent free throws made per 100 of their field-goal attempts", better: "lower" },
+  { key: "drtg", name: "Defensive rating", about: "Points allowed per 100 opponent possessions" },
+  { key: "oefg", name: "Opponent eFG%", about: "Opponents' effective FG%" },
+  { key: "otov", name: "Turnovers forced", about: "Opponent turnovers per 100 opponent plays" },
+  { key: "dreb", name: "Defensive rebound %", about: "Share of opponents' misses the club rebounded" },
+  { key: "oftr", name: "Opponent free-throw rate", about: "Opponent free throws made per 100 of their field-goal attempts" },
 ];
 
 export const ordinal = (n: number) => {
@@ -96,7 +95,8 @@ export function factorRows(t: TeamSeason, metrics: Metric[]): FactorRow[] {
   const all = t.clubs.map((c) => factors(t.fields, c.totals, c.opp));
   const league = factors(t.fields, t.league, t.league);
   const me = factors(t.fields, t.totals, t.opp);
-  return metrics.map(({ key, name, about, better }) => {
+  return metrics.map(({ key, name, about }) => {
+    const better = betterOf(key);
     const values = all.map((f) => f[key]);
     const mid = median(values);
     const lo = Math.min(...values, league[key]);

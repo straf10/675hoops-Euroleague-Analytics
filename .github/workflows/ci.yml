@@ -99,6 +99,9 @@ jobs:
         run: |
           cp tests/fixtures/site.json web/src/data/site.json
           cp -r tests/fixtures/stats web/src/data/stats
+      - name: TS unit tests
+        working-directory: web
+        run: node --test "src/lib/**/*.test.ts"
       - name: Build the site
         working-directory: web
         run: |
