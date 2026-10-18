@@ -45,4 +45,5 @@ export const countLine = (dots: number[], filter: ShotFilter = "all"): string =>
   return `${attempts} located attempts, ${made} made`;
 };
 
-export const dotLabel = (season: string, dots: number[]): string => `${season} shot chart: ${countLine(dots)}`;
+export const dotLabel = (season: string, dots: number[], filter: ShotFilter = "all"): string =>
+  `${season} shot chart: ${countLine(dots, filter)}`;

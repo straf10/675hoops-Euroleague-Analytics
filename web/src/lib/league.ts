@@ -1,9 +1,10 @@
 // "Against the league" on the player page: his per-game figures in six key metrics against the
-// players who play real minutes that season, and the season's top ten in each. Pure; built from
-// seasons/{season}/players.json at build time.
+// players who play real minutes that season, and his rank in the league and among his position.
+// Pure; built from seasons/{season}/players.json at build time. The ranking itself is in ./league_rank.ts.
 
 import { betterOf, type BetterIs } from "./better";
 import { BY_KEY, rated, type Measure } from "./players";
+import { rankLeague, type LeagueLine, type PositionPool } from "./league_rank";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 
 /** The six metrics, in order. Usage is a style measure (no better side, see `betterOf`). */
@@ -13,14 +14,6 @@ export const KEY_METRICS: string[] = ["pts", "reb", "ast", "ts", "usg", "pir"];
 export const FLOOR_MINUTES = 10;
 /** Whatever the quarter-of-the-most rule gives, a line needs at least this many games. */
 export const MIN_FLOOR_GAMES = 5;
-
-export interface BoardRow {
-  rank: number;
-  slug: string;
-  name: string;
-  team: string;
-  value: number;
-}
 
 export interface MetricBoard {
   key: string;
@@ -32,12 +25,14 @@ export interface MetricBoard {
   better: BetterIs;
   /** His value; null when he is not counted in this metric. */
   mine: number | null;
+  /** Mean of the league pool. */
   league: number;
+  /** His rank in the league pool (1 is best), null when not counted. */
   rank: number | null;
+  /** Players counted in the league pool. */
   of: number;
-  top: BoardRow[];
-  /** Him as an extra row (with his own rank) when he is outside the top ten. */
-  extra: BoardRow | null;
+  /** His position's mean and rank (lib/league_rank.ts); null without a listed position. */
+  position: PositionPool | null;
   /** Rail scale. */
   lo: number;
   hi: number;
@@ -58,33 +53,37 @@ function niceBounds(measure: Measure, values: number[]): [number, number] {
   return [Math.floor(lo / 5) * 5, Math.ceil(hi / 5) * 5];
 }
 
+/** The value of a metric for a player's season totals, or null when he does not qualify for it. */
+function valueOf(key: string, t: Record<string, number>): number | null {
+  const m = BY_KEY[key];
+  return (m.qualifies?.(t) ?? true) ? rated(m, t, "game") : null;
+}
+
 /** null when he is not in the pool (too few games or minutes) or no metric counts him. */
-export function leagueBoard(data: SeasonPlayers, id: string, topN = 10): LeagueBoard | null {
+export function leagueBoard(data: SeasonPlayers, id: string): LeagueBoard | null {
   const lines = data.players.map((row: PlayerRow) => ({ row, t: totalsOf(data.fields, row.totals.season) }));
   const most = Math.max(0, ...lines.map((l) => l.t.gp));
   const floorGames = Math.max(MIN_FLOOR_GAMES, Math.ceil(most / 4));
   const pool = lines.filter((l) => l.t.gp >= floorGames && l.t.sec / l.t.gp / 60 >= FLOOR_MINUTES);
   if (!pool.some((l) => l.row.id === id)) return null;
 
+  const ranks = rankLeague(
+    pool.map((l): LeagueLine => ({
+      id: l.row.id,
+      pos: l.row.pos ?? null,
+      values: Object.fromEntries(KEY_METRICS.map((key) => [key, valueOf(key, l.t)])),
+    })),
+    id,
+    KEY_METRICS,
+    (key) => (betterOf(key) === "lower" ? "lower" : "higher"),
+  );
+
   const boards: MetricBoard[] = [];
   for (const key of KEY_METRICS) {
-    const better = betterOf(key);
+    const r = ranks[key];
+    if (!r) continue;
     const m = BY_KEY[key];
-    const ranked = pool
-      .filter((l) => m.qualifies?.(l.t) ?? true)
-      .map((l) => ({ l, value: rated(m, l.t, "game") }))
-      .filter((r): r is { l: (typeof pool)[number]; value: number } => r.value !== null)
-      .sort((a, b) => b.value - a.value || a.l.row.name.localeCompare(b.l.row.name));
-    if (!ranked.length) continue;
-    const row = (r: (typeof ranked)[number], at: number): BoardRow => ({
-      rank: at + 1,
-      slug: r.l.row.slug,
-      name: r.l.row.name,
-      team: r.l.row.teams[r.l.row.teams.length - 1] ?? "",
-      value: r.value,
-    });
-    const at = ranked.findIndex((r) => r.l.row.id === id);
-    const values = ranked.map((r) => r.value);
+    const values = pool.map((l) => valueOf(key, l.t)).filter((v): v is number => v !== null);
     const [lo, hi] = niceBounds(m, values);
     boards.push({
       key,
@@ -93,13 +92,12 @@ export function leagueBoard(data: SeasonPlayers, id: string, topN = 10): LeagueB
       about: m.about,
       digits: m.digits,
       pct: m.kind === "pct",
-      better,
-      mine: at >= 0 ? ranked[at].value : null,
-      league: values.reduce((a, b) => a + b, 0) / values.length,
-      rank: at >= 0 ? at + 1 : null,
-      of: ranked.length,
-      top: ranked.slice(0, topN).map(row),
-      extra: at >= topN ? row(ranked[at], at) : null,
+      better: betterOf(key),
+      mine: r.mine,
+      league: r.league.average,
+      rank: r.league.rank,
+      of: r.league.of,
+      position: r.position,
       lo,
       hi: hi > lo ? hi : lo + 1,
     });

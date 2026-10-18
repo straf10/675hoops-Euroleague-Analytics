@@ -1,39 +1,81 @@
 ---
-// Clutch: last five minutes of the fourth quarter or overtime, score within five.
+// Clutch: last minutes of the fourth quarter or overtime, score within the margin. One panel per
+// season the stints cover; the season switch (the page script) shows the chosen one.
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import { signClass } from "../../lib/delta";
 import { signed } from "../../lib/format";
 import type { Clutch } from "../../lib/onoff";
 import { tip } from "../../lib/tip";
 
-interface Props {
-  clutch: Clutch;
+export interface ClutchPanel {
+  season: number;
   label: string;
+  /** null when he never played clutch time that season. */
+  clutch: Clutch | null;
+}
+
+interface Props {
+  panels: ClutchPanel[];
+  chosen: number;
   minutes: number;
   margin: number;
 }
-const { clutch, label, minutes, margin } = Astro.props;
-const cells: [string, string, string][] = [
-  ["Minutes", clutch.minutes.toFixed(1), "Minutes on court in clutch time"],
-  ["Points", String(clutch.pts), "His own points in clutch time"],
-  ["Net rating", clutch.net === null ? "–" : signed(clutch.net), "His team's points scored minus allowed per 100 possessions while he was on court in clutch time"],
+const { panels, chosen, minutes, margin } = Astro.props;
+const cellsOf = (c: Clutch): [string, string, string][] => [
+  ["Minutes", c.minutes.toFixed(1), "Minutes on court in clutch time"],
+  ["Points", String(c.pts), "His own points in clutch time"],
+  ["Net rating", c.net === null ? "–" : signed(c.net), "His team's points scored minus allowed per 100 possessions while he was on court in clutch time"],
 ];
-// Sign Colour Rule on the Net rating figure only.
-const netClass = signClass(clutch.net);
+const options = panels.map((p) => ({ value: p.season, label: p.label, selected: p.season === chosen }));
 ---
 
 <section class="wrap band" id="clutch" aria-labelledby="clutch-title">
-  <header class="sec-head">
-    <h2 id="clutch-title">Clutch</h2>
-    <p>{label}: the last {minutes} minutes of the fourth quarter, or at any point in overtime, with the score within {margin}.</p>
-  </header>
-  <dl class="strip narrow">
+  <header class="sec-head split">
+    <div>
+      <h2 id="clutch-title">Clutch</h2>
+      {
+        panels.map((p) => (
+          <p data-stint={p.season} hidden={p.season !== chosen}>
+            {p.label}: the last {minutes} minutes of the fourth quarter, or at any point in overtime, with the score within {margin}.
+          </p>
+        ))
+      }
+    </div>
     {
-      cells.map(([head, value, about]) => (
-        <div>
-          <dt data-tip={tip`<b>${head}</b><br>${about}`} tabindex="0">{head}</dt>
-          <dd><span class={head === "Net rating" ? netClass || undefined : undefined}>{value}</span></dd>
-        </div>
-      ))
+      panels.length > 1 && (
+        <label class="pick">
+          <span class="sr-only">Season</span>
+          <span class="select">
+            <select data-view="stint">
+              {options.map((o) => (
+                <option value={o.value} selected={o.selected}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span class="caret" set:html={caret} />
+          </span>
+        </label>
+      )
     }
-  </dl>
+  </header>
+  {
+    panels.map((p) =>
+      p.clutch ? (
+        <dl class="strip narrow" data-stint={p.season} hidden={p.season !== chosen}>
+          {cellsOf(p.clutch).map(([head, value, about]) => (
+            <div>
+              <dt data-tip={tip`<b>${head}</b><br>${about}`} tabindex="0">{head}</dt>
+              <dd>
+                {/* Sign Colour Rule on the Net rating figure only. */}
+                <span class={head === "Net rating" ? signClass(p.clutch?.net ?? null) || undefined : undefined}>{value}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p class="note" data-stint={p.season} hidden={p.season !== chosen}>No clutch time that season.</p>
+      ),
+    )
+  }
 </section>
