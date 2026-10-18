@@ -209,7 +209,8 @@ Done as written, with three choices made along the way: the game log under Form 
 | DL1 Downloads by season | `publish.py`, `downloads/` |
 | Hide the share-card link + start counting (D7) | `[slug].astro` |
 
-### Wave B: foundations (parallel; all decisions answered 2026-10-18)
+### Wave B: foundations (parallel; all decisions answered 2026-10-18) — DONE 2026-10-18, merged to main
+Results: Sign Colour Rule live in `global.css`, and the team-header Net arrow is dropped (it only repeated the sign). `InfoTip` added. Positions are Guard/Forward/Centre with `LEGACY_POSITION`. Export has `tm_fgm`, `tm_oreb`, `tm_dreb`, `opp_oreb`, `opp_dreb`, and dots are `[x, y, made, three]`. `lib/percentile.ts` and `lib/better.ts` (single direction source) exist, with `node --test` in CI. `achievements.json` covers 2007 to the season before the live one; champions and runners-up were checked against history for 2007-08 to 2024-25. Share-card HTML pages (noindex, not in the sitemap) are linked again. WP protocol v1 is approved on `wave1/wp-protocol`: ND games excluded, rule D, no possession, no killer instinct, **player WPA not published**.
 One agent each:
 
 | Task | Scope |
