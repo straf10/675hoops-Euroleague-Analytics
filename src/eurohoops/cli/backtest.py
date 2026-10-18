@@ -37,6 +37,8 @@ from eurohoops.config import (
     MART_PATH,
     PLAYER_BIOS,
     PLAYER_XWALK_FILE,
+    WP_GAMES_REPORT,
+    WP_REPORT,
     Competition,
     M5Backtest,
     M6Backtest,
@@ -81,6 +83,8 @@ from eurohoops.eval.tracking import (
     log_m6_backtest,
     log_m7_backtest,
 )
+from eurohoops.eval.wp_backtest import format_table as format_wp_table
+from eurohoops.eval.wp_backtest import run as run_wp_backtest
 from eurohoops.live_m6 import person_names, query_rows
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table
@@ -583,6 +587,24 @@ def _backtest_m7_v2(competition: CompetitionName) -> None:
     typer.echo(f"RUNTIME backtest m7 gate v2: {time.perf_counter() - started:.0f} s")
 
 
+def _backtest_wp(raw_dir: Path | None) -> None:
+    """``backtest --model wp`` (docs/models/wp.md, protocol v1): the in-game WP gate, run once.
+    EuroLeague only. Reads the raw play-by-play cache; writes the two reports and nothing else."""
+    if WP_REPORT.exists():
+        log.error("refusing to run: %s already exists (the gate is reported once)", WP_REPORT)
+        raise typer.Exit(code=1)
+    started = time.perf_counter()
+    report, rows = run_wp_backtest(
+        read_games(MART_PATH, EUROLEAGUE.name),
+        raw_dir or EUROLEAGUE.raw_dir,
+        progress=log.info,
+    )
+    write_json(WP_REPORT, report)
+    rows.to_csv(WP_GAMES_REPORT, index=False, lineterminator="\n")
+    typer.echo(f"{WP_REPORT}\n{format_wp_table(report)}")
+    typer.echo(f"RUNTIME backtest wp: {time.perf_counter() - started:.0f} s")
+
+
 def _m6_brapm(xwalk: pd.DataFrame) -> pd.DataFrame:
     """The season-end BRAPM snapshots of ``reports/m3_players.json`` as ``IMPACT_SCHEMA`` rows
     (``total`` and ``sd_total`` of the players the snapshot saw, mapped to persons)."""
@@ -845,7 +867,7 @@ def _m6_similar(  # noqa: PLR0917 -- the live inputs, passed through
     return neighbours(features, emb), pool, len(emb.features) > len(BOX_FEATURES)
 
 
-def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
+def backtest(  # noqa: PLR0911, PLR0912, PLR0915 -- one dispatch return per model
     *,
     competition: CompetitionOption = CompetitionName.euroleague,
     model: Annotated[
@@ -853,7 +875,8 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
         typer.Option(
             help=(
                 "elo (live), elor (roster prior CV), m1, m2, m3 (players), m4, m5 (roster), "
-                "m6 (projections), m7 (season), eloc (calibrated Elo CV: --cv or --cv-check), "
+                "m6 (projections), m7 (season), wp (in-game win probability, run once), "
+                "eloc (calibrated Elo CV: --cv or --cv-check), "
                 "pool (equal-weight pool, read-only --check)"
             )
         ),
@@ -903,6 +926,10 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
             help="POOL: read-only overlap audit of the four components (docs/models/pool.md)",
         ),
     ] = False,
+    raw_dir: Annotated[
+        Path | None,
+        typer.Option(help="WP: EuroLeague raw cache (read only; default data/raw/euroleague)"),
+    ] = None,
 ) -> None:
     """Tune and score a model vs its baselines; the Elo live report holds the live parameters."""
     if pool_check or model is ModelName.pool:
@@ -928,6 +955,12 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
             log.error("--gate-v2 belongs to --model m7")
             raise typer.Exit(code=1)
         _backtest_m7_v2(competition)
+        return
+    if model is ModelName.wp:
+        if competition is not CompetitionName.euroleague:
+            log.error("the in-game WP model is the EuroLeague's")
+            raise typer.Exit(code=1)
+        _backtest_wp(raw_dir)
         return
     if model is ModelName.m2:
         research.backtest_m2(score_test, search, tracking_uri or default_tracking_uri())

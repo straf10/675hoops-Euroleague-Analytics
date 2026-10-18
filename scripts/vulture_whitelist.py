@@ -264,3 +264,13 @@ from zipfile import ZipInfo  # noqa: E402
 ZipInfo.compress_type
 ZipInfo.create_system
 ZipInfo.external_attr
+
+# In-game WP (docs/models/wp.md, section 7 and 8): the displayed line and the game-control parts are
+# written ahead of the game-page step (not built in this protocol run)
+from eurohoops.models.wp import displayed_wp, tipoff_gap  # noqa: E402
+from eurohoops.models.wp_control import game_parts, team_view  # noqa: E402
+
+displayed_wp
+tipoff_gap
+game_parts
+team_view
