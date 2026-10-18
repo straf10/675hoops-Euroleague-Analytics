@@ -46,8 +46,9 @@ from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_
 
 STATS_DIR = Path("web/src/data/stats")  # read by the Astro build in web/
 WINDOWS = (5, 10, 20)
-TEAM_TOTALS = ("tm_fga", "tm_fta", "tm_tov", "tm_poss")
-PLAYER_FIELDS = ("gp", "gs", "sec", *STATS, "pm", "poss", "game_sec", *TEAM_TOTALS)
+TEAM_TOTALS = ("tm_fga", "tm_fgm", "tm_fta", "tm_tov", "tm_poss", "tm_oreb", "tm_dreb")
+OPP_TOTALS = ("opp_oreb", "opp_dreb")
+PLAYER_FIELDS = ("gp", "gs", "sec", *STATS, "pm", "poss", "game_sec", *TEAM_TOTALS, *OPP_TOTALS)
 TEAM_FIELDS = ("gp", *STATS, "poss", "game_sec")
 LOG_FIELDS = ("game_id", "team", "starter", "sec", *STATS, "pm")
 GAME_FIELDS = ("date", "round", "phase", "home", "away", "home_score", "away_score")
@@ -141,10 +142,22 @@ def _row(values: np.ndarray[Any, Any]) -> list[int | float]:
 
 def _player_frame(inputs: Inputs) -> pd.DataFrame:
     """Player game lines with tip-off, starter flag and his team's totals, in game order."""
-    teams = inputs.box.teams.assign(tm_fga=lambda t: t["fg2a"] + t["fg3a"]).rename(
-        columns={"fta": "tm_fta", "tov": "tm_tov", "poss": "tm_poss"}
+    teams = inputs.box.teams.assign(
+        tm_fga=lambda t: t["fg2a"] + t["fg3a"], tm_fgm=lambda t: t["fg2m"] + t["fg3m"]
+    ).rename(
+        columns={
+            "fta": "tm_fta",
+            "tov": "tm_tov",
+            "poss": "tm_poss",
+            "oreb": "tm_oreb",
+            "dreb": "tm_dreb",
+        }
     )[["game_id", "team", *TEAM_TOTALS]]
+    opponents = inputs.box.teams[["game_id", "team", "oreb", "dreb"]].rename(
+        columns={"team": "opponent", "oreb": "opp_oreb", "dreb": "opp_dreb"}
+    )
     frame = inputs.box.players.merge(teams, on=["game_id", "team"], validate="many_to_one")
+    frame = frame.merge(opponents, on=["game_id", "opponent"], validate="many_to_one")
     frame = frame.merge(
         inputs.games[["game_id", "tipoff_utc"]], on="game_id", validate="many_to_one"
     )

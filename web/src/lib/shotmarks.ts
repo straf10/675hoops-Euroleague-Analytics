@@ -5,13 +5,24 @@ import { court, DEPTH } from "./court";
 
 const BASELINE = 1.575; // metres from the basket to the baseline, as lib/court.ts
 
-/** `dots` is flat [x, y, made] in court centimetres. Misses are drawn first, so makes stay on top. */
-export function markChart(dots: number[], label: string): string {
+/** Which attempts to show: all, two-pointers only, or threes only. */
+export type ShotFilter = "all" | "2" | "3";
+
+/** Whether attempt `i` (a stride-4 index into `dots`) passes the filter. */
+const keep = (dots: number[], i: number, filter: ShotFilter): boolean =>
+  filter === "all" || dots[i + 3] === (filter === "3" ? 1 : 0);
+
+/**
+ * `dots` is flat [x, y, made, three] in court centimetres. Misses are drawn first, so makes stay
+ * on top. `filter` keeps only two-pointers ("2") or threes ("3"); "all" (the default) keeps all.
+ */
+export function markChart(dots: number[], label: string, filter: ShotFilter = "all"): string {
   const made: string[] = [];
   const miss: string[] = [];
   const r = 0.14;
   const d = 0.11;
-  for (let i = 0; i < dots.length; i += 3) {
+  for (let i = 0; i < dots.length; i += 4) {
+    if (!keep(dots, i, filter)) continue;
     const x = dots[i] / 100;
     const y = dots[i + 1] / 100;
     if (y > DEPTH || Math.abs(x) > 7.5) continue;
@@ -22,10 +33,16 @@ export function markChart(dots: number[], label: string): string {
   return court(`<path class="xmiss" d="${miss.join("")}"/><path class="made" d="${made.join("")}"/>`, label);
 }
 
-export const countLine = (dots: number[]): string => {
+/** "N located attempts, M made" over the attempts that pass `filter` ("all" by default). */
+export const countLine = (dots: number[], filter: ShotFilter = "all"): string => {
+  let attempts = 0;
   let made = 0;
-  for (let i = 2; i < dots.length; i += 3) made += dots[i];
-  return `${dots.length / 3} located attempts, ${made} made`;
+  for (let i = 0; i < dots.length; i += 4) {
+    if (!keep(dots, i, filter)) continue;
+    attempts++;
+    made += dots[i + 2];
+  }
+  return `${attempts} located attempts, ${made} made`;
 };
 
 export const dotLabel = (season: string, dots: number[]): string => `${season} shot chart: ${countLine(dots)}`;

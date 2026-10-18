@@ -253,6 +253,17 @@ def test_payload_windows_and_bands(files: dict[str, dict[str, Any]]) -> None:
     assert tops == sorted(tops, reverse=True)
 
 
+def test_team_totals_cover_the_player_lines(files: dict[str, dict[str, Any]]) -> None:
+    season = files["seasons/2024/players.json"]
+    assert {"tm_fgm", "tm_oreb", "tm_dreb", "opp_oreb", "opp_dreb"} <= set(season["fields"])
+    idx = {f: i for i, f in enumerate(season["fields"])}
+    for row in season["players"]:
+        for window, t in row["totals"].items():
+            made = t[idx["fg2m"]] + t[idx["fg3m"]]
+            assert t[idx["tm_fgm"]] >= made, (row["id"], window)
+            assert t[idx["tm_oreb"]] + t[idx["tm_dreb"]] >= t[idx["oreb"]] + t[idx["dreb"]]
+
+
 def test_splits_add_up_to_the_season_rows(files: dict[str, dict[str, Any]]) -> None:
     splits = files["splits.json"]
     assert splits["fields"] == list(PLAYER_FIELDS)

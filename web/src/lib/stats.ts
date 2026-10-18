@@ -161,7 +161,7 @@ export interface PlayerSeason {
   totals: number[];
   bands: Bands;
   leagueBands: Bands;
-  /** Every located attempt, flat [x, y, made] in court centimetres (basket at the origin). */
+  /** Every located attempt, flat [x, y, made, three] in court centimetres (basket at the origin). */
   dots: number[];
   /** [q, r, att, made, league FG% in the cell x10] per occupied cell */
   hex: [number, number, number, number, number][];
@@ -208,7 +208,7 @@ interface RawDots {
 
 const dotCache = new Map<number, Promise<Map<string, number[]>>>();
 
-/** One season's attempts grouped by shooter: id -> flat [x, y, made] in court centimetres. */
+/** One season's attempts grouped by shooter: id -> flat [x, y, made, three] in court centimetres. */
 function playerDots(year: number): Promise<Map<string, number[]>> {
   if (!dotCache.has(year))
     dotCache.set(
@@ -221,7 +221,12 @@ function playerDots(year: number): Promise<Map<string, number[]>> {
           const id = raw.players[raw.player[i]];
           if (id === undefined) continue;
           const list = by.get(id) ?? [];
-          list.push(raw.x[i], raw.y[i], (raw.flags[i] >> raw.bits.made) & 1);
+          list.push(
+            raw.x[i],
+            raw.y[i],
+            (raw.flags[i] >> raw.bits.made) & 1,
+            (raw.flags[i] >> raw.bits.three) & 1,
+          );
           by.set(id, list);
         }
         return by;
