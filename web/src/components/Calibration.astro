@@ -1,0 +1,180 @@
+---
+import type { Competition } from "../lib/format";
+import { calibrationPlot, share, type ChartSpec } from "../lib/forecasts";
+import { tip } from "../lib/tip";
+
+interface Props {
+  comp: Competition;
+}
+const { comp } = Astro.props;
+const fc = comp.forecasts;
+const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
+const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
+const cal = fc?.calibration;
+const spec: ChartSpec = { w: 360, h: 360, l: 44, r: 16, t: 16, b: 40 };
+const points = cal && cal.bins.length ? calibrationPlot(cal, spec) : [];
+const ticks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+const X = (p: number) => spec.l + p * (spec.w - spec.l - spec.r);
+const Y = (q: number) => spec.t + (1 - q) * (spec.h - spec.t - spec.b);
+const pct = (p: number) => `${Math.round(p * 100)}%`;
+---
+
+{
+  points.length > 0 && cal && (
+    <section aria-labelledby={`fc-cal-${comp.key}`}>
+      <h3 id={`fc-cal-${comp.key}`}>Calibration</h3>
+      <p class="sub">
+        Predicted home-win chance against how often the home side won, grouped in bins of 20 points. A
+        well-calibrated model sits on the dashed line.
+      </p>
+      <svg
+        class="chart"
+        viewBox={`0 0 ${spec.w} ${spec.h}`}
+        role="img"
+        aria-label={`Calibration of ${label}: observed home-win rate by predicted bin. The table below has the figures.`}
+      >
+        <rect
+          class="plot"
+          x={spec.l}
+          y={spec.t}
+          width={spec.w - spec.l - spec.r}
+          height={spec.h - spec.t - spec.b}
+        />
+        {ticks.map((t) => (
+          <>
+            <line class="grid" x1={X(t)} x2={X(t)} y1={spec.t} y2={spec.h - spec.b} />
+            <line class="grid" x1={spec.l} x2={spec.w - spec.r} y1={Y(t)} y2={Y(t)} />
+            <text class="tick" x={X(t)} y={spec.h - spec.b + 18} text-anchor="middle">
+              {pct(t)}
+            </text>
+            <text class="tick" x={spec.l - 8} y={Y(t) + 4} text-anchor="end">
+              {pct(t)}
+            </text>
+          </>
+        ))}
+        <line class="ref" x1={X(0)} y1={Y(0)} x2={X(1)} y2={Y(1)} />
+        <text class="axis" x={spec.l + (spec.w - spec.l - spec.r) / 2} y={spec.h - 4} text-anchor="middle">
+          Predicted home win
+        </text>
+        <text
+          class="axis"
+          transform={`translate(12 ${spec.t + (spec.h - spec.t - spec.b) / 2}) rotate(-90)`}
+          text-anchor="middle"
+        >
+          Observed home wins
+        </text>
+        {points.map((p) => (
+          <>
+            <line class="ci" x1={p.x} x2={p.x} y1={p.yHigh} y2={p.yLow} />
+            <circle class="dot" cx={p.x} cy={p.y} r="4" />
+            <text class="tick" x={p.x + 8} y={p.y - 6}>
+              n = {p.n}
+            </text>
+            <circle
+              class="hit"
+              cx={p.x}
+              cy={p.y}
+              r="14"
+              tabindex="0"
+              data-tip={tip`<b>Predicted ${pct(p.lo)} to ${pct(p.hi)}</b><br>${p.n} games: home side won ${pct(p.observed)}<br>95% range ${pct(p.low)} to ${pct(p.high)}`}
+              aria-label={`Predicted ${pct(p.lo)} to ${pct(p.hi)}: ${p.n} games, home side won ${pct(p.observed)}, 95% range ${pct(p.low)} to ${pct(p.high)}.`}
+            />
+          </>
+        ))}
+      </svg>
+      <p class="note">
+        Built from {cal.games} finished games. Each bar is the 95% range of its bin; a bin with few games has a
+        wide one.
+      </p>
+      <table class="sr-only">
+        <caption>{comp.title}: calibration of {label}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Predicted</th>
+            <th scope="col">Games</th>
+            <th scope="col">Mean predicted</th>
+            <th scope="col">Home side won</th>
+            <th scope="col">95% range</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cal.bins.map((b) => (
+            <tr>
+              <th scope="row">
+                {pct(b.lo)} to {pct(b.hi)}
+              </th>
+              <td>{b.n}</td>
+              <td>{pct(b.predicted)}</td>
+              <td>{pct(b.observed)}</td>
+              <td>
+                {pct(b.low)} to {pct(b.high)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
+}
+
+<style>
+  .sub {
+    margin: 4px 0 14px;
+    color: var(--ink-2);
+    font-size: 0.875rem;
+    max-width: 68ch;
+  }
+  .note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    max-width: 70ch;
+  }
+  .chart {
+    display: block;
+    width: 100%;
+    max-width: 380px;
+    height: auto;
+    overflow: visible;
+  }
+  .plot {
+    fill: var(--surface);
+  }
+  .grid {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .ref {
+    stroke: var(--axis);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+  }
+  .tick {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .axis {
+    fill: var(--ink-2);
+    font-size: 11px;
+  }
+  .ci {
+    stroke: var(--data-1);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .dot {
+    fill: var(--data-1);
+    stroke: var(--page);
+    stroke-width: 2;
+  }
+  .hit {
+    fill: transparent;
+    outline: none;
+  }
+  .hit:focus-visible {
+    stroke: var(--data-1);
+    stroke-width: 2;
+    fill: var(--data-1-wash);
+  }
+</style>

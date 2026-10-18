@@ -265,6 +265,100 @@ def _games_list(per_model: Mapping[str, pd.DataFrame]) -> list[dict[str, Any]]:
     return out
 
 
+CALIBRATION_EDGES = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)  # five equal-width bins; the last one closed
+WILSON_Z = 1.959963984540054  # 95% interval
+
+
+def _wilson(k: int, n: int) -> tuple[float, float]:
+    """The Wilson score interval of ``k`` home wins in ``n`` games, at 95%."""
+    p = k / n
+    z2 = WILSON_Z**2
+    centre = (p + z2 / (2 * n)) / (1 + z2 / n)
+    half = WILSON_Z * np.sqrt(p * (1 - p) / n + z2 / (4 * n * n)) / (1 + z2 / n)
+    return _round(max(0.0, centre - half)), _round(min(1.0, centre + half))
+
+
+def calibration(calls: pd.DataFrame) -> dict[str, Any]:
+    """Reliability of the model's P(home win): observed home-win rate per bin of predicted P.
+
+    Bins are half-open ``[lo, hi)`` except the last, which takes 1.0. Empty bins are dropped.
+    """
+    p = calls["p_home"].to_numpy(dtype=np.float64)
+    home_won = (calls["margin"].to_numpy(dtype=np.float64) > 0).astype(np.float64)
+    which = np.searchsorted(np.asarray(CALIBRATION_EDGES[1:-1]), p, side="right")
+    bins = []
+    for k in range(len(CALIBRATION_EDGES) - 1):
+        here = which == k
+        n = int(here.sum())
+        if not n:
+            continue
+        low, high = _wilson(int(home_won[here].sum()), n)
+        bins.append(
+            {
+                "lo": CALIBRATION_EDGES[k],
+                "hi": CALIBRATION_EDGES[k + 1],
+                "n": n,
+                "predicted": _round(p[here].mean(), 4),
+                "observed": _round(home_won[here].mean(), 4),
+                "low": low,
+                "high": high,
+            }
+        )
+    return {"games": len(calls), "bins": bins}
+
+
+def _group_done(games: pd.DataFrame, season: int, key: tuple[str, int | None]) -> bool:
+    """Every game of the round or phase is played or forfeited (none still to play)."""
+    phase, rnd = key
+    rows = games[(games["season"] == season) & (games["phase"] == phase)]
+    if rnd is not None:
+        rows = rows[rows["round"] == rnd]
+    return bool(len(rows)) and bool((rows["played"] | rows["forfeit"]).all())
+
+
+def round_headline(
+    calls: pd.DataFrame, games: pd.DataFrame, season: int, baseline: TunedModel
+) -> dict[str, Any] | None:
+    """The latest completed round (or phase) of the published model, against the home-win baseline.
+
+    ``called`` counts the games whose side with P > 0.5 won; a game at exactly 0.5 is not called
+    but stays in ``games``. ``baseline_brier`` is B0 (the constant home-win rate) on the same games.
+    ``biggest_miss`` is the winner the model gave the lowest pre-game probability.
+    """
+    if calls.empty:
+        return None
+    keys = [_group_key(p, int(r)) for p, r in zip(calls["phase"], calls["round"], strict=True)]
+    # Calls are in tip-off order, so the order of first appearance is the order of the groups.
+    done = [key for key in dict.fromkeys(keys) if _group_done(games, season, key)]
+    if not done:
+        return None
+    group = done[-1]
+    rows = calls[[key == group for key in keys]]
+    p = rows["p_home"].to_numpy(dtype=np.float64)
+    home_won = (rows["margin"].to_numpy(dtype=np.float64) > 0).astype(np.float64)
+    p_b0, _ = baseline.b0(rows["neutral"].to_numpy(dtype=np.float64))
+    p_win = np.where(home_won == 1.0, p, 1.0 - p)
+    miss = int(np.argmin(p_win))
+    home_side = bool(home_won[miss])
+    winner, loser = (rows.iloc[miss]["home"], rows.iloc[miss]["away"])
+    if not home_side:
+        winner, loser = loser, winner
+    called = int((((p > 0.5) & (home_won == 1.0)) | ((p < 0.5) & (home_won == 0.0))).sum())
+    return {
+        "phase": group[0],
+        "round": group[1],
+        "games": len(rows),
+        "called": called,
+        "brier": _round(np.mean((p - home_won) ** 2)),
+        "baseline_brier": _round(np.mean((p_b0 - home_won) ** 2)),
+        "biggest_miss": {
+            "winner": str(winner),
+            "loser": str(loser),
+            "p_winner": _round(p_win[miss], 4),
+        },
+    }
+
+
 def build_forecasts(
     logs: Mapping[str, Path | None],
     labels: Mapping[str, str],
@@ -317,6 +411,10 @@ def build_forecasts(
         "rounds": _rounds(per_model, used),
         "games": _games_list(per_model),
         "trend": _trend(shown, baseline) if baseline is not None else [],
+        "headline": (
+            round_headline(shown, games, season, baseline) if baseline is not None else None
+        ),
+        "calibration": calibration(shown),
     }
 
 

@@ -138,7 +138,7 @@ def _m1(card: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _forecasts(section: Section) -> dict[str, Any] | None:
-    """The season forecast record with its games' teams shown by display code."""
+    """The season forecast record with its games' and headline teams shown by display code."""
     record = section.forecasts
     if record is None:
         return None
@@ -146,7 +146,18 @@ def _forecasts(section: Section) -> dict[str, Any] | None:
         {**g, "home": _team(section, g["home"]), "away": _team(section, g["away"])}
         for g in record["games"]
     ]
-    return {**record, "games": games}
+    headline = record["headline"]
+    if headline is not None:
+        miss = headline["biggest_miss"]
+        headline = {
+            **headline,
+            "biggest_miss": {
+                **miss,
+                "winner": _team(section, miss["winner"]),
+                "loser": _team(section, miss["loser"]),
+            },
+        }
+    return {**record, "games": games, "headline": headline}
 
 
 def section_data(section: Section, now: datetime) -> dict[str, Any]:

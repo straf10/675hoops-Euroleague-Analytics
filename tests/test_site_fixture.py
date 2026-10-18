@@ -135,6 +135,7 @@ def section(tmp: Path, key: str, title: str, gbl_like: bool, seasons: tuple[int,
         2026,
         odds_log=odds_path,
         published="elo",
+        baseline=model,
     )
     return Section(
         key,
