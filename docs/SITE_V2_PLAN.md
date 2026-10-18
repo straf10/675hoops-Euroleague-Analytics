@@ -30,6 +30,31 @@ Research inputs (Haiku subagents, 2026-10-18): boxscorelab `/players/` (strip pl
 | D13 | **RAPM as a Players metric.** RAPM exists for finished seasons only (latest 2025-26, 500-minute floor). The Players page opens on 2026-27. | List RAPM in Metric only for seasons that have a board, with a note. A live-season RAPM from the daily M3 fit is possible but would be a new published model number, so it is a separate decision. |
 | D14 | **WP protocol (yesterday, still open).** The assist split: the pre-study's validity gate failed (r = −0.05). | 100% of the credit to the scorer, as a stated convention. This unblocks yesterday's Wave 3. |
 
+### Owner answers (2026-10-18)
+| # | Answer |
+|---|--------|
+| D1 | Sign Colour Rule approved. It applies to every Net and +/- figure on the Players, Teams, player and team pages. |
+| D2 | Bring back per game / per 36 / per 100. |
+| D3 | Last 5 (done in Wave A). |
+| D4 | (b): one graph with a League / Position switch. |
+| D5 | Rename to Guard / Forward / Centre. |
+| D6 | Keep the intervals and add a "?" hint. |
+| D7 | Measure before deciding. The links must be visible to be measured, so put them back (task S1). |
+| D9 | Club-colour discs now (T3). Crests only through the legitimate route in §0.1, never as a "loophole". |
+| D10 | Two phases agreed. **Play moves to a late wave**, so no Play work in Waves B–D. |
+| D11 | Teal kept, caption done. |
+| D12 | "EuroLeague season" everywhere. Checked: the only NBA mention left is the 0.44 free-throw comparison on Methodology, which is correct. |
+| D13 | RAPM in Players for past seasons only. |
+| D14 | 100% of the assist credit to the scorer (yesterday's pre-study result). Write the settled values into the WP protocol, then the owner gives final approval. |
+
+### 0.1 Notes on D7 and D9
+- **D7, measuring share cards.** Hiding the links stopped any measurement, so you were right. A second problem: Cloudflare Web Analytics counts page views through a script, and a PNG download runs no script, so even visible PNG links would go uncounted. Fix (S1): the share link opens a small HTML page per card (`/cards/players/{slug}/`) that shows the image with a download button. Web Analytics counts those views. The PNG routes and og:image stay as they are. Decide after 3–4 weeks of data.
+- **D9, crests.** Non-commercial use is not an exemption: crests are trademarks and also copyrighted artwork, and that holds whether or not the site makes money. (I'm not a lawyer.) The routes that are actually defensible:
+  1. **Ask.** Email Euroleague Basketball's media/licensing contact, and the clubs if needed, for permission to show crests as identifiers on a free, non-commercial stats site. This is the clean route.
+  2. **Referential use**, as many fan stats sites do: small, self-hosted, unaltered crests used only to identify the club; a line saying the marks belong to their owners and the site is not affiliated; a promise to remove them on request. EU law allows referential use "in accordance with honest practices", but whether a logo (rather than the name) qualifies is unsettled. That makes this a moderate risk you would be accepting, not a safe harbour.
+
+  Plan: ship the discs now behind a `CLUB_MARK = "disc" | "crest"` switch, so crests can replace them in one change if you get permission or accept route 2. `PRODUCT.md:45` changes only when that happens.
+
 ---
 
 ## 1. What each request becomes
@@ -184,8 +209,21 @@ Done as written, with three choices made along the way: the game log under Form 
 | DL1 Downloads by season | `publish.py`, `downloads/` |
 | Hide the share-card link + start counting (D7) | `[slug].astro` |
 
-### Wave B: foundations (parallel, after D1/D5)
-F1, F2, F4, F5, F6, F7, F8, F9. One owner each. F6 starts after F4 because the position names feed it.
+### Wave B: foundations (parallel; all decisions answered 2026-10-18)
+One agent each:
+
+| Task | Scope |
+|------|-------|
+| F1 | Sign colours: the helper, the `DESIGN.md` rule, and every existing Net and +/- figure (P3, Q8 and T2 come forward from Wave C) |
+| F2 | `InfoTip`, applied to the intervals (Q10) and the team median (U1) |
+| F4 | Positions renamed, with old `?pos=` links still working |
+| F5 | Export columns and dot flags |
+| F6 | Percentile library, plus TS unit tests (`node --test`, Node 24 strips types) in the CI web job. It uses the `Position` type and no literal names, so it needs no wait for F4. |
+| F7 | Achievements export, as a new module and file |
+| S1 | Share-card pages, links visible again |
+| 7a-final | WP protocol values (D14) |
+
+Changes from the draft: F8 waits for Play. F9 is dropped; each Wave C branch adds its own glossary entries, and the orchestrator resolves glossary conflicts at merge. Writing entries now would put terms in the glossary for features that don't exist yet.
 
 ### Wave C: page rebuilds, one branch per page so no two branches edit the same file
 | Branch | Tasks | Needs |
