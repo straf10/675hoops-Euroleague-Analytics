@@ -10,6 +10,7 @@ import GamesJsonLd from "../components/GamesJsonLd.astro";
 import raw from "../data/site.json";
 import type { SiteData } from "../lib/format";
 import { seasonSpan } from "../lib/format";
+import { count } from "../lib/live";
 import { rightText, score3, share, type TrendPoint } from "../lib/forecasts";
 
 const data = raw as SiteData;
@@ -28,6 +29,7 @@ const ours = fc?.season.find((r) => r.model === model) ?? null;
 const held = main.backtest;
 const gap = held.log_loss_diff;
 const live = main.scorecard;
+const volume = data.data_volume;
 
 // The running win-chance edge, from the record (eval/forecasts.py _trend), with the origin first.
 const trend = fc?.trend ?? [];
@@ -112,6 +114,9 @@ const scoreRows = [
         <a href={`${base}/forecasts/`}>Full forecast record</a>
         {" · "}
         <a href={`${base}/methodology/`}>How it works</a>
+      </p>
+      <p class="volume">
+        {count(volume.games)} games · {count(volume.seasons)} seasons{volume.shots_with_coordinates !== undefined && ` · ${count(Math.round(volume.shots_with_coordinates / 1000) * 1000)} shots with coordinates (EuroLeague)`}
       </p>
     </div>
     <div class="board">
@@ -266,6 +271,12 @@ const scoreRows = [
     text-decoration: underline;
     text-decoration-color: var(--rule-strong);
     text-underline-offset: 3px;
+  }
+  .volume {
+    margin-top: 8px;
+    font-size: 0.8125rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
   .board {
     min-width: 0;

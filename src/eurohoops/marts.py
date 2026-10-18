@@ -51,6 +51,28 @@ def build_marts(mart_path: Path, sql_dir: Path) -> bool:
     return has_box
 
 
+def data_volume(mart_path: Path) -> dict[str, int]:
+    """The site's headline data counts, read from the marts.
+
+    ``games``: played games that were not forfeits, both competitions. ``seasons``: the distinct
+    seasons of those games. ``shots_with_coordinates``: rows of the ``shots`` mart with both
+    coordinates (that mart holds EuroLeague shots only); left out when that mart was never built.
+    """
+    with duckdb.connect(str(mart_path), read_only=True) as con:
+        games = con.execute(
+            "SELECT count(*), count(DISTINCT season) FROM games "
+            "WHERE played AND NOT coalesce(forfeit, FALSE)"
+        ).fetchone()
+        has_shots = "shots" in {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+        shots_sql = "SELECT count(*) FROM shots WHERE x IS NOT NULL AND y IS NOT NULL"
+        shots = con.execute(shots_sql).fetchone() if has_shots else None
+    assert games is not None  # a count(*) always returns one row
+    volume = {"games": int(games[0]), "seasons": int(games[1])}
+    if shots is not None:  # the shots mart is optional (never built without play-by-play)
+        volume["shots_with_coordinates"] = int(shots[0])
+    return volume
+
+
 def write_tables(mart_path: Path, tables: dict[str, pd.DataFrame]) -> None:
     """Create or replace mart tables from frames (names come from code, never from users)."""
     with duckdb.connect(str(mart_path)) as con:

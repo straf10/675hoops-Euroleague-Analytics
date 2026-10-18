@@ -52,7 +52,7 @@ from eurohoops.cli.publish import utc_now
 from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH, SITE_FORECAST_MODEL
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import write_json
-from eurohoops.marts import read_games, read_teams
+from eurohoops.marts import data_volume, read_games, read_teams
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import Inputs, build_payloads, load_cached_games, write_stats
@@ -100,7 +100,7 @@ def legacy_site(out: Path, now: datetime) -> None:
                 ),
             )
         )
-    write_json(out, site_data(sections, now))
+    write_json(out, site_data(sections, now, data_volume(MART_PATH)))
 
 
 def _json(path: Path) -> dict[str, Any]:

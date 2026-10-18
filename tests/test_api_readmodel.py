@@ -20,7 +20,7 @@ import pytest
 from eurohoops.api import readmodel as rm
 from eurohoops.config import EUROLEAGUE, GBL, M6_PROJECTIONS, M7, MART_PATH
 from eurohoops.eval.backtest import load_tuned_model
-from eurohoops.marts import read_games
+from eurohoops.marts import data_volume, read_games
 from eurohoops.models.elo import prepare, season_ratings
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import PLAYER_FIELDS, load_cached_games
@@ -99,6 +99,7 @@ def test_site_is_the_publish_payload(store: rm.Store) -> None:
     assert [g["game_id"] for g in el["upcoming"]] == ["E2026_4", "E2026_6"]
     assert el["upcoming"][0]["away"] == {"code": "FBT", "name": "Fenerbahce Beko Istanbul"}
     assert len(el["ratings"]) == 6
+    assert payload["data_volume"] == data_volume(store.path(MART_PATH))
 
 
 def test_site_without_its_inputs_is_not_found(fresh: Path) -> None:

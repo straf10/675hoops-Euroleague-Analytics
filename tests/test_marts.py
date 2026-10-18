@@ -15,9 +15,11 @@ from eurohoops.ingest.gbl import ingest_gbl
 from eurohoops.marts import (
     box_invariants,
     build_marts,
+    data_volume,
     read_games,
     read_teams,
     refresh_box_gaps,
+    write_tables,
 )
 from eurohoops.parse.box import build_box_tables
 from eurohoops.parse.games import build_gbl_tables, write_table
@@ -101,3 +103,20 @@ def test_refresh_box_gaps_adds_the_fill_outcome(tmp_path: Path) -> None:
     assert refreshed.loc["GBL2099_X", "pbp_fill_detail"].startswith("not short")
     refresh_box_gaps(MART_PATH, gaps)  # idempotent
     assert pd.read_csv(gaps, keep_default_na=False).equals(refreshed.reset_index())
+
+
+def test_data_volume_counts_played_non_forfeit_games_seasons_and_shots(tmp_path: Path) -> None:
+    mart = tmp_path / "eurohoops.duckdb"
+    games = pd.DataFrame(
+        {
+            "competition": ["euroleague"] * 4 + ["gbl"] * 3,
+            "season": [2024, 2024, 2025, 2025, 2024, 2026, 2026],
+            "played": [True, True, True, False, True, True, False],
+            "forfeit": [False, False, True, False, False, False, False],
+        }
+    )
+    shots = pd.DataFrame({"x": [1.0, 2.0, None, 4.0], "y": [1.0, None, 3.0, 4.0]})
+    write_tables(mart, {"games": games, "shots": shots})
+    # Played and not a forfeit: E2024 x2 and G2024, G2026. The E2025 forfeit and the unplayed
+    # rows are out. Seasons are distinct across competitions (2024 once). Shots need both coords.
+    assert data_volume(mart) == {"games": 4, "seasons": 2, "shots_with_coordinates": 2}

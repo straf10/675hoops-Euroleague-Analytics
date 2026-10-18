@@ -4,7 +4,7 @@ The Astro front-end in ``web/`` renders this file into ``site/`` at build time; 
 every number the page shows, so the page never recomputes or reinterprets the pipeline.
 """
 
-from collections.abc import Hashable
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -205,10 +205,11 @@ def section_data(section: Section, now: datetime) -> dict[str, Any]:
     }
 
 
-def site_data(sections: list[Section], now: datetime) -> dict[str, Any]:
+def site_data(sections: list[Section], now: datetime, volume: Mapping[str, int]) -> dict[str, Any]:
     euroleague = next((s.games for s in sections if s.key == "euroleague"), None)
     return {
         "generated_at_utc": now.strftime(TIME_FORMAT),
         "competitions": [section_data(s, now) for s in sections],
         "el_titles": titles_payload(euroleague, DISPLAY_CODES["euroleague"]),
+        "data_volume": dict(volume),  # marts.data_volume: games, seasons, shots with coordinates
     }
