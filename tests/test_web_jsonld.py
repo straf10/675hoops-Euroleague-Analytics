@@ -42,16 +42,18 @@ def test_builders_and_markup_mention_no_odds_or_picks() -> None:
         assert not BETTING.search(text), f"{path.relative_to(WEB)} mentions betting or win chances"
 
 
-def test_forecast_log_dataset_is_cc_by_and_euroleague_datasets_carry_no_license() -> None:
+def test_forecast_log_dataset_is_cc_by_and_euroleague_datasets_point_to_the_terms() -> None:
     text = DOWNLOADS.read_text(encoding="utf-8")
-    # One license in the page, the CC BY 4.0 URL on the project's own forecast log.
-    assert len(re.findall(r"^\s*license:", text, re.MULTILINE)) == 1
+    # Two licenses in the page: CC BY 4.0 on the project's own forecast log, and the page's terms
+    # section on the EuroLeague datasets (Google wants a license or terms URL on every Dataset).
+    assert len(re.findall(r"^\s*license:", text, re.MULTILINE)) == 2
     assert 'const CC_BY = "https://creativecommons.org/licenses/by/4.0/"' in text
     forecast = text[text.index("const forecastLog") : text.index("const datasets")]
     assert "license: CC_BY" in forecast
-    # The EuroLeague-derived datasets are credited to Euroleague and carry no license.
+    # The EuroLeague-derived datasets are credited to Euroleague and point only at the terms.
     league = text[text.index("const leagueDatasets") : text.index("const predictionsDir")]
-    assert "license" not in league
+    assert "license: TERMS" in league
+    assert "CC_BY" not in league
     assert "isBasedOn: EUROLEAGUE" in league
     assert "creditText: EUROLEAGUE_CREDIT" in league
 
