@@ -257,3 +257,56 @@ have no linkable make in the log, and no rule links them. Per-season coverage fo
 - **Decision rule.** If every `S`'s score CI contains the point `score(0)`, the data cannot
   separate the shares, and the recommendation is the smallest `S` whose score lies inside the
   best `S`'s CI. Otherwise the recommendation is the best `S`.
+
+### Results (measured)
+
+Sample: 419 player-seasons, 2010–2021 as `s`, with at least 500 box minutes in `s` and `s+1`.
+Predictor: WPA per 40 minutes in `s`. Targets: next-season net rating per 100 possessions (from
+mart stints, 2011–2022) and next-season RAPM total (from `m3_players.json`). Correlation point
+estimates with game-cluster bootstrap 95% CIs (1,000 resamples, seed 20261018).
+
+| S (passer share) | Net rating: Pearson [CI] | Net rating: Spearman [CI] | RAPM: Pearson [CI] | RAPM: Spearman [CI] | Score (mean of the 4) [CI] |
+|---|---|---|---|---|---|
+| 0.0 | 0.031 [−0.045, 0.094] | 0.045 [−0.044, 0.096] | −0.106 [−0.139, −0.042] | −0.101 [−0.137, −0.034] | −0.033 [−0.079, 0.017] |
+| 0.1 | 0.029 [−0.044, 0.090] | 0.045 [−0.040, 0.099] | −0.090 [−0.125, −0.031] | −0.085 [−0.119, −0.018] | −0.025 [−0.071, 0.024] |
+| 0.2 | 0.027 [−0.045, 0.086] | 0.049 [−0.037, 0.099] | −0.073 [−0.109, −0.019] | −0.063 [−0.100, −0.003] | −0.015 [−0.061, 0.031] |
+| 0.3 | 0.024 [−0.046, 0.082] | 0.050 [−0.033, 0.097] | −0.056 [−0.093, −0.007] | −0.040 [−0.082, 0.011] | −0.005 [−0.052, 0.035] |
+| 0.4 | 0.021 [−0.046, 0.079] | 0.048 [−0.030, 0.095] | −0.041 [−0.077, 0.004] | −0.021 [−0.063, 0.024] | 0.002 [−0.044, 0.040] |
+| 0.5 | 0.018 [−0.047, 0.075] | 0.044 [−0.029, 0.093] | −0.027 [−0.061, 0.014] | −0.009 [−0.048, 0.034] | 0.007 [−0.037, 0.043] |
+| Reference: season plus-minus per 40 | 0.396 [0.202, 0.352]* | 0.404 [0.203, 0.362]* | 0.574 [0.435, 0.529]* | 0.577 [0.436, 0.531]* | 0.488 [0.327, 0.434]* |
+
+\* These reference CIs lie below the point estimates. The bootstrap mean of the correlation is
+about 0.12 lower, while the means of the inputs are unchanged (mean plus-minus per 40 2.51 point
+versus 2.50 bootstrap). The correlation is sensitive to a subset of player-seasons. The WPA rows
+show no such gap (for example, WPA S = 0 RAPM: point −0.106, bootstrap mean −0.092), so the WPA
+conclusions are not affected by this.
+
+**Sanity check.** Same-season WPA per 40 against same-season plus-minus per 40 gives Pearson
+−0.057 and Spearman −0.039 (S = 0). A working WPA should be positive here. The sign is wrong, but
+the value is close to zero, not significant at n = 419.
+
+**Decision (pre-declared rule).** Every S's score CI contains the point score at S = 0 (−0.033).
+The data cannot separate the shares. The best point score is S = 0.5 (0.007), whose CI is
+[−0.037, 0.043]. That CI contains the S = 0 score, so the smallest S inside it is **S = 0**.
+The pre-declared recommendation is therefore **S = 0 (100/0)**.
+
+**Linkage.** Rule D (A, then B, then C) was chosen as the best team-game exact-agreement rule
+(47.0%). It links 94.9% of AS rows, and 94.9% of box-score assists. The target of 98% is not met.
+Per-season coverage for D is in `T1c_measured_split.linkage.variants.D_all.per_season`. Coverage is
+98–99% in 2007–2008, 94–96% in 2011–2015 and 94–95% in 2016–2022. Team-game exact agreement
+falls from 87% (2007) to 36–41% (2014–2022). Box totals are used only for the agreement check.
+Rule D gives 3,376 makes that are linked by more than one AS row. The first AS row is kept as the
+passer, and the rest are dropped.
+
+**Other caveats.**
+
+- The WPA credit follows the section 8 definition (every play, with `ΔWP` including time passage
+  since the previous event). Time passage is therefore credited to whoever produced the next event.
+  This is the most likely reason the metric fails the same-season sanity check. A
+  score-change-only credit would be the natural next test. It is not run here.
+- Player IDs in plays that do not match a box-score player (598 rows) are dropped.
+- Target (i) uses included games only, so 2016 (157 ND games excluded) has partial coverage.
+- The tip-off gap term uses `tf = t/2400` in regulation and 0 in OT, as declared above.
+- The M3 file was opened in full. Only entries for 2007–2022 are used. Its header lists the
+  later seasons, but no value for them enters any table here.
+- Runtime: the measurement stage takes about 70 s, plus about 50 s to build the data.

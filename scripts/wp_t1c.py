@@ -178,7 +178,9 @@ def linkage_report(df: pd.DataFrame, box_team: pd.DataFrame) -> dict[str, Any]:
 
 def credits_base(d: wp.Data) -> pd.DataFrame:
     """Per included play: WP-line change (x100, home perspective signed for the actor's team)."""
-    EV = d.EV
+    # Plays from 2007-2009 are not used: predictor seasons start in 2010, and the fold scale
+    # for a season needs earlier seasons to fit on.
+    EV = d.EV[d.EV["season"].isin(wp.EVAL_SEASONS)]
     G = d.G.set_index("gid")
     s_fold = wp.fold_scales(d.G)
     gid = EV["gid"].to_numpy()
@@ -433,7 +435,11 @@ def stage_measure(d: wp.Data, duck: duckdb.DuckDBPyConnection) -> None:  # noqa:
     boot: dict[str, list[float]] = {}
     for _ in range(N_BOOT):
         w = np.bincount(rng.integers(0, n_g, n_g), minlength=n_g).astype(float)
-        bc = corr_block(sample_stats(w))
+        st_b = sample_stats(w)
+        boot.setdefault("diag|ref_pm_mean", []).append(float(np.mean(st_b["ref_pm"])))
+        boot.setdefault("diag|wpa0_mean", []).append(float(np.mean(st_b["wpa_0.0"])))
+        boot.setdefault("diag|net_mean", []).append(float(np.nanmean(st_b["target_net"])))
+        bc = corr_block(st_b)
         for tname in bc:
             for pname in bc[tname]:
                 for met in ("pearson", "spearman"):
@@ -486,6 +492,7 @@ def stage_measure(d: wp.Data, duck: duckdb.DuckDBPyConnection) -> None:  # noqa:
                     met: {
                         "point": point_corr[tname][pname][met],
                         "ci95": ci(f"{tname}|{pname}|{met}"),
+                        "boot_mean": float(np.nanmean(boot[f"{tname}|{pname}|{met}"])),
                     }
                     for met in ("pearson", "spearman")
                 }
@@ -493,7 +500,20 @@ def stage_measure(d: wp.Data, duck: duckdb.DuckDBPyConnection) -> None:  # noqa:
             },
         }
 
+    sanity = {
+        "diag_point_vs_boot_mean": {
+            "ref_pm_mean_point": float(np.mean(point["ref_pm"])),
+            "ref_pm_mean_boot": float(np.mean(boot["diag|ref_pm_mean"])),
+            "wpa0_mean_point": float(np.mean(point["wpa_0.0"])),
+            "wpa0_mean_boot": float(np.mean(boot["diag|wpa0_mean"])),
+            "net_mean_point": float(np.nanmean(point["target_net"])),
+            "net_mean_boot": float(np.mean(boot["diag|net_mean"])),
+        },
+        "same_season_wpa0_vs_pm_pearson": pearson(point["wpa_0.0"], point["ref_pm"]),
+        "same_season_wpa0_vs_pm_spearman": spearman(point["wpa_0.0"], point["ref_pm"]),
+    }
     result = {
+        "sanity_check": sanity,
         "criterion_predeclared_in": "docs/models/wp_prestudy.md (T1(c) criterion section)",
         "linkage_rule_used": chosen,
         "sample": {
