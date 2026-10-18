@@ -128,7 +128,7 @@ and applied to all plays.
   same-team made field goal within ±2 events or at the same clock second, searched within ±10 events.
   Rule A alone (the first draft) links 90.1% of `AS` rows; rule D links 94.9%. The 98% coverage target
   is not met (pre-study T1(a), T1(c)). Unlinked `AS` rows credit nothing. Under the 100% scorer
-  convention (section 8) linkage changes no WPA value. Owner to confirm (section 10, question 4).
+  convention (section 8) linkage changes no WPA value. Confirmed by the owner (section 10, question 4).
 
 ## 3. Splits
 
@@ -372,7 +372,7 @@ The parts are computed from the chosen WP line. If the gate fails, from the base
   (`web/src/data/site.json`, `site/`).
 - A change to any spec item above is a new protocol version, declared before it is used.
 
-## 10. Open questions for the owner
+## 10. Owner answers (2026-10-18)
 
 Answered by the owner on 2026-10-18.
 
