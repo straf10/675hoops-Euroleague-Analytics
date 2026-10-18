@@ -5,8 +5,8 @@ import { clubShotsOf, DEEP_MIN_M, RIM_MAX_M, sideDots, zoneOf, zoneRowsHtml, zon
 // Court centimetres: x sideways from the centre, y in front of the basket.
 test("the rim, the paint and the mid-range", () => {
   assert.equal(zoneOf(0, 50), "rim");
-  assert.equal(zoneOf(0, 125), "rim", "1.25 m is still the rim");
-  assert.equal(zoneOf(0, 126), "paint");
+  assert.equal(zoneOf(0, 150), "rim", "1.5 m is still the rim");
+  assert.equal(zoneOf(0, 151), "paint");
   assert.equal(zoneOf(245, 580), "paint", "the paint's far edge is the free-throw line");
   assert.equal(zoneOf(250, 580), "mid", "just outside the paint's width");
   assert.equal(zoneOf(0, 600), "mid", "6 m out, the 2-point area");
@@ -23,7 +23,7 @@ test("threes: corners, above the break and deep", () => {
 });
 
 test("the cut-offs are the named constants", () => {
-  assert.equal(RIM_MAX_M, 1.25);
+  assert.equal(RIM_MAX_M, 1.5);
   assert.equal(DEEP_MIN_M, 8);
 });
 

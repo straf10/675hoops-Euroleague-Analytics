@@ -348,7 +348,7 @@ export const TERMS: GlossaryTerm[] = [
     id: "shot-zones",
     term: "Shot zones",
     group: "Shooting",
-    def: "Where a shot was taken, by its spot on the court: at the rim (within 1.25 m of the basket), paint (inside the lane up to the free-throw line), mid-range (other two-pointers), corner three, above-break three, and deep three (8 m and beyond). Picking a zone shows only its shots on the chart.",
+    def: "Where a shot was taken, by its spot on the court: at the rim (within 1.5 m of the basket), paint (inside the lane up to the free-throw line), mid-range (other two-pointers), corner three, above-break three, and deep three (8 m and beyond). Picking a zone shows only its shots on the chart.",
     shownOn: [TP],
   },
   {

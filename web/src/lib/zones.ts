@@ -5,7 +5,7 @@
 // (Imports stay out of this file: its test runs under plain node, which needs no extensions.)
 
 /** Inside this distance from the basket it is "At the rim" (metres). */
-export const RIM_MAX_M = 1.25;
+export const RIM_MAX_M = 1.5;
 /** The paint: this far either side of the centre, and up to the free-throw line (5.80 m). */
 export const PAINT_HALF_WIDTH_M = 2.45;
 export const PAINT_DEPTH_M = 5.8;
