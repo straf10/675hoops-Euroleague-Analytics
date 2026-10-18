@@ -18,6 +18,8 @@ Layout (every number a raw total; the site derives per-game, per-36 and per-100 
   make, value, fastbreak, second chance, band and period, player and team indices) for the
   Shots explorer's filters.
 - ``seasons/{season}/runs.json``: each game's top scoring runs per team (``stats/runs.py``).
+- ``seasons/{season}/units.json``: each club's best duos and five-man units, only in the seasons
+  that pass the stint checks (``stats/units.py``).
 
 Team codes are the source codes up to here; ``codes`` renames them for display (DISPLAY_CODES).
 """
@@ -74,6 +76,8 @@ class Inputs:
     )  # id -> season -> G/F/C
     # game id -> top scoring runs per side (stats/runs.py); no entry without a cached play-by-play
     runs: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    # season -> best duos and units (stats/units.py); only the seasons that pass the stint checks
+    units: Mapping[int, Mapping[str, Any]] = field(default_factory=dict)
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -501,6 +505,8 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
         files[f"{base}/runs.json"] = runs_payload(
             season, games.loc[games["played"], "game_id"].astype(str), inputs.runs
         )
+        if season in inputs.units:
+            files[f"{base}/units.json"] = dict(inputs.units[season])
         cover = coverage.get(season)
         seasons.append(
             {

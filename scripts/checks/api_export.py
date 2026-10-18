@@ -65,6 +65,7 @@ from eurohoops.stats.export import (
 from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
+from eurohoops.stats.units import load_units
 
 WALKED = (DATA_DIR, OPENAPI_FILE.parent)  # the directories the contract check walks, under web/
 
@@ -136,6 +137,12 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
             games[
                 games["played"] & games["season"].isin(site_window(box.players["season"].unique()))
             ],
+        ),
+        units=load_units(
+            raw_dir,
+            games,
+            site_window(box.players["season"].unique()),
+            DISPLAY_CODES[EUROLEAGUE.name],
         ),
     )
     write_stats(out, build_payloads(inputs, now))

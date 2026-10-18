@@ -42,6 +42,7 @@ from eurohoops.stats.export import (
     playoff_results,
     regular_season_standings,
     season_label,
+    site_window,
     slugify,
     write_stats,
 )
@@ -59,6 +60,7 @@ from eurohoops.stats.shots import (
     hexbins,
     period,
 )
+from eurohoops.stats.units import load_units
 from eurohoops.stats.zones import shot_zones
 from tests.conftest import FIXTURES
 
@@ -81,6 +83,12 @@ def inputs() -> Inputs:
         live_season=2026,
         positions=season_positions(RAW, games_by_club(box.players)),
         runs=game_runs(RAW, games[games["played"]]),
+        units=load_units(
+            RAW,
+            games,
+            site_window(box.players["season"].unique()),
+            DISPLAY_CODES["euroleague"],
+        ),
     )
 
 
@@ -106,6 +114,13 @@ def test_only_the_latest_site_seasons_are_published(
         p["id"] for p in latest["players.json"]["players"]
     }
     assert {row[1] for row in latest["splits.json"]["rows"]} >= {2024}
+
+
+def test_units_are_written_for_the_seasons_given(inputs: Inputs) -> None:
+    payload = {"season": 2024, "minimums": {"pair": 100, "unit": 50}, "sd": 1.5, "clubs": {}}
+    files = build_payloads(replace(inputs, units={2024: payload}), NOW)
+    assert files["seasons/2024/units.json"] == payload
+    assert "seasons/2010/units.json" not in files
 
 
 def test_season_rows_carry_the_listed_position(files: dict[str, dict[str, Any]]) -> None:
