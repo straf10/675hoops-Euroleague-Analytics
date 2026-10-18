@@ -15,6 +15,8 @@ import { GROUPS, colsHtml } from "../../lib/cols";
 import { markChart } from "../../lib/shotmarks";
 import { ZONES, zoneRowsHtml, type ClubShots } from "../../lib/zones";
 import JsonLd from "../../components/JsonLd.astro";
+import ScheduleStrength from "../../components/team/ScheduleStrength.astro";
+import { hasSchedule } from "../../lib/strength";
 import { sportsTeam } from "../../lib/jsonld";
 
 export async function getStaticPaths() {
@@ -112,7 +114,7 @@ const bandHead = [
         <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview" aria-selected="true" tabindex="0">Overview</button>
         <button type="button" role="tab" id="tab-shots" data-tab="shots" aria-controls="panel-shots" aria-selected="false" tabindex="-1">Shots</button>
         {
-          schedule && schedule.value !== null && (
+          hasSchedule(schedule) && (
             <button
               type="button"
               role="tab"
@@ -358,15 +360,14 @@ const bandHead = [
   </div>
 
   {
-    schedule && schedule.value !== null && (
+    hasSchedule(schedule) && (
       <div class="wrap tabpanel" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" hidden={t.season !== liveSeason}>
         <section class="band" id="schedule" aria-labelledby="schedule-title" data-season={liveSeason}>
           <header class="sec-head">
             <h2 id="schedule-title">Schedule strength</h2>
-            <p>
-              Mean opponent rating <b class="strength">{schedule.value.toFixed(1)}</b> over {plural(schedule.games ?? 0, "scheduled game")}.
-            </p>
+            <p>Opponent strength for the games played, the games left and the next few.</p>
           </header>
+          <ScheduleStrength strength={schedule} />
         </section>
       </div>
     )

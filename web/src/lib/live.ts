@@ -1,3 +1,4 @@
+import type { Strength } from "./strength";
 // The API files `eurohoops publish` writes below src/data/api (build time only): the season
 // simulation and a team's four factors. Every file may be absent (a fresh
 // checkout, a route that answered 404): each loader then gives null and the page says so.
@@ -34,7 +35,7 @@ export interface Factors {
   season: number;
   games: number;
   factors: Record<"efg_pct" | "tov_pct" | "orb_pct" | "ft_rate", Factor>;
-  schedule_strength: Factor & { games?: number; rating?: string };
+  schedule_strength: Strength;
 }
 
 type Loader = () => Promise<unknown>;

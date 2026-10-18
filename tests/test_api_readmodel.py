@@ -283,19 +283,89 @@ def test_a_season_sums_games_before_the_ratios(store: rm.Store) -> None:
     assert abs(f["ft_rate"]["value"] - per_game) > 1e-4  # the sum of games, not the mean of ratios
 
 
-def test_schedule_strength_is_the_mean_opponent_rating(store: rm.Store, root: Path) -> None:
-    out = rm.team_factors(store, "euroleague", "BAR", 2026)
+def test_schedule_strength_splits_played_remaining_and_next_five(
+    store: rm.Store, root: Path
+) -> None:
+    out = rm.team_factors(store, "euroleague", "BAR", 2026)["schedule_strength"]
     games = read_games(root / MART_PATH, "euroleague")
     mine = games[(games["season"] == 2026) & ((games["home"] == "BAR") | (games["away"] == "BAR"))]
-    opponents = [a if h == "BAR" else h for h, a in zip(mine["home"], mine["away"], strict=True)]
+    mine = mine.sort_values("tipoff_utc", kind="stable")
+    played = mine[mine["played"].astype(bool)]
+    left = mine[~mine["played"].astype(bool)]
+    assert len(played) + len(left) == 10
     table = _elo_table(root, "euroleague", 2026)
-    strength = out["schedule_strength"]
-    assert strength["games"] == len(opponents) == 10
-    assert strength["value"] == pytest.approx(np.mean([table[o][0] for o in opponents]))
+    hca = load_tuned_model(root / EUROLEAGUE.live_backtest.report).params.hca
+
+    def opponents(g: pd.DataFrame) -> list[str]:
+        return [a if h == "BAR" else h for h, a in zip(g["home"], g["away"], strict=True)]
+
+    def at_home(g: pd.DataFrame) -> list[bool]:
+        return [h == "BAR" for h in g["home"]]
+
+    assert out["played"]["games"] == len(played)
+    assert out["remaining"]["games"] == len(left)
+    # the next five are the first five unplayed games in tip-off order
+    assert out["next5"]["games"] == min(5, len(left))
+    nxt = left.head(5)
+    assert out["next5"]["mean_opponent_elo"] == pytest.approx(
+        np.mean([table[o][0] for o in opponents(nxt)])
+    )
+    # venue-adjusted: an opponent's rating less the home-court advantage when BAR is at home
+    rem = out["remaining"]
+    assert rem["home"] + rem["away"] == len(left)
+    assert rem["home"] == sum(at_home(left))
+    adjusted = [
+        table[o][0] - (hca if home else -hca)
+        for o, home in zip(opponents(left), at_home(left), strict=True)
+    ]
+    assert rem["mean_opponent_elo_adjusted"] == pytest.approx(np.mean(adjusted))
+    assert rem["mean_opponent_elo"] == pytest.approx(
+        np.mean([table[o][0] for o in opponents(left)])
+    )
+    mean_rating = np.mean([r for r, _ in table.values()])
+    assert rem["average_team_win_pct"] == pytest.approx(
+        np.mean([1 / (1 + 10 ** (-(mean_rating - a) / 400)) for a in adjusted])
+    )
+    assert 0.0 <= rem["rest_days"] <= 7.0 and 0.0 <= rem["opponent_rest_days"] <= 7.0
     # no 2026 box scores exist: with no season given, the latest box season (2024) is used
     latest = rm.team_factors(store, "euroleague", "BAR", None)
     assert latest["season"] == 2024 and latest["available_seasons"] == [2010, 2024]
-    assert latest["schedule_strength"]["games"] == 6
+    assert latest["schedule_strength"]["played"]["games"] == 6
+
+
+def test_a_finished_season_has_no_games_left(store: rm.Store, root: Path) -> None:
+    # BAR's 2024 games are all played in the fixture: the remaining block is empty, with a reason
+    games = read_games(root / MART_PATH, "euroleague")
+    mine = games[(games["season"] == 2024) & ((games["home"] == "BAR") | (games["away"] == "BAR"))]
+    assert mine["played"].astype(bool).all()
+    out = rm.team_factors(store, "euroleague", "BAR", 2024)["schedule_strength"]
+    assert out["remaining"] == {"games": 0, "reason": "no games left to play"}
+    assert out["next5"] == {"games": 0, "reason": "no games left to play"}
+    assert out["played"]["games"] == len(mine)
+
+
+def test_strength_block_venue_adjusts_each_opponent() -> None:
+    # A (1600) is the team; the season's mean rating is (1600 + 1500 + 1300) / 3 = 1466.67
+    ratings = {"A": (1600.0, 0.0), "B": (1500.0, 0.0), "C": (1300.0, 0.0)}
+    games = pd.DataFrame({"game_id": ["g1", "g2"], "home": ["A", "A"], "away": ["B", "C"]})
+    rest = {("g1", "A"): 2.0, ("g1", "B"): 3.0, ("g2", "A"): 4.0, ("g2", "C"): 5.0}
+    block = rm._strength_block(games, "A", ratings, 90.0, rest)
+    # both games at home: adjusted opponents 1410 and 1210, raw mean 1400
+    assert block["games"] == 2 and block["home"] == 2 and block["away"] == 0
+    assert block["mean_opponent_elo"] == pytest.approx(1400.0)
+    assert block["mean_opponent_elo_adjusted"] == pytest.approx(1310.0)
+    mean = (1600.0 + 1500.0 + 1300.0) / 3
+    expected = (1 / (1 + 10 ** (-(mean - 1410) / 400)) + 1 / (1 + 10 ** (-(mean - 1210) / 400))) / 2
+    assert block["average_team_win_pct"] == pytest.approx(expected)
+    assert block["rest_days"] == pytest.approx(3.0)
+    assert block["opponent_rest_days"] == pytest.approx(4.0)
+    assert block["reason"] is None
+    # an away game flips the sign: the opponent is at home, so its rating is raised by the HCA
+    away = pd.DataFrame({"game_id": ["g3"], "home": ["D"], "away": ["A"]})
+    rest_away = {("g3", "A"): 1.0, ("g3", "D"): 1.0}
+    one = rm._strength_block(away, "A", {**ratings, "D": (1400.0, 0.0)}, 90.0, rest_away)
+    assert one["mean_opponent_elo_adjusted"] == pytest.approx(1490.0)
+    assert one["away"] == 1 and one["home"] == 0
 
 
 def test_a_missing_input_gives_a_null_factor_and_its_reason(store: rm.Store) -> None:
@@ -303,10 +373,13 @@ def test_a_missing_input_gives_a_null_factor_and_its_reason(store: rm.Store) -> 
     assert out["season"] == 2026 and out["games"] == 0
     for factor in out["factors"].values():
         assert factor == {"value": None, "reason": "no box-score games for 'BAR' in 2026"}
-    assert out["schedule_strength"]["value"] is not None
+    assert out["schedule_strength"]["remaining"]["games"] >= 0
     early = rm.team_factors(store, "euroleague", "LJU", 2010)["schedule_strength"]
-    assert early["value"] is None
-    assert early["reason"] == "the euroleague Elo is replayed from 2023; no rating for 2010"
+    for block in ("played", "remaining", "next5"):
+        assert early[block] == {
+            "games": 0,
+            "reason": "the euroleague Elo is replayed from 2023; no rating for 2010",
+        }
 
 
 def test_gbl_factors_take_counts_from_team_games_and_makes_from_the_player_lines(
@@ -322,11 +395,12 @@ def test_gbl_factors_take_counts_from_team_games_and_makes_from_the_player_lines
     assert f["orb_pct"]["value"] == pytest.approx(18 / (18 + 25))
     assert f["ft_rate"]["value"] == pytest.approx(27 / 74)
     # its only 2025 game is against AAAA0002, which won it: above the 1500 start
-    assert out["schedule_strength"]["games"] == 1
-    assert out["schedule_strength"]["value"] == pytest.approx(
+    played = out["schedule_strength"]["played"]
+    assert played["games"] == 1
+    assert played["mean_opponent_elo"] == pytest.approx(
         _elo_table(root, "gbl", 2025)["AAAA0002"][0]
     )
-    assert out["schedule_strength"]["value"] > 1500.0
+    assert played["mean_opponent_elo"] > 1500.0
     other = rm.team_factors(store, "gbl", "AAA", 2025)
     assert other["factors"]["efg_pct"]["reason"] == "no box-score games for 'AAA' in 2025"
 
@@ -339,7 +413,7 @@ def test_gbl_factors_without_cached_box_pages_say_so(fresh: Path) -> None:
         "reason": "no gbl box-score lines are cached",
     }
     assert out["available_seasons"] == []
-    assert out["schedule_strength"]["value"] is not None
+    assert out["schedule_strength"]["played"]["reason"] is None
 
 
 def test_factors_of_an_unknown_team_or_competition(store: rm.Store) -> None:

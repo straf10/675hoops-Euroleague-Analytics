@@ -268,6 +268,27 @@ export const TERMS: GlossaryTerm[] = [
     shownOn: [HM],
   },
   {
+    id: "mean-opponent-elo",
+    term: "Mean opponent Elo",
+    group: "Team ratings",
+    def: "The average Elo rating of the teams a team has played or will play. The venue-adjusted figure takes off the home-court advantage when the team is at home and adds it when away, so a home game against a strong team counts for less.",
+    shownOn: [TP],
+  },
+  {
+    id: "average-team-win",
+    term: "Average team win",
+    group: "Team ratings",
+    def: "How often a team of average strength would win the same games, at the same venues. Above 50% means the schedule is easy for the team's rating; below 50% means it is hard.",
+    shownOn: [TP],
+  },
+  {
+    id: "schedule-rest",
+    term: "Rest days",
+    group: "Team ratings",
+    def: "Days since a team's previous game in either competition, capped at 7. The schedule's rest figures show the team's average and its opponents' average before each game.",
+    shownOn: [TP],
+  },
+  {
     id: "win-probability",
     term: "Win probability",
     group: "Forecasts",
