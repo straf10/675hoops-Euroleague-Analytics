@@ -26,6 +26,7 @@ from eurohoops import cli
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import MART_PATH
 from eurohoops.marts import write_tables
+from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.box import build_box_games, game_lines, seconds
 from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
@@ -35,6 +36,7 @@ from eurohoops.stats.export import (
     RESULTS,
     TEAM_FIELDS,
     Inputs,
+    _continuity_by_club,
     build_payloads,
     display_name,
     load_cached_games,
@@ -81,6 +83,7 @@ def inputs() -> Inputs:
         live_season=2026,
         positions=season_positions(RAW, games_by_club(box.players)),
         runs=game_runs(RAW, games[games["played"]]),
+        roster=read_rosters(RAW, [2010, 2024]),
     )
 
 
@@ -547,6 +550,55 @@ def test_team_rows_carry_standing_playoff_and_club_seasons(
 def test_live_season_has_no_playoff_result(inputs: Inputs) -> None:
     live = build_payloads(replace(inputs, live_season=2024), NOW)["seasons/2024/teams.json"]
     assert all(r["playoff"] is None and r["standing"] >= 1 for r in live["teams"])
+
+
+def _with_last_season(inputs: Inputs, roster_pids: set[str] | None = None) -> Inputs:
+    """The fixture has no 2023 box scores. Copy the 2024 lines to 2023 (last season for 2024),
+    and put every 2024 player on the 2024 roster, minus ``roster_pids``."""
+    players = inputs.box.players
+    season = players[players["season"] == 2024]
+    box = replace(
+        inputs.box,
+        players=pd.concat([players, season.assign(season=2023)], ignore_index=True),
+    )
+    lines = season[["team", "player_id"]].drop_duplicates()
+    if roster_pids:
+        lines = lines[~lines["player_id"].isin(roster_pids)]
+    roster = pd.DataFrame(
+        {
+            "season": 2024,
+            "club": lines["team"].to_numpy(),
+            "player_id": lines["player_id"].to_numpy(),
+            "start": np.nan,
+            "end": np.nan,
+        }
+    )
+    return replace(inputs, box=box, roster=roster)
+
+
+def test_returning_minutes_are_one_when_the_roster_is_unchanged(inputs: Inputs) -> None:
+    found = _continuity_by_club(2024, _with_last_season(inputs))
+    assert found and all(c["share"] == pytest.approx(1.0) for c in found.values())
+    assert all(c["departures"] == [] for c in found.values())
+
+
+def test_returning_minutes_name_the_departures_by_last_season_minutes(inputs: Inputs) -> None:
+    season = inputs.box.players[inputs.box.players["season"] == 2024]
+    club = season.groupby("team")["sec"].sum().idxmax()
+    top = season[season["team"] == club].groupby(["player_id", "player"])["sec"].sum()
+    gone = str(top.idxmax()[0])
+    found = _continuity_by_club(2024, _with_last_season(inputs, {gone}))
+    assert found[club]["share"] < 1.0
+    assert found[club]["departures"][0]["id"] == gone
+    assert found[club]["departures"][0]["sec"] == int(top.max())
+    assert found[club]["returning_sec"] == found[club]["last_sec"] - int(top.max())
+
+
+def test_teams_rows_carry_continuity_or_null(files: dict[str, dict[str, Any]]) -> None:
+    rows = files["seasons/2024/teams.json"]["teams"]
+    assert all("continuity" in r for r in rows)
+    # no 2023 box scores in the fixture, so no club has a last season
+    assert all(r["continuity"] is None for r in rows)
 
 
 def _games(rows: list[tuple[str, str, str, int, int]]) -> pd.DataFrame:

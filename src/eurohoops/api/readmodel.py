@@ -63,6 +63,7 @@ from eurohoops.config import (
 )
 from eurohoops.eval.backtest import TunedModel, load_tuned_model
 from eurohoops.eval.forecasts import build_forecasts
+from eurohoops.ingest.bios import el_people_path
 from eurohoops.live_m6 import person_names
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.marts import data_volume, read_games, read_table, read_teams
@@ -78,6 +79,7 @@ from eurohoops.models.player_seasons import (
     read_xwalk_file,
 )
 from eurohoops.models.rest import rest_features
+from eurohoops.models.roster import read_rosters
 from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
@@ -443,16 +445,20 @@ def stats_inputs(store: Store) -> Inputs:
         box = _el_box(store)
         window = site_window(box.players["season"].unique())
         played = games[games["played"] & games["season"].isin(window)]
+        raw = store.path(EUROLEAGUE.raw_dir)
+        seasons = (int(s) for s in box.players["season"].unique())
+        cached = [s for s in seasons if el_people_path(raw, s).exists()]
         return Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
             box=box,
-            shots=build_shots(store.path(EUROLEAGUE.raw_dir), games),
+            shots=build_shots(raw, games),
             codes=DISPLAY_CODES[EUROLEAGUE.name],
             live_season=LIVE_SEASON,
-            official_standings=load_cached_standings(store.path(EUROLEAGUE.raw_dir)),
-            positions=season_positions(store.path(EUROLEAGUE.raw_dir), games_by_club(box.players)),
-            runs=game_runs(store.path(EUROLEAGUE.raw_dir), played),
+            official_standings=load_cached_standings(raw),
+            positions=season_positions(raw, games_by_club(box.players)),
+            runs=game_runs(raw, played),
+            roster=read_rosters(raw, sorted(cached)),
         )
 
     return store.memo("stats_inputs", make)

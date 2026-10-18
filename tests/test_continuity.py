@@ -1,71 +1,69 @@
+"""Returning-minutes share (docs/IDEAS.md #17): pure functions, no cache needed."""
+
 import pandas as pd
+import pytest
 
-from eurohoops.parse.continuity import continuity, continuity_report
-
-
-def seasons(rows: list[tuple[int, str, str]]) -> pd.DataFrame:
-    return pd.DataFrame(rows, columns=["season", "team", "name"])
+from eurohoops.models.continuity import club_share, player_continuity
 
 
-TEAM_SEASONS = seasons(
-    [
-        (2022, "OLY", "Olympiacos"),
-        (2022, "MCO", "AS Monaco"),
-        (2022, "PAM", "Valencia Basket"),
-        (2023, "OLY", "Olympiacos Piraeus"),
-        (2023, "MCO", "AS Monaco"),
-        (2024, "OLY", "Olympiacos Piraeus"),
-        (2024, "PAM", "Power Electronics Valencia"),  # back after a season away
-        (2024, "BES", "Besiktas Istanbul"),  # first season in the data
-        # MCO left after 2023; a different club taking over the code shares no name word:
-        (2025, "OLY", "Olympiacos Piraeus"),
-        (2025, "PAM", "Power Electronics Valencia"),
-        (2025, "BES", "Besiktas JK Istanbul"),
-        (2025, "MCO", "Hapoel Tel Aviv"),
-    ]
-)
+def _minutes(rows: list[tuple[int, str, str, int]]) -> pd.DataFrame:
+    return pd.DataFrame(rows, columns=["season", "team", "player_id", "sec"])
 
 
-def test_new_returning_left_and_renamed_codes() -> None:
-    report = continuity(TEAM_SEASONS)
-    s = report["seasons"]
-    assert s["2022"] == {"teams": 3, "first_season_in_data": True}
-    assert s["2023"]["left"] == [{"team": "PAM", "name": "Valencia Basket"}]
-    assert s["2023"]["renamed"] == [
-        {"team": "OLY", "from": "Olympiacos", "to": "Olympiacos Piraeus"}
-    ]
-    assert s["2024"]["new"] == [{"team": "BES", "name": "Besiktas Istanbul"}]
-    assert s["2024"]["returning"] == [
-        {
-            "team": "PAM",
-            "name": "Power Electronics Valencia",
-            "last_season": 2022,
-            "name_then": "Valencia Basket",
-        }
-    ]
-    assert s["2024"]["left"] == [{"team": "MCO", "name": "AS Monaco"}]
-    assert s["2025"]["returning"][0]["team"] == "MCO"
-    assert s["2025"]["new"] == []
+def _roster(rows: list[tuple[str, str]]) -> pd.DataFrame:
+    return pd.DataFrame(rows, columns=["club", "player_id"])
 
 
-def test_only_name_changes_without_a_shared_word_need_review() -> None:
-    """Sponsor renames that keep a word pass; a code taken over by another club is flagged."""
-    review = continuity(TEAM_SEASONS)["review_name_changes"]
-    assert review == [{"season": 2025, "team": "MCO", "from": "AS Monaco", "to": "Hapoel Tel Aviv"}]
+def _shares(minutes: pd.DataFrame, roster: pd.DataFrame, season: int = 2025) -> dict[str, float]:
+    clubs = club_share(player_continuity(minutes, roster, season))
+    return dict(zip(clubs["team"], clubs["share"], strict=True))
 
 
-def test_report_has_one_block_per_competition() -> None:
-    both = pd.concat(
-        [
-            TEAM_SEASONS.assign(competition="euroleague"),
-            seasons([(2024, "A1", "Aris"), (2025, "A1", "Aris Thessaloniki")]).assign(
-                competition="gbl"
-            ),
-        ]
+def test_a_club_with_all_players_back_is_one_hundred_percent() -> None:
+    minutes = _minutes([(2024, "PAM", "P1", 1200), (2024, "PAM", "P2", 600)])
+    roster = _roster([("PAM", "P1"), ("PAM", "P2"), ("PAM", "P3")])
+    assert _shares(minutes, roster) == {"PAM": pytest.approx(1.0)}
+
+
+def test_the_share_weights_by_minutes_not_by_head_count() -> None:
+    # A 25-minute starter leaves; a 1-minute player stays.
+    minutes = _minutes([(2024, "OLY", "STAR", 1500), (2024, "OLY", "BENCH", 60)])
+    roster = _roster([("OLY", "BENCH")])
+    assert _shares(minutes, roster) == {"OLY": pytest.approx(60 / 1560)}
+
+
+def test_a_new_club_with_no_previous_season_has_no_value() -> None:
+    minutes = _minutes([(2024, "PAM", "P1", 1200), (2025, "NEW", "N1", 900)])
+    roster = _roster([("NEW", "N1")])
+    assert "NEW" not in _shares(minutes, roster)
+
+
+def test_a_player_who_moved_counts_for_the_new_club_only() -> None:
+    # P1 played for OLY in 2024 and has moved to PAM. His 2024 minutes are OLY's, so he is a
+    # departure there; PAM gets no credit for minutes it did not have.
+    minutes = _minutes(
+        [(2024, "OLY", "P1", 1000), (2024, "OLY", "P2", 1000), (2024, "PAM", "P3", 1000)]
     )
-    report = continuity_report(both)
-    assert list(report) == ["euroleague", "gbl"]
-    assert report["gbl"]["seasons"]["2025"]["renamed"] == [
-        {"team": "A1", "from": "Aris", "to": "Aris Thessaloniki"}
-    ]
-    assert report["gbl"]["review_name_changes"] == []
+    roster = _roster([("PAM", "P1"), ("OLY", "P2"), ("PAM", "P3")])
+    shares = _shares(minutes, roster)
+    assert shares["OLY"] == pytest.approx(0.5)
+    assert shares["PAM"] == pytest.approx(1.0)
+    players = player_continuity(minutes, roster, 2025).set_index("player_id")
+    assert not bool(players.loc["P1", "returning"])
+    assert players.loc["P1", "team"] == "OLY"
+
+
+def test_last_season_sums_every_line_and_ignores_older_seasons() -> None:
+    # Regular season and playoff lines for one player add up; 2023 is not last season for 2025.
+    minutes = _minutes(
+        [(2024, "PAM", "P1", 1000), (2024, "PAM", "P1", 300), (2023, "PAM", "P9", 5000)]
+    )
+    players = player_continuity(minutes, _roster([("PAM", "P1")]), 2025)
+    assert list(players["player_id"]) == ["P1"]
+    assert int(players["last_sec"].iloc[0]) == 1300
+
+
+def test_a_first_season_has_no_players_and_no_clubs() -> None:
+    minutes = _minutes([(2010, "PAM", "P1", 1200)])
+    players = player_continuity(minutes, _roster([("PAM", "P1")]), 2010)
+    assert players.empty and club_share(players).empty

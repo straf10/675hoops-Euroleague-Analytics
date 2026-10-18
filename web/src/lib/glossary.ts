@@ -228,6 +228,14 @@ export const TERMS: GlossaryTerm[] = [
     shownOn: [TP, TI],
   },
   {
+    id: "returning-minutes",
+    term: "Returning minutes",
+    group: "Team ratings",
+    def: "The share of last season's minutes for the club that went to players on this season's roster. Each player counts by his minutes, so a starter who leaves weighs more than a bench player. It says how much of the team is back, not whether the team is better or worse. A club with no earlier EuroLeague season has none.",
+    formula: "last season's minutes of players on this roster ÷ last season's minutes for the club",
+    shownOn: [TP, TI],
+  },
+  {
     id: "turnovers-forced",
     term: "Turnovers forced",
     group: "Team ratings",
