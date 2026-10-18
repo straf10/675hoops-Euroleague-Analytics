@@ -10,8 +10,7 @@ import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
 import { SEASON_COLS, bandRows, totalsOf, type Totals } from "./player";
 import type { ClubLine, TeamSeason } from "./stats";
-import type { ClubCells } from "./clubs";
-import type { ClubPlot } from "./scatter";
+import type { IndexRow, Rates } from "./ranking";
 
 /** Ratings and four factors of one side, from its totals and its opponents'. */
 export function factors(fields: string[], own: number[], against: number[]) {
@@ -219,30 +218,22 @@ export function rosterHtml(t: TeamSeason, base: string): string {
 
 // ---- Teams index -----------------------------------------------------------------------------
 
-/** A season's clubs by net rating, as the index shows them (rows already in rank order). */
-export function clubCells(fields: string[], teams: ClubLine[]): ClubCells[] {
+/** A season's clubs for the teams index: the figures unrounded, keyed by the ranking's metrics (lib/ranking.ts),
+ * in net order. The share metrics (3PA rate, and the opponent's) come from the field-goal totals. */
+export function clubRows(fields: string[], teams: ClubLine[]): IndexRow[] {
   return teams
-    .map((t) => ({ t, f: factors(fields, t.totals, t.opp) }))
-    .sort((a, b) => b.f.net - a.f.net)
-    .map(({ t, f }) => [
-      t.code,
-      t.name,
-      `${t.w}–${t.l}`,
-      f.ortg.toFixed(1),
-      f.drtg.toFixed(1),
-      `<span class="${signClass(f.net)}">${signed(f.net)}</span>`,
-      f.pace.toFixed(1),
-    ]);
+    .map((t) => {
+      const f = factors(fields, t.totals, t.opp);
+      const own = totalsOf(fields, t.totals);
+      const opp = totalsOf(fields, t.opp);
+      const share = (x: Totals) => (100 * x.fg3a) / (x.fg2a + x.fg3a);
+      return { code: t.code, name: t.name, w: t.w, l: t.l, f: { ...f, tpar: share(own), otpar: share(opp) } };
+    })
+    .sort((a, b) => b.f.net - a.f.net);
 }
 
-/** The same factors as clubCells, unrounded, for the index charts; the league line is the league's own totals. */
-export function clubPlot(fields: string[], teams: ClubLine[], league: { totals: number[] }): ClubPlot {
+/** The league's own rates for the index charts' reference lines, from the league totals. */
+export function leagueRates(fields: string[], league: { totals: number[] }): Rates {
   const lg = factors(fields, league.totals, league.totals);
-  return {
-    league: { ortg: lg.ortg, drtg: lg.drtg, pace: lg.pace },
-    clubs: teams.map((t) => {
-      const f = factors(fields, t.totals, t.opp);
-      return { code: t.code, name: t.name, ortg: f.ortg, drtg: f.drtg, net: f.net, pace: f.pace };
-    }),
-  };
+  return { ortg: lg.ortg, drtg: lg.drtg, pace: lg.pace };
 }
