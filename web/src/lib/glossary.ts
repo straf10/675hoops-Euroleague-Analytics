@@ -205,8 +205,9 @@ export const TERMS: GlossaryTerm[] = [
     id: "net-rating",
     term: "Net rating",
     group: "Team ratings",
-    def: "Offensive rating minus defensive rating. The Teams page ranks clubs by it. On a player page, the same figure for his team while he is on or off the floor.",
-    shownOn: [TI, TP, PP],
+    def: "Offensive rating minus defensive rating: points scored minus points allowed per 100 possessions. The Teams page ranks clubs by it. For a player, the same figure for his team while he is on court (on the Players page, ranked from 15 possessions a game), or on and off the floor on his page.",
+    formula: "100 × (+/−) ÷ possessions",
+    shownOn: [TI, TP, PP, PL],
   },
   { id: "pace", term: "Pace", group: "Team ratings", def: "Possessions per 40 minutes. A high number means a fast game.", shownOn: [TI, TP] },
   {
@@ -481,14 +482,6 @@ export const TERMS: GlossaryTerm[] = [
     shownOn: [CM],
   },
   // Players page: advanced measures
-  {
-    id: "net-rating",
-    term: "Net rating",
-    group: "Player ratings",
-    def: "Points his team scores minus points it allows per 100 possessions while he is on court. Positive is good. Ranked from 15 possessions a game.",
-    formula: "100 × (+/−) ÷ possessions",
-    shownOn: [PL],
-  },
   {
     id: "ast-tov",
     term: "AST/TOV",
