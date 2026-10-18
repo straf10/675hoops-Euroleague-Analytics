@@ -1,10 +1,12 @@
 ---
 import Base from "../../layouts/Base.astro";
 import MethodologyModels from "../../components/MethodologyModels.astro";
-import { buildDate } from "../../lib/build";
+import { buildDate, buildId } from "../../lib/build";
 import { publishedSeasons, type Validation, type ValidationSeason } from "../../lib/validation";
 import "../../styles/stats.css";
 
+// The footer stamp is buildId minus its "-<sha>" suffix: yyyyMMddTHHmm, UTC.
+const buildStamp = buildId.split("-")[0];
 const REPO = "https://github.com/straf10/675hoops-Euroleague-Analytics";
 const description =
   "How 6.75 Analytics gets its EuroLeague data, how often it updates, what the derived stats assume, and how to cite and correct it.";
@@ -39,16 +41,18 @@ function notes(s: ValidationSeason) {
   <section class="wrap band" aria-labelledby="source-title">
     <header class="sec-head"><h2 id="source-title">Source</h2></header>
     <p class="prose">
-      Games, box scores and shot locations come from the EuroLeague's public API. It is not an official, documented
-      service, so the site keeps a saved copy of everything it reads and does not ask for the same game twice.
+      Games, box scores and shot locations come from the EuroLeague's public API. No stats are hand-entered or taken
+      from another site, so any disagreement with the league's own numbers is a bug here rather than a difference of
+      opinion. The injury reports one forecast model uses come from BasketNews. 6.75 Analytics is not affiliated with
+      the EuroLeague or Euroleague Basketball.
     </p>
   </section>
 
   <section class="wrap band" aria-labelledby="refresh-title">
     <header class="sec-head"><h2 id="refresh-title">Refresh</h2></header>
     <p class="prose">
-      The site updates once a day, usually in the afternoon, Athens time. A game played in the evening shows up in the
-      next day's update. The footer shows the date of the latest update.
+      The pipeline runs once a day and publishes a new build only when the fetch and the validation both succeed. Every
+      page shows the date of the data it was built from in its footer. This build is {buildStamp}, generated {buildDate}.
     </p>
   </section>
 
@@ -218,7 +222,7 @@ function notes(s: ValidationSeason) {
   <section class="wrap band" aria-labelledby="corrections-title">
     <header class="sec-head"><h2 id="corrections-title">Corrections</h2></header>
     <p class="prose">
-      If a number looks wrong, please
+      If a number looks wrong, please{" "}
       <a class="ink-link" href={`${REPO}/issues`}>open an issue on GitHub</a> with the page and what you expected, or
       get in touch through <a class="ink-link" href="https://github.com/straf10">github.com/straf10</a>.
     </p>
