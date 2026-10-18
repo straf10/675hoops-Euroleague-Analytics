@@ -442,3 +442,12 @@ svg.icon {
     animation-duration: 0ms !important;
   }
 }
+
+/* Sign Colour Rule (lib/delta.ts signClass, docs/DESIGN.md): signed for-minus-against figures only
+ * (+/-, Net rating), on a span around the figure or on the value itself. Same tokens as Delta. */
+.sign-pos {
+  color: var(--delta-up);
+}
+.sign-neg {
+  color: var(--delta-down);
+}

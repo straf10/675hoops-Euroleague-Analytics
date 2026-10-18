@@ -1,7 +1,7 @@
 ---
 // On/off: his team's net rating with him on court and off it, and the difference.
 import { signed } from "../../lib/format";
-import { deltaHtml } from "../../lib/delta";
+import { deltaHtml, signClass } from "../../lib/delta";
 import type { OnOffView } from "../../lib/onoff";
 import { tip } from "../../lib/tip";
 
@@ -43,8 +43,8 @@ const shown = (r: (typeof rows)[number], v: number | null) => (v === null ? "–
           rows.map((r) => (
             <tr>
               <th scope="row" data-tip={tip`${r.about}`} tabindex="0">{r.name}</th>
-              <td class="num strong">{shown(r, r.on)}</td>
-              <td class="num">{shown(r, r.off)}</td>
+              <td class="num strong"><span class={r.net ? signClass(r.on) : undefined}>{shown(r, r.on)}</span></td>
+              <td class="num"><span class={r.net ? signClass(r.off) : undefined}>{shown(r, r.off)}</span></td>
               <td class="num diff">
                 {r.on !== null && r.off !== null ? <Fragment set:html={deltaHtml(r.on - r.off, { better: r.better, versus: "off the floor" })} /> : "–"}
               </td>

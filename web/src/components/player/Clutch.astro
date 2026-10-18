@@ -1,5 +1,6 @@
 ---
 // Clutch: last five minutes of the fourth quarter or overtime, score within five.
+import { signClass } from "../../lib/delta";
 import { signed } from "../../lib/format";
 import type { Clutch } from "../../lib/onoff";
 import { tip } from "../../lib/tip";
@@ -16,6 +17,8 @@ const cells: [string, string, string][] = [
   ["Points", String(clutch.pts), "His own points in clutch time"],
   ["Net rating", clutch.net === null ? "–" : signed(clutch.net), "His team's points scored minus allowed per 100 possessions while he was on court in clutch time"],
 ];
+// Sign Colour Rule on the Net rating figure only.
+const netClass = signClass(clutch.net);
 ---
 
 <section class="wrap band" id="clutch" aria-labelledby="clutch-title">
@@ -28,7 +31,7 @@ const cells: [string, string, string][] = [
       cells.map(([head, value, about]) => (
         <div>
           <dt data-tip={tip`<b>${head}</b><br>${about}`} tabindex="0">{head}</dt>
-          <dd>{value}</dd>
+          <dd><span class={head === "Net rating" ? netClass || undefined : undefined}>{value}</span></dd>
         </div>
       ))
     }

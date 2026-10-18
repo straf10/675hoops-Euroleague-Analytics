@@ -1,7 +1,7 @@
 // The teams index rows: shared by the build (the open season) and the season switch (the others).
 // No imports, so the switch's script stays small enough to inline in the page.
 
-/** One club's line in the teams index: [code, name, W–L, ORtg, DRtg, Net, Pace], as shown. */
+/** One club's line in the teams index: [code, name, W–L, ORtg, DRtg, Net, Pace], as shown. Net is HTML: a span that carries the Sign Colour Rule class. */
 export type ClubCells = [string, string, string, string, string, string, string];
 
 // Copies of format.ts's esc and players.ts's teamHref (not imported, see above): keep them the same.

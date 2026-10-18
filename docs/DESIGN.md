@@ -157,7 +157,7 @@ A near-neutral ground with three data inks: orange for the subject, a neutral gr
 - **Counter Blue** (`--data-neg`): the other pole of a diverging reading. Below-average ratings, falling ratings, cold shooting zones, missed shots, the "Miss" outcome icon. Never used for text. Red cannot take this role beside orange: the pair fails even for full colour vision (OKLab ΔE 6.2).
 
 ### Deltas
-- **Delta Up / Delta Down** (`--delta-up`, `--delta-down`; green and red): only for a metric compared with the league average, under the Delta Rule.
+- **Delta Up / Delta Down** (`--delta-up`, `--delta-down`; green and red): only for a metric compared with the league average, under the Delta Rule, and for signed for-minus-against figures under the Sign Colour Rule.
 
 ### Neutral
 - **Paper / Night**: the page ground.
@@ -177,7 +177,9 @@ A near-neutral ground with three data inks: orange for the subject, a neutral gr
 
 **The Validated Order Rule.** Chart colours come from the validated order (orange, then gray, then blue) and are re-checked with the dataviz validator against both surfaces before any new series joins them. A fourth series folds into "Other" or small multiples.
 
-**The Delta Rule.** Green and red appear only on a metric shown against the league average, and only as the arrow glyph beside it: ▲ when the value is above the league, ▼ when below, green when that is better for the subject and red when it is worse (a turnover rate above the league is a red ▲). The figure itself stays ink. Green and red never colour a chart series, a shot map or a bar, and never stand alone: the sign and the arrow carry the reading for colour-blind readers (green/red separation is ΔE 5.3 under deuteranopia). A style measure with no better side (usage) keeps an ink arrow. One place decides "better": `lib/delta.ts` (`deltaHtml`, `components/Delta.astro`).
+**The Delta Rule.** Green and red appear only on a metric shown against the league average, and only as the arrow glyph beside it: ▲ when the value is above the league, ▼ when below, green when that is better for the subject and red when it is worse (a turnover rate above the league is a red ▲). The figure itself stays ink, except for the signed figures named in the Sign Colour Rule below. Green and red never colour a chart series, a shot map or a bar, and never stand alone: the sign and the arrow carry the reading for colour-blind readers (green/red separation is ΔE 5.3 under deuteranopia). A style measure with no better side (usage) keeps an ink arrow. One place decides "better": `lib/delta.ts` (`deltaHtml`, `components/Delta.astro`).
+
+**The Sign Colour Rule.** Player +/- and the net ratings (team net rating, on/off net, clutch net) are signed for-minus-against figures, and their figure itself takes the sign's colour: green above zero, red below, ink at zero or when missing. The sign (+ or −) is always printed, because the green/red pair is only ΔE 5.3 under deuteranopia: colour reinforces the sign and never replaces it. Colour follows the figure as shown, so a value that rounds to 0.0 stays ink. Only the Delta tokens (`--delta-up`, `--delta-down`) are used. A net rating drops the Delta arrow, since the league average is 0 and the sign already says above or below it. RAPM stays ink. One place decides the colour: `lib/delta.ts` (`signClass`), styled by `.sign-pos` and `.sign-neg`.
 
 ## Typography
 
@@ -266,7 +268,7 @@ Shared by the player, team and Shots pages (`lib/court.ts`, `styles/stats.css`),
 Seasons before 2011-12 carry a one-line caveat under the chart; they are never hidden.
 
 ### Team header cells and Four Factors rows (Team signature)
-Under the club name, one row of cells divided by hairline rules, no fill and no shadow (the Flat Page Rule holds): Record with the season, Net rating (a Delta) over a muted "off · def" line, Pace with its rank, EuroLeague seasons since 2007-08, League rank ("1st in the league"), and Playoffs (the result for a past season; "Season in progress" and the standing for the live one). Six across on desktop, three on tablets, two on phones; every cell follows the season switch.
+Under the club name, one row of cells divided by hairline rules, no fill and no shadow (the Flat Page Rule holds): Record with the season, Net rating (a signed figure under the Sign Colour Rule, no arrow) over a muted "off · def" line, Pace with its rank, EuroLeague seasons since 2007-08, League rank ("1st in the league"), and Playoffs (the result for a past season; "Season in progress" and the standing for the live one). Six across on desktop, three on tablets, two on phones; every cell follows the season switch.
 
 Below, the ratings and four factors as rows in two groups (Offense, Defense) under a Title on a strong rule: the measure (tooltip gives the formula), the club's value in ink semibold, its rank ("2nd of 20", counted from the best), a bare rail, and a Delta against the league average. On the rail the league average is a Baseline Gray tick and the league median a hollow gray dot; the club is an Accent Orange dot with an orange stem from the average. Every rail reads better to the right, so turnover rate and the defensive measures are flipped, and a one-line key says so. The better/worse table lives in `lib/team.ts`. On a season switch the marks slide (200ms ease-out).
 
@@ -301,4 +303,4 @@ The headline comparison on the player page: the five closest EuroLeague player-s
 - **Don't** present odds, stakes or "picks"; this is a model benchmark, not betting advice.
 - **Don't** reintroduce a themed metaphor (clipboard, board, ticket, terminal) or a handwriting face.
 - **Don't** put a filled background track behind a bar or rating rail.
-- **Don't** colour text with a data colour, or use green for success; orange and blue are the only outcome inks. Green and red exist only under the Delta Rule.
+- **Don't** colour text with a data colour, or use green for success; orange and blue are the only outcome inks. Green and red exist only under the Delta Rule and the Sign Colour Rule.

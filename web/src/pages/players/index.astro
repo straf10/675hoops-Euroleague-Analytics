@@ -272,7 +272,10 @@ const description =
           const name = slot.querySelector(".nm") as HTMLAnchorElement;
           name.textContent = row.name;
           name.href = `${root}/players/${row.slug}/`;
-          (slot.querySelector(".val") as HTMLElement).textContent = s.text;
+          const val = slot.querySelector(".val") as HTMLElement;
+          val.textContent = s.text;
+          val.classList.toggle("sign-pos", s.sc === "sign-pos");
+          val.classList.toggle("sign-neg", s.sc === "sign-neg");
           (slot.querySelector(".track") as HTMLElement).dataset.tip = slotTip(row, c, s.text);
         });
       }

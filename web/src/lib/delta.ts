@@ -21,6 +21,16 @@ export interface DeltaOptions {
   versus?: string;
 }
 
+/** The Sign Colour Rule (docs/DESIGN.md): a signed for-minus-against figure (+/-, net rating)
+ * wears green when above zero, red when below, and stays ink at zero or when missing. The sign
+ * is printed beside it, so colour is never the only cue. `digits` is the figure's decimal
+ * places, so a value that rounds to 0.0 stays ink. Pages and client scripts both use this. */
+export function signClass(v: number | null | undefined, digits = 1): string {
+  if (v === null || v === undefined || !Number.isFinite(v)) return "";
+  const shown = Number(v.toFixed(digits));
+  return shown > 0 ? "sign-pos" : shown < 0 ? "sign-neg" : "";
+}
+
 export type Verdict = "better" | "worse" | "even" | "neutral";
 
 /** The reading of a difference (subject − comparison) for the subject. */
