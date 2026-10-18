@@ -1,10 +1,10 @@
-// Leaders: pools of player lines (a season, whole careers, the best single seasons, or one club),
-// qualifying floors, ranking, and the HTML for the court lineup and the bench. Pure functions,
-// run at build time for the first paint and in the browser on every filter change.
+// Leaders: pools of player lines (a season or whole careers), the qualifying floors, and the
+// overview's boards (about fifteen small rankings, NBA-style). Pure functions with no browser-only
+// imports, so Node can test them (see leaders.test.ts). Run at build time for the first paint and in
+// the browser when the season or the scope changes.
 
-import { esc } from "./format";
-import { jerseySvg } from "./jersey";
-import { BY_KEY, playerHref } from "./players";
+import { betterOf } from "./better.ts";
+import { BY_KEY, format, rated, type Measure } from "./measures.ts";
 
 export type Scope = "season" | "career" | "best";
 export type Mode = "game" | "total";
@@ -40,11 +40,6 @@ export interface View {
   club: string; // "" = the whole league
 }
 
-// Only the fields the leaders' measures read; the endpoints ship these, in this order.
-export const LEADER_FIELDS = ["gp", "gs", "sec", "pts", "fg2m", "fg2a", "fg3m", "fg3a", "ftm", "fta", "oreb", "dreb", "ast", "stl", "tov", "blk", "pir", "pm"];
-
-export const STATS = ["pts", "reb", "ast", "stl", "blk", "pir", "ts", "efg", "fg3_pct", "ft_pct", "pm"];
-export const CARD_STATS = ["pts", "reb", "ast", "ts", "pir"];
 // all-time hidden until pre-2022 seasons return (docs/SITE_FEEDBACK.md): set true to restore "Best seasons".
 export const SHOW_ALL_TIME = false;
 export const SCOPES: { key: Scope; label: string }[] = [
@@ -52,13 +47,14 @@ export const SCOPES: { key: Scope; label: string }[] = [
   { key: "career", label: "Career" },
   ...(SHOW_ALL_TIME ? [{ key: "best" as Scope, label: "Best seasons" }] : []),
 ];
-export const MODES: { key: Mode; label: string }[] = [
-  { key: "game", label: "Per game" },
-  { key: "total", label: "Totals" },
-];
 export const CAREER_GAMES = 60;
 export const SEASON_MINUTES = 15;
-export const BENCH = 15;
+/** The Players page's floors (its defaults): a quarter of the most games anyone played that season,
+ *  and ten minutes a game. A board ranks only players the Players page lists by default. */
+export const PLAYERS_GAMES_SHARE = 4;
+export const PLAYERS_MINUTES = 10;
+/** The first season the overview offers (2022-23); older seasons stay out of the select. */
+export const FIRST_OVERVIEW_SEASON = 2022;
 
 export const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
 
@@ -146,147 +142,80 @@ export function rank(list: Entry[], view: View, most: Record<string, number>): R
   return rows;
 }
 
-export interface Board {
-  lineup: boolean; // a club's season: the most-played five, not the top five
-  five: Ranked[]; // in court order: point, left wing, right wing, left block, right block
-  bench: Ranked[];
+// ---- The overview boards -------------------------------------------------------------------
+
+export interface BoardSpec {
+  /** The measure key in measures.ts. */
+  key: string;
+  title: string;
+  /** A season or career total rather than a per-game figure. */
+  total?: boolean;
 }
 
-/** The five on court and the bench. A club's season is its roster: the five who started most. */
-export function board(list: Entry[], view: View, most: Record<string, number>): Board {
-  const ranked = rank(list, view, most);
-  const lineup = view.scope === "season" && !!view.club;
-  let five: Ranked[];
-  let bench: Ranked[];
-  if (lineup) {
-    const starters = [...ranked].sort((a, b) => b.e.t.gs - a.e.t.gs || b.e.t.sec - a.e.t.sec).slice(0, 5);
-    const share = (r: Ranked) => r.e.t.ast / Math.max(1, r.e.t.ast + r.e.t.oreb + r.e.t.dreb);
-    five = starters.sort((a, b) => share(b) - share(a));
-    bench = ranked.filter((r) => !five.includes(r));
-  } else {
-    const top = ranked.filter((r) => r.rank);
-    five = top.slice(0, 5);
-    bench = top.slice(5, 5 + BENCH);
-  }
-  return { lineup, five, bench };
-}
-
-export function title(view: View, clubName = ""): string {
-  const m = measure(view.stat);
-  const rate = m.kind === "count" ? (view.mode === "game" ? " per game" : ", totals") : "";
-  const where = view.club ? ` · ${clubName || view.club}` : "";
-  const when = view.scope === "season" ? seasonLabel(view.season) : view.scope === "career" ? "careers since 2007-08" : "best single seasons since 2007-08";
-  return `${m.name}${rate}, ${when}${where}`;
-}
-
-const when = (e: Entry) =>
-  e.season ? seasonLabel(e.season) : e.first === e.last ? seasonLabel(e.first) : `${seasonLabel(e.first)} to ${seasonLabel(e.last)}`;
-
-function statLine(e: Entry, view: View): string {
-  return CARD_STATS.map((k) => {
-    const on = k === view.stat ? " on" : "";
-    return `<span class="st${on}"><small>${measure(k).head}</small>${text(k, valueOf(k, e.t, view.mode), view.mode)}</span>`;
-  }).join("");
-}
-
-function games(e: Entry): string {
-  const min = e.t.gp ? (e.t.sec / e.t.gp / 60).toFixed(1) : "–";
-  return `${e.t.gp} games · ${min} min`;
-}
-
-/** Slot anchors on the closed court drawing, in % of its width and height (point, wings, blocks).
- *  Wings sit beyond the arc on the 45° lines and the point well above the halfway line, so no
- *  court line reaches a player's text. */
-export const SLOTS: [number, number][] = [
-  [50, 56],
-  [13.6, 51],
-  [86.4, 51],
-  [35.7, 14.6],
-  [64.3, 14.6],
+/** The overview's boards, in reading order (two per row on a wide screen, one on a phone). */
+export const BOARDS: BoardSpec[] = [
+  { key: "pts", title: "Points per game" },
+  { key: "reb", title: "Rebounds per game" },
+  { key: "ast", title: "Assists per game" },
+  { key: "stl", title: "Steals per game" },
+  { key: "blk", title: "Blocks per game" },
+  { key: "pir", title: "PIR per game" },
+  { key: "pts", title: "Total points", total: true },
+  { key: "min", title: "Minutes per game" },
+  { key: "ts", title: "True shooting %" },
+  { key: "efg", title: "Effective FG%" },
+  { key: "fg_pct", title: "Field-goal %" },
+  { key: "fg3_pct", title: "Three-point %" },
+  { key: "ft_pct", title: "Free-throw %" },
+  { key: "usg", title: "Usage %" },
+  { key: "net", title: "Net rating" },
+  { key: "ast_pct", title: "Assist %" },
 ];
 
-export function fiveHtml(b: Board, view: View, base: string): string {
-  const head = measure(view.stat).head;
-  return b.five
-    .map((r, i) => {
-      const { e } = r;
-      const [x, y] = SLOTS[i];
-      const tag = b.lineup ? "" : `<span class="rk">${r.rank}</span>`;
-      const muted = r.floor ? " muted" : "";
-      return (
-        `<li class="slot" style="--x:${x}%;--y:${y}%" data-key="${esc(e.key)}">` +
-        `<a class="shirt-link" href="${playerHref(base, e.slug)}" tabindex="-1" aria-hidden="true">${jerseySvg({ code: e.team, name: e.name, number: e.dorsal, size: 72 })}</a>` +
-        `<span class="tag">` +
-        `<span class="who">${tag}<a href="${playerHref(base, e.slug)}">${esc(e.name)}</a></span>` +
-        `<span class="meta">${esc(e.team)} · ${when(e)}</span>` +
-        `<span class="big${muted}">${r.text}<small>${head}</small></span>` +
-        `<span class="line">${statLine(e, view)}</span>` +
-        `</span>` +
-        `</li>`
-      );
-    })
-    .join("");
+/** Whether a line ranks on a measure: the measure's own attempts or minutes rule, then the floors. */
+export function qualifies(e: Entry, m: Measure, most: Record<string, number>, career: boolean): boolean {
+  if (m.qualifies && !m.qualifies(e.t)) return false;
+  if (career) return e.t.gp >= CAREER_GAMES;
+  if (!e.t.gp) return false;
+  return e.t.gp >= Math.ceil((most[e.season] ?? 0) / PLAYERS_GAMES_SHARE) && e.t.sec / e.t.gp / 60 >= PLAYERS_MINUTES;
 }
 
-export function benchHtml(b: Board, view: View, base: string): string {
-  return b.bench
-    .map((r) => {
-      const { e } = r;
-      return (
-        `<li data-key="${esc(e.key)}">` +
-        `<span class="rk">${r.rank || ""}</span>` +
-        jerseySvg({ code: e.team, name: e.name, number: e.dorsal, size: 30 }) +
-        `<span class="nm"><a href="${playerHref(base, e.slug)}">${esc(e.name)}</a><small>${esc(e.team)} · ${when(e)} · ${games(e)}</small></span>` +
-        `<span class="val${r.floor ? " muted" : ""}">${r.text}</span>` +
-        `</li>`
-      );
-    })
-    .join("");
+export interface BoardRank {
+  e: Entry;
+  value: number;
+  text: string;
 }
 
-/** The phone list under the court: the five with their full stat lines. */
-export function fiveLinesHtml(b: Board, view: View, base: string): string {
-  return b.five
-    .map(
-      (r) =>
-        `<li>${b.lineup ? "" : `<span class="rk">${r.rank}</span>`}<span class="nm"><a href="${playerHref(base, r.e.slug)}">${esc(r.e.name)}</a><small>${esc(r.e.team)} · ${when(r.e)} · ${games(r.e)}</small></span><span class="line">${statLine(r.e, view)}</span></li>`,
-    )
-    .join("");
+export interface Board {
+  spec: BoardSpec;
+  leader: BoardRank | null;
+  /** Ranks 2 to 5. */
+  next: BoardRank[];
+  /** How many players rank on this board. */
+  qualified: number;
 }
 
-/** Link to Compare with the five on court. */
-export function compareHref(b: Board, view: View, base: string): string {
-  const root = base.replace(/\/$/, "");
-  const career = view.scope === "career";
-  const p = b.five.map((r) => (career ? r.e.slug : `${r.e.slug}:${r.e.season}`)).join(",");
-  return `${root}/compare/?scope=${career ? "career" : "season"}&p=${p}`;
+/** The overview: every board for one pool (a season, or the career pool). */
+export function boards(list: Entry[], most: Record<string, number>, career: boolean): Board[] {
+  return BOARDS.map((spec) => {
+    const m = measure(spec.key);
+    const rows = list.flatMap((e) => {
+      if (!qualifies(e, m, most, career)) return [];
+      const value = spec.total ? m.value(e.t) : rated(m, e.t, "game");
+      return value === null || !Number.isFinite(value) ? [] : [{ e, value }];
+    });
+    // Better-is-lower measures sort ascending; the rest, the highest first.
+    const sign = betterOf(spec.key) === "lower" ? 1 : -1;
+    rows.sort((a, b) => sign * (a.value - b.value) || b.e.t.sec - a.e.t.sec || a.e.name.localeCompare(b.e.name));
+    const digits = spec.total ? 0 : m.digits;
+    const ranked: BoardRank[] = rows.map((r) => ({ e: r.e, value: r.value, text: format({ ...m, digits }, r.value) }));
+    return { spec, leader: ranked[0] ?? null, next: ranked.slice(1, 5), qualified: ranked.length };
+  });
 }
 
-export const DEFAULT_VIEW: Omit<View, "season"> = { scope: "season", stat: "pts", mode: "game", club: "" };
-
-export function toQuery(view: View, defaultSeason: number): string {
-  const q = new URLSearchParams();
-  if (view.scope !== DEFAULT_VIEW.scope) q.set("scope", view.scope);
-  if (view.scope === "season" && view.season !== defaultSeason) q.set("season", String(view.season));
-  if (view.stat !== DEFAULT_VIEW.stat) q.set("stat", view.stat);
-  if (view.mode !== DEFAULT_VIEW.mode) q.set("mode", view.mode);
-  if (view.club) q.set("club", view.club);
-  const s = q.toString();
-  return s ? `?${s}` : "";
+/** The Players page with this board's measure preselected, or null where Players has no such list
+ *  (career boards, and total points: Players ranks per game, not totals). */
+export function fullListHref(base: string, spec: BoardSpec, season: number, career: boolean): string | null {
+  if (career || spec.total) return null;
+  return `${base.replace(/\/$/, "")}/players/?metric=${spec.key}&season=${season}`;
 }
-
-export function fromQuery(search: string, seasons: number[], defaultSeason: number, clubs: string[]): View {
-  const q = new URLSearchParams(search);
-  const scope = SCOPES.some((s) => s.key === q.get("scope")) ? (q.get("scope") as Scope) : DEFAULT_VIEW.scope;
-  const season = Number(q.get("season"));
-  const stat = q.get("stat") ?? "";
-  const club = (q.get("club") ?? "").toUpperCase();
-  return {
-    scope,
-    season: seasons.includes(season) ? season : defaultSeason,
-    stat: STATS.includes(stat) ? stat : DEFAULT_VIEW.stat,
-    mode: q.get("mode") === "total" ? "total" : "game",
-    club: clubs.includes(club) ? club : "",
-  };
-}
-

@@ -3,7 +3,7 @@
 
 import type { Attempts } from "./shots";
 import { clubShotsOf, type ClubShots } from "./zones";
-import { careers, failsFloor, LEADER_FIELDS, type Entry, type Pool, type Wire } from "./leaders";
+import { careers, failsFloor, type Entry, type Pool, type Wire } from "./leaders";
 
 export type Cell = [q: number, r: number, att: number, made: number, pts: number];
 export type Bands = Record<string, [att: number, made: number]>;
@@ -552,9 +552,10 @@ const mostGames = () =>
 
 const wire = (e: Entry, fields: string[]): Wire => [e.slug, e.name, e.team, e.dorsal, e.season, e.first, e.last, fields.map((f) => e.t[f] ?? 0)];
 
-/** "career", "best" or a season: the lines the Leaders page ranks. */
+/** "career", "best" or a season: the lines the Leaders page ranks, with every player field (the
+ *  overview's advanced boards read team totals and possessions too). */
 export async function leaderPool(key: "career" | "best" | number): Promise<Pool> {
-  const { lines } = await splitLines();
+  const { fields, lines } = await splitLines();
   const most = await mostGames();
   let rows: Entry[];
   if (key === "career") rows = careers(lines).filter((e) => e.t.gp >= 20); // a handful of games never leads
@@ -562,16 +563,8 @@ export async function leaderPool(key: "career" | "best" | number): Promise<Pool>
     const view = { scope: "best", season: 0, stat: "pts", mode: "game", club: "" } as const;
     rows = seasonLines(lines).filter((e) => !failsFloor(e, view, most));
   } else rows = seasonLines(lines.filter((e) => e.season === key));
-  return { fields: LEADER_FIELDS, most, rows: rows.map((e) => wire(e, LEADER_FIELDS)) };
+  return { fields, most, rows: rows.map((e) => wire(e, fields)) };
 }
-
-/** One club's lines, season by season (the page sums them for its career view). */
-export async function clubPool(code: string): Promise<Pool> {
-  const { lines } = await splitLines();
-  return { fields: LEADER_FIELDS, most: await mostGames(), rows: lines.filter((e) => e.team === code).map((e) => wire(e, LEADER_FIELDS)) };
-}
-
-export const clubCodes = async () => [...new Set((await splitLines()).lines.map((e) => e.team))].sort();
 
 export interface CardSeason {
   season: number;
