@@ -244,7 +244,8 @@ Results:
 | game-shell (yesterday 7b) | box score and scoring runs | — |
 | play-0 | G0, G1, G2 | D10 phase 1 |
 
-### Wave D (started 2026-10-18; owner corrections of 2026-10-18 folded in)
+### Wave D — DONE 2026-10-18, merged to main (owner corrections of 2026-10-18 folded in)
+Results: K1–K5 done (K4 team side through the follow-up branch team-zones; the distance tables dim only the Rim and Deep 3 rows). Leaders has 16 boards and its RAPM table is gone. The Compare polygon (C3) is done with a series palette; **C4 is not started** (moved to Wave E). Accolades follow the owner's rule, and the stat titles cover 2007-08 to 2025-26; no award data exists in the cache. Lineups cover 2022–2025, with units built in about 10 s. Passing pairs about 91–93% of assists, and the page states this. Continuity is done; RAPM impact is skipped (not in the export). **WP v1 gate passed** (0.2.0+wp.9702906e; test log loss 0.4634 vs 0.4811, delta −0.0177, CI [−0.0317, −0.0049]); the card is `docs/models/wp_card.md`. Follow-ups: SoS columns on the Teams index (needs a stats export field) and the Shot quality table zone filter (owner to decide).
 Owner corrections after Wave C:
 - **K1 (player page, Against the league):** in the legend "Him | League average", put spaces around the "|" separator, and colour the "Him" swatch like the dots in the graph (the page's club colour, e.g. Olympiacos red). This applies in both the League and the Position view.
 - **K2 (Compare start):** one lead line, "Add a player by name, or start from one of these:", with the 3 random curated presets below it. The old default suggestions and the separate "Or one of these curated comparisons" section go.
