@@ -55,8 +55,15 @@ from eurohoops.logs import write_json
 from eurohoops.marts import data_volume, read_games, read_teams
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.box import build_box_games
-from eurohoops.stats.export import Inputs, build_payloads, load_cached_games, write_stats
+from eurohoops.stats.export import (
+    Inputs,
+    build_payloads,
+    load_cached_games,
+    site_window,
+    write_stats,
+)
 from eurohoops.stats.positions import games_by_club, season_positions
+from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
 
 WALKED = (DATA_DIR, OPENAPI_FILE.parent)  # the directories the contract check walks, under web/
@@ -124,6 +131,12 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
         codes=DISPLAY_CODES[EUROLEAGUE.name],
         live_season=LIVE_SEASON,
         positions=season_positions(raw_dir, games_by_club(box.players)),
+        runs=game_runs(
+            raw_dir,
+            games[
+                games["played"] & games["season"].isin(site_window(box.players["season"].unique()))
+            ],
+        ),
     )
     write_stats(out, build_payloads(inputs, now))
 
