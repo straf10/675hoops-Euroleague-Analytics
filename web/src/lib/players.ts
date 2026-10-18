@@ -4,7 +4,7 @@
 // game; `rated` also serves the Compare page's per-36 and per-100 columns.
 
 import { esc } from "./format";
-import { position, type Position } from "./position";
+import { LEGACY_POSITION, position, POSITIONS, type Position } from "./position";
 import { dataTip, tip } from "./tip";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 
@@ -177,7 +177,7 @@ export const TOPS = [5, 10, 25, 50, 100, 0];
 export const topLabel = (n: number) => (n ? String(n) : "All");
 export const POSITION_CHOICES: { key: Position | ""; label: string }[] = [
   { key: "", label: "All" },
-  ...(["Guard", "Wing", "Big"] as const).map((p) => ({ key: p, label: p })),
+  ...POSITIONS.map((p) => ({ key: p, label: p })),
 ];
 
 export const DEFAULT_VIEW: Omit<View, "season"> = {
@@ -410,7 +410,10 @@ export function fromQuery(search: string, seasons: number[], defaultSeason: numb
     dir: pick("dir", ["desc", "asc"] as const, DEFAULT_VIEW.dir),
     minMin,
     top: TOPS.includes(top) ? top : DEFAULT_VIEW.top,
-    pos: pick("pos", ["Guard", "Wing", "Big"] as const, DEFAULT_VIEW.pos as Position | "") as Position | "",
+    // Old `?pos=Wing` / `?pos=Big` links map to Forward / Centre.
+    pos:
+      LEGACY_POSITION.get(p.get("pos") ?? "") ??
+      pick("pos", ["Guard", "Forward", "Centre"] as const, DEFAULT_VIEW.pos as Position | ""),
     set: pick("set", ["box", "shooting"] as const, setOf(metric)),
   };
 }

@@ -318,9 +318,9 @@ export const TERMS: GlossaryTerm[] = [
   },
   {
     id: "position",
-    term: "Position, Guard, Wing, Big",
+    term: "Position: Guard, Forward, Centre",
     group: "Box score",
-    def: "The position the EuroLeague lists for a player that season: guard, forward (shown as Wing) or centre (shown as Big). A player listed by two clubs in a season takes the listing of the club he played most games for; one with no listing that season keeps his latest.",
+    def: "The position the EuroLeague lists for a player that season: guard, forward or centre. A player listed by two clubs in a season takes the listing of the club he played most games for; one with no listing that season keeps his latest.",
     shownOn: [PL, PP],
   },
   {
