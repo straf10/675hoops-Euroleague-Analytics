@@ -3,7 +3,7 @@
 // Pure (types only from ./stats), so the build and the in-page season switch share them.
 
 import type { HexCell } from "./court";
-import { freqHeat, qualityHeat } from "./heat";
+import { freqHeat, qualityHeat, type Lit } from "./heat";
 import { betterOf } from "./better";
 import { deltaHtml, signClass } from "./delta";
 import { esc, signed } from "./format";
@@ -180,20 +180,21 @@ export type HeadCells = ReturnType<typeof headCells>;
 
 // ---- Shots ---------------------------------------------------------------------------------
 
-/** Both sides' heatmaps for the team page: frequency and shot quality, taken and allowed. */
-export function teamCharts(t: TeamSeason, radius: number) {
+/** Both sides' heatmaps for the team page: frequency and shot quality, taken and allowed. `lit` dims the
+ * squares outside the picked shot zones (lib/zones.ts); with none, every square is lit. */
+export function teamCharts(t: TeamSeason, radius: number, lit?: Lit) {
   const n = (cells: HexCell[]) => cells.reduce((a, c) => a + c[2], 0);
   const head = `${t.code} ${t.label}:`;
   const taken = `${head} ${n(t.taken)} located field-goal attempts taken`;
   const allowed = `${head} ${n(t.allowed)} located opponent attempts allowed`;
   return {
     freq: {
-      taken: freqHeat(t.taken, radius, `${taken}, shot frequency`),
-      allowed: freqHeat(t.allowed, radius, `${allowed}, shot frequency`),
+      taken: freqHeat(t.taken, radius, `${taken}, shot frequency`, lit),
+      allowed: freqHeat(t.allowed, radius, `${allowed}, shot frequency`, lit),
     },
     quality: {
-      taken: qualityHeat(t.taken, radius, `${taken}, shot quality`),
-      allowed: qualityHeat(t.allowed, radius, `${allowed}, shot quality`),
+      taken: qualityHeat(t.taken, radius, `${taken}, shot quality`, lit),
+      allowed: qualityHeat(t.allowed, radius, `${allowed}, shot quality`, lit),
     },
   };
 }
