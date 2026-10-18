@@ -258,7 +258,14 @@ have no linkable make in the log, and no rule links them. Per-season coverage fo
   separate the shares, and the recommendation is the smallest `S` whose score lies inside the
   best `S`'s CI. Otherwise the recommendation is the best `S`.
 
-### Results (measured)
+### Results, time-inclusive credit (INVALID)
+
+These results used the credit definition in the criterion above, where each play's ΔWP was the
+change in the line between consecutive plays. Time passage between plays was therefore credited
+to the player who produced the next play. The same-season sanity check gave r = −0.06, the
+wrong sign, so the metric was not valid. The numbers below are kept for the record. They are not
+used for any recommendation. The S recommendation from them ("S = 0") is withdrawn.
+
 
 Sample: 419 player-seasons, 2010–2021 as `s`, with at least 500 box minutes in `s` and `s+1`.
 Predictor: WPA per 40 minutes in `s`. Targets: next-season net rating per 100 possessions (from
@@ -310,3 +317,26 @@ passer, and the rest are dropped.
 - The M3 file was opened in full. Only entries for 2007–2022 are used. Its header lists the
   later seasons, but no value for them enters any table here.
 - Runtime: the measurement stage takes about 70 s, plus about 50 s to build the data.
+
+
+### Corrected credit and validity gate (pre-declared before recomputation)
+
+The time-inclusive credit above is invalid. The corrected definition is pre-declared here,
+before any recomputation.
+
+- **Event-only credit.** For each play `e`, `ΔWP_e = WP(score after e, t_e) − WP(score before e,
+  t_e)`. Both terms are evaluated on the baseline line with the linear tip-off gap fade, at the
+  same clock `t_e`. Time passage between plays credits nobody. A non-scoring play has the same
+  score before and after, so its `ΔWP` is 0 under the baseline. The baseline has no possession
+  term, so rebounds, turnovers and steals credit 0 by construction. This is expected, not a bug.
+  Credit is `100 · s · ΔWP_e` as before. The passer split of section 8 applies to linked makes
+  only. Unlinked assists credit nothing to the passer, and unlinked makes credit the scorer in full.
+- **Validity gate.** Same-season Pearson correlation of WPA per 40 minutes (S = 0) with
+  plus-minus per 40 minutes, on the same 419 player-seasons, 2010–2021 `s`, at least 500 minutes
+  in `s` and `s+1`. **The gate passes only if the point estimate is above 0.3 and the 95% bootstrap
+  CI (game-cluster, 1,000 resamples, seed 20261018) has a lower bound above 0.** If the gate fails,
+  the run stops after reporting the gate. No split recommendation is made.
+- **If the gate passes.** The S grid {0, 0.1, …, 0.5}, the targets, the sample, the bootstrap, the
+  score definition and the decision rule are unchanged from the criterion above.
+- **Face-validity list.** If the gate passes, the top 10 player-seasons by total WPA in 2022, for
+  `S = 0` and for the recommended `S`, among players with at least 500 box minutes in 2022.
