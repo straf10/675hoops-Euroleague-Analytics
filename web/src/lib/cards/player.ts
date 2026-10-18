@@ -88,14 +88,15 @@ function court(): string {
   ].join("");
 }
 
-/** Attempts as the player page draws them: a filled orange dot for a make, a blue cross for a miss.
+/** Attempts (flat [x, y, made, three] stride 4) as the player page draws them: a filled orange dot
+ * for a make, a blue cross for a miss.
  * Misses go first so the makes sit on top. */
 function marks(dots: number[]): string {
   const misses: string[] = [];
   const makes: string[] = [];
   const d = 0.16 * S;
   const r = 0.2 * S;
-  for (let i = 0; i < dots.length; i += 3) {
+  for (let i = 0; i < dots.length; i += 4) {
     const x = dots[i] / 100;
     const y = dots[i + 1] / 100;
     if (y > DEPTH || Math.abs(x) > 7.5) continue;
@@ -148,7 +149,7 @@ export function playerSvg(p: PlayerCardInput): string {
 
   if (p.shots) {
     const made = countMade(p.shots.dots);
-    const attempts = p.shots.dots.length / 3;
+    const attempts = p.shots.dots.length / 4;
     b.push(text(X0, 760, `Shot chart, ${p.shots.season}`, { size: 30, weight: 600 }));
     b.push(text(X0, 788, "Filled: made. Cross: missed. Half court, basket at top.", { size: 20, fill: MUTED }));
     b.push(court());
@@ -165,7 +166,7 @@ export function playerSvg(p: PlayerCardInput): string {
 
 function countMade(dots: number[]): number {
   let made = 0;
-  for (let i = 2; i < dots.length; i += 3) made += dots[i];
+  for (let i = 2; i < dots.length; i += 4) made += dots[i];
   return made;
 }
 
