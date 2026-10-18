@@ -227,7 +227,7 @@ def test_stats_responses_are_the_bytes_write_stats_writes(
     written = tmp_path / "written"
     write_stats(written, _independent_stats(finished_root / EUROLEAGUE.raw_dir, STATS_NOW))
     paths = sorted(p.relative_to(written).as_posix() for p in written.rglob("*.json"))
-    assert client.get("/stats").json()["files"] == paths and len(paths) == 13
+    assert client.get("/stats").json()["files"] == paths and len(paths) == 14
     for path in paths:
         response = client.get(f"/stats/{path}")
         assert response.content == (written / path).read_bytes(), path
