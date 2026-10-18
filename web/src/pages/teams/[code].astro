@@ -19,6 +19,8 @@ import JsonLd from "../../components/JsonLd.astro";
 import ScheduleStrength from "../../components/team/ScheduleStrength.astro";
 import { hasSchedule } from "../../lib/strength";
 import { sportsTeam } from "../../lib/jsonld";
+import { clubLineups } from "../../lib/stats";
+import Lineups from "../../components/team/Lineups.astro";
 
 export async function getStaticPaths() {
   // A club gets a page only when it has a published season (teamIndex keeps published seasons only).
@@ -30,6 +32,7 @@ const m = (await meta())!;
 const open = defaultSeason(m).season;
 const year = [...club.seasons].reverse().find((s) => s <= open) ?? club.seasons[club.seasons.length - 1];
 const t = (await teamSeason(club.code, year))!;
+const lineups = await clubLineups(club.code);
 // The club's orange details take its make colour, the same as the players' shot charts.
 const pair = shotPair(club.code);
 const accentStyle = `--data-1: ${pair.make}; --data-1-wash: color-mix(in srgb, ${pair.make} 12%, transparent); --make: ${pair.make}; --miss: ${pair.miss}`;
@@ -114,6 +117,7 @@ const bandHead = [
       <div role="tablist" aria-label="Team sections" class="tablist">
         <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview" aria-selected="true" tabindex="0">Overview</button>
         <button type="button" role="tab" id="tab-shots" data-tab="shots" aria-controls="panel-shots" aria-selected="false" tabindex="-1">Shots</button>
+        <button type="button" role="tab" id="tab-lineups" data-tab="lineups" aria-controls="panel-lineups" aria-selected="false" tabindex="-1">Lineups</button>
         {
           hasSchedule(schedule) && (
             <button
@@ -359,6 +363,10 @@ const bandHead = [
       An orange caret on Allowed means opponents shot worse than the league from that distance.
     </p>
   </section>
+  </div>
+
+  <div class="wrap tabpanel" role="tabpanel" id="panel-lineups" aria-labelledby="tab-lineups">
+    <Lineups season={t.season} seasons={lineups.seasons} names={lineups.names} />
   </div>
 
   {

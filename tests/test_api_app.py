@@ -41,6 +41,7 @@ from eurohoops.stats.export import (
 from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
+from eurohoops.stats.units import load_units
 from tests.api_tree import EL_PERSON, GBL_ONLY_PERSON, NOW, build_tree
 from tests.conftest import FIXTURES, REPO
 
@@ -231,6 +232,12 @@ def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
                 ],
             ),
             roster=read_rosters(raw, [s for s in (2010, 2024) if el_people_path(raw, s).exists()]),
+            units=load_units(
+                raw,
+                games,
+                site_window(box.players["season"].unique()),
+                DISPLAY_CODES["euroleague"],
+            ),
         ),
         now,
     )

@@ -94,6 +94,7 @@ from eurohoops.stats.export import (
 from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
+from eurohoops.stats.units import load_units
 
 T = TypeVar("T")
 
@@ -459,6 +460,7 @@ def stats_inputs(store: Store) -> Inputs:
             positions=season_positions(raw, games_by_club(box.players)),
             runs=game_runs(raw, played),
             roster=read_rosters(raw, sorted(cached)),
+            units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
         )
 
     return store.memo("stats_inputs", make)

@@ -5,6 +5,8 @@ import type { Attempts } from "./shots";
 import type { Continuity } from "./continuity";
 import { clubShotsOf, type ClubShots } from "./zones";
 import { careers, failsFloor, type Entry, type Pool, type Wire } from "./leaders";
+import type { ClubUnits, UnitsFile } from "./lineups";
+import type { PlayerName } from "./lineups_html";
 
 export type Cell = [q: number, r: number, att: number, made: number, pts: number];
 export type Bands = Record<string, [att: number, made: number]>;
@@ -696,4 +698,29 @@ export interface RunsFile {
 /** One season's scoring runs; null when the season has no runs file. */
 export async function runsData(year: number): Promise<RunsFile | null> {
   return (await load<RunsFile>(`seasons/${year}/runs.json`)) ?? null;
+}
+
+// ---- Best duos and units (seasons/{season}/units.json, stats/units.py) ----------------------
+
+/** One season's duos and units; null when the season has no units file (it did not pass the checks). */
+export async function unitsData(year: number): Promise<UnitsFile | null> {
+  return (await load<UnitsFile>(`seasons/${year}/units.json`)) ?? null;
+}
+
+/** A club's duos and units in every season with a units file, and the names of the players in them. */
+export async function clubLineups(
+  code: string
+): Promise<{ seasons: ClubUnits; names: Record<string, PlayerName> }> {
+  const seasons: ClubUnits = {};
+  for (const s of (await meta())?.seasons ?? []) {
+    const file = await unitsData(s.season);
+    if (!file) continue;
+    const club = file.clubs[code] ?? { pairs: [], units: [] };
+    seasons[String(s.season)] = { sd: file.sd, minimums: file.minimums, pairs: club.pairs, units: club.units };
+  }
+  const ids = new Set<string>();
+  for (const club of Object.values(seasons))
+    for (const row of [...club.pairs, ...club.units]) for (const id of row.slice(0, row.length - 6)) ids.add(String(id));
+  const names = (await playerIndex()).filter((p) => ids.has(p.id));
+  return { seasons, names: Object.fromEntries(names.map((p) => [p.id, { name: p.name, slug: p.slug }])) };
 }

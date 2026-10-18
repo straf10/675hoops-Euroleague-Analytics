@@ -212,6 +212,8 @@ export const TERMS: GlossaryTerm[] = [
     shownOn: [TI, TP, PP, PL, LD],
   },
   { id: "pace", term: "Pace", group: "Team ratings", def: "Possessions per 40 minutes. A high number means a fast game.", shownOn: [TI, TP] },
+  { id: "lineup-net", term: "Lineup net rating", group: "Team ratings", def: "Points the club scored minus points it allowed per 100 possessions that a duo or five-man unit played together. Few possessions make it swing widely.", shownOn: [TP] },
+  { id: "lineup-range", term: "Range (±)", name: "Lineup range", group: "Team ratings", def: "A rough 95% range either side of a lineup's net rating, from its possession count alone. A wide range means the rating says little yet.", shownOn: [TP] },
   {
     id: "four-factors",
     term: "Four factors",

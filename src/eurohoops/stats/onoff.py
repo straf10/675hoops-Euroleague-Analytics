@@ -65,6 +65,17 @@ def qualifying_seasons(
     ]
 
 
+def rated_games(games: pd.DataFrame, window: list[int]) -> pd.DataFrame:
+    """The played, non-forfeited games of ``window`` (the games the stint checks cover)."""
+    return games[games["played"] & ~games["forfeit"] & games["season"].isin(window)]
+
+
+def played_games(rated: pd.DataFrame) -> dict[int, int]:
+    """Season -> number of rated games."""
+    counts = rated.groupby("season")["game_id"].nunique()
+    return {int(s): int(n) for s, n in zip(counts.index.tolist(), counts.tolist(), strict=True)}
+
+
 def _clutch_stints(stints: pd.DataFrame) -> pd.DataFrame:
     """Adds ``csec`` (seconds of the stint in clutch time) and ``cfrac`` (that share of it)."""
     out = stints.sort_values(["game_id", "start_s"], kind="stable").copy()
@@ -219,9 +230,8 @@ def load_onoff(
     except duckdb.Error as error:
         log.warning("on/off: no stints in %s (%s); writing an empty file", mart_path, error)
         return empty_payload()
-    rated = games[games["played"] & ~games["forfeit"] & games["season"].isin(window)]
-    counts = rated.groupby("season")["game_id"].nunique()
-    played = {int(s): int(n) for s, n in zip(counts.index.tolist(), counts.tolist(), strict=True)}
+    rated = rated_games(games, window)
+    played = played_games(rated)
     seasons = qualifying_seasons(checks, played, window)
     good = set(checks.loc[checks["passed"] & checks["season"].isin(seasons), "game_id"])
     scores = score_events(raw_dir, rated[rated["game_id"].isin(good)])
