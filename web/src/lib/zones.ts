@@ -182,7 +182,7 @@ export function zoneSummary(dots: number[], picked: ReadonlySet<Zone>): { total:
 
 /** "At the rim and Paint: 12.3% of his attempts, 4 of 9 made (44.4%)" for the picked zones. Empty when none is
  * picked. Labels come from ZONES, in the chips' order. */
-export function zoneLineText(dots: number[], picked: ReadonlySet<Zone>): string {
+export function zoneLineText(dots: number[], picked: ReadonlySet<Zone>, scope = "his attempts"): string {
   if (picked.size === 0) return "";
   const { total, att, made } = zoneSummary(dots, picked);
   const names = ZONES.filter(([z]) => picked.has(z)).map(([, label]) => label);
@@ -190,5 +190,16 @@ export function zoneLineText(dots: number[], picked: ReadonlySet<Zone>): string 
   if (!att) return `${list}: no attempts from here.`;
   const share = ((100 * att) / total).toFixed(1);
   const fg = ((100 * made) / att).toFixed(1);
-  return `${list}: ${share}% of his attempts, ${made} of ${att} made (${fg}%).`;
+  return `${list}: ${share}% of ${scope}, ${made} of ${att} made (${fg}%).`;
+}
+
+/** The distance bands (the keys of lib/player.ts's BAND_LABELS) that one zone covers exactly. Rim (under 1.5 m)
+ * and Deep three (8 m and out) do. The other bands cut across zones (the 3 m to 5 m band holds both the paint
+ * and the mid-range), so they are never dimmed. */
+const BAND_ZONE: Record<string, Zone> = { rim: "rim", deep3: "deep3" };
+
+/** Whether a distance band's table row is dimmed: its one zone is not among the picked ones. */
+export function bandDimmed(band: string, picked: ReadonlySet<Zone>): boolean {
+  const zone = BAND_ZONE[band];
+  return picked.size > 0 && zone !== undefined && !picked.has(zone);
 }

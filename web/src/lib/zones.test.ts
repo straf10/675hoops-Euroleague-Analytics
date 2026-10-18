@@ -1,6 +1,7 @@
 ﻿import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  bandDimmed,
   clubShotsOf,
   DEEP_MIN_M,
   RIM_MAX_M,
@@ -125,4 +126,20 @@ test("zoneLineText names the zones, the share and the FG%", () => {
     "At the rim, Paint and Deep 3: 75.0% of his attempts, 1 of 3 made (33.3%).",
   );
   assert.equal(zoneLineText(dots, new Set(["mid"])), "Mid-range: no attempts from here.");
+});
+
+test("zoneLineText takes the club's scope: 'of attempts'", () => {
+  const dots = [0, 50, 1, 0, 0, 300, 0, 0, 690, 100, 1, 1, 0, 900, 0, 1];
+  assert.equal(zoneLineText(dots, new Set(["rim"]), "attempts"), "At the rim: 25.0% of attempts, 1 of 1 made (100.0%).");
+});
+
+test("bandDimmed: only the rim and deep-three rows, and only when some zones are picked", () => {
+  assert.equal(bandDimmed("rim", new Set()), false, "no pick: nothing dims");
+  assert.equal(bandDimmed("rim", new Set(["rim"])), false);
+  assert.equal(bandDimmed("rim", new Set(["paint"])), true);
+  assert.equal(bandDimmed("deep3", new Set(["deep3", "rim"])), false);
+  assert.equal(bandDimmed("deep3", new Set(["corner3"])), true);
+  for (const band of ["short", "mid", "long2", "three"]) {
+    assert.equal(bandDimmed(band, new Set(["corner3"])), false, `${band} cuts across zones`);
+  }
 });
