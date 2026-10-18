@@ -49,9 +49,9 @@ test("titles count the seasons his club won, and the Final Four counts toward pl
   assert.equal(c.finalFourRate, 0.6);
 });
 
-test("a title on a club he left before the playoffs still counts as a title", () => {
+test("a title counts only when he played in the final", () => {
   const c = careerAchievements([e(2022, "EFS", "RS", 1)]);
-  assert.equal(c.titles, 1);
+  assert.equal(c.titles, 0);
   assert.equal(c.playoffs, 0);
 });
 

@@ -36,7 +36,7 @@ def presets() -> list[tuple[str, str, list[tuple[str, int | None]]]]:
 
 def test_preset_shape() -> None:
     items = presets()
-    assert len(items) == 12, "the file has a different number of presets than the 12 kept"
+    assert len(items) == 11, "the file has a different number of presets than the 11 kept"
     for label, scope, picks in items:
         assert picks, f"{label}: no players"
         assert len(picks) <= 5, f"{label}: Compare shows at most five players"

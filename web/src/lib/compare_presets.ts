@@ -6,7 +6,8 @@
 // Dropped from plan §4 after the check against the data (2026-10-18):
 //   1 (Dončić is not in the data), 8 (Spanoulis), 9 (Navarro), 11 (Bogdanović).
 // Preset 3 says "Fall": Moustapha Fall is used (Olympiacos, 2021-22).
-// Preset 16 is career mode: a page has one scope, so a season and a career cannot share a link.
+// Preset 16 is dropped: a page has one scope (season or career), and no active player is a fair
+// "one-season wonder".
 
 export interface Preset {
   label: string;
@@ -26,7 +27,6 @@ export const PRESETS: Preset[] = [
   { label: "Big forwards", scope: "career", picks: ["tornike-shengelia", "mario-hezonja"] },
   { label: "Long-serving wings", scope: "career", picks: ["will-clyburn", "marius-grigonis"] },
   { label: "Scoring guards", scope: "season", picks: ["kendrick-nunn:2024", "mike-james:2023"] },
-  { label: "One-season wonder vs a long career", scope: "career", picks: ["trey-lyles", "kostas-papanikolaou"] },
 ];
 
 /** The link that opens Compare with the preset loaded (the query string Compare reads). */

@@ -39,7 +39,7 @@ export function seasonAchievement(entries: AchEntry[], season: number): SeasonAc
 
 export interface CareerAch {
   seasons: number; // seasons with an entry, since 2007-08
-  titles: number; // seasons his club won the EuroLeague
+  titles: number; // seasons he played in the final his club won
   finalFours: number; // seasons he reached the Final Four (semis, third place or the final)
   finalFourRate: number | null; // finalFours / seasons
   playoffs: number; // seasons he reached the playoffs (the Final Four counts too)
@@ -53,7 +53,7 @@ export function careerAchievements(entries: AchEntry[]): CareerAch {
   const best = new Map<number, number>(); // season -> furthest rank that season
   for (const [season, , reached, champion] of entries) {
     seasons.add(season);
-    if (champion === 1) titles.add(season);
+    if (champion === 1 && reached === "W") titles.add(season); // he played in the final
     best.set(season, Math.max(best.get(season) ?? 0, RANK[reached]));
   }
   let finalFours = 0;
