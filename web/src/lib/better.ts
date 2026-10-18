@@ -39,6 +39,9 @@ const DIRECTION = new Map<string, BetterIs>([
   ["pace", "neither"], // possessions per 40 minutes: a style, not a better side
   ["tpar", "neither"], // three-point attempt rate (club): a style
   ["otpar", "neither"], // opponent three-point attempt rate: what the club allows, a style
+  // Returning minutes: neither. Continuity is not better or worse by itself: a club can keep its
+  // roster and still be weak, or rebuild and be strong. It is context, not a rating.
+  ["returning", "neither"],
 ]);
 
 /** The direction of a metric by its key. Unknown keys read as "higher". */

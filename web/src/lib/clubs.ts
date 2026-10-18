@@ -26,7 +26,9 @@ export const clubHeadHtml = (metric: string, dir: Dir): string => {
 
 /** One figure as the table shows it: one decimal, Net signed and carrying the Sign Colour Rule class. */
 const cell = (key: string, v: number): string => {
+  if (!Number.isFinite(v)) return "–";
   if (key === "net") return `<span class="${signClass(v)}">${signed(v)}</span>`;
+  if (key === "returning") return `${Math.round(v)}%`;
   return v.toFixed(1);
 };
 

@@ -26,7 +26,9 @@ from eurohoops.api.app import CompactJSON, IndentedJSON, create_app
 from eurohoops.api.readmodel import Store
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, MART_PATH, SITE_DATA
+from eurohoops.ingest.bios import el_people_path
 from eurohoops.logs import write_json
+from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import (
@@ -228,6 +230,7 @@ def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
                     & games["season"].isin(site_window(box.players["season"].unique()))
                 ],
             ),
+            roster=read_rosters(raw, [s for s in (2010, 2024) if el_people_path(raw, s).exists()]),
         ),
         now,
     )

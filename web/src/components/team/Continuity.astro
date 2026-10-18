@@ -1,0 +1,53 @@
+---
+// The club's returning minutes (IDEAS #17) on the team page Overview: the share of last season's
+// minutes still on this season's roster, with the biggest returners and departures.
+import InfoTip from "../InfoTip.astro";
+import { tip } from "../../lib/tip";
+import { minutesOf, returningPercent, type Continuity, type ContinuityPlayer } from "../../lib/continuity";
+
+interface Props {
+  continuity: Continuity | null;
+}
+const { continuity } = Astro.props;
+const pct = returningPercent(continuity);
+const info = tip`<b>Returning minutes</b><br>Of last season's minutes for this club, the share played by players on this season's roster. A player counts by his minutes. It is context, not better or worse by itself.`;
+const named = (players: ContinuityPlayer[]) => players.map((p) => `${p.name} (${minutesOf(p.sec)} min)`).join(", ");
+---
+
+<section class="continuity" aria-labelledby="continuity-title">
+  <p class="continuity-figure">
+    <span id="continuity-title">Returning minutes:</span>
+    {pct === null ? <span class="muted">not available</span> : <strong>{pct}%</strong>}
+    <InfoTip text={info} />
+  </p>
+  {
+    pct === null ? (
+      <p class="continuity-note">No earlier EuroLeague season for this club in our data.</p>
+    ) : (
+      <>
+        {continuity!.returning.length > 0 && <p class="continuity-note">Back: {named(continuity!.returning)}</p>}
+        {continuity!.departures.length > 0 && <p class="continuity-note">Gone: {named(continuity!.departures)}</p>}
+      </>
+    )
+  }
+</section>
+
+<style>
+  .continuity {
+    margin: 1.25rem 0 0;
+  }
+  .continuity-figure {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .continuity-figure strong {
+    font-variant-numeric: tabular-nums;
+  }
+  .continuity-note {
+    margin: 0.35rem 0 0;
+    font-size: 0.9rem;
+  }
+</style>

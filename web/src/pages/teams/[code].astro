@@ -10,6 +10,7 @@ import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, tea
 import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
 import InfoTip from "../../components/InfoTip.astro";
+import Continuity from "../../components/team/Continuity.astro";
 import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
 import { markChart } from "../../lib/shotmarks";
@@ -169,6 +170,7 @@ const bandHead = [
         <dd class="sub" id="c-playoff-sub">{head.playoffSub}</dd>
       </div>
     </dl>
+    <Continuity continuity={t.continuity} />
 
   <section class="band" id="ranks" aria-labelledby="ranks-title">
     <header class="sec-head">

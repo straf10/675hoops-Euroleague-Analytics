@@ -2,6 +2,7 @@
 // Every number is a raw total; lib/players.ts derives the rates.
 
 import type { Attempts } from "./shots";
+import type { Continuity } from "./continuity";
 import { clubShotsOf, type ClubShots } from "./zones";
 import { careers, failsFloor, LEADER_FIELDS, type Entry, type Pool, type Wire } from "./leaders";
 
@@ -69,6 +70,8 @@ export interface TeamRow {
   playoff: { result: string } | null;
   /** EuroLeague seasons played from 2007-08 up to and including this one */
   el_seasons: number;
+  /** returning minutes (IDEAS #17); null with no roster list or no last season */
+  continuity: Continuity | null;
 }
 
 export interface SeasonTeams {
@@ -315,6 +318,7 @@ export interface ClubLine {
   totals: number[];
   opp: number[];
   standing: number;
+  continuity: Continuity | null;
 }
 
 export interface RosterLine {
@@ -341,6 +345,8 @@ export interface TeamSeason {
   live: boolean;
   /** EuroLeague seasons played since 2007-08, up to and including this one */
   elSeasons: number;
+  /** returning minutes (IDEAS #17); null with no roster list or no last season */
+  continuity: Continuity | null;
   fields: string[];
   totals: number[];
   opp: number[];
@@ -373,7 +379,7 @@ export function seasonShared(year: number): Promise<SeasonShared> {
     sharedCache.set(
       year,
       season(year, "teams").then((teams) => ({
-        clubs: teams.teams.map(({ code, name, w, l, totals, opp, standing }) => ({ code, name, w, l, totals, opp, standing })),
+        clubs: teams.teams.map(({ code, name, w, l, totals, opp, standing, continuity }) => ({ code, name, w, l, totals, opp, standing, continuity })),
         bands: teams.league.bands,
       })),
     );
@@ -435,6 +441,7 @@ export async function teamOwn(code: string, year: number): Promise<TeamOwn | nul
     playoff: row.playoff?.result ?? null,
     live: info?.live ?? false,
     elSeasons: row.el_seasons,
+    continuity: row.continuity,
     fields: teams.fields,
     totals: row.totals,
     opp: row.opp,

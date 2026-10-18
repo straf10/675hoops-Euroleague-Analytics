@@ -10,7 +10,9 @@ Layout (every number a raw total; the site derives per-game, per-36 and per-100 
 - ``seasons/{season}/players.json``: one row per player-season: totals for the season and for
   his last 5/10/20 games (a window is left out when he played no more games than it holds),
   and attempts/makes per distance band.
-- ``seasons/{season}/teams.json``: team and opponent totals, record, bands taken and allowed.
+- ``seasons/{season}/teams.json``: team and opponent totals, record, bands taken and allowed, and
+  each club's returning minutes (``continuity``: last season's seconds, the share still on the
+  roster, the top departures and returners; null with no roster list or no last season).
 - ``seasons/{season}/games.json``: the games and every player's game log.
 - ``seasons/{season}/shots.json``: hex bins for the league, each team (taken and allowed) and
   each player.
@@ -40,6 +42,7 @@ import pandas as pd
 from eurohoops.config import SITE_SEASONS
 from eurohoops.ingest.cache import read_cached
 from eurohoops.ingest.euroleague import RawGame
+from eurohoops.models.continuity import club_share, player_continuity, season_start_roster
 from eurohoops.parse.games import ATHENS, build_games_table, build_teams_table
 from eurohoops.standings import Result, rank
 from eurohoops.stats.achievements import achievements_payload
@@ -74,6 +77,8 @@ class Inputs:
     )  # id -> season -> G/F/C
     # game id -> top scoring runs per side (stats/runs.py); no entry without a cached play-by-play
     runs: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    # EuroLeague season roster lists (models/roster.py); None: no returning-minutes values
+    roster: pd.DataFrame | None = None
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -332,9 +337,49 @@ def clubs_payload(
     return sorted(clubs, key=lambda c: c["code"])
 
 
+def _continuity_by_club(season: int, inputs: Inputs) -> dict[str, dict[str, Any]]:
+    """Per source club code: last season's minutes, the share on this season's roster, and the
+    three biggest returning and departing players by last season's seconds (IDEAS #17).
+
+    Empty when there is no roster list for the season or no previous season.
+    """
+    if inputs.roster is None or not (inputs.roster["season"] == season).any():
+        return {}
+    players = player_continuity(
+        inputs.box.players, season_start_roster(inputs.roster, inputs.games, season), season
+    )
+    if players.empty:
+        return {}
+    lines = inputs.box.players[["player_id", "player"]].drop_duplicates("player_id", keep="last")
+    names = {str(pid): display_name(str(name)) for pid, name in lines.itertuples(index=False)}
+
+    def top(part: pd.DataFrame) -> list[dict[str, Any]]:
+        ranked = part.sort_values(["last_sec", "player_id"], ascending=[False, True]).head(3)
+        return [
+            {"id": str(pid), "name": names.get(str(pid), str(pid)), "sec": int(sec)}
+            for pid, sec in zip(ranked["player_id"], ranked["last_sec"], strict=True)
+        ]
+
+    out: dict[str, dict[str, Any]] = {}
+    clubs = club_share(players)
+    for team, last, returned, share in zip(
+        clubs["team"], clubs["last_sec"], clubs["returning_sec"], clubs["share"], strict=True
+    ):
+        mine = players[players["team"] == team]
+        out[str(team)] = {
+            "last_sec": int(last),
+            "returning_sec": int(returned),
+            "share": float(share),
+            "returning": top(mine[mine["returning"]]),
+            "departures": top(mine[~mine["returning"]]),
+        }
+    return out
+
+
 def _teams_payload(
     season: int, teams: pd.DataFrame, shots: pd.DataFrame, inputs: Inputs
 ) -> dict[str, Any]:
+    continuity = _continuity_by_club(season, inputs)
     table = teams.assign(gp=1)
     opp = table[["game_id", "team", *TEAM_FIELDS]].rename(columns={"team": "opponent"})
     paired = table.merge(
@@ -369,6 +414,7 @@ def _teams_payload(
                 ),
                 "bands": taken.get(code, zero),
                 "bands_allowed": allowed.get(code, zero),
+                "continuity": continuity.get(code),
             }
         )
     rows.sort(key=lambda r: (-r["w"], r["l"], r["code"]))

@@ -54,6 +54,7 @@ export const METRICS: Metric[] = [
   { key: "dreb", name: "Defensive rebound %", head: "DRB%", about: "Share of opponents' misses the club rebounded" },
   { key: "oftr", name: "Opponent free-throw rate", head: "Opp FT rate", about: "Opponent free throws made per 100 of their field-goal attempts" },
   { key: "otpar", name: "Opponent 3PA rate", head: "Opp 3PA rate", about: "Opponent three-point attempts per 100 of their field-goal attempts" },
+  { key: "returning", name: "Returning minutes", head: "Returning", about: "Share of last season's club minutes played by players on this season's roster" },
 ];
 
 /** The Metric select's groups, in the order they show. */
@@ -61,6 +62,7 @@ export const METRIC_GROUPS: { label: string; keys: string[] }[] = [
   { label: "Ratings and pace", keys: ["net", "ortg", "drtg", "pace"] },
   { label: "Shooting and turnovers", keys: ["efg", "tov", "oreb", "ftr", "tpar"] },
   { label: "Opponent", keys: ["oefg", "otov", "dreb", "oftr", "otpar"] },
+  { label: "Roster", keys: ["returning"] },
 ];
 
 export const DEFAULT_METRIC = "net";
