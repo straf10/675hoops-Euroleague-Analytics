@@ -108,7 +108,7 @@ export interface DatasetInput {
   /** ISO 8601 interval, e.g. "2026/2027". */
   temporalCoverage?: string;
   distribution: DownloadFile[];
-  /** Only when the repository grants a license; the default is none. */
+  /** A licence URL, or a terms-of-use URL when the data is not ours to license. */
   license?: string;
   /** The organization whose data this is, when it is not the site's own. */
   isBasedOn?: Ref;

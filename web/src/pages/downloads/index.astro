@@ -60,7 +60,9 @@ const CC_BY = "https://creativecommons.org/licenses/by/4.0/";
 const RAW = "https://raw.githubusercontent.com/straf10/675hoops-Euroleague-Analytics/main";
 
 // One Dataset per EuroLeague-derived dataset (games, team lines, ...), its files as DataDownloads.
-// No license: the statistics are Euroleague's, so they are credited to it and carry no licence of ours.
+// The statistics are Euroleague's and carry no licence of ours: `license` points to this page's
+// terms section, which says so (Google wants a licence or terms URL on every Dataset).
+const TERMS = abs(`${root}/downloads/#terms`);
 
 const DESCRIPTIONS: Record<string, string> = {
   games: "One row per EuroLeague game, one gzipped CSV file per season.",
@@ -79,6 +81,7 @@ const leagueDatasets: JsonLdObject[] = [...byDataset].map(([name, files]) => {
     siteUrl: abs(`${root}/`),
     dateModified: manifest!.built.slice(0, 10),
     temporalCoverage: `${Math.min(...seasons)}/${Math.max(...seasons) + 1}`,
+    license: TERMS,
     isBasedOn: EUROLEAGUE,
     creditText: EUROLEAGUE_CREDIT,
     distribution: files.map((f) => ({
@@ -208,7 +211,7 @@ const datasets: JsonLdObject[] = [...leagueDatasets, forecastLog];
     )
   }
 
-  <section class="wrap band" aria-labelledby="terms-title">
+  <section id="terms" class="wrap band" aria-labelledby="terms-title">
     <header class="sec-head">
       <h2 id="terms-title">Data sources and terms</h2>
     </header>
