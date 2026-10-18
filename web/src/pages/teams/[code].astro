@@ -9,6 +9,7 @@ import { defaultSeason, meta, teamIndex, teamSeason, type TeamIndexRow } from ".
 import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, teamBands, teamCharts } from "../../lib/team";
 import { plural, sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
+import InfoTip from "../../components/InfoTip.astro";
 import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
 import JsonLd from "../../components/JsonLd.astro";
@@ -142,7 +143,7 @@ const bandHead = [
         <span>Right is better on every row.</span>
         <span><i class="k-me" aria-hidden="true"></i><span id="t-code">{t.code}</span></span>
         <span><i class="k-avg" aria-hidden="true"></i>League average</span>
-        <span><i class="k-med" aria-hidden="true"></i>League median</span>
+        <span><i class="k-med" aria-hidden="true"></i>League median<InfoTip text={tip`<b>League median</b><br>The middle club: half the league is above it and half below. Unlike the average, one extreme club can't pull it up or down.`} /></span>
       </p>
     </header>
     <div class="ranks busy-fade seasonal">

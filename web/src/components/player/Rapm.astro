@@ -3,6 +3,8 @@
 // board has a row for him; below the minimum minutes he has the rating but no rank.
 import { seasonLabel, thousands, type RapmBoard, type RapmPlayer } from "../../lib/m6";
 import { signed } from "../../lib/format";
+import InfoTip from "../InfoTip.astro";
+import { intervalHint } from "../../lib/tip";
 
 interface Props {
   board: RapmBoard;
@@ -14,7 +16,9 @@ const [lo, hi] = row.ci90_total;
 ---
 
 <p class="rapm-line">{
-  `${seasonLabel(board.season)} RAPM: offense ${signed(row.o)}, defense ${signed(row.d)}, total ${signed(row.total)} (90% interval ${signed(lo)} to ${signed(hi)}). ${
+  `${seasonLabel(board.season)} RAPM: offense ${signed(row.o)}, defense ${signed(row.d)}, total ${signed(row.total)} (90% interval`
+}<InfoTip text={intervalHint(90)} />{
+  ` ${signed(lo)} to ${signed(hi)}). ${
     row.rank !== null
       ? `Rank ${row.rank} of ${ranked} with at least ${thousands(board.minimum_minutes)} minutes.`
       : `Not ranked: ${thousands(row.minutes)} minutes, under the ${thousands(board.minimum_minutes)} needed for a rank.`
