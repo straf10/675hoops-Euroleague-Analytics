@@ -34,6 +34,10 @@ S_GRID = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5)
 MIN_MINUTES = 500.0
 CRITERION_SEASONS = tuple(range(2010, 2022))  # s; target season s+1 in 2011..2022
 SUB_CODES = ("IN", "OUT", "AS")
+CREDIT_DEF = (
+    "event-only: dWP = WP(score after e, same clock) - WP(score before e, same clock) on the "
+    "baseline line with linear tip-off gap fade; time passage credits nobody"
+)
 RAPM_PATH = wp.ROOT / "reports" / "m3_players.json"
 VARIANTS = ("A_drafted", "B_plus_AS_before_make", "C_plus_pm2_or_same_clock", "D_all")
 
@@ -71,9 +75,10 @@ def box_players(d: wp.Data) -> pd.DataFrame:
                         sec,
                         float(pm) if pm is not None else np.nan,
                         int(p.get("Assistances") or 0),
+                        str(p.get("Player") or "").strip(),
                     )
                 )
-    return pd.DataFrame(rows, columns=["gid", "season", "pid", "team", "sec", "pm", "ast"])
+    return pd.DataFrame(rows, columns=["gid", "season", "pid", "team", "sec", "pm", "ast", "name"])
 
 
 def link_variants(EV: pd.DataFrame) -> pd.DataFrame:
@@ -177,7 +182,7 @@ def linkage_report(df: pd.DataFrame, box_team: pd.DataFrame) -> dict[str, Any]:
 
 
 def credits_base(d: wp.Data) -> pd.DataFrame:
-    """Per included play: WP-line change (x100, home perspective signed for the actor's team)."""
+    """Per included play: event-only WP change at the same clock, signed for the actor's team."""
     # Plays from 2007-2009 are not used: predictor seasons start in 2010, and the fold scale
     # for a season needs earlier seasons to fit on.
     EV = d.EV[d.EV["season"].isin(wp.EVAL_SEASONS)]
@@ -186,20 +191,23 @@ def credits_base(d: wp.Data) -> pd.DataFrame:
     gid = EV["gid"].to_numpy()
     season = EV["season"].to_numpy()
     diff = EV["gid"].map(G["diff"]).to_numpy(float)
-    p_pre = EV["gid"].map(G["p_pre"]).to_numpy(float)
     mu = diff / np.array([s_fold[int(s)] for s in season])
+    p_pre = EV["gid"].map(G["p_pre"]).to_numpy(float)
     g_gap = p_pre - ndtr(mu / 11.0)  # tip-off gap: P_pre minus the closed-form value at t=2400, m=0
     t = EV["t"].to_numpy(float)
-    m = EV["m"].to_numpy(float)
+    m_after = EV["m"].to_numpy(float)
+    # Score before a play = carried margin after the previous play in the game (0-0 at the start).
+    m_before = pd.Series(m_after).groupby(gid).shift(1).fillna(0.0).to_numpy()
     ot = EV["ot"].to_numpy(float)
     tf = t / 2400.0
     tf_gap = np.where(ot == 1, 0.0, tf)  # section 7 intent: the gap is gone in OT
-    base = ndtr((m + mu * tf) / (11.0 * np.sqrt(np.maximum(t, 60.0) / 2400.0)))
-    wp_line = np.clip(base + g_gap * tf_gap, 0.001, 0.999)
-    wp_prev = pd.Series(wp_line).groupby(gid).shift(1).to_numpy()
-    first = EV["pos"].to_numpy() == 0
-    wp_prev = np.where(first, p_pre, wp_prev)
-    dwp = wp_line - wp_prev
+
+    def line(mm: np.ndarray) -> np.ndarray:
+        # Same clock on both sides: time passage cancels, only the score change is credited.
+        base = ndtr((mm + mu * tf) / (11.0 * np.sqrt(np.maximum(t, 60.0) / 2400.0)))
+        return np.clip(base + g_gap * tf_gap, 0.001, 0.999)
+
+    dwp = line(m_after) - line(m_before)
     home_code = EV["gid"].map(G["home"]).to_numpy()
     sign = np.where(EV["team"].to_numpy() == home_code, 1.0, -1.0)
     out = pd.DataFrame(
@@ -429,6 +437,33 @@ def stage_measure(d: wp.Data, duck: duckdb.DuckDBPyConnection) -> None:  # noqa:
                 res[tname][pname] = {"pearson": pearson(x, y), "spearman": spearman(x, y)}
         return res
 
+    # Validity gate first: same-season WPA per 40 vs plus-minus per 40, S = 0 (pre-declared).
+    gate_point = pearson(point["wpa_0.0"], point["ref_pm"])
+    gate_rng = np.random.default_rng(SEED)
+    gate_boot = np.empty(N_BOOT)
+    for b in range(N_BOOT):
+        wg = np.bincount(gate_rng.integers(0, n_g, n_g), minlength=n_g).astype(float)
+        sg = sample_stats(wg)
+        gate_boot[b] = pearson(sg["wpa_0.0"], sg["ref_pm"])
+    gate_ci = [float(np.nanpercentile(gate_boot, 2.5)), float(np.nanpercentile(gate_boot, 97.5))]
+    gate = {
+        "same_season_pearson_wpa0_vs_pm40": gate_point,
+        "ci95": gate_ci,
+        "rule": "point > 0.3 and CI lower bound > 0",
+        "passed": bool(gate_point > 0.3 and gate_ci[0] > 0),
+        "sample_n": len(sidx),
+    }
+    if not gate["passed"]:
+        merge_report(
+            {
+                "credit_definition": CREDIT_DEF,
+                "validity_gate": gate,
+                "measure": {"stopped_at_gate": True, "validity_gate": gate},
+            }
+        )
+        print("VALIDITY GATE FAILED", gate)
+        return
+
     point_corr = corr_block(point)
     # Bootstrap over games: resample games with replacement, recompute aggregates.
     rng = np.random.default_rng(SEED)
@@ -500,6 +535,25 @@ def stage_measure(d: wp.Data, duck: duckdb.DuckDBPyConnection) -> None:  # noqa:
             },
         }
 
+    def top10(S: float) -> list[dict[str, Any]]:
+        wpa_tot = np.asarray(mats_wpa[S].sum(axis=0)).ravel()
+        table = keys.assign(wpa=wpa_tot, minutes=keys["min"].to_numpy())
+        table = table[(table["season"] == 2022) & (table["minutes"] >= 500)]
+        table = table.sort_values("wpa", ascending=False).head(10)
+        names = bx.drop_duplicates("pid").set_index("pid")["name"]
+        teams = bx.drop_duplicates(["pid", "season"]).set_index(["pid", "season"])["team"]
+        return [
+            {
+                "player": str(names.get(r.pid, r.pid)),
+                "pid": r.pid,
+                "team": str(teams.get((r.pid, r.season), "")),
+                "minutes": round(float(r.minutes), 1),
+                "wpa_total": round(float(r.wpa), 2),
+                "wpa_per40": round(40.0 * float(r.wpa) / float(r.minutes), 2),
+            }
+            for r in table.itertuples(index=False)
+        ]
+
     sanity = {
         "diag_point_vs_boot_mean": {
             "ref_pm_mean_point": float(np.mean(point["ref_pm"])),
@@ -513,6 +567,9 @@ def stage_measure(d: wp.Data, duck: duckdb.DuckDBPyConnection) -> None:  # noqa:
         "same_season_wpa0_vs_pm_spearman": spearman(point["wpa_0.0"], point["ref_pm"]),
     }
     result = {
+        "credit_definition": CREDIT_DEF,
+        "validity_gate": gate,
+        "face_validity_2022_top10": {"S_0.0": top10(0.0), f"S_{rec_S}": top10(rec_S)},
         "sanity_check": sanity,
         "criterion_predeclared_in": "docs/models/wp_prestudy.md (T1(c) criterion section)",
         "linkage_rule_used": chosen,

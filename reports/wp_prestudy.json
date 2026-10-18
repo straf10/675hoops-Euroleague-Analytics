@@ -1576,7 +1576,7 @@
       "chosen_rule": "D_all",
       "choice_rule": "highest team-game exact agreement with box-score assists"
     },
-    "measure": {
+    "measure_invalid_time_inclusive": {
       "sanity_check": {
         "diag_point_vs_boot_mean": {
           "ref_pm_mean_point": 2.5113160468217193,
@@ -1936,7 +1936,39 @@
         "unit": "game (whole games)",
         "note": "criterion sample fixed to observed >=500-min player-seasons; RAPM target fixed (not refit per resample)"
       },
-      "runtime_seconds_measure": 21.0
+      "runtime_seconds_measure": 21.0,
+      "label": "INVALID: time-inclusive credit (see docs/models/wp_prestudy.md)"
+    },
+    "credit_definition": "event-only: dWP = WP(score after e, same clock) - WP(score before e, same clock) on the baseline line with linear tip-off gap fade; time passage credits nobody",
+    "validity_gate": {
+      "same_season_pearson_wpa0_vs_pm40": -0.04884179474283469,
+      "ci95": [
+        -0.08750164229203367,
+        0.06323408371242344
+      ],
+      "rule": "point > 0.3 and CI lower bound > 0",
+      "passed": false,
+      "sample_n": 419
+    },
+    "measure": {
+      "stopped_at_gate": true,
+      "validity_gate": {
+        "same_season_pearson_wpa0_vs_pm40": -0.04884179474283469,
+        "ci95": [
+          -0.08750164229203367,
+          0.06323408371242344
+        ],
+        "rule": "point > 0.3 and CI lower bound > 0",
+        "passed": false,
+        "sample_n": 419
+      }
+    },
+    "diagnostic_after_gate_failed": {
+      "note": "Run after the gate failed; not part of the pre-declared criterion. Season-level sample: 2010-2021, >=500 box minutes in the season (n = 896).",
+      "raw_box_points_per40_vs_plusminus_per40_pearson": 0.127,
+      "raw_box_assists_per40_vs_plusminus_per40_pearson": 0.095,
+      "event_only_scoring_wpa_per40_vs_plusminus_per40_pearson": 0.029,
+      "same_season_gate_sample_n": 419
     }
   }
 }

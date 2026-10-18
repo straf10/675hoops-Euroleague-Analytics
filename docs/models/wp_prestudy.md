@@ -340,3 +340,25 @@ before any recomputation.
   score definition and the decision rule are unchanged from the criterion above.
 - **Face-validity list.** If the gate passes, the top 10 player-seasons by total WPA in 2022, for
   `S = 0` and for the recommended `S`, among players with at least 500 box minutes in 2022.
+
+
+### Gate result (event-only credit): FAILED. No split recommendation.
+
+- Same-season Pearson, WPA per 40 at S = 0 against plus-minus per 40: **−0.049**, bootstrap 95% CI
+  **[−0.088, 0.063]**, sample n = 419. The gate required point > 0.3 and CI lower bound > 0. It
+  fails on both counts.
+- As pre-declared, the run stopped at the gate. The S grid, the targets and the top-10 list were
+  not computed, and no split is recommended.
+- Diagnostic, run after the gate and not part of the criterion (season-level sample 2010–2021,
+  at least 500 box minutes in the season, n = 896): raw box points per 40 against plus-minus per
+  40 gives r = 0.127, assists per 40 give 0.095, and event-only scoring WPA per 40 gives 0.029.
+  So plus-minus is a weak same-season benchmark in this data, and even raw points reach only
+  about 0.13. The 0.3 threshold is above what the benchmark itself supports, so the gate is
+  unreachable with this outcome. Changing the threshold now would be a new protocol version.
+- The time-inclusive results above remain invalid. The event-only metric does not pass its own
+  validity gate, so it cannot be used to measure the split.
+
+**Next step (owner decision).** Either accept that the split cannot be measured from these data
+with plus-minus as the benchmark, or declare a different validity benchmark in a new protocol
+version. Candidate benchmarks are on-court net rating within season, or a team-adjusted
+plus-minus.
