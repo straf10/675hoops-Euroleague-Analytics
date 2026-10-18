@@ -11,6 +11,7 @@ import hashlib
 import io
 import json
 import os
+import zipfile
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -468,6 +469,50 @@ def test_downloads_window_follows_site_seasons(
     monkeypatch.setattr("eurohoops.stats.downloads.SITE_SEASONS", 1)
     manifest = json.loads(build_downloads(inputs, NOW)["manifest.json"])
     assert {e["season"] for e in manifest["files"]} == {2024}
+    assert [b["season"] for b in manifest["bundles"]] == [2024, None]
+
+
+def test_downloads_zip_bundles_hold_the_gzipped_files(inputs: Inputs) -> None:
+    out = build_downloads(inputs, NOW)
+    manifest = json.loads(out["manifest.json"])
+    files = manifest["files"]
+    bundles = {b["season"]: b for b in manifest["bundles"]}
+    assert list(bundles) == [2024, 2010, None]  # newest season first, all seasons last
+    for season in (2024, 2010):
+        bundle = bundles[season]
+        assert bundle["path"] == f"downloads/euroleague-{season}.zip"
+        members = {
+            f"{e['dataset']}-{season}.csv.gz": out[e["path"]]
+            for e in files
+            if e["season"] == season
+        }
+        assert len(members) == len(DATASETS)
+        with zipfile.ZipFile(io.BytesIO(out[bundle["path"]])) as archive:
+            assert archive.namelist() == sorted(members)
+            assert all(i.compress_type == zipfile.ZIP_STORED for i in archive.infolist())
+            assert {i.date_time for i in archive.infolist()} == {(1980, 1, 1, 0, 0, 0)}
+            for name, data in members.items():
+                assert archive.read(name) == data
+    everything = bundles[None]
+    assert everything["path"] == "downloads/euroleague-all-seasons.zip"
+    with zipfile.ZipFile(io.BytesIO(out[everything["path"]])) as archive:
+        assert archive.namelist() == sorted(f"{e['dataset']}-{e['season']}.csv.gz" for e in files)
+    for bundle in manifest["bundles"]:
+        data = out[bundle["path"]]
+        assert set(bundle) == {"season", "path", "bytes", "sha256"}
+        assert bundle["bytes"] == len(data)
+        assert bundle["sha256"] == hashlib.sha256(data).hexdigest()
+        assert zipfile.is_zipfile(io.BytesIO(data))
+
+
+def test_downloads_zips_are_byte_stable(inputs: Inputs, tmp_path: Path) -> None:
+    first, second = build_downloads(inputs, NOW), build_downloads(inputs, NOW)
+    for path in ("downloads/euroleague-2024.zip", "downloads/euroleague-all-seasons.zip"):
+        assert first[path] == second[path]
+    write_downloads(tmp_path, first)
+    assert (tmp_path / "euroleague-all-seasons.zip").read_bytes() == first[
+        "downloads/euroleague-all-seasons.zip"
+    ]
 
 
 def test_team_rows_carry_standing_playoff_and_club_seasons(

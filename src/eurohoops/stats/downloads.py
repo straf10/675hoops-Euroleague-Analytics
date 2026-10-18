@@ -7,13 +7,17 @@ their meanings are written; the schemas that check each frame and ``columns.json
 dictionary) both come from it. ``write_downloads`` replaces the directory's files.
 
 Files, relative to ``web/public/downloads``: ``<dataset>-<season>.csv.gz``, ``manifest.json``
-(``built`` and one entry per file with rows, bytes and sha256) and ``columns.json``.
+(``built``, one entry per file with rows, bytes and sha256, one ``bundles`` entry per zip),
+``columns.json``, and the zips: ``euroleague-<season>.zip`` (that season's four files) and
+``euroleague-all-seasons.zip`` (every file). The zips store the gzipped members as they are, with
+fixed timestamps and sorted members, so a rebuild writes the same bytes.
 """
 
 import gzip
 import hashlib
 import io
 import json
+import zipfile
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
@@ -210,8 +214,24 @@ def _json(payload: Mapping[str, Any]) -> bytes:
     return (json.dumps(payload, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
 
 
+ZIP_STAMP = (1980, 1, 1, 0, 0, 0)  # the zip format's earliest date: a fixed, reproducible stamp
+
+
+def _zip(members: Mapping[str, bytes]) -> bytes:
+    """A zip of the members, stored (they are gzipped already), sorted, with fixed metadata."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        for name in sorted(members):
+            info = zipfile.ZipInfo(name, date_time=ZIP_STAMP)
+            info.compress_type = zipfile.ZIP_STORED
+            info.create_system = 3  # unix, whatever platform builds it
+            info.external_attr = 0o644 << 16
+            archive.writestr(info, members[name])
+    return buffer.getvalue()
+
+
 def build_downloads(inputs: Inputs, now: datetime) -> dict[str, bytes]:
-    """Relative path (``downloads/...`` for CSVs, bare for the two JSON files) -> bytes."""
+    """Relative path (``downloads/...`` for CSVs and zips, bare for the two JSON files) -> bytes."""
     files: dict[str, bytes] = {}
     entries: list[dict[str, Any]] = []
     for name, frame in _frames(inputs).items():
@@ -231,12 +251,49 @@ def build_downloads(inputs: Inputs, now: datetime) -> dict[str, bytes]:
                 }
             )
     entries.sort(key=lambda e: (-e["season"], DATASETS.index(e["dataset"])))
-    files["manifest.json"] = _json({"built": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "files": entries})
+    zips, bundles = bundles_for(files, entries)
+    files.update(zips)
+    files["manifest.json"] = _json(
+        {"built": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "files": entries, "bundles": bundles}
+    )
     dictionary = {
         name: [{"name": c, "meaning": m} for c, _, m in cols] for name, cols in COLUMNS.items()
     }
     files["columns.json"] = _json({"datasets": dictionary})
     return files
+
+
+def bundles_for(
+    files: Mapping[str, bytes], entries: list[dict[str, Any]]
+) -> tuple[dict[str, bytes], list[dict[str, Any]]]:
+    """The zips (one per season, newest first, then all seasons) and their manifest entries.
+
+    ``entries`` are the manifest's file entries, in manifest order; ``files`` holds their bytes.
+    """
+    zips: dict[str, bytes] = {}
+    bundles: list[dict[str, Any]] = []
+    groups: list[tuple[int | None, list[dict[str, Any]]]] = [
+        (number, [e for e in entries if e["season"] == number])
+        for number in sorted({e["season"] for e in entries}, reverse=True)
+    ]
+    groups.append((None, entries))  # every season, last
+    for scope, members in groups:
+        path = (
+            f"downloads/euroleague-{scope}.zip"
+            if scope is not None
+            else "downloads/euroleague-all-seasons.zip"
+        )
+        data = _zip({Path(e["path"]).name: files[e["path"]] for e in members})
+        zips[path] = data
+        bundles.append(
+            {
+                "season": scope,
+                "path": path,
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        )
+    return zips, bundles
 
 
 def write_downloads(out_dir: Path, files: Mapping[str, bytes]) -> None:

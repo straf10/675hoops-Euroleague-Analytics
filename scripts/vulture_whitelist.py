@@ -257,3 +257,10 @@ Verdict.min_gap
 Verdict.ci_upper_below_zero
 Verdict.mean_at_most_min_gap
 Verdict.promote
+
+# zip members: the metadata set in stats/downloads.py is read by zipfile when it writes the archive
+from zipfile import ZipInfo  # noqa: E402
+
+ZipInfo.compress_type
+ZipInfo.create_system
+ZipInfo.external_attr

@@ -14,9 +14,16 @@ interface Entry {
   bytes: number;
   sha256: string;
 }
+interface Bundle {
+  season: number | null; // null: the zip with every season
+  path: string;
+  bytes: number;
+  sha256: string;
+}
 interface Manifest {
   built: string;
   files: Entry[];
+  bundles?: Bundle[];
 }
 interface Dictionary {
   datasets: Record<string, { name: string; meaning: string }[]>;
@@ -47,6 +54,11 @@ const season = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
 const size = (b: number) =>
   b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
 const built = manifest ? manifest.built.slice(0, 10) : "";
+// Newest season first; each season's files in dataset order, as the manifest lists them.
+const seasons = [...new Set((manifest?.files ?? []).map((f) => f.season))].sort((a, b) => b - a);
+const filesOf = (s: number) => (manifest?.files ?? []).filter((f) => f.season === s);
+const bundleOf = (s: number | null) => (manifest?.bundles ?? []).find((b) => b.season === s);
+const allZip = bundleOf(null);
 const description =
   "Download 6.75 Analytics EuroLeague data as CSV: games, team and player box scores and shots, one gzipped file per season.";
 
@@ -147,34 +159,54 @@ const datasets: JsonLdObject[] = [...leagueDatasets, forecastLog];
             </p>
             <p>Team codes are the ones shown on the site.</p>
           </header>
-          <div class="scroll">
-            <table class="grid">
-              <thead>
-                <tr>
-                  <th>Season</th>
-                  <th>Dataset</th>
-                  <th class="num">Rows</th>
-                  <th class="num">Size</th>
-                  <th>File</th>
-                </tr>
-              </thead>
-              <tbody>
-                {manifest.files.map((f) => (
-                  <tr>
-                    <td>{season(f.season)}</td>
-                    <td>{LABELS[f.dataset] ?? f.dataset}</td>
-                    <td class="num">{f.rows.toLocaleString("en-US")}</td>
-                    <td class="num">{size(f.bytes)}</td>
-                    <td>
-                      <a class="ink-link" href={`/${f.path}`} download title={`sha256 ${f.sha256}`}>
-                        {f.path.split("/").pop()}
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {allZip && (
+            <p class="all-zip">
+              <a class="ink-link" href={`/${allZip.path}`} download title={`sha256 ${allZip.sha256}`}>
+                All seasons (zip, {size(allZip.bytes)})
+              </a>
+            </p>
+          )}
+          {seasons.map((s) => {
+            const zip = bundleOf(s);
+            return (
+              <div class="season">
+                <div class="season-head">
+                  <h3>{season(s)}</h3>
+                  {zip && (
+                    <a class="ink-link" href={`/${zip.path}`} download title={`sha256 ${zip.sha256}`}>
+                      Download {season(s)} (zip, {size(zip.bytes)})
+                    </a>
+                  )}
+                </div>
+                <div class="scroll">
+                  <table class="grid">
+                    <thead>
+                      <tr>
+                        <th>Dataset</th>
+                        <th class="num">Rows</th>
+                        <th class="num">Size</th>
+                        <th>File</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filesOf(s).map((f) => (
+                        <tr>
+                          <td>{LABELS[f.dataset] ?? f.dataset}</td>
+                          <td class="num">{f.rows.toLocaleString("en-US")}</td>
+                          <td class="num">{size(f.bytes)}</td>
+                          <td>
+                            <a class="ink-link" href={`/${f.path}`} download title={`sha256 ${f.sha256}`}>
+                              {f.path.split("/").pop()}
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         <section class="wrap band" aria-labelledby="columns-title">
@@ -245,5 +277,24 @@ const datasets: JsonLdObject[] = [...leagueDatasets, forecastLog];
   .meaning {
     white-space: normal;
     color: var(--ink-2);
+  }
+  .all-zip {
+    margin: 0 0 8px;
+  }
+  .season {
+    margin-top: 28px;
+  }
+  .season-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin-bottom: 8px;
+  }
+  .season-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
   }
 </style>
