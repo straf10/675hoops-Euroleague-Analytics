@@ -112,6 +112,8 @@ that is the KenPom-style rating from §13, already built.
 
 ## 7. Game pages with in-game win probability — Do (flagship, large)
 
+Protocol draft: docs/models/wp.md
+
 What is needed:
 1. **In-game win probability model** (new). Features: score margin, seconds remaining, pre-game
    Elo difference (or pre-game P(home) from the published forecast), home, possession if

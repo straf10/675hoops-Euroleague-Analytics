@@ -33,6 +33,7 @@ class ModelName(StrEnum):
     m5 = "m5"
     m6 = "m6"
     m7 = "m7"
+    wp = "wp"
     pool = "pool"
 
 
