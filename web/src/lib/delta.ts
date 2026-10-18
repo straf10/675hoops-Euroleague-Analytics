@@ -7,10 +7,9 @@
 import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
 import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
 import { signed } from "./format";
+import type { BetterIs } from "./better";
 
-/** Which direction is good for the subject: "lower" for turnover rate and allowed measures,
- * "neither" for a style measure (usage, pace): the arrow then stays ink. */
-export type BetterIs = "higher" | "lower" | "neither";
+export type { BetterIs };
 
 export interface DeltaOptions {
   better?: BetterIs;

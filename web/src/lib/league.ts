@@ -2,19 +2,12 @@
 // players who play real minutes that season, and the season's top ten in each. Pure; built from
 // seasons/{season}/players.json at build time.
 
-import type { BetterIs } from "./delta";
+import { betterOf, type BetterIs } from "./better";
 import { BY_KEY, rated, type Measure } from "./players";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 
-/** The six metrics, in order. Usage is a style measure: its arrow stays ink. */
-export const KEY_METRICS: { key: string; better: BetterIs }[] = [
-  { key: "pts", better: "higher" },
-  { key: "reb", better: "higher" },
-  { key: "ast", better: "higher" },
-  { key: "ts", better: "higher" },
-  { key: "usg", better: "neither" },
-  { key: "pir", better: "higher" },
-];
+/** The six metrics, in order. Usage is a style measure (no better side, see `betterOf`). */
+export const KEY_METRICS: string[] = ["pts", "reb", "ast", "ts", "usg", "pir"];
 
 /** Minutes a game to be counted, and a quarter of the most games anyone played (the dashboard's rule). */
 export const FLOOR_MINUTES = 10;
@@ -74,7 +67,8 @@ export function leagueBoard(data: SeasonPlayers, id: string, topN = 10): LeagueB
   if (!pool.some((l) => l.row.id === id)) return null;
 
   const boards: MetricBoard[] = [];
-  for (const { key, better } of KEY_METRICS) {
+  for (const key of KEY_METRICS) {
+    const better = betterOf(key);
     const m = BY_KEY[key];
     const ranked = pool
       .filter((l) => m.qualifies?.(l.t) ?? true)

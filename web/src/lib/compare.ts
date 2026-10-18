@@ -2,6 +2,7 @@
 // measure is one row; its leader among the compared gets the orange dot. Pure functions shared by
 // the build and the browser.
 
+import { betterOf } from "./better";
 import { esc } from "./format";
 import { dataTip, tip } from "./tip";
 import { jerseySvg } from "./jersey";
@@ -69,7 +70,6 @@ const EXTRA: Record<string, Measure> = {
   }),
 };
 const measure = (key: string) => EXTRA[key] ?? BY_KEY[key];
-const LOWER_WINS = new Set(["tov"]);
 
 export const GROUPS: { name: string; keys: string[] }[] = [
   { name: "Playing time", keys: ["gp", "gs", "min"] },
@@ -125,7 +125,7 @@ export function grid(cols: Col[], rate: CRate): Grid {
       const m = measure(key);
       const vals = cols.map((c) => value(m, c.t, rate));
       const floors = cols.map((c, i) => vals[i] === null || (m.qualifies ? !m.qualifies(c.t) : false));
-      const sign = LOWER_WINS.has(key) ? -1 : 1;
+      const sign = betterOf(key) === "lower" ? -1 : 1;
       const placed = vals.map((v, i) => (floors[i] ? null : sign * (v as number)));
       const field = placed.filter((v): v is number => v !== null);
       const cells = cols.map((_, i) => {
