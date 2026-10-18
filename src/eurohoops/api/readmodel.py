@@ -46,6 +46,7 @@ from eurohoops.config import (
     COMPETITIONS,
     EUROLEAGUE,
     GBL,
+    GREEK_EL_CLUBS,
     LIVE_SEASON,
     M2_PLAYERS_REPORT,
     M3_PLAYERS_REPORT,
@@ -66,7 +67,7 @@ from eurohoops.live_m6 import person_names
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.marts import data_volume, read_games, read_table, read_teams
 from eurohoops.models.board import LABELS
-from eurohoops.models.elo import prepare, season_ratings
+from eurohoops.models.elo import prepare, season_ratings, win_probability
 from eurohoops.models.player_seasons import (
     COUNT_COLUMNS,
     COUNT_STATS,
@@ -76,6 +77,7 @@ from eurohoops.models.player_seasons import (
     rate_table,
     read_xwalk_file,
 )
+from eurohoops.models.rest import rest_features
 from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
@@ -676,25 +678,95 @@ def _four_factors(lines: pd.DataFrame, team: str, season: int) -> dict[str, Any]
     }
 
 
-def _schedule_strength(store: Store, comp: Competition, team: str, season: int) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "rating": "Elo as published, end of the replay through the season; mean over the team's "
-        "scheduled games (played and remaining)",
+SCHEDULE_NEXT = 5
+SCHEDULE_RATING = (
+    "Elo as published, end of the replay through the season. Each opponent is venue-adjusted: "
+    "its rating minus the home-court advantage when the team is at home, plus it when away. "
+    "The average team is the mean rating of the season's clubs, at the same venue as the team."
+)
+
+
+def _schedule_rest(store: Store, comp: Competition) -> dict[tuple[str, str], float]:
+    """Days of rest (``rest.py``) of each side of every game in the mart, both competitions.
+
+    The schedule counts as history here (every row is treated as played), so a fixture's rest is
+    the days since the previous fixture, whether or not that game has been played yet."""
+
+    def make() -> dict[tuple[str, str], float]:
+        games = _games(store, comp)
+        if comp.name == "euroleague":
+            club_map = dict(GREEK_EL_CLUBS)
+            other = _games(store, COMPETITIONS["gbl"])
+        else:
+            club_map = {el: gbl for gbl, el in GREEK_EL_CLUBS.items()}
+            other = _games(store, EUROLEAGUE)
+        long = rest_features(games.assign(played=True), other.assign(played=True), club_map)
+        return {
+            (str(g), str(t)): float(d)
+            for g, t, d in zip(long["game_id"], long["team"], long["days_rest"], strict=True)
+        }
+
+    return store.memo(f"schedule_rest:{comp.name}", make)
+
+
+def _strength_block(
+    games: pd.DataFrame,
+    team: str,
+    ratings: Mapping[str, tuple[float, float]],
+    hca: float,
+    rest: Mapping[tuple[str, str], float],
+) -> dict[str, Any]:
+    """Opponent strength of ``team`` over ``games`` (its rows, in tip-off order, not empty)."""
+    at_home = games["home"].eq(team).to_numpy()
+    opponents = [str(o) for o in np.where(at_home, games["away"], games["home"])]
+    rating = np.array([ratings[o][0] for o in opponents], dtype=float)
+    adjusted = rating - np.where(at_home, 1.0, -1.0) * hca
+    average = float(np.mean([r for r, _ in ratings.values()]))
+    game_ids = [str(g) for g in games["game_id"]]
+    return {
+        "games": len(games),
+        "home": int(at_home.sum()),
+        "away": int((~at_home).sum()),
+        "mean_opponent_elo": float(rating.mean()),
+        "mean_opponent_elo_adjusted": float(adjusted.mean()),
+        "average_team_win_pct": float(np.mean([win_probability(average - a) for a in adjusted])),
+        "rest_days": float(np.mean([rest[(g, team)] for g in game_ids])),
+        "opponent_rest_days": float(
+            np.mean([rest[(g, o)] for g, o in zip(game_ids, opponents, strict=True)])
+        ),
+        "reason": None,
     }
+
+
+def _schedule_strength(store: Store, comp: Competition, team: str, season: int) -> dict[str, Any]:
+    """The team's opponents in ``season``: the games played so far, the games left, and the next
+    few (``SCHEDULE_NEXT``). Each block is empty, with a reason, when it has no games."""
+    out: dict[str, Any] = {"rating": SCHEDULE_RATING, "next": SCHEDULE_NEXT}
     try:
         ratings = _elo(store, comp, season)
+        hca = _live_model(store, comp).params.hca
         games = _games(store, comp)
+        rest = _schedule_rest(store, comp)
     except NotFound as missing:
-        return {"value": None, "reason": missing.reason, **out}
+        empty = {"games": 0, "reason": missing.reason}
+        return {**out, "played": empty, "remaining": empty, "next5": empty}
     mine = games[(games["season"] == season) & ((games["home"] == team) | (games["away"] == team))]
-    opponents = [a if h == team else h for h, a in zip(mine["home"], mine["away"], strict=True)]
-    if not opponents:
-        return {"value": None, "reason": f"no scheduled games in {season}", **out}
+    mine = mine.sort_values("tipoff_utc", kind="stable")
+    done = mine[mine["played"].astype(bool)]
+    left = mine[~mine["played"].astype(bool)]
+
+    def block(frame: pd.DataFrame, reason: str) -> dict[str, Any]:
+        if mine.empty:
+            return {"games": 0, "reason": f"no scheduled games in {season}"}
+        if frame.empty:
+            return {"games": 0, "reason": reason}
+        return _strength_block(frame, team, ratings, hca, rest)
+
     return {
-        "value": float(np.mean([ratings[o][0] for o in opponents])),
-        "reason": None,
-        "games": len(opponents),
         **out,
+        "played": block(done, "no games played yet"),
+        "remaining": block(left, "no games left to play"),
+        "next5": block(left.head(SCHEDULE_NEXT), "no games left to play"),
     }
 
 

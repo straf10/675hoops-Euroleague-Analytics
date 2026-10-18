@@ -1,0 +1,82 @@
+---
+// The Schedule tab's strength blocks: opponents played so far, the games left, and the next few.
+// Figures come from the API's schedule_strength (lib/strength.ts); each block is built at build time.
+import { days, elo, venueLine, winPct, type Strength, type StrengthBlock } from "../../lib/strength";
+import { plural } from "../../lib/live";
+import { tip } from "../../lib/tip";
+
+interface Props {
+  strength: Strength;
+}
+
+const { strength } = Astro.props;
+const next = strength.next ?? 5;
+const blocks: { title: string; about: string; block: StrengthBlock }[] = [
+  {
+    title: "Opponents played so far",
+    about: "The games already played this season.",
+    block: strength.played,
+  },
+  {
+    title: "Upcoming schedule",
+    about: "All the games still to play this season.",
+    block: strength.remaining,
+  },
+  {
+    title: `Next ${next}`,
+    about: `The next ${next} games still to play, in tip-off order.`,
+    block: strength.next5,
+  },
+];
+---
+
+<div class="strength-grid">
+  {
+    blocks.map(({ title, about, block }) => (
+      <section class="strength-block" aria-labelledby={`strength-${title.replace(/\W+/g, "-").toLowerCase()}`}>
+        <h3 id={`strength-${title.replace(/\W+/g, "-").toLowerCase()}`} data-tip={tip`<b>${title}</b><br>${about}`} tabindex="0">
+          {title}
+        </h3>
+        {block.games === 0 ? (
+          <p class="muted">{block.reason ?? "No games."}</p>
+        ) : (
+          <>
+            <p class="strength-main">
+              An average team would win <b>{winPct(block.average_team_win_pct ?? 0)}</b> of these{" "}
+              {plural(block.games, "game")}.
+            </p>
+            <p class="strength-secondary">
+              Mean opponent Elo <b>{elo(block.mean_opponent_elo ?? 0)}</b>, venue-adjusted{" "}
+              <b>{elo(block.mean_opponent_elo_adjusted ?? 0)}</b>.
+            </p>
+            <p class="muted">
+              {venueLine(block)}. Rest {days(block.rest_days ?? 0)} days, opponents{" "}
+              {days(block.opponent_rest_days ?? 0)} days.
+            </p>
+          </>
+        )}
+      </section>
+    ))
+  }
+</div>
+
+<style>
+  .strength-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 760px) {
+    .strength-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .strength-block h3 {
+    font-size: 1rem;
+    margin: 0 0 0.4rem;
+  }
+  .strength-main,
+  .strength-secondary {
+    margin: 0.25rem 0;
+  }
+</style>

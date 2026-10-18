@@ -28,9 +28,40 @@
   }
  },
  "schedule_strength": {
-  "value": 1578.4,
-  "reason": null,
-  "games": 34,
-  "rating": "Elo as published, end of the replay through the season; mean over the team's scheduled games (played and remaining)"
+  "rating": "Elo as published, end of the replay through the season. Each opponent is venue-adjusted: its rating minus the home-court advantage when the team is at home, plus it when away. The average team is the mean rating of the season's clubs, at the same venue as the team.",
+  "next": 5,
+  "played": {
+   "games": 5,
+   "home": 3,
+   "away": 2,
+   "mean_opponent_elo": 1490.817094384794,
+   "mean_opponent_elo_adjusted": 1472.817094384794,
+   "average_team_win_pct": 0.5441560678877883,
+   "rest_days": 5.1875,
+   "opponent_rest_days": 5.211805555555555,
+   "reason": null
+  },
+  "remaining": {
+   "games": 33,
+   "home": 16,
+   "away": 17,
+   "mean_opponent_elo": 1506.8258813297832,
+   "mean_opponent_elo_adjusted": 1509.5531540570557,
+   "average_team_win_pct": 0.49538121239573935,
+   "rest_days": 4.96601430976431,
+   "opponent_rest_days": 5.125841750841752,
+   "reason": null
+  },
+  "next5": {
+   "games": 5,
+   "home": 2,
+   "away": 3,
+   "mean_opponent_elo": 1536.4952799643129,
+   "mean_opponent_elo_adjusted": 1554.4952799643129,
+   "average_team_win_pct": 0.43145822007532414,
+   "rest_days": 4.595833333333333,
+   "opponent_rest_days": 4.820833333333333,
+   "reason": null
+  }
  }
 }
