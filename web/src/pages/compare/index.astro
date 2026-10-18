@@ -4,25 +4,12 @@ import x from "@phosphor-icons/core/assets/regular/x.svg?raw";
 import Base from "../../layouts/Base.astro";
 import { MAX, RATES } from "../../lib/compare";
 import { PRESETS, presetHref, usablePresets } from "../../lib/compare_presets";
-import { entries, rank, seasonLabel } from "../../lib/leaders";
-import { cardData, leaderPool, meta } from "../../lib/stats";
+import { seasonLabel } from "../../lib/leaders";
+import { cardData, meta } from "../../lib/stats";
 import "../../styles/stats.css";
 
 const m = await meta();
 const base = import.meta.env.BASE_URL;
-const root = base.replace(/\/$/, "");
-// Starting points for an empty page: the five career leaders on PIR and on points.
-const career = m ? await leaderPool("career") : null;
-const tops = (stat: string) =>
-  career
-    ? rank(entries(career), { scope: "career", season: 0, stat, mode: "game", club: "" }, career.most)
-        .slice(0, 5)
-        .map((r) => r.e)
-    : [];
-const starts = [
-  { label: "The five best careers on PIR", five: tops("pir") },
-  { label: "The five best career scorers", five: tops("pts") },
-];
 // Curated sets: a preset is dropped (with a build warning) when a slug or season is not in the data.
 const known = new Map<string, { name: string; seasons: number[] } | null>();
 for (const p of PRESETS)
@@ -118,19 +105,8 @@ const description = "Up to five EuroLeague players side by side, a season each o
         </script>
         <div class="empty" id="empty">
           <p>Add a player by name, or start from one of these:</p>
-          <ul>
-            {starts.map((s) => (
-              <li>
-                <a class="ink-link" href={`${root}/compare/?scope=career&p=${s.five.map((e) => e.slug).join(",")}`}>
-                  {s.label}
-                </a>
-                <span>{s.five.map((e) => e.name).join(", ")}</span>
-              </li>
-            ))}
-          </ul>
           {presets.length > 0 && (
             <>
-              <p class="presets-lead">Or one of these curated comparisons:</p>
               <ul class="presets" id="presets">
                 {presets.map((p, i) => (
                   <li hidden={i > 2}>
@@ -379,9 +355,6 @@ const description = "Up to five EuroLeague players side by side, a season each o
     font-size: 0.8125rem;
   }
 
-  .presets-lead {
-    margin: 22px 0 0;
-  }
   :global(html[data-picks]) .empty {
     visibility: hidden;
     min-height: 100dvh;
