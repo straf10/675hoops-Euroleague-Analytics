@@ -138,3 +138,57 @@ export function zoneRowsHtml(file: ClubShots, side: ClubSide, picked: ReadonlySe
     );
   }).join("");
 }
+
+/** The dots in the picked zones; every dot when none is picked. The player page's chips use it. */
+export function zoneDots(dots: number[], picked: ReadonlySet<Zone>): number[] {
+  if (picked.size === 0) return dots;
+  const out: number[] = [];
+  for (let i = 0; i < dots.length; i += 4)
+    if (picked.has(zoneOf(dots[i], dots[i + 1]))) out.push(dots[i], dots[i + 1], dots[i + 2], dots[i + 3]);
+  return out;
+}
+
+/** The attempts the 2PT / 3PT switch keeps: all, two-pointers ("2") or threes ("3"). Flat dots. */
+export function pointsFilter(dots: number[], kind: "all" | "2" | "3"): number[] {
+  if (kind === "all") return dots;
+  const want = kind === "3" ? 1 : 0;
+  const out: number[] = [];
+  for (let i = 0; i < dots.length; i += 4) if (dots[i + 3] === want) out.push(dots[i], dots[i + 1], dots[i + 2], dots[i + 3]);
+  return out;
+}
+
+/** For a heatmap square whose centre is (x, y) in court metres (x sideways, y from the basket): lit when
+ * no zone is picked, or when the square's centre falls in a picked zone. Other squares are dimmed. */
+export function zoneLit(picked: ReadonlySet<Zone>): (x: number, y: number) => boolean {
+  if (picked.size === 0) return () => true;
+  return (x, y) => picked.has(zoneOf(x * 100, y * 100));
+}
+
+/** The picked zones' attempts and makes, against all the attempts passed in (flat dots, already filtered
+ * by the 2PT / 3PT switch). */
+export function zoneSummary(dots: number[], picked: ReadonlySet<Zone>): { total: number; att: number; made: number } {
+  let total = 0;
+  let att = 0;
+  let made = 0;
+  for (let i = 0; i < dots.length; i += 4) {
+    total++;
+    if (picked.size === 0 || picked.has(zoneOf(dots[i], dots[i + 1]))) {
+      att++;
+      made += dots[i + 2];
+    }
+  }
+  return { total, att, made };
+}
+
+/** "At the rim and Paint: 12.3% of his attempts, 4 of 9 made (44.4%)" for the picked zones. Empty when none is
+ * picked. Labels come from ZONES, in the chips' order. */
+export function zoneLineText(dots: number[], picked: ReadonlySet<Zone>): string {
+  if (picked.size === 0) return "";
+  const { total, att, made } = zoneSummary(dots, picked);
+  const names = ZONES.filter(([z]) => picked.has(z)).map(([, label]) => label);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+  if (!att) return `${list}: no attempts from here.`;
+  const share = ((100 * att) / total).toFixed(1);
+  const fg = ((100 * made) / att).toFixed(1);
+  return `${list}: ${share}% of his attempts, ${made} of ${att} made (${fg}%).`;
+}

@@ -178,6 +178,7 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
   import { bandsHtml, logHtml, qualityChart, qualityStripHtml, unpackPlayer, type PackedPlayer } from "../../lib/player";
   import { countLine, dotLabel, markChart, type ShotFilter } from "../../lib/shotmarks";
   import { freqHeat, peakShots } from "../../lib/heat";
+  import { pointsFilter, zoneDots, zoneLineText, zoneLit, type Zone } from "../../lib/zones";
   import type { Bands, PlayerData } from "../../lib/stats";
 
   const root = document.getElementById("pdata");
@@ -206,17 +207,42 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
       document.querySelector<HTMLInputElement>('input[name="shot-view"]:checked')?.value === "dots"
         ? ((document.querySelector<HTMLInputElement>('input[name="shot-filter"]:checked')?.value as ShotFilter | undefined) ?? "all")
         : "all";
-    const drawDots = (s: PlayerData["seasons"][number]) => {
-      const f = shotFilter();
-      html("court-dots", markChart(s.dots, dotLabel(s.label, s.dots, f), f));
+    // Zone chips (multi-select; none picked = all) narrow the attempts, and dim the heatmap squares outside
+    // the picked zones. The 2PT / 3PT switch narrows the same attempts (AND). Every shot view redraws together.
+    const picked = new Set<Zone>();
+    const drawShots = (s: PlayerData["seasons"][number]) => {
+      const all = pointsFilter(s.dots, shotFilter());
+      const dots = zoneDots(all, picked);
+      const lit = zoneLit(picked);
+      html("court-dots", markChart(dots, dotLabel(s.label, dots)));
+      html("court-freq", freqHeat(s.hex, Number(radius), `${s.label} shot frequency: ${countLine(s.dots)}`, lit));
+      html("court-quality", qualityChart(s, Number(radius), lit));
       const count = document.querySelector<HTMLElement>('[data-f="count"]');
-      if (count) count.textContent = countLine(s.dots, f);
+      if (count) count.textContent = countLine(dots);
+      const zone = document.querySelector<HTMLElement>('[data-f="zone"]');
+      if (zone) {
+        zone.textContent = zoneLineText(all, picked);
+        zone.hidden = picked.size === 0;
+      }
     };
+    document.querySelectorAll<HTMLButtonElement>("#shots .chip").forEach((chip) =>
+      chip.addEventListener("click", async () => {
+        const z = chip.dataset.zone as Zone | "";
+        if (!z) picked.clear();
+        else if (picked.has(z)) picked.delete(z);
+        else picked.add(z);
+        document.querySelectorAll<HTMLButtonElement>("#shots .chip").forEach((c) =>
+          c.setAttribute("aria-pressed", String(c.dataset.zone ? picked.has(c.dataset.zone as Zone) : picked.size === 0)),
+        );
+        const s = (await load()).seasons.find((x) => x.season === shotYear);
+        if (s) drawShots(s);
+      }),
+    );
     document.addEventListener("change", async (e) => {
       const input = e.target as HTMLInputElement;
       if (input.name === "shot-filter" || input.name === "shot-view") {
         const s = (await load()).seasons.find((x) => x.season === shotYear);
-        if (s) drawDots(s);
+        if (s) drawShots(s);
         return;
       }
       const select = e.target as HTMLSelectElement;
@@ -243,9 +269,7 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
         if (target === "shots") {
           s.leagueBands = bands!;
           shotYear = year;
-          drawDots(s);
-          html("court-freq", freqHeat(s.hex, Number(radius), `${s.label} shot frequency: ${countLine(s.dots)}`));
-          html("court-quality", qualityChart(s, Number(radius)));
+          drawShots(s);
           const peak = document.querySelector<HTMLElement>('[data-f="peak"]');
           if (peak) peak.textContent = String(peakShots(s.hex, Number(radius)));
           html("bands", bandsHtml(s, up, down));

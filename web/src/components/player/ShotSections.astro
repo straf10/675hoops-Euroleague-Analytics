@@ -6,6 +6,7 @@ import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
 import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
 import ProjectionShotMaking from "../ProjectionShotMaking.astro";
+import ZoneChips from "./ZoneChips.astro";
 import { GROUPS, colsHtml } from "../../lib/cols";
 import { bandsHtml, qualityChart, qualityStripHtml } from "../../lib/player";
 import { countLine, dotLabel, markChart } from "../../lib/shotmarks";
@@ -68,6 +69,7 @@ const s = shotSeason;
           }
         </div>
       </header>
+      <ZoneChips />
       <div class="shots busy-fade">
         <figure class="chart-box shot-main">
           <div id="court-dots" class="v-dots" set:html={markChart(s.dots, dotLabel(s.label, s.dots))} />
@@ -102,6 +104,8 @@ const s = shotSeason;
             <span>Points per shot against the league's from the same spot. The more orange, the worse he shoots there than the league; the more teal, the better.</span>
           </div>
           <p class="note" data-f="count">{countLine(s.dots)}</p>
+          <p class="note" data-f="zone" hidden></p>
+
           <p class="note" data-f="approx" hidden={s.validated}>Shot locations before 2011-12 are approximate.</p>
         </figure>
       </div>

@@ -1,0 +1,45 @@
+---
+// Shot zone chips for the player page's shot charts: the same chips and look as the team page's Shot
+// attempts tab (multi-select; All clears the pick). The page script reads data-zone and aria-pressed.
+import { ZONES } from "../../lib/zones";
+---
+
+<div class="chips" role="group" aria-label="Shot zones">
+  <button type="button" class="chip" data-zone="" aria-pressed="true">All</button>
+  {
+    ZONES.map(([zone, label]) => (
+      <button type="button" class="chip" data-zone={zone} aria-pressed="false">
+        {label}
+      </button>
+    ))
+  }
+</div>
+
+<style>
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 20px 0 0;
+  }
+  .chip {
+    appearance: none;
+    padding: 4px 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+  .chip[aria-pressed="true"] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+  .chip:focus-visible {
+    outline: 2px solid var(--data-1);
+    outline-offset: 2px;
+  }
+</style>

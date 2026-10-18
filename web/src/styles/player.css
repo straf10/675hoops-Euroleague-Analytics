@@ -152,8 +152,19 @@
   align-items: center;
   gap: 6px 8px;
 }
-.lg-graph .key .swatch + span {
-  margin-right: 10px;
+/* Legend items: the swatch and its label sit in a gap of their own, and the items are spaced apart,
+   so the average's vertical bar never touches the words either side of it. */
+.lg-graph .lg-key {
+  column-gap: 18px;
+}
+.lg-key .key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+/* The Him swatch is his dots' colour: the club colour (--make), as on the rail. */
+.lg-key .swatch.dot {
+  background: var(--make, var(--hi));
 }
 .swatch {
   display: inline-block;
