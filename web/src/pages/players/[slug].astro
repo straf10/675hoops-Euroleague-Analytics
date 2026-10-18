@@ -6,13 +6,11 @@ import "../../styles/player.css";
 import { teamHref as linkTeam } from "../../lib/players";
 import { perGame, totalsOf, ts, type Totals } from "../../lib/player";
 import { meta, onOffData, playerData, playerIndex, season, type PlayerIndexRow } from "../../lib/stats";
-import { displayCode, playerM6, playerSlugs, rapmBoard } from "../../lib/m6";
+import { playerM6, rapmBoard } from "../../lib/m6";
 import { leagueBoard } from "../../lib/league";
 import { clutchView, onOffView } from "../../lib/onoff";
-import { seasonEndFor } from "../../lib/season_end_page";
 import { analysisSeason } from "../../lib/analysis";
 import { position } from "../../lib/position";
-import Comparables from "../../components/Comparables.astro";
 import ProjectionImpact from "../../components/ProjectionImpact.astro";
 import Rapm from "../../components/player/Rapm.astro";
 import Strip from "../../components/player/Strip.astro";
@@ -21,7 +19,6 @@ import Form from "../../components/player/Form.astro";
 import ShotSections from "../../components/player/ShotSections.astro";
 import OnOff from "../../components/player/OnOff.astro";
 import Clutch from "../../components/player/Clutch.astro";
-import SeasonEnd from "../../components/player/SeasonEnd.astro";
 import Seasons from "../../components/player/Seasons.astro";
 import JsonLd from "../../components/JsonLd.astro";
 import { person } from "../../lib/jsonld";
@@ -37,7 +34,6 @@ const m6 = await playerM6(p.id);
 // EuroLeague RAPM of the latest rated season (the board holds EuroLeague players only).
 const rapm = await rapmBoard();
 const rapmRow = rapm?.players.find((r) => r.person_id === `P:${p.id}`) ?? null;
-const slugs = await playerSlugs();
 const seasons = data.seasons;
 const latest = seasons[seasons.length - 1];
 const withShots = seasons.filter((s) => s.hex.length > 0);
@@ -75,22 +71,10 @@ const stints = onoff?.seasons.includes(analysis.season) ? onoff.players[p.id]?.[
 const onOff = stints ? onOffView(stints) : null;
 const clutch = stints ? clutchView(stints) : null;
 
-// 7. Season-end projection: only for the live season, and only with an M6 projection
 const live = m.seasons.find((s) => s.live);
 // A player in the live season has a share card, and his schema.org affiliation is his current clubs.
 const current = live !== undefined && latest.season === live.season;
 const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, height: 1350 } : undefined;
-const projection = m6.projection;
-const proj = projection?.projections[0];
-const end =
-  live && projection && proj && projection.season === live.season
-    ? await seasonEndFor({
-        live: live.season,
-        per100: proj.stats.pts?.mean ?? 0,
-        fallbackTeam: displayCode(proj.competition, proj.team),
-        rows: seasons,
-      })
-    : null;
 ---
 
 <Base title={data.name} description={description} current="players" image={card}>
@@ -163,10 +147,6 @@ const end =
       <Clutch clutch={clutch} label={analysis.label} minutes={Math.round(onoff.clutch.last_seconds / 60)} margin={onoff.clutch.margin} />
     )
   }
-
-  {end && projection && <SeasonEnd end={end.figures} report={projection} gamesPlayed={end.gamesPlayed} total={end.total} />}
-
-  <Comparables report={m6.similar} name={data.name} slugs={slugs} base={base} />
 
   {
     (m6.projection || m6.index || (rapm && rapmRow)) && (

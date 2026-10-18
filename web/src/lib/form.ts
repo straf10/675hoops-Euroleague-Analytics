@@ -20,7 +20,7 @@ export interface FormGame {
 }
 
 /** The latest `n` games, oldest first. */
-export function recentGames(s: PlayerSeason, n = 10): FormGame[] {
+export function recentGames(s: PlayerSeason, n = 5): FormGame[] {
   const at = (name: string) => s.logFields.indexOf(name);
   const g = (name: string) => s.gameFields.indexOf(name);
   return s.log.slice(-n).map((line) => {

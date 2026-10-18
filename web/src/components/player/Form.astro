@@ -1,9 +1,9 @@
 ---
-// Form: his last ten games as a trend of points and a table, with the full log folded below.
+// Form: his last five games as a trend of points, with the full log folded below.
 import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import LogTable from "./LogTable.astro";
-import { logHtml, perGame, totalsOf } from "../../lib/player";
-import { mean, recentGames, trendHtml } from "../../lib/form";
+import { logHtml, totalsOf } from "../../lib/player";
+import { recentGames, trendHtml } from "../../lib/form";
 import type { PlayerSeason } from "../../lib/stats";
 
 interface Props {
@@ -12,15 +12,9 @@ interface Props {
   options: { value: number; label: string; selected: boolean }[];
 }
 const { season, options } = Astro.props;
-const games = recentGames(season, 10);
+const games = recentGames(season, 5);
 const t = totalsOf(season.fields, season.totals);
 const seasonAvg = t.gp ? t.pts / t.gp : 0;
-const cells: [string, (g: (typeof games)[number]) => number, string][] = [
-  ["PTS", (g) => g.pts, perGame(t, t.pts)],
-  ["REB", (g) => g.reb, perGame(t, t.oreb + t.dreb)],
-  ["AST", (g) => g.ast, perGame(t, t.ast)],
-  ["PIR", (g) => g.pir, perGame(t, t.pir)],
-];
 ---
 
 {
@@ -32,33 +26,12 @@ const cells: [string, (g: (typeof games)[number]) => number, string][] = [
           His last {games.length} game{games.length === 1 ? "" : "s"} in {season.label}, oldest to newest. Bars are points; the dashed line is his season average.
         </p>
       </header>
-      <div class="form-top">
-        <figure class="form-trend">
-          <Fragment set:html={trendHtml(games, seasonAvg)} />
-          <figcaption class="sr-only">Points in each of his last {games.length} games</figcaption>
-        </figure>
-        <table class="form-avg grid">
-          <caption class="sr-only">Last {games.length} games against the season, per game</caption>
-          <thead>
-            <tr>
-              <th scope="col"></th>
-              {cells.map(([head]) => <th scope="col" class="num">{head}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Last {games.length}</th>
-              {cells.map(([, pick]) => <td class="num strong">{mean(games.map(pick)).toFixed(1)}</td>)}
-            </tr>
-            <tr>
-              <th scope="row">Season</th>
-              {cells.map(([, , all]) => <td class="num">{all}</td>)}
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <figure class="form-trend">
+        <Fragment set:html={trendHtml(games, seasonAvg)} />
+        <figcaption class="sr-only">Points in each of his last {games.length} games</figcaption>
+      </figure>
       <div class="log-recent">
-        <LogTable rows={logHtml(season, 10)} name="fc" />
+        <LogTable rows={logHtml(season, 5)} name="fc" />
       </div>
       <details class="more" id="full-log" data-view-root>
         <summary>

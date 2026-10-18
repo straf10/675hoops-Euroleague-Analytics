@@ -240,15 +240,8 @@
 }
 
 /* Form */
-.form-top {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 24px 56px;
-  align-items: end;
-  margin-bottom: 28px;
-}
 .form-trend {
-  margin: 0;
+  margin: 0 0 28px;
   min-width: 0;
 }
 .trend {
@@ -315,13 +308,6 @@
   height: calc(var(--h) * var(--plot));
   border-radius: 4px 4px 0 0;
   background: var(--data-1);
-}
-.form-avg {
-  max-width: 24rem;
-}
-.form-avg td.strong {
-  color: var(--ink);
-  font-weight: 600;
 }
 .log-recent {
   margin-top: 8px;
@@ -488,7 +474,6 @@
 
 @media (max-width: 980px) {
   .lg,
-  .form-top,
   .quality {
     grid-template-columns: minmax(0, 1fr);
   }
