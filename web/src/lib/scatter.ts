@@ -57,6 +57,8 @@ interface Frame {
   ys: Scale;
   /** whether a higher value on the y axis sits higher on the page (false: the defensive axis, lower is up) */
   highUp: boolean;
+  /** short corner notes inside the plot saying which way is better: x sits bottom right, y top left */
+  notes?: { x?: string; y?: string };
   xTitle: string;
   yTitle: string;
   xFmt: (v: number) => string;
@@ -76,11 +78,15 @@ function svgFrame(f: Frame): string {
   const yTicks = f.ys.ticks
     .map((t) => `<text class="tick" x="${PAD.left - 8}" y="${(y(t) + 4).toFixed(1)}" text-anchor="end">${f.yFmt(t)}</text>`)
     .join("");
+  // Notes sit under the points (drawn before body) and clear of the tick labels, which lie outside the plot.
+  const noteX = f.notes?.x ? `<text class="note" x="${PAD.left + IW - 6}" y="${bottom - 6}" text-anchor="end">${esc(f.notes.x)}</text>` : "";
+  const noteY = f.notes?.y ? `<text class="note" x="${PAD.left + 6}" y="${PAD.top + 12}" text-anchor="start">${esc(f.notes.y)}</text>` : "";
   return (
     `<svg class="scatter" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${f.id}-t ${f.id}-d">` +
     `<title id="${f.id}-t">${esc(f.title)}</title><desc id="${f.id}-d">${esc(f.desc)}</desc>` +
     `<rect class="plot" x="${PAD.left}" y="${PAD.top}" width="${IW}" height="${IH}"/>` +
     `<g class="grid">${grid}${yGrid}</g>` +
+    `<g class="notes">${noteX}${noteY}</g>` +
     f.body(x, y) +
     `<g>${xTicks}${yTicks}</g>` +
     `<text class="axis" x="${PAD.left + IW / 2}" y="${H - 8}" text-anchor="middle">${esc(f.xTitle)}</text>` +
@@ -112,6 +118,7 @@ export function ratingsChart(plot: ClubPlot, label: string): string {
     xs: s,
     ys: s,
     highUp: false,
+    notes: { x: "Better offence →", y: "↑ Better defence" },
     xTitle: "ORtg: points scored per 100 possessions",
     yTitle: "DRtg: points allowed per 100 possessions",
     xFmt: whole,
@@ -143,6 +150,7 @@ export function paceChart(plot: ClubPlot, label: string): string {
     xs,
     ys,
     highUp: true,
+    notes: { x: "Faster →", y: "↑ Better net" },
     xTitle: "Pace: possessions per 40 minutes",
     yTitle: "Net rating: points per 100 possessions",
     xFmt: one,
