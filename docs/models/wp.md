@@ -1,5 +1,7 @@
 # In-game win probability (WP): protocol v1
 
+**Status: Draft complete, values settled 2026-10-18; awaiting owner approval.** Every value filled from the pre-study is listed in section 11 with its source.
+
 **Draft, not approved.** Written 2026-10-18 for owner review. Nothing here is built or run. Approval
 would authorise this protocol, not any fitted model's numbers.
 
@@ -48,7 +50,9 @@ baseline on the primary metric on the test seasons.
 
 ### One row per scoring event, not per play
 Training rows are **scoring events**: every made field goal and made free throw (`PLAYTYPE` in
-`2FGM`, `3FGM`, `FTM`). Justification: the score changes only at these events, so the state
+`2FGM`, `3FGM`, `LAYUPMD`, `DUNK`, `FTM`). `LAYUPMD` and `DUNK` are the 2008–2014 coding of
+2-point makes. The first draft omitted them, which drops 41,164 makes (34,085 `LAYUPMD`, 7,079
+`DUNK`) from the training rows (pre-study, write-up finding 1). Justification: the score changes only at these events, so the state
 `(m, t)` is known exactly at each row. Between scoring events `m` is constant and only `t` moves,
 which the metrics in section 6 already cover at fixed clock checkpoints. Per-play rows would
 repeat near-identical states and let long, high-event games weigh more.
@@ -69,9 +73,11 @@ and applied to all plays.
   forbidden. The clock is also clamped to the period's maximum (10:00 regulation, 5:00 OT). This matters for 2015 substitution rows stamped `11:00` (2,604 rows) and `06:00` in OT (14 rows).
 - **Clock:** `MARKERTIME` is `mm:ss` time remaining in the period. Parse as integer minutes and
   seconds. Blank (`""`) occurs only on `BP`, `EP`, `EG` markers, which are not events of
-  play. `ND` (no clock) occurs on 422 events in 157 of 259 games in **2016 only**. Rule: a game with any
-  `ND` play event is **excluded** from all splits and reported (157 games). Imputing the clock is
-  an open question (section 10).
+  play. `ND` (no clock) occurs on 422 events in 157 of 259 games in **2016**. The pre-study also found a
+  sentinel clock (`00:-1` or `-1:00`) in 16 more games in 2017–2022. Rule: a game with any `ND` or
+  sentinel play event is **excluded** from all splits and reported (173 games: 157 in 2016, 16 in
+  2017–2022). The pre-study's clock repair (linear interpolation between the nearest valid clocks of
+  the same period, in log position) is measured in section 11 but not adopted. See section 10, question 2.
 - **Remaining game time:** regulation `t = (4 − p) · 600 + clock_s`. Overtime `t = clock_s`
   (the rest of the current OT period; no OT periods follow it, a game that goes to a second OT is
   handled the same way for that period).
@@ -114,7 +120,14 @@ and applied to all plays.
 ### Assists (for section 8)
 - `AS` rows name the passer. In 126,952 of 166,507 assist rows (76%) the previous event is a made
   field goal of the same team. In 1,313 rows the previous event is a made field goal of the other
-  team, and 38,242 rows have another event before them. Linking rule: open question (section 10).
+  team, and 38,242 rows have another event before them.
+- **Linking rule (pre-study rule D, section 11).** Each `AS` row is linked, in order of preference, to
+  (A) the nearest preceding made field goal in the period, if it is the passer's team; else (B) the
+  next made field goal, if it is the passer's team and at the same clock second; else (C) the nearest
+  same-team made field goal within ±2 events or at the same clock second, searched within ±10 events.
+  Rule A alone (the first draft) links 90.1% of `AS` rows; rule D links 94.9%. The 98% coverage target
+  is not met (pre-study T1(a), T1(c)). Unlinked `AS` rows credit nothing. Under the 100% scorer
+  convention (section 8) linkage changes no WPA value. Owner to confirm (section 10, question 4).
 
 ## 3. Splits
 
@@ -126,11 +139,17 @@ and applied to all plays.
 | Unused | 2026 partial | not used |
 
 Notes:
-- The 2020 and 2021 seasons (COVID) are kept, as in ELOR (`docs/models/elo_roster_prior.md`). Their
-  crowd-less games and shortened seasons are a disclosed limit.
+- The 2019 and 2020 seasons (COVID) are kept, as in ELOR (`docs/models/elo_roster_prior.md`). 2019
+  is the cancelled season: 54 of 306 regular-season games were never played, and there were no
+  playoffs. 2020 games were played in empty arenas (81% record zero attendance). Their shortened
+  seasons and crowd-less games are a disclosed limit. Pre-study T4: refitting without 2019 and 2020
+  changes log loss by +0.0003, 95% CI [−0.0001, +0.0007], so they stay in training. (The first
+  draft labelled these seasons 2020 and 2021.)
 - Games with `played = false`, forfeits (none in the EuroLeague mart) and the 157 `ND` games of 2016
   are excluded and counted in the report.
-- Playoffs are included. Neutral Final Four games are included with `neutral = 1`.
+- Playoffs are included. Neutral Final Four games are included with `neutral = 1`. Pre-study T3: the
+  playoff gap (−0.001) against the regular season (+0.004) differs by −0.055 to +0.046 (95% CI), so no
+  phase flag is set.
 - **Disclosed:** the pre-game feature uses Elo, whose live parameters were chosen on 2024
   (`elo_roster_prior.md`). The 2024–25 test games therefore share a small amount of tuning history
   with the Elo component. Elo is not re-tuned here.
@@ -270,30 +289,52 @@ season bootstrap).
   `WP(e) = clip(WP_model(e) + g · tf(e), 0.001, 0.999)`, so it starts exactly at `P_pre` and the gap
   fades linearly to zero at the final buzzer (in OT, `tf` is 0 and the gap is gone). Every ΔWP, and so
   every WPA in section 8, is taken on this line. No play is credited with the gap itself: without
-  this rule the first play of every game would absorb `g`. The fade shape is an owner decision
-  (section 10).
+  this rule the first play of every game would absorb `g`. The fade is linear in `tf`.
+  In OT the gap term uses `tf = 0`, so the gap is gone there; the model's `tf` feature in
+  section 4 keeps `t / 2400` in OT. The pre-study script has the same note: its OT checkpoints use
+  `t` = clock, and section 7's "`tf` is 0 in OT" is read as applying to the gap only.
+- **Measured (pre-study T5, 3,196 games, 2010–2022):** mean `g` −0.017; mean `|g|` 0.038; 95th
+  percentile of `|g|` 0.077, well above the 0.01 threshold, so the fade comparison is informative.
+  Shape comparison on out-of-fold checkpoints: exp(−3(1 − tf)) improves log loss by 0.0004, 95% CI
+  [−0.0012, +0.0004], inside noise. Linear is kept.
 
 ## 8. Downstream outputs (defined, not built)
 
 ### WPA per player
-For a play `e` with win-probability change `ΔWP_e = WP(after e) − WP(before e)` (in home-win
-probability) and team `T_e` of the player:
+**Event-only credit (pre-study T1(c), section 11).** For a play `e` by a player on team `T_e`, with
+the score before and after `e` and the clock `t_e` of `e`, on the line of section 7:
 
+    ΔWP_e  = WP(score after e, t_e) − WP(score before e, t_e)   (home-win probability)
     s_e    = +1 if T_e is home, −1 if away
     WPA_e  = 100 · s_e · ΔWP_e          (percentage points, home perspective flipped for away)
 
-A player's game WPA is the sum of `WPA_e` over the plays credited to him. Plays with no WP change
-(for example, `JB` jump balls, `BP`/`EP` markers) credit nothing.
+Both terms are taken at the same clock, so time passage between plays credits nobody. A
+non-scoring play has the same score before and after, so `ΔWP_e = 0`: rebounds, turnovers and
+steals credit 0 by construction, which is expected. Only scoring plays carry WPA. A player's game
+WPA is the sum of `WPA_e` over the plays credited to him. The first draft's definition, the change
+between consecutive plays, is not used. The pre-study found it invalid: the same-season check gave
+r = −0.06, the wrong sign.
 
-**Assisted makes (owner decision).** A made field goal with an `AS` row linked to it splits its
-`WPA_e` between scorer and passer:
-- **Proposed:** scorer 70%, passer 30%.
-- Alternatives for the owner: 100% scorer (Laloudakis, `IDEAS.md` §8), or 50/50.
-- The split applies to the made field goal only. Unassisted makes, free throws, rebounds, turnovers
-  and steals credit their own player in full.
-- The split is fixed before any result is seen. It is not fitted.
+**Assisted makes: convention, not an estimate (owner decision D14, 2026-10-18).** The whole
+`WPA_e` of a made field goal goes to the **scorer**. The passer receives 0, whether or not an `AS`
+row is linked.
+- The reason is that the split could not be measured. The pre-study tried. Passer share is not
+  identified: `AS` rows exist only for made field goals, so `make ~ assisted` is perfectly separated
+  (T1(b)). The event-only credit then failed its pre-declared validity gate: same-season Pearson r
+  of WPA per 40 minutes against plus-minus per 40 is −0.049, bootstrap 95% CI [−0.088, 0.063],
+  n = 419. The gate needed a point estimate above 0.3 and a CI lower bound above 0 (T1(c)).
+- Because no split was measured, no split is estimated. The 100/0 choice is a stated convention and
+  is labelled as one wherever WPA is reported.
+- Unlinked makes credit the scorer in full. Free throws, rebounds, turnovers and steals credit their
+  own player in full.
+- The convention is fixed before any result is seen. It is not fitted.
 
-**Assist linkage** is an open question (section 10).
+**Validity of the WPA metric.** The event-only credit did not pass its validity gate. WPA is
+therefore not validated against plus-minus. The gate was not changed. A post-gate diagnostic
+(season-level, n = 896) found raw box points per 40 minutes at r = 0.127 against plus-minus per 40,
+so the benchmark itself is weak. WPA is reported with this caveat. A different benchmark (the
+pre-study suggests within-season on-court net rating, or a team-adjusted plus-minus) needs a new
+protocol version before it is used.
 
 ### Game-control parts (`IDEAS.md` §13)
 Defined exactly on the checkpoint grid of section 6, for one game with eventual winner `W`, with
@@ -332,19 +373,50 @@ The parts are computed from the chosen WP line. If the gate fails, from the base
 ## 10. Open questions for the owner
 
 1. Approve the protocol as drafted, or amend it.
-2. Clock gap in 2016: exclude the 157 games with `ND` clocks (proposed), or impute the clock from
-   neighbouring events and flag the rows?
-3. Assist split: 70/30 (proposed), 100/0 or 50/50?
-4. Assist linkage: 76% of `AS` rows follow a same-team made field goal in the log. Accept the rule
-   "nearest preceding made field goal of the same team in the same period, with no other make
-   between", after a coverage check on all seasons?
-5. Playoffs in: include them (proposed) in training and test, or regular season only?
+2. Clock gap in 2016 (open, owner decision): keep the exclusion of the 173 `ND` and sentinel games
+   (the draft's rule, kept here), or adopt the pre-study repair? The pre-study recommends repair (T2:
+   MAE 4.0 s, 95th percentile 11.5 s under random blanking). Its own caveat applies: the test does
+   not cover clustered gaps, so a clustered test is needed first.
+3. Assist split: **settled 2026-10-18 (D14): 100/0 convention, section 8.**
+4. Assist linkage: **measured; owner to confirm.** The pre-study's chosen rule is D (section 2). It
+   links 94.9% of `AS` rows, against 90.1% for the draft's rule A. The 98% target is not met. Under
+   the 100/0 convention, linkage changes no WPA value.
+5. Playoffs: **include** in training and test (pre-study T3: no phase flag).
 6. Game-control thresholds (0.6 control, 300 s crunch, 600 s killer instinct) and the killer
-   instinct definition: keep, change or drop?
-7. Possession as an optional feature (v1.1 comparison) or not at all?
-8. The 2020 and 2021 COVID seasons: keep in training (proposed, as in ELOR), or drop?
-9. Should the baseline's pre-game margin `mu_pre` use the same margin scale `s` as the Elo
-   forecast, or a separate fit on the WP training seasons? Proposed: the Elo scale, as the
-   baseline and the chain both depend on it.
-10. Tip-off gap (section 7): fade the gap between `P_pre` and the model's tip-off value linearly
-    with time left (proposed), or hold it constant, or let it decay faster?
+   instinct definition: keep, change or drop? **Not measured by the pre-study; open.**
+7. Possession as an optional feature (v1.1 comparison) or not at all? **Not measured; open.**
+8. The 2019 and 2020 COVID seasons: **keep** in training (pre-study T4: dropping them changes log
+   loss by +0.0003, CI [−0.0001, +0.0007]).
+9. Baseline margin scale: **Elo scale**, refitted each evaluation season on earlier seasons only
+   (pre-study `fold_scales`, `elo.fit_margin_scale`).
+10. Tip-off gap (section 7): **linear** in `tf` (pre-study T5: the exponential shape is inside noise).
+
+## 11. Values filled from the pre-study (2026-10-18)
+
+Source: branch `wave1/wp-prestudy`, merged into this branch as `docs/models/wp_prestudy.md` (write-up)
+and `reports/wp_prestudy.json` (report), with `scripts/wp_prestudy.py` and `scripts/wp_t1c.py`. All
+numbers use 2007–2022 seasons only (T1(c) and its gate use 2010–2021 `s`).
+
+| Value in this protocol | Filled value | Source |
+|---|---|---|
+| Scoring-event codes (section 2) | add `LAYUPMD`, `DUNK`; 41,164 makes | write-up finding 1 |
+| Excluded `ND`/sentinel games (section 2) | 173 (157 in 2016, 16 in 2017–2022) | write-up finding 2 |
+| Assist linkage (section 2, Q4) | rule D, 94.9% of `AS` rows; 98% not met | T1(c) "Linkage" table; report `T1c_measured_split.linkage` |
+| Assist split (section 8, Q3) | 100/0 convention (D14), not an estimate | T1(b) not identified; T1(c) gate: r = −0.049, CI [−0.088, 0.063] |
+| WPA credit (section 8) | event-only; time-inclusive version invalid (r = −0.06) | T1(c) "Corrected credit" and "Results, time-inclusive credit" |
+| COVID seasons (section 3, Q8) | 2019 and 2020, kept; log-loss change +0.0003 | T4 |
+| Playoffs (section 3, Q5) | include; gap −0.001 | T3 |
+| Tip-off gap shape and size (section 7, Q10) | linear; mean g −0.017, mean abs 0.038, p95 0.077 | T5 |
+| Margin scale (Q9) | Elo `fit_margin_scale`, expanding window | `scripts/wp_prestudy.py` `fold_scales` |
+| Baseline context (section 6) | logistic 0.4447, closed form 0.4601 (2010–2022, out-of-fold) | write-up "Baseline context" |
+
+Measured but not adopted: the 2016 clock repair (T2, MAE 4.0 s, 95th percentile 11.5 s). Owner
+decision, section 10, question 2.
+
+Not measured, left open: gradient boosting (the pre-study ran logistic only, so the family and
+setting in section 5 are validation steps, not pre-study values), game-control thresholds, and
+possession.
+
+Pre-study corrections that change the first draft: scoring codes (section 2), the `ND`/sentinel count
+(section 2), the COVID labels (section 3), the WPA credit definition (section 8), the linkage rule
+(section 2), and the OT note in section 7.
