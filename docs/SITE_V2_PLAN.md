@@ -244,15 +244,27 @@ Results:
 | game-shell (yesterday 7b) | box score and scoring runs | — |
 | play-0 | G0, G1, G2 | D10 phase 1 |
 
-### Wave D
+### Wave D (started 2026-10-18; owner corrections of 2026-10-18 folded in)
+Owner corrections after Wave C:
+- **K1 (player page, Against the league):** in the legend "Him | League average", put spaces around the "|" separator, and colour the "Him" swatch like the dots in the graph (the page's club colour, e.g. Olympiacos red). This applies in both the League and the Position view.
+- **K2 (Compare start):** one lead line, "Add a player by name, or start from one of these:", with the 3 random curated presets below it. The old default suggestions and the separate "Or one of these curated comparisons" section go.
+- **K3 (Compare, Accolades):** rename Achievements to **Accolades** and add more data-backed accolades. **Rule change:** a player gets his club's furthest stage, title included, if he played at least one game for that club that season. He does not need to play in the Final Four or the final. This replaces the F7 rule and the Wave C title fix.
+- **K4 (team page Shots):** the zone chips also filter the other two shot charts on the tab, so they show e.g. the frequency at the rim. The player page shot charts get the same zone chips.
+- **K5 (Strength of schedule):** split into **strength of opponents played so far** and **strength of the upcoming schedule**. Both are recomputed on every daily build, so they change each matchday.
+
 | Branch | Tasks | Needs |
 |--------|-------|-------|
-| leaders | L1, L2 | players branch merged (RAPM must not disappear), F6, D8 |
-| compare-2 | C3, then C4 | F6, palette entry in `DESIGN.md` |
-| team-batch (yesterday Wave 2) | #12 units, #17 continuity, #11 assist network, each in a tab | U0 |
-| play-1 | G3 | F8 |
-| wp-model (yesterday Wave 3) | 7c | D14, then the protocol approved |
-| #3 SoS | The team page already has a Schedule strength block; finish the rest (next 5, home/away, rest), Schedule tab | U0 |
+| leaders | L1, L2 | players merged (done), F6, D8 |
+| compare-2 | C3 polygon, then C4 teams if time | F6, palette entry in `DESIGN.md` |
+| compare-fixes | K2, K3 | F7 |
+| player-fixes | K1, K4 (player page side) | Wave C |
+| team-shots-sos | K4 (team side), K5 + #3 (next 5, home/away, rest) | U0, U2 |
+| team-units | #12 duos and units, Lineups tab | U0 |
+| team-assists | #11 assist network, Passing tab | U0 |
+| continuity | #17 returning minutes (team page Overview + Teams column) | U0, T1 |
+| wp-model | 7c, per the approved `docs/models/wp.md` (branch wave1/wp-protocol); no site output, no player WPA | protocol approved |
+
+play-1 (G3) moves to the late Play wave (D10).
 
 ### Wave E
 | Branch | Tasks | Needs |
