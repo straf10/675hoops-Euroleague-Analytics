@@ -29,6 +29,11 @@ const DIRECTION = new Map<string, BetterIs>([
   ["ftr", "higher"],
   ["otov", "higher"], // turnovers forced
   ["dreb", "higher"],
+  ["net", "higher"], // net rating: points scored minus allowed per 100 possessions
+  ["ast_tov", "higher"],
+  ["ast_pct", "higher"],
+  ["reb_pct", "higher"],
+  ["rapm", "higher"],
   // No better side
   ["usg", "neither"],
 ]);
