@@ -7,6 +7,7 @@ import { PRESETS, presetHref, usablePresets } from "../../lib/compare_presets";
 import { entries, rank, seasonLabel } from "../../lib/leaders";
 import { cardData, leaderPool, meta } from "../../lib/stats";
 import "../../styles/stats.css";
+import Polygon from "../../components/compare/Polygon.astro";
 
 const m = await meta();
 const base = import.meta.env.BASE_URL;
@@ -166,6 +167,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
         <p class="note" id="note" hidden>
           Career numbers add up every EuroLeague season since 2007-08.
         </p>
+        <Polygon base={base} />
       </section>
     )
   }
@@ -239,6 +241,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
         if (!matchMedia("(prefers-reduced-motion: reduce)").matches && shown.length)
           table.querySelectorAll<HTMLElement>(".lead-dot").forEach((d) => d.animate([{ transform: "scale(0.4)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 160, easing: "ease-out" }));
         shown = picks;
+        document.dispatchEvent(new CustomEvent("compare:picks", { detail: { scope, picks: cols.map((c) => ({ slug: c.card.slug, season: c.season, name: c.card.name })) } }));
         syncForm();
         history.replaceState(null, "", location.pathname + toQuery(picks, scope, rate));
       } catch {

@@ -245,6 +245,22 @@ export const MEASURES: Measure[] = [
   },
 ];
 
+/** Turnover %, for the Compare percentile polygon (lower is better, see `betterOf`). Not on the
+ *  Players page's measure list, so it is kept out of MEASURES. */
+export const TOV_PCT: Measure = {
+  key: "tov_pct",
+  head: "TOV%",
+  name: "Turnover %",
+  about: "Share of his possessions that end in a turnover: 100 × TOV / (FGA + 0.44 × FTA + TOV). Lower is better.",
+  kind: "pct",
+  digits: 1,
+  value: (t) => {
+    const used = fga(t) + 0.44 * t.fta + t.tov;
+    return used > 0 ? (100 * t.tov) / used : null;
+  },
+  qualifies: TEN_A_GAME,
+};
+
 export const BY_KEY = Object.fromEntries(MEASURES.map((m) => [m.key, m]));
 
 export const SETS: Record<ColumnSet, string[]> = {
