@@ -587,6 +587,8 @@ export interface CardData {
   fields: string[];
   seasons: CardSeason[];
   career: { team: string; dorsal: string; first: number; last: number; totals: number[] };
+  /** His furthest stage per club and season (achievements.json); null before that file exists. */
+  achievements: [season: number, club: string, reached: Reached, champion: 0 | 1][] | null;
 }
 
 let cardCache: Promise<Map<string, Entry[]>> | null = null;
@@ -612,7 +614,15 @@ export async function cardData(slug: string): Promise<CardData | null> {
       totals: fields.map((f) => e.t[f] ?? 0),
     })),
     career: { team: c.team, dorsal: c.dorsal, first: c.first, last: c.last, totals: fields.map((f) => c.t[f] ?? 0) },
+    achievements: await cardAchievements(slug),
   };
+}
+
+async function cardAchievements(slug: string): Promise<CardData["achievements"]> {
+  const file = await achievements();
+  if (!file) return null;
+  const id = (await playerIndex()).find((p) => p.slug === slug)?.id;
+  return id ? (file.players[id] ?? []) : [];
 }
 
 /** [slug, name, first season, last season] for every player: Compare's search. */

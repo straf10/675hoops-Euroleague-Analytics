@@ -3,8 +3,9 @@ import plus from "@phosphor-icons/core/assets/regular/user-plus.svg?raw";
 import x from "@phosphor-icons/core/assets/regular/x.svg?raw";
 import Base from "../../layouts/Base.astro";
 import { MAX, RATES } from "../../lib/compare";
-import { entries, rank } from "../../lib/leaders";
-import { leaderPool, meta } from "../../lib/stats";
+import { PRESETS, presetHref, usablePresets } from "../../lib/compare_presets";
+import { entries, rank, seasonLabel } from "../../lib/leaders";
+import { cardData, leaderPool, meta } from "../../lib/stats";
 import "../../styles/stats.css";
 
 const m = await meta();
@@ -22,6 +23,29 @@ const starts = [
   { label: "The five best careers on PIR", five: tops("pir") },
   { label: "The five best career scorers", five: tops("pts") },
 ];
+// Curated sets: a preset is dropped (with a build warning) when a slug or season is not in the data.
+const known = new Map<string, { name: string; seasons: number[] } | null>();
+for (const p of PRESETS)
+  for (const pick of p.picks) {
+    const slug = pick.split(":")[0];
+    if (!known.has(slug)) {
+      const c = m ? await cardData(slug) : null;
+      known.set(slug, c ? { name: c.name, seasons: c.seasons.map((s) => s.season) } : null);
+    }
+  }
+const curated = usablePresets(PRESETS, (slug) => known.get(slug)?.seasons ?? null);
+curated.warnings.forEach((w) => console.warn(w));
+const presets = curated.ok.map((p) => ({
+  label: p.label,
+  href: presetHref(base, p),
+  names: p.picks
+    .map((pick) => {
+      const [slug, season] = pick.split(":");
+      const name = known.get(slug)?.name ?? slug;
+      return season ? `${name} ${seasonLabel(Number(season))}` : name;
+    })
+    .join(", "),
+}));
 const cfg = { base, xIcon: x };
 const description = "Up to five EuroLeague players side by side, a season each or whole careers, measure by measure.";
 ---
@@ -104,6 +128,33 @@ const description = "Up to five EuroLeague players side by side, a season each o
               </li>
             ))}
           </ul>
+          {presets.length > 0 && (
+            <>
+              <p class="presets-lead">Or one of these curated comparisons:</p>
+              <ul class="presets" id="presets">
+                {presets.map((p, i) => (
+                  <li hidden={i > 2}>
+                    <a class="ink-link" href={p.href}>
+                      {p.label}
+                    </a>
+                    <span>{p.names}</span>
+                  </li>
+                ))}
+              </ul>
+              <script is:inline>
+                // Three presets show at random on each visit. Without JS the first three stay visible.
+                (() => {
+                  const items = [...document.querySelectorAll("#presets > li")];
+                  if (items.length < 4) return;
+                  items.forEach((li) => (li.hidden = true));
+                  for (let shown = 0; shown < 3; ) {
+                    const li = items[Math.floor(Math.random() * items.length)];
+                    if (li.hidden) (li.hidden = false), shown++;
+                  }
+                })();
+              </script>
+            </>
+          )}
         </div>
 
         <div class="scroll busy-fade" id="board" hidden>
@@ -328,6 +379,9 @@ const description = "Up to five EuroLeague players side by side, a season each o
     font-size: 0.8125rem;
   }
 
+  .presets-lead {
+    margin: 22px 0 0;
+  }
   :global(html[data-picks]) .empty {
     visibility: hidden;
     min-height: 100dvh;

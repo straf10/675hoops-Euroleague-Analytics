@@ -2,6 +2,7 @@
 // measure is one row; its leader among the compared gets the orange dot. Pure functions shared by
 // the build and the browser.
 
+import { careerAchievements, formatRate, REACHED_LABEL, seasonAchievement, type AchEntry } from "./achievement";
 import { betterOf } from "./better";
 import { esc } from "./format";
 import { dataTip, tip } from "./tip";
@@ -27,6 +28,7 @@ export interface Card {
   fields: string[];
   seasons: { season: number; team: string; teams: string[]; dorsal: string; totals: number[] }[];
   career: { team: string; dorsal: string; first: number; last: number; totals: number[] };
+  achievements?: AchEntry[] | null; // null: achievements.json not exported yet
 }
 
 export interface Pick {
@@ -205,7 +207,44 @@ export function bodyHtml(g: Grid, cols: Col[]): string {
         `</tbody>`,
     )
     .join("");
-  return tally + groups;
+  return tally + groups + achievementBody(cols);
+}
+
+/** The Achievements group: the furthest phase per season, or the career rows (season 0). */
+function achievementBody(cols: Col[]): string {
+  if (!cols.length || cols.every((c) => !c.card.achievements)) return "";
+  const n = cols.length;
+  const row = (head: string, about: string, cells: string[]) =>
+    `<tr><th scope="row"><span${dataTip(tip`<b>${head}</b> ${about}`)} tabindex="0">${head}</span></th>` +
+    cells.map((t) => `<td class="num"><span class="cell"><span class="v">${t}</span></span></td>`).join("") +
+    `</tr>`;
+  const career = cols[0].season === 0;
+  const rows = cols.map((c) => careerAchievements(c.card.achievements ?? []));
+  const body = career
+    ? [
+        row("EuroLeague titles", "Seasons his club won the EuroLeague.", rows.map((r) => String(r.titles))),
+        row("Final Fours", "Seasons he reached the Final Four: a semifinal, the third-place game or the final.", rows.map((r) => String(r.finalFours))),
+        row("Final Four rate", "Final Fours as a share of his seasons.", rows.map((r) => formatRate(r.finalFourRate))),
+        row("Playoffs", "Seasons he reached the playoffs. A Final Four season counts too.", rows.map((r) => String(r.playoffs))),
+        row("Playoff rate", "Playoff seasons as a share of his seasons.", rows.map((r) => formatRate(r.playoffRate))),
+        row("Seasons", "Seasons with at least one game.", rows.map((r) => String(r.seasons))),
+      ]
+    : [
+        row(
+          "Furthest phase",
+          "The furthest stage his club reached that season. Only counts if he played a game in that stage.",
+          cols.map((c) => {
+            const s = seasonAchievement(c.card.achievements ?? [], c.season);
+            if (!s) return "–";
+            const label = esc(REACHED_LABEL[s.reached]);
+            return s.clubs > 1 ? `${label}<small class="club"> with ${esc(s.club)}</small>` : label;
+          }),
+        ),
+      ];
+  return (
+    `<tbody class="ach"><tr class="grp"><th scope="colgroup" colspan="${n + 1}">Achievements ` +
+    `<small>Since 2007-08: careers that started earlier are incomplete.</small></th></tr>${body.join("")}</tbody>`
+  );
 }
 
 export function toQuery(picks: Pick[], scope: Scope, rate: CRate): string {

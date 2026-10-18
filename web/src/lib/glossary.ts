@@ -464,4 +464,20 @@ export const TERMS: GlossaryTerm[] = [
     def: "The range a rating should fall in nine times out of ten, if the model is right. A wide range means a short sample: little playing time, so little evidence.",
     shownOn: [LD, PP],
   },
+  {
+    id: "final-four-rate",
+    term: "Final Four rate",
+    group: "Rates and samples",
+    def: "The seasons he reached the Final Four, as a share of the seasons he played since 2007-08. A Final Four season is one where his club played a semifinal, the third-place game or the final.",
+    formula: "Final Four seasons ÷ seasons played",
+    shownOn: [CM],
+  },
+  {
+    id: "playoff-rate",
+    term: "Playoff rate",
+    group: "Rates and samples",
+    def: "The seasons he reached the playoffs, as a share of the seasons he played since 2007-08. A Final Four season counts as a playoff season.",
+    formula: "Playoff seasons ÷ seasons played",
+    shownOn: [CM],
+  },
 ];
