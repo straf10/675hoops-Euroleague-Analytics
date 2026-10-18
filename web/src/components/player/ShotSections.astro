@@ -41,6 +41,14 @@ const s = shotSeason;
             <input type="radio" name="shot-view" id="sv-quality" value="quality" />
             <label for="sv-quality" data-tip="Points per shot above or below the league's from each spot">Shot making</label>
           </fieldset>
+          <fieldset class="seg shot-filter" aria-label="Attempts shown">
+            <input type="radio" name="shot-filter" id="sf-all" value="all" checked />
+            <label for="sf-all" data-tip="Every located attempt">All</label>
+            <input type="radio" name="shot-filter" id="sf-2" value="2" />
+            <label for="sf-2" data-tip="Two-point attempts only">2PT</label>
+            <input type="radio" name="shot-filter" id="sf-3" value="3" />
+            <label for="sf-3" data-tip="Three-point attempts only">3PT</label>
+          </fieldset>
           {
             options.length > 1 && (
               <label class="pick">

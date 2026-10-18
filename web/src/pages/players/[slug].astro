@@ -65,11 +65,18 @@ const abs = (path: string) => new URL(path, Astro.site ?? "https://675hoops.com"
 // 1. Against the league (his analysis season: a full-enough sample)
 const board = leagueBoard(await season(analysis.season, "players"), p.id);
 
-// 5-6. On/off and clutch, when the stints cover his latest season
+// 5-6. On/off and clutch for every season the stints cover for him, newest first (onoff.json). The
+// live season is not in the file while its stints are short of the 90% pass rate, so it has no panel.
 const onoff = await onOffData();
-const stints = onoff?.seasons.includes(analysis.season) ? onoff.players[p.id]?.[String(analysis.season)] : undefined;
-const onOff = stints ? onOffView(stints) : null;
-const clutch = stints ? clutchView(stints) : null;
+const stintRows = onoff?.players[p.id] ?? {};
+const stintSeasons = (onoff?.seasons ?? []).filter((y) => stintRows[String(y)]).sort((a, b) => b - a);
+const stintChosen = stintSeasons.includes(analysis.season) ? analysis.season : (stintSeasons[0] ?? 0);
+const stintLabel = (y: number) => m.seasons.find((s) => s.season === y)?.label ?? String(y);
+const onOffPanels = stintSeasons.map((y) => ({ season: y, label: stintLabel(y), view: onOffView(stintRows[String(y)]) }));
+const clutchPanels = stintSeasons.map((y) => ({ season: y, label: stintLabel(y), clutch: clutchView(stintRows[String(y)]) }));
+const onOffAny = onOffPanels.some((x) => x.view !== null);
+const clutchAny = clutchPanels.some((x) => x.clutch !== null);
+const clutchRule = onoff?.clutch;
 
 const live = m.seasons.find((s) => s.live);
 // A player in the live season has a share card, and his schema.org affiliation is his current clubs.
@@ -125,11 +132,11 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
     }
   </header>
 
-  <div id="pdata" data-slug={data.slug} data-base={base} data-radius={radius} hidden></div>
+  <div id="pdata" data-slug={data.slug} data-base={base} data-radius={radius} data-shot={shotSeason?.season} hidden></div>
 
   <Strip totals={lt} label={latest.label} />
 
-  {board && <AgainstLeague board={board} slug={data.slug} label={analysis.label} base={base} />}
+  {board && <AgainstLeague board={board} label={analysis.label} />}
 
   <Form season={latest} options={seasonOptions(seasons, latest.season)} />
 
@@ -140,11 +147,11 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
     index={m6.index}
   />
 
-  {onOff && <OnOff view={onOff} label={analysis.label} />}
+  {onOffAny && <OnOff panels={onOffPanels} chosen={stintChosen} />}
 
   {
-    clutch && onoff && (
-      <Clutch clutch={clutch} label={analysis.label} minutes={Math.round(onoff.clutch.last_seconds / 60)} margin={onoff.clutch.margin} />
+    clutchAny && clutchRule && (
+      <Clutch panels={clutchPanels} chosen={stintChosen} minutes={Math.round(clutchRule.last_seconds / 60)} margin={clutchRule.margin} />
     )
   }
 
@@ -169,7 +176,7 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
   import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
   import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
   import { bandsHtml, logHtml, qualityChart, qualityStripHtml, unpackPlayer, type PackedPlayer } from "../../lib/player";
-  import { countLine, dotLabel, markChart } from "../../lib/shotmarks";
+  import { countLine, dotLabel, markChart, type ShotFilter } from "../../lib/shotmarks";
   import { freqHeat, peakShots } from "../../lib/heat";
   import type { Bands, PlayerData } from "../../lib/stats";
 
@@ -193,10 +200,36 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
       if (el) el.innerHTML = markup;
     };
 
+    // Attempts: the filter shows only when the Attempts view is on; the dots and the count follow it.
+    let shotYear = Number(root.dataset.shot);
+    const shotFilter = (): ShotFilter =>
+      document.querySelector<HTMLInputElement>('input[name="shot-view"]:checked')?.value === "dots"
+        ? ((document.querySelector<HTMLInputElement>('input[name="shot-filter"]:checked')?.value as ShotFilter | undefined) ?? "all")
+        : "all";
+    const drawDots = (s: PlayerData["seasons"][number]) => {
+      const f = shotFilter();
+      html("court-dots", markChart(s.dots, dotLabel(s.label, s.dots, f), f));
+      const count = document.querySelector<HTMLElement>('[data-f="count"]');
+      if (count) count.textContent = countLine(s.dots, f);
+    };
     document.addEventListener("change", async (e) => {
+      const input = e.target as HTMLInputElement;
+      if (input.name === "shot-filter" || input.name === "shot-view") {
+        const s = (await load()).seasons.find((x) => x.season === shotYear);
+        if (s) drawDots(s);
+        return;
+      }
       const select = e.target as HTMLSelectElement;
       const target = select.dataset?.view;
       if (!target) return;
+      if (target === "stint") {
+        // On/off and clutch: one season for both sections; every season's panel is in the page.
+        for (const other of document.querySelectorAll<HTMLSelectElement>('select[data-view="stint"]')) other.value = select.value;
+        document.querySelectorAll<HTMLElement>("[data-stint]").forEach((el) => {
+          el.hidden = el.dataset.stint !== select.value;
+        });
+        return;
+      }
       const section = select.closest("section") as HTMLElement;
       const linked = target === "shots" ? [...document.querySelectorAll<HTMLSelectElement>('select[data-view="shots"]')] : [select];
       for (const other of linked) other.value = select.value;
@@ -209,15 +242,14 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
         if (!s) return;
         if (target === "shots") {
           s.leagueBands = bands!;
-          html("court-dots", markChart(s.dots, dotLabel(s.label, s.dots)));
+          shotYear = year;
+          drawDots(s);
           html("court-freq", freqHeat(s.hex, Number(radius), `${s.label} shot frequency: ${countLine(s.dots)}`));
           html("court-quality", qualityChart(s, Number(radius)));
           const peak = document.querySelector<HTMLElement>('[data-f="peak"]');
           if (peak) peak.textContent = String(peakShots(s.hex, Number(radius)));
           html("bands", bandsHtml(s, up, down));
           html("qstrip", qualityStripHtml(s.bands, s.leagueBands));
-          const count = document.querySelector<HTMLElement>('[data-f="count"]');
-          if (count) count.textContent = countLine(s.dots);
           const approx = document.querySelector<HTMLElement>('[data-f="approx"]');
           if (approx) approx.hidden = s.validated;
         } else {
