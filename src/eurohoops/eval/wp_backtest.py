@@ -49,7 +49,7 @@ def build_games(games: pd.DataFrame) -> pd.DataFrame:
     g = g.sort_values("tipoff_utc", kind="stable").reset_index(drop=True).copy()
     g["gid"] = np.arange(len(g))
     g["margin"] = (g["home_score"] - g["away_score"]).fillna(0).astype(int)
-    g["y"] = (g["home_score"] > g["away_score"]).astype(int)
+    g["y"] = (g["home_score"] > g["away_score"]).fillna(False).astype(int)  # unplayed: NA
     g["diff"] = replay(prepare(g), ELO)
     p_pre = np.clip(1.0 / (1.0 + 10.0 ** (-g["diff"] / 400.0)), wpm.PROB_CLIP, 1 - wpm.PROB_CLIP)
     g["p_pre"] = p_pre
