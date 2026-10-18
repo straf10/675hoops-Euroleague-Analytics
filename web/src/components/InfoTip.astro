@@ -1,0 +1,11 @@
+---
+// A small "?" beside a label. Its text opens in the same tooltip as a data mark (Base.astro reads
+// data-tip on hover, keyboard focus and tap), so the body is built with the tip tag in lib/tip.ts.
+interface Props {
+  /** The tooltip body as HTML from the tip tag: an optional <b> title, then <br> and plain text. */
+  text: string;
+}
+const { text } = Astro.props;
+---
+
+<button type="button" class="info-tip" aria-label="What does this mean?" data-tip={text}>?</button>

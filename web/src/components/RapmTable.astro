@@ -3,7 +3,8 @@
 // Points per 100 possessions against an average player; each figure with its 90% interval.
 import { displayCode, seasonLabel, thousands, type RapmBoard } from "../lib/m6";
 import { signed } from "../lib/format";
-import { tip } from "../lib/tip";
+import { intervalHint, tip } from "../lib/tip";
+import InfoTip from "./InfoTip.astro";
 
 interface Props {
   board: RapmBoard;
@@ -49,7 +50,7 @@ const cols = [
               )}
             </th>
           ))}
-          <th scope="col" class="num">90% interval</th>
+          <th scope="col" class="num">90% interval<InfoTip text={intervalHint(90)} /></th>
         </tr>
       </thead>
       <tbody>
