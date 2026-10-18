@@ -11,6 +11,7 @@ import { sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
 import InfoTip from "../../components/InfoTip.astro";
 import Continuity from "../../components/team/Continuity.astro";
+import Passing from "../../components/team/Passing.astro";
 import { FULL, peakShots, shotPair, teamColour } from "../../lib/heat";
 import { GROUPS, colsHtml } from "../../lib/cols";
 import { markChart } from "../../lib/shotmarks";
@@ -118,6 +119,7 @@ const bandHead = [
         <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview" aria-selected="true" tabindex="0">Overview</button>
         <button type="button" role="tab" id="tab-shots" data-tab="shots" aria-controls="panel-shots" aria-selected="false" tabindex="-1">Shots</button>
         <button type="button" role="tab" id="tab-lineups" data-tab="lineups" aria-controls="panel-lineups" aria-selected="false" tabindex="-1">Lineups</button>
+        <button type="button" role="tab" id="tab-passing" data-tab="passing" aria-controls="panel-passing" aria-selected="false" tabindex="-1">Passing</button>
         {
           hasSchedule(schedule) && (
             <button
@@ -370,6 +372,7 @@ const bandHead = [
     <Lineups season={t.season} seasons={lineups.seasons} names={lineups.names} />
   </div>
 
+  <Passing code={club.code} season={t.season} roster={t.roster} fields={t.rosterFields} />
   {
     hasSchedule(schedule) && (
       <div class="wrap tabpanel" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" hidden={t.season !== liveSeason}>

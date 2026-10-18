@@ -28,6 +28,7 @@ from eurohoops.config import MART_PATH
 from eurohoops.marts import write_tables
 from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES
+from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games, game_lines, seconds
 from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
 from eurohoops.stats.export import (
@@ -92,6 +93,7 @@ def inputs() -> Inputs:
             site_window(box.players["season"].unique()),
             DISPLAY_CODES["euroleague"],
         ),
+        assists=game_assists(RAW, games[games["played"]]),
     )
 
 

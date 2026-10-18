@@ -3,6 +3,7 @@
 
 import type { Attempts } from "./shots";
 import type { Continuity } from "./continuity";
+import type { AssistsFile } from "./passing";
 import { clubShotsOf, type ClubShots } from "./zones";
 import { careers, failsFloor, type Entry, type Pool, type Wire } from "./leaders";
 import type { ClubUnits, UnitsFile } from "./lineups";
@@ -735,4 +736,11 @@ export async function clubLineups(
     for (const row of [...club.pairs, ...club.units]) for (const id of row.slice(0, row.length - 6)) ids.add(String(id));
   const names = (await playerIndex()).filter((p) => ids.has(p.id));
   return { seasons, names: Object.fromEntries(names.map((p) => [p.id, { name: p.name, slug: p.slug }])) };
+}
+
+// ---- Assist network (seasons/{season}/assists.json, stats/assists.py) -----------------------
+
+/** One season's assist network; null when the season has no assists file. */
+export async function assistsData(year: number): Promise<AssistsFile | null> {
+  return (await load<AssistsFile>(`seasons/${year}/assists.json`)) ?? null;
 }

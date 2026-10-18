@@ -83,6 +83,7 @@ from eurohoops.models.roster import read_rosters
 from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
+from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import BoxGames, build_box_games
 from eurohoops.stats.export import (
     Inputs,
@@ -461,6 +462,7 @@ def stats_inputs(store: Store) -> Inputs:
             runs=game_runs(raw, played),
             roster=read_rosters(raw, sorted(cached)),
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
+            assists=game_assists(raw, played),
         )
 
     return store.memo("stats_inputs", make)

@@ -1,0 +1,118 @@
+---
+// The team page's Passing tab: the assist network of one club-season. The matrix is the picture;
+// the list of top connections is the same data as text, for screen readers and for reading across.
+import { assistsData } from "../../lib/stats";
+import { LIST_SIZE, MATRIX_SIZE, MIN_ASSISTS, TARGET, passingView, roster } from "../../lib/passing";
+import { plural } from "../../lib/live";
+
+interface Props {
+  code: string;
+  season: number;
+  roster: { id: string; name: string; slug: string; totals: number[] }[];
+  fields: string[];
+}
+
+const { code, season, roster: lines, fields } = Astro.props;
+const file = await assistsData(season);
+const view = passingView(season, file?.clubs[code], roster(lines, fields));
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+---
+
+<div class="wrap tabpanel" role="tabpanel" id="panel-passing" aria-labelledby="tab-passing">
+  <section class="band" id="passing" aria-labelledby="passing-title">
+    <header class="sec-head">
+      <h2 id="passing-title">Assist network</h2>
+      <p>Who assisted whom this EuroLeague season, from the play-by-play. Each assist is paired with the basket it set up.</p>
+    </header>
+
+    {
+      !view ? (
+        <p class="note">No assist data for this season.</p>
+      ) : (
+        <>
+          {view.matched !== null && (
+            <p class="note" id="passing-caveat">
+              Pairing matched <b>{pct(view.matched)}</b> of box-score assists ({view.linked} of {view.box}).
+              {view.matched < TARGET
+                ? ` The target is ${pct(TARGET)}, so read this as a sample. Unpaired assists are left out.`
+                : " Unpaired assists are left out."}
+            </p>
+          )}
+
+          <h3 id="matrix-title">Passer to scorer</h3>
+          {view.matrix.players.length === 0 || view.connections.length === 0 ? (
+            <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
+          ) : (
+            <div class="passing-scroll">
+              <table class="grid passing-matrix">
+                <caption class="sr-only">
+                  Assists from each passer (rows) to each scorer (columns), for the top {MATRIX_SIZE} players by assists plus made field goals. Only pairs with {MIN_ASSISTS} or more assists are shaded.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col"><span class="sr-only">Passer</span></th>
+                    {view.matrix.players.map((p) => (
+                      <th scope="col" class="turn">{p.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {view.matrix.players.map((p, r) => (
+                    <tr>
+                      <th scope="row">{p.name}</th>
+                      {view.matrix.cells[r].map((c) =>
+                        c ? (
+                          <td class="num shade" style={`--shade: ${Math.round(12 + c.shade * 20)}%`}>
+                            {c.assists}
+                          </td>
+                        ) : (
+                          <td class="num" aria-hidden="true"></td>
+                        ),
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <h3 id="connections-title">Top connections</h3>
+          {view.connections.length === 0 ? (
+            <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
+          ) : (
+            <ol class="connections" aria-labelledby="connections-title">
+              {view.connections.map((c) => (
+                <li>
+                  {c.passer} to {c.scorer}: {plural(c.assists, "assist")}, {c.points} points
+                </li>
+              ))}
+            </ol>
+          )}
+          {view.connections.length === LIST_SIZE && <p class="note">The {LIST_SIZE} strongest pairs.</p>}
+        </>
+      )
+    }
+  </section>
+</div>
+
+<style>
+  .passing-scroll {
+    overflow-x: auto;
+  }
+  .passing-matrix th.turn {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .passing-matrix td.shade {
+    background: color-mix(in srgb, var(--ink) var(--shade), var(--surface));
+  }
+  .connections {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+  }
+  .connections li {
+    margin: 0.25rem 0;
+  }
+</style>
