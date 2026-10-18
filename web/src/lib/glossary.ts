@@ -58,7 +58,7 @@ export const TERMS: GlossaryTerm[] = [
     name: "Minutes",
     group: "Box score",
     def: "Minutes played per game. It stays a per-game figure even when other columns are scaled to 36 minutes or 100 possessions.",
-    shownOn: [PL, PP, TP],
+    shownOn: [PL, PP, TP, LD],
   },
   { id: "pts", term: "PTS", name: "Points", group: "Box score", def: "Points scored.", shownOn: [PL, PP, TP, LD, CM] },
   { id: "reb", term: "REB", name: "Rebounds", group: "Box score", def: "Rebounds, offensive and defensive together.", shownOn: [PL, PP, TP, LD, CM] },
@@ -70,8 +70,8 @@ export const TERMS: GlossaryTerm[] = [
     def: "Passes that lead straight to a made basket, as the official scorer records them.",
     shownOn: [PL, PP, TP, LD, CM],
   },
-  { id: "stl", term: "STL", name: "Steals", group: "Box score", def: "Times a player takes the ball from an opponent.", shownOn: [PL, PP, TP] },
-  { id: "blk", term: "BLK", name: "Blocks", group: "Box score", def: "Opponent shots a player blocks.", shownOn: [PL, PP, TP] },
+  { id: "stl", term: "STL", name: "Steals", group: "Box score", def: "Times a player takes the ball from an opponent.", shownOn: [PL, PP, TP, LD] },
+  { id: "blk", term: "BLK", name: "Blocks", group: "Box score", def: "Opponent shots a player blocks.", shownOn: [PL, PP, TP, LD] },
   { id: "tov", term: "TOV", name: "Turnovers", group: "Box score", def: "Times a player loses the ball to the other side. Fewer is better.", shownOn: [PL, PP, TP] },
   {
     id: "pir",
@@ -87,12 +87,12 @@ export const TERMS: GlossaryTerm[] = [
     name: "Plus-minus",
     group: "Box score",
     def: "Points the player's team scored minus points it allowed while he was on court.",
-    shownOn: [PL, LD],
+    shownOn: [PL],
   },
 
   // Shooting
   { id: "fga", term: "FGA", name: "Field-goal attempts", group: "Shooting", def: "Shots from the floor, twos and threes. Free throws are not counted.", shownOn: [PL] },
-  { id: "fg-pct", term: "FG%", name: "Field-goal percentage", group: "Shooting", def: "Field goals made per attempt.", shownOn: [PL, PP] },
+  { id: "fg-pct", term: "FG%", name: "Field-goal percentage", group: "Shooting", def: "Field goals made per attempt.", shownOn: [PL, PP, LD] },
   { id: "2p-pct", term: "2P%", name: "Two-point percentage", group: "Shooting", def: "Two-pointers made per attempt.", shownOn: [PL] },
   { id: "3pa", term: "3PA", name: "Three-point attempts", group: "Shooting", def: "Shots tried from behind the three-point line.", shownOn: [PL] },
   { id: "3p-pct", term: "3P%", name: "Three-point percentage", group: "Shooting", def: "Three-pointers made per attempt.", shownOn: [PL, PP, TP, LD] },
@@ -123,7 +123,7 @@ export const TERMS: GlossaryTerm[] = [
     group: "Shooting",
     def: "The share of his team's shots, free-throw trips and turnovers that a player ends while he is on court.",
     formula: "(FGA + 0.44 × FTA + TOV) as a share of the team's, while on court",
-    shownOn: [PL],
+    shownOn: [PL, LD],
   },
   {
     id: "3pa-rate",
@@ -209,7 +209,7 @@ export const TERMS: GlossaryTerm[] = [
     group: "Team ratings",
     def: "Offensive rating minus defensive rating: points scored minus points allowed per 100 possessions. The Teams page ranks clubs by it. For a player, the same figure for his team while he is on court (on the Players page, ranked from 15 possessions a game), or on and off the floor on his page.",
     formula: "100 × (+/−) ÷ possessions",
-    shownOn: [TI, TP, PP, PL],
+    shownOn: [TI, TP, PP, PL, LD],
   },
   { id: "pace", term: "Pace", group: "Team ratings", def: "Possessions per 40 minutes. A high number means a fast game.", shownOn: [TI, TP] },
   {
@@ -442,7 +442,7 @@ export const TERMS: GlossaryTerm[] = [
     group: "Player ratings",
     def: "Points per 100 possessions a player's team scores and allows with him on the floor, adjusted for his teammates and opponents, shrunk toward a box-score estimate. Zero is average, and a higher total is better. EuroLeague only: the Greek Basket League has too few play-by-play stints to rate.",
     formula: "O-RAPM + D-RAPM",
-    shownOn: [LD, PP, PL],
+    shownOn: [PP, PL],
   },
   {
     id: "o-rapm",
@@ -450,7 +450,7 @@ export const TERMS: GlossaryTerm[] = [
     name: "Offensive RAPM",
     group: "Player ratings",
     def: "The offensive part of RAPM: points per 100 possessions his offense adds against an average player. Positive is better.",
-    shownOn: [LD, PP],
+    shownOn: [PP],
   },
   {
     id: "d-rapm",
@@ -458,14 +458,14 @@ export const TERMS: GlossaryTerm[] = [
     name: "Defensive RAPM",
     group: "Player ratings",
     def: "The defensive part of RAPM: points per 100 possessions his defense keeps off the scoreboard against an average player. Positive is better: a negative number means the team allows more with him on the floor.",
-    shownOn: [LD, PP],
+    shownOn: [PP],
   },
   {
     id: "interval-90",
     term: "90% interval",
     group: "Player ratings",
     def: "The range a rating should fall in nine times out of ten, if the model is right. A wide range means a short sample: little playing time, so little evidence.",
-    shownOn: [LD, PP],
+    shownOn: [PP],
   },
   {
     id: "final-four-rate",
@@ -500,7 +500,7 @@ export const TERMS: GlossaryTerm[] = [
     group: "Box score",
     def: "The share of his team's baskets that he assisted while on court. Uses his team's totals over the games he played, not only the minutes he was on court. Ranked from ten minutes a game.",
     formula: "100 × AST ÷ ((MIN ÷ (team minutes ÷ 5)) × team FGM − FGM)",
-    shownOn: [PL],
+    shownOn: [PL, LD],
   },
   {
     id: "reb-pct",

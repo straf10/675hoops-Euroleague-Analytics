@@ -23,6 +23,6 @@ def test_sign_classes_use_the_delta_tokens() -> None:
 
 
 def test_rapm_stays_ink() -> None:
-    rapm = [WEB / "components" / "RapmTable.astro", WEB / "components" / "player" / "Rapm.astro"]
+    rapm = [WEB / "components" / "player" / "Rapm.astro"]
     for path in rapm:
         assert "signClass" not in path.read_text(encoding="utf-8"), path.name
