@@ -1204,5 +1204,377 @@
     },
     "recommend": "exp_minus3_1mtf"
   },
-  "runtime_seconds": 62.7
+  "runtime_seconds": 62.7,
+  "T1c_measured_split": {
+    "linkage": {
+      "variants": {
+        "A_drafted": {
+          "as_rows_linked_share": 0.9011524129932303,
+          "linked_total": 109554,
+          "box_total": 121569,
+          "linked_over_box": 0.9011672383584631,
+          "team_game_exact_agreement": 0.38180383907441495,
+          "team_games": 7606,
+          "make_linked_by_more_than_one_AS": 2207,
+          "per_season": {
+            "2007": {
+              "as_rows_linked_share": 0.8265682656826568,
+              "team_game_exact": 0.5303030303030303,
+              "linked_over_box": 0.8265682656826568
+            },
+            "2008": {
+              "as_rows_linked_share": 0.8502446288023825,
+              "team_game_exact": 0.6223404255319149,
+              "linked_over_box": 0.8502446288023825
+            },
+            "2009": {
+              "as_rows_linked_share": 0.8102357676825762,
+              "team_game_exact": 0.3696808510638298,
+              "linked_over_box": 0.8102357676825762
+            },
+            "2010": {
+              "as_rows_linked_share": 0.8230174081237911,
+              "team_game_exact": 0.3412698412698413,
+              "linked_over_box": 0.8230174081237911
+            },
+            "2011": {
+              "as_rows_linked_share": 0.8883402962400304,
+              "team_game_exact": 0.425531914893617,
+              "linked_over_box": 0.8883402962400304
+            },
+            "2012": {
+              "as_rows_linked_share": 0.8633740437525165,
+              "team_game_exact": 0.3932806324110672,
+              "linked_over_box": 0.8633740437525165
+            },
+            "2013": {
+              "as_rows_linked_share": 0.8927954601529731,
+              "team_game_exact": 0.3577075098814229,
+              "linked_over_box": 0.8927954601529731
+            },
+            "2014": {
+              "as_rows_linked_share": 0.8750581665891112,
+              "team_game_exact": 0.31274900398406374,
+              "linked_over_box": 0.8750581665891112
+            },
+            "2015": {
+              "as_rows_linked_share": 0.8730805025593299,
+              "team_game_exact": 0.306,
+              "linked_over_box": 0.8730805025593299
+            },
+            "2016": {
+              "as_rows_linked_share": 0.9287323943661971,
+              "team_game_exact": 0.3137254901960784,
+              "linked_over_box": 0.9287323943661971
+            },
+            "2017": {
+              "as_rows_linked_share": 0.9386435849676783,
+              "team_game_exact": 0.3682170542635659,
+              "linked_over_box": 0.9388493150684931
+            },
+            "2018": {
+              "as_rows_linked_share": 0.9399442896935933,
+              "team_game_exact": 0.35797665369649806,
+              "linked_over_box": 0.9399442896935933
+            },
+            "2019": {
+              "as_rows_linked_share": 0.9412438437750544,
+              "team_game_exact": 0.35856573705179284,
+              "linked_over_box": 0.9412438437750544
+            },
+            "2020": {
+              "as_rows_linked_share": 0.9413151689808751,
+              "team_game_exact": 0.3496932515337423,
+              "linked_over_box": 0.9413151689808751
+            },
+            "2021": {
+              "as_rows_linked_share": 0.9446856906534326,
+              "team_game_exact": 0.4033898305084746,
+              "linked_over_box": 0.9446856906534326
+            },
+            "2022": {
+              "as_rows_linked_share": 0.9398181818181818,
+              "team_game_exact": 0.34520123839009287,
+              "linked_over_box": 0.9398181818181818
+            }
+          }
+        },
+        "B_plus_AS_before_make": {
+          "as_rows_linked_share": 0.9285191369652301,
+          "linked_total": 112881,
+          "box_total": 121569,
+          "linked_over_box": 0.9285344125558325,
+          "team_game_exact_agreement": 0.4357086510649487,
+          "team_games": 7606,
+          "make_linked_by_more_than_one_AS": 2803,
+          "per_season": {
+            "2007": {
+              "as_rows_linked_share": 0.983059376048306,
+              "team_game_exact": 0.8354978354978355,
+              "linked_over_box": 0.983059376048306
+            },
+            "2008": {
+              "as_rows_linked_share": 0.982982344182089,
+              "team_game_exact": 0.851063829787234,
+              "linked_over_box": 0.982982344182089
+            },
+            "2009": {
+              "as_rows_linked_share": 0.9570634464251485,
+              "team_game_exact": 0.5824468085106383,
+              "linked_over_box": 0.9570634464251485
+            },
+            "2010": {
+              "as_rows_linked_share": 0.9545454545454546,
+              "team_game_exact": 0.5582010582010583,
+              "linked_over_box": 0.9545454545454546
+            },
+            "2011": {
+              "as_rows_linked_share": 0.9039118875807064,
+              "team_game_exact": 0.4441489361702128,
+              "linked_over_box": 0.9039118875807064
+            },
+            "2012": {
+              "as_rows_linked_share": 0.8726345456985639,
+              "team_game_exact": 0.3952569169960474,
+              "linked_over_box": 0.8726345456985639
+            },
+            "2013": {
+              "as_rows_linked_share": 0.8979768073032321,
+              "team_game_exact": 0.36561264822134387,
+              "linked_over_box": 0.8979768073032321
+            },
+            "2014": {
+              "as_rows_linked_share": 0.8814564913913449,
+              "team_game_exact": 0.3187250996015936,
+              "linked_over_box": 0.8814564913913449
+            },
+            "2015": {
+              "as_rows_linked_share": 0.8785481619357841,
+              "team_game_exact": 0.306,
+              "linked_over_box": 0.8785481619357841
+            },
+            "2016": {
+              "as_rows_linked_share": 0.9329577464788732,
+              "team_game_exact": 0.3137254901960784,
+              "linked_over_box": 0.9329577464788732
+            },
+            "2017": {
+              "as_rows_linked_share": 0.9391914101018954,
+              "team_game_exact": 0.37209302325581395,
+              "linked_over_box": 0.9393972602739726
+            },
+            "2018": {
+              "as_rows_linked_share": 0.9399442896935933,
+              "team_game_exact": 0.35797665369649806,
+              "linked_over_box": 0.9399442896935933
+            },
+            "2019": {
+              "as_rows_linked_share": 0.9413583781926469,
+              "team_game_exact": 0.35856573705179284,
+              "linked_over_box": 0.9413583781926469
+            },
+            "2020": {
+              "as_rows_linked_share": 0.941664483451227,
+              "team_game_exact": 0.3512269938650307,
+              "linked_over_box": 0.941664483451227
+            },
+            "2021": {
+              "as_rows_linked_share": 0.9448924731182796,
+              "team_game_exact": 0.4067796610169492,
+              "linked_over_box": 0.9448924731182796
+            },
+            "2022": {
+              "as_rows_linked_share": 0.94,
+              "team_game_exact": 0.34674922600619196,
+              "linked_over_box": 0.94
+            }
+          }
+        },
+        "C_plus_pm2_or_same_clock": {
+          "as_rows_linked_share": 0.9483676205674051,
+          "linked_total": 115294,
+          "box_total": 121569,
+          "linked_over_box": 0.9483832226965756,
+          "team_game_exact_agreement": 0.468051538259269,
+          "team_games": 7606,
+          "make_linked_by_more_than_one_AS": 3365,
+          "per_season": {
+            "2007": {
+              "as_rows_linked_share": 0.9857430392485743,
+              "team_game_exact": 0.854978354978355,
+              "linked_over_box": 0.9857430392485743
+            },
+            "2008": {
+              "as_rows_linked_share": 0.9842586683684322,
+              "team_game_exact": 0.8590425531914894,
+              "linked_over_box": 0.9842586683684322
+            },
+            "2009": {
+              "as_rows_linked_share": 0.9603220241518113,
+              "team_game_exact": 0.6063829787234043,
+              "linked_over_box": 0.9603220241518113
+            },
+            "2010": {
+              "as_rows_linked_share": 0.9615087040618956,
+              "team_game_exact": 0.6137566137566137,
+              "linked_over_box": 0.9615087040618956
+            },
+            "2011": {
+              "as_rows_linked_share": 0.9508165590581086,
+              "team_game_exact": 0.5292553191489362,
+              "linked_over_box": 0.9508165590581086
+            },
+            "2012": {
+              "as_rows_linked_share": 0.9468527714400752,
+              "team_game_exact": 0.48616600790513836,
+              "linked_over_box": 0.9468527714400752
+            },
+            "2013": {
+              "as_rows_linked_share": 0.9439921046138663,
+              "team_game_exact": 0.4209486166007905,
+              "linked_over_box": 0.9439921046138663
+            },
+            "2014": {
+              "as_rows_linked_share": 0.9414844113541182,
+              "team_game_exact": 0.3844621513944223,
+              "linked_over_box": 0.9414844113541182
+            },
+            "2015": {
+              "as_rows_linked_share": 0.9443927408096789,
+              "team_game_exact": 0.38,
+              "linked_over_box": 0.9443927408096789
+            },
+            "2016": {
+              "as_rows_linked_share": 0.9366197183098591,
+              "team_game_exact": 0.3235294117647059,
+              "linked_over_box": 0.9366197183098591
+            },
+            "2017": {
+              "as_rows_linked_share": 0.9405061904240166,
+              "team_game_exact": 0.37790697674418605,
+              "linked_over_box": 0.9407123287671233
+            },
+            "2018": {
+              "as_rows_linked_share": 0.9411699164345404,
+              "team_game_exact": 0.3657587548638132,
+              "linked_over_box": 0.9411699164345404
+            },
+            "2019": {
+              "as_rows_linked_share": 0.9428473256213492,
+              "team_game_exact": 0.36852589641434264,
+              "linked_over_box": 0.9428473256213492
+            },
+            "2020": {
+              "as_rows_linked_share": 0.9427997554798707,
+              "team_game_exact": 0.3588957055214724,
+              "linked_over_box": 0.9427997554798707
+            },
+            "2021": {
+              "as_rows_linked_share": 0.9454094292803971,
+              "team_game_exact": 0.4101694915254237,
+              "linked_over_box": 0.9454094292803971
+            },
+            "2022": {
+              "as_rows_linked_share": 0.9414545454545454,
+              "team_game_exact": 0.35758513931888547,
+              "linked_over_box": 0.9414545454545454
+            }
+          }
+        },
+        "D_all": {
+          "as_rows_linked_share": 0.9485568104235385,
+          "linked_total": 115317,
+          "box_total": 121569,
+          "linked_over_box": 0.9485724156651778,
+          "team_game_exact_agreement": 0.4702866158296082,
+          "team_games": 7606,
+          "make_linked_by_more_than_one_AS": 3376,
+          "per_season": {
+            "2007": {
+              "as_rows_linked_share": 0.9872525997987253,
+              "team_game_exact": 0.8679653679653679,
+              "linked_over_box": 0.9872525997987253
+            },
+            "2008": {
+              "as_rows_linked_share": 0.9853222718570517,
+              "team_game_exact": 0.8696808510638298,
+              "linked_over_box": 0.9853222718570517
+            },
+            "2009": {
+              "as_rows_linked_share": 0.9612804293655357,
+              "team_game_exact": 0.6170212765957447,
+              "linked_over_box": 0.9612804293655357
+            },
+            "2010": {
+              "as_rows_linked_share": 0.9622823984526112,
+              "team_game_exact": 0.6216931216931217,
+              "linked_over_box": 0.9622823984526112
+            },
+            "2011": {
+              "as_rows_linked_share": 0.9508165590581086,
+              "team_game_exact": 0.5292553191489362,
+              "linked_over_box": 0.9508165590581086
+            },
+            "2012": {
+              "as_rows_linked_share": 0.9468527714400752,
+              "team_game_exact": 0.48616600790513836,
+              "linked_over_box": 0.9468527714400752
+            },
+            "2013": {
+              "as_rows_linked_share": 0.9439921046138663,
+              "team_game_exact": 0.4209486166007905,
+              "linked_over_box": 0.9439921046138663
+            },
+            "2014": {
+              "as_rows_linked_share": 0.9414844113541182,
+              "team_game_exact": 0.3844621513944223,
+              "linked_over_box": 0.9414844113541182
+            },
+            "2015": {
+              "as_rows_linked_share": 0.9443927408096789,
+              "team_game_exact": 0.38,
+              "linked_over_box": 0.9443927408096789
+            },
+            "2016": {
+              "as_rows_linked_share": 0.9366197183098591,
+              "team_game_exact": 0.3235294117647059,
+              "linked_over_box": 0.9366197183098591
+            },
+            "2017": {
+              "as_rows_linked_share": 0.9405061904240166,
+              "team_game_exact": 0.37790697674418605,
+              "linked_over_box": 0.9407123287671233
+            },
+            "2018": {
+              "as_rows_linked_share": 0.9411699164345404,
+              "team_game_exact": 0.3657587548638132,
+              "linked_over_box": 0.9411699164345404
+            },
+            "2019": {
+              "as_rows_linked_share": 0.9428473256213492,
+              "team_game_exact": 0.36852589641434264,
+              "linked_over_box": 0.9428473256213492
+            },
+            "2020": {
+              "as_rows_linked_share": 0.9427997554798707,
+              "team_game_exact": 0.3588957055214724,
+              "linked_over_box": 0.9427997554798707
+            },
+            "2021": {
+              "as_rows_linked_share": 0.9454094292803971,
+              "team_game_exact": 0.4101694915254237,
+              "linked_over_box": 0.9454094292803971
+            },
+            "2022": {
+              "as_rows_linked_share": 0.9414545454545454,
+              "team_game_exact": 0.35758513931888547,
+              "linked_over_box": 0.9414545454545454
+            }
+          }
+        }
+      },
+      "chosen_rule": "D_all",
+      "choice_rule": "highest team-game exact agreement with box-score assists"
+    }
+  }
 }

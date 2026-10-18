@@ -197,3 +197,63 @@ closed-form baseline 0.4601, a difference of −0.0154. This is not the gate, wh
 - The 2016 repair is validated under random blanking only.
 - Team-game agreement in T1 is strict equality. Rates are shown alongside totals.
 - The drafted `ND` rule and the sentinel `00:-1` are handled as described above.
+
+## T1(c). Measured assist split (follow-up)
+
+The owner asked for the split to be measured, not chosen. The criterion below was written and
+committed **before** any player-season WPA was computed. Seasons 2007–2022 only.
+
+### Linkage (chosen on box-score data only, before any outcome)
+
+Four rules were tried. Each AS row is linked to a made field goal of the same team, in the same
+period, in this order of preference:
+
+- **A (drafted):** nearest preceding made FG (any team) in the period must be the AS team's own.
+- **B:** A, else the next made FG is the same team's, at the same clock second.
+- **C:** A, else the nearest same-team made FG within ±2 events or at the same clock second
+  (searched within ±10 events).
+- **D:** A, then B, then C.
+
+Made FG codes are `2FGM`, `3FGM`, `LAYUPMD` and `DUNK` (2008–2014 coding). Unlinked AS rows credit
+the passer nothing.
+
+| Rule | AS rows linked | Linked / box assists | Team-game exact agreement |
+|---|---|---|---|
+| A (drafted) | 90.1% | 90.1% | 38.2% |
+| B | 92.9% | 92.9% | 43.6% |
+| C | 94.8% | 94.8% | 46.8% |
+| **D (chosen: best exact agreement)** | **94.9%** | **94.9%** | **47.0%** |
+
+Rule D is the best of the four, but it still misses the 98% target. The remaining ~5% of assists
+have no linkable make in the log, and no rule links them. Per-season coverage for D is in
+`reports/wp_prestudy.json` under `T1c_measured_split.linkage`.
+
+### Criterion (pre-declared)
+
+- **WP line.** The closed form of section 1, with `mu_pre` on the fold margin scale. The
+  tip-off gap `g = P_pre − Φ(mu_pre/11)` fades as `g · tf` with `tf = t/2400` in regulation. In
+  OT the gap is 0, following section 7's stated intent (section 4 would give `tf = clock/2400`
+  in OT, which conflicts with section 7). The line starts at `P_pre` at tip-off. Each play's ΔWP
+  is the change from the previous line point (the first from `P_pre`).
+- **Credit.** Each play with a player is credited `100 · s · ΔWP`, where `s` is +1 for the home
+  team and −1 for the away team. Markers, substitutions and AS rows credit nothing. For a made FG
+  with a linked AS, the passer receives `S` of the credit and the scorer `1 − S`. An unlinked make
+  credits the scorer in full.
+- **Shares.** `S ∈ {0, 0.1, 0.2, 0.3, 0.4, 0.5}`.
+- **Predictor.** WPA per 40 box minutes in season `s`.
+- **Sample.** Player-seasons with `s ∈ 2010–2021` and at least 500 box minutes in `s` and in
+  `s+1`. The start is 2010, not 2008, because the stints data (needed for target (i)) start in 2011.
+  This deviates from the brief's 2008–2021 window and is declared here.
+- **Targets.** (i) next-season on-court net rating per 100 possessions, from the mart `stints`
+  table (on-court point margin divided by possessions, included games only). (iii) next-season
+  RAPM `total` from `reports/m3_players.json`. The file's entries outside 2007–2022 are ignored
+  (the file itself was opened in full, so this note discloses it). Target (ii), box plus-minus,
+  is used only if (i) is unavailable, so it is not run.
+- **Reference.** Season box plus-minus per 40 minutes, with the same targets and sample.
+- **Metrics and uncertainty.** Pearson and Spearman for each target. Bootstrap over whole games,
+  1,000 resamples, seed 20261018. Sample membership is fixed at the observed sample. The RAPM
+  target is fixed, not refit per resample.
+- **Score.** `score(S) = mean over targets of (Pearson + Spearman)/2`. The best `S` is the argmax.
+- **Decision rule.** If every `S`'s score CI contains the point `score(0)`, the data cannot
+  separate the shares, and the recommendation is the smallest `S` whose score lies inside the
+  best `S`'s CI. Otherwise the recommendation is the best `S`.
