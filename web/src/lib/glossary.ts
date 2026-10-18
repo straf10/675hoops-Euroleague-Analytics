@@ -338,6 +338,22 @@ export const TERMS: GlossaryTerm[] = [
     shownOn: [PP, TP],
   },
   {
+    id: "shot-zones",
+    term: "Shot zones",
+    group: "Shooting",
+    def: "Where a shot was taken, by its spot on the court: at the rim (within 1.25 m of the basket), paint (inside the lane up to the free-throw line), mid-range (other two-pointers), corner three, above-break three, and deep three (8 m and beyond). Picking a zone shows only its shots on the chart.",
+    shownOn: [TP],
+  },
+  {
+    id: "pts-per-shot",
+    term: "Pts/shot",
+    name: "Points per shot",
+    group: "Shooting",
+    formula: "Points scored / field-goal attempts",
+    def: "Points each shot is worth on average: 2 for a two-pointer, 3 for a three, nothing for a miss.",
+    shownOn: [TP],
+  },
+  {
     id: "distance-bands",
     term: "At the rim, Short, Mid-range, Long two, Three, Deep three",
     group: "Shooting",

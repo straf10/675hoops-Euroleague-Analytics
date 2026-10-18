@@ -2,6 +2,7 @@
 // Every number is a raw total; lib/players.ts derives the rates.
 
 import type { Attempts } from "./shots";
+import { clubShotsOf, type ClubShots } from "./zones";
 import { careers, failsFloor, LEADER_FIELDS, type Entry, type Pool, type Wire } from "./leaders";
 
 export type Cell = [q: number, r: number, att: number, made: number, pts: number];
@@ -490,6 +491,14 @@ export async function explorerData(year: number): Promise<Attempts | null> {
     team: raw.team,
     opp: raw.opp,
   };
+}
+
+/** One club's shots taken and allowed in a season (the team page's Shot attempts chart), or null
+ * when the season has no attempts file. */
+export async function clubShots(code: string, year: number): Promise<ClubShots | null> {
+  const raw = await load<RawAttempts>(`seasons/${year}/attempts.json`);
+  if (!raw) return null;
+  return clubShotsOf(raw, code, year);
 }
 
 // ---- Leaders and Compare --------------------------------------------------------------------
