@@ -9,7 +9,8 @@ export type GlossaryGroup =
   | "Team ratings"
   | "Forecasts"
   | "Player projections"
-  | "Player ratings";
+  | "Player ratings"
+  | "Accolades";
 
 export interface GlossaryTerm {
   /** Stable anchor: /glossary/#ts-pct. Never rename one; other pages may link to it. */
@@ -34,6 +35,7 @@ export const GROUPS: GlossaryGroup[] = [
   "Forecasts",
   "Player projections",
   "Player ratings",
+  "Accolades",
 ];
 
 const PL = "players";
@@ -512,6 +514,49 @@ export const TERMS: GlossaryTerm[] = [
     group: "Rates and samples",
     def: "The seasons he reached the playoffs, as a share of the seasons he played since 2007-08. A Final Four season counts as a playoff season.",
     formula: "Playoff seasons ÷ seasons played",
+    shownOn: [CM],
+  },
+  // Compare: accolades (career rows). Since 2007-08: careers that started earlier are incomplete.
+  {
+    id: "euroleague-titles",
+    term: "EuroLeague titles",
+    group: "Accolades",
+    def: "The seasons his club won the EuroLeague while he played for it. A player of the champion counts, even if he missed the Final Four.",
+    shownOn: [CM],
+  },
+  {
+    id: "final-appearances",
+    term: "Final appearances",
+    group: "Accolades",
+    def: "The seasons his club reached the final, lost or won, while he played for it. A season counts once, even if he played for two clubs that season.",
+    shownOn: [CM],
+  },
+  {
+    id: "stat-titles",
+    term: "Stat titles",
+    group: "Accolades",
+    def: "The seasons he led the EuroLeague in points, rebounds, assists, steals, blocks or PIR per game. Only qualified players count: at least a quarter of the season's most games and ten minutes a game. A tie counts for each leader. Covers 2007-08 onwards.",
+    shownOn: [CM],
+  },
+  {
+    id: "euroleague-seasons",
+    term: "EuroLeague seasons",
+    group: "Accolades",
+    def: "The EuroLeague seasons he played at least one game in, since 2007-08.",
+    shownOn: [CM],
+  },
+  {
+    id: "clubs-played",
+    term: "Clubs",
+    group: "Accolades",
+    def: "The different EuroLeague clubs he played a game for, since 2007-08.",
+    shownOn: [CM],
+  },
+  {
+    id: "career-games",
+    term: "Games played",
+    group: "Accolades",
+    def: "The EuroLeague games he played in his career, from the box scores.",
     shownOn: [CM],
   },
   // Players page: advanced measures

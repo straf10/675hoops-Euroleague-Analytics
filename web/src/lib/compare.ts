@@ -2,7 +2,7 @@
 // measure is one row; its leader among the compared gets the orange dot. Pure functions shared by
 // the build and the browser.
 
-import { careerAchievements, formatRate, REACHED_LABEL, seasonAchievement, type AchEntry } from "./achievement";
+import { careerAchievements, formatRate, REACHED_LABEL, seasonAchievement, seasonTitles, type AchEntry, type StatTitle } from "./achievement";
 import { betterOf } from "./better";
 import { esc } from "./format";
 import { dataTip, tip } from "./tip";
@@ -29,6 +29,7 @@ export interface Card {
   seasons: { season: number; team: string; teams: string[]; dorsal: string; totals: number[] }[];
   career: { team: string; dorsal: string; first: number; last: number; totals: number[] };
   achievements?: AchEntry[] | null; // null: achievements.json not exported yet
+  statTitles?: StatTitle[] | null; // null: achievements.json not exported yet
 }
 
 export interface Pick {
@@ -210,7 +211,7 @@ export function bodyHtml(g: Grid, cols: Col[]): string {
   return tally + groups + achievementBody(cols);
 }
 
-/** The Achievements group: the furthest phase per season, or the career rows (season 0). */
+/** The Accolades group: the furthest stage and stat titles per season, or the career rows (season 0). */
 function achievementBody(cols: Col[]): string {
   if (!cols.length || cols.every((c) => !c.card.achievements)) return "";
   const n = cols.length;
@@ -219,20 +220,28 @@ function achievementBody(cols: Col[]): string {
     cells.map((t) => `<td class="num"><span class="cell"><span class="v">${t}</span></span></td>`).join("") +
     `</tr>`;
   const career = cols[0].season === 0;
-  const rows = cols.map((c) => careerAchievements(c.card.achievements ?? []));
+  const rows = cols.map((c) => careerAchievements(c.card.achievements ?? [], c.card.statTitles ?? []));
   const body = career
     ? [
-        row("EuroLeague titles", "Seasons his club won the EuroLeague.", rows.map((r) => String(r.titles))),
+        row("EuroLeague titles", "Seasons his club won the EuroLeague while he played for it.", rows.map((r) => String(r.titles))),
+        row("Final appearances", "Seasons his club reached the final, lost or won, while he played for it.", rows.map((r) => String(r.finals))),
         row("Final Fours", "Seasons he reached the Final Four: a semifinal, the third-place game or the final.", rows.map((r) => String(r.finalFours))),
         row("Final Four rate", "Final Fours as a share of his seasons.", rows.map((r) => formatRate(r.finalFourRate))),
         row("Playoffs", "Seasons he reached the playoffs. A Final Four season counts too.", rows.map((r) => String(r.playoffs))),
         row("Playoff rate", "Playoff seasons as a share of his seasons.", rows.map((r) => formatRate(r.playoffRate))),
-        row("Seasons", "Seasons with at least one game.", rows.map((r) => String(r.seasons))),
+        row(
+          "Stat titles",
+          "Seasons he led the EuroLeague in points, rebounds, assists, steals, blocks or PIR per game, among qualified players.",
+          rows.map((r) => String(r.statTitles)),
+        ),
+        row("EuroLeague seasons", "Seasons with at least one game.", rows.map((r) => String(r.seasons))),
+        row("Clubs", "EuroLeague clubs he played a game for.", rows.map((r) => String(r.clubs))),
+        row("Games played", "EuroLeague games in his career.", cols.map((c) => String(c.t.gp))),
       ]
     : [
         row(
-          "Furthest phase",
-          "The furthest stage his club reached that season. Only counts if he played a game in that stage.",
+          "Furthest stage",
+          "The furthest stage his club reached that season, if he played at least one game for the club.",
           cols.map((c) => {
             const s = seasonAchievement(c.card.achievements ?? [], c.season);
             if (!s) return "–";
@@ -240,9 +249,17 @@ function achievementBody(cols: Col[]): string {
             return s.clubs > 1 ? `${label}<small class="club"> with ${esc(s.club)}</small>` : label;
           }),
         ),
+        row(
+          "Stat titles",
+          "The stats he led the EuroLeague in that season, per game, among qualified players.",
+          cols.map((c) => {
+            const titles = seasonTitles(c.card.statTitles ?? [], c.season);
+            return titles.length ? esc(titles.join(", ")) : "–";
+          }),
+        ),
       ];
   return (
-    `<tbody class="ach"><tr class="grp"><th scope="colgroup" colspan="${n + 1}">Achievements ` +
+    `<tbody class="ach"><tr class="grp"><th scope="colgroup" colspan="${n + 1}">Accolades ` +
     `<small>Since 2007-08: careers that started earlier are incomplete.</small></th></tr>${body.join("")}</tbody>`
   );
 }

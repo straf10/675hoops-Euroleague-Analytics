@@ -591,6 +591,8 @@ export interface CardData {
   career: { team: string; dorsal: string; first: number; last: number; totals: number[] };
   /** His furthest stage per club and season (achievements.json); null before that file exists. */
   achievements: [season: number, club: string, reached: Reached, champion: 0 | 1][] | null;
+  /** The seasons he led a title stat (achievements.json, stat_titles); null before that file exists. */
+  statTitles: [season: number, stat: "pts" | "reb" | "ast" | "stl" | "blk" | "pir"][] | null;
 }
 
 let cardCache: Promise<Map<string, Entry[]>> | null = null;
@@ -617,6 +619,7 @@ export async function cardData(slug: string): Promise<CardData | null> {
     })),
     career: { team: c.team, dorsal: c.dorsal, first: c.first, last: c.last, totals: fields.map((f) => c.t[f] ?? 0) },
     achievements: await cardAchievements(slug),
+    statTitles: await cardStatTitles(slug),
   };
 }
 
@@ -625,6 +628,13 @@ async function cardAchievements(slug: string): Promise<CardData["achievements"]>
   if (!file) return null;
   const id = (await playerIndex()).find((p) => p.slug === slug)?.id;
   return id ? (file.players[id] ?? []) : [];
+}
+
+async function cardStatTitles(slug: string): Promise<CardData["statTitles"]> {
+  const file = await achievements();
+  if (!file) return null;
+  const id = (await playerIndex()).find((p) => p.slug === slug)?.id;
+  return id ? (file.stat_titles?.[id] ?? []) : [];
 }
 
 /** [slug, name, first season, last season] for every player: Compare's search. */
@@ -664,18 +674,20 @@ export async function onOffData(): Promise<OnOffFile | null> {
   return (await load<OnOffFile>("onoff.json")) ?? null;
 }
 
-// ---- Achievements (stats/achievements.json) -------------------------------------------------
+// ---- Accolades (stats/achievements.json) ----------------------------------------------------
 
 /** Furthest stage: RS, PI, PO, FF (Final Four), F (lost the final), W (champion). */
 export type Reached = "RS" | "PI" | "PO" | "FF" | "F" | "W";
 
-/** Club and player furthest stage per season since 2007-08, before the live season. */
+/** Club and player furthest stage per season since 2007-08, before the live season, and stat titles. */
 export interface AchievementsFile {
   seasons: number[];
   /** season (string) -> source club code -> stage */
   clubs: Record<string, Record<string, Reached>>;
-  /** player id -> [season, source club code, stage, champion (1 when that club won)] per club */
+  /** player id -> [season, source club code, stage, champion (1 when that club won)] per club he played for */
   players: Record<string, [season: number, club: string, reached: Reached, champion: 0 | 1][]>;
+  /** player id -> [season, stat] for each season he led a title stat (PTS, REB, AST, STL, BLK, PIR) */
+  stat_titles?: Record<string, [season: number, stat: "pts" | "reb" | "ast" | "stl" | "blk" | "pir"][]>;
 }
 
 export async function achievements(): Promise<AchievementsFile | null> {

@@ -1,4 +1,5 @@
-"""Furthest phase per club and player season since 2007-08 -> ``achievements.json`` (stats dir).
+"""Accolades data: furthest phase per club and player season, and stat titles, since 2007-08 ->
+``achievements.json`` (stats dir). The file keeps its name so the API stays stable.
 
 Codes, lowest to highest: ``RS`` regular season (the pre-2016 Top 16, phase ``TS``, counts here),
 ``PI`` play-in, ``PO`` playoffs, ``FF`` Final Four (a semifinal, or the third-place game), ``F``
@@ -12,11 +13,18 @@ Four that cannot be read this way raises rather than guessing.
 Club-season: the furthest stage among the club's played games; the final is ``W`` for the
 champion and ``F`` for the runner-up. Teams not in the season's games are left out.
 
-Player-season, one entry per club he played for that season: the furthest stage among his box
-lines (a line is a game he played: a box score with his minutes, DNP excluded) for that club,
-using the same stage codes; ``champion`` is 1 when that club is the season's champion.
-A player traded mid-season therefore has one entry per club. Only seasons before ``live_season``
-are written: the live season is not finished.
+Player-season, one entry per club he played for that season: the club-season stage (above) for
+every club he played at least one game for that season (a line is a game he played: a box score
+with his minutes, DNP excluded). He does not need to have played in the Final Four or the final:
+a player on a title team gets ``W`` even if he missed the Final Four. ``champion`` is 1 when that
+club is the season's champion. A player traded mid-season therefore has one entry per club. Only
+seasons before ``live_season`` are written: the live season is not finished.
+
+Stat titles: for each finished season and each of PTS, REB, AST, STL, BLK and PIR, the player (or
+players, on a tie) with the most per game among the qualified players. The floors are the Players
+page's (``web/src/lib/players.ts``): at least a quarter of the season's most games, and 10 minutes
+a game. ``stat_titles`` maps a player id to ``[season, stat]`` pairs. It covers the same seasons as
+``seasons``, since the box scores are cached from 2007-08.
 
 Team codes are the source codes (``DISPLAY_CODES`` is applied by the site, not here).
 """
@@ -30,6 +38,9 @@ ORDER = ("RS", "PI", "PO", "FF", "F", "W")
 RANK = {code: rank for rank, code in enumerate(ORDER)}
 # The phase code -> the stage code for a game's teams (the final is handled separately)
 PHASE_STAGE = {"RS": "RS", "TS": "RS", "PI": "PI", "PO": "PO", "FF": "FF"}
+# Stat titles: the Players page's keys (REB is offensive + defensive rebounds)
+TITLE_STATS = ("pts", "reb", "ast", "stl", "blk", "pir")
+TITLE_SECONDS = 10 * 60  # seconds a game, at least: the Players page's default minimum (10 min)
 
 
 def _result(game: Any) -> tuple[str, str]:
@@ -71,6 +82,34 @@ def stage_sides(season_games: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
     return sides, champion
 
 
+def stat_titles(box_players: pd.DataFrame, seasons: list[int]) -> dict[str, list[list[Any]]]:
+    """Player id -> ``[season, stat]`` for each season's leader on each title stat (see module)."""
+    lines = box_players[box_players["season"].isin(seasons)].assign(
+        reb=lambda b: b["oreb"] + b["dreb"]
+    )
+    if lines.empty:
+        return {}
+    totals = (
+        lines.groupby(["season", "player_id"])
+        .agg(gp=("game_id", "size"), sec=("sec", "sum"), **{s: (s, "sum") for s in TITLE_STATS})
+        .reset_index()
+    )
+    most = totals.groupby("season")["gp"].transform("max")
+    # The Players page's floors: a quarter of the season's most games, 10 minutes a game
+    qualified = totals[(totals["gp"] * 4 >= most) & (totals["sec"] >= TITLE_SECONDS * totals["gp"])]
+    titles: dict[str, list[list[Any]]] = {}
+    for stat in TITLE_STATS:
+        per_game = qualified[stat] / qualified["gp"]
+        best = per_game.groupby(qualified["season"]).transform("max")
+        # A season's best of zero is nobody's title
+        lead = qualified.loc[(per_game == best) & (best > 0)]
+        for season, pid in zip(
+            lead["season"].astype(int), lead["player_id"].astype(str), strict=True
+        ):
+            titles.setdefault(pid, []).append([season, stat])
+    return {pid: sorted(titles[pid]) for pid in sorted(titles)}
+
+
 def achievements_payload(
     games: pd.DataFrame, box_players: pd.DataFrame, live_season: int
 ) -> dict[str, Any]:
@@ -85,18 +124,19 @@ def achievements_payload(
         best = sides.assign(rank=sides["stage"].map(RANK)).groupby("team")["rank"].max()
         clubs[str(season)] = {str(team): ORDER[int(rank)] for team, rank in sorted(best.items())}
         lines = box_players.loc[box_players["season"] == season, ["player_id", "game_id", "team"]]
-        played = lines.merge(sides, on=["game_id", "team"], validate="many_to_one")
-        furthest = (
-            played.assign(rank=played["stage"].map(RANK))
-            .groupby(["player_id", "team"])["rank"]
-            .max()
+        # A club he played at least one game for: the club-season stage, not his own games
+        played = lines.merge(sides[["game_id", "team"]], on=["game_id", "team"]).drop_duplicates(
+            ["player_id", "team"]
         )
-        ranks = furthest.to_numpy(dtype=int)
-        for (pid, team), rank in zip(furthest.index, ranks, strict=True):
-            entry = [season, str(team), ORDER[rank], int(team == champion)]
+        for pid, team in (
+            played[["player_id", "team"]].sort_values(["player_id", "team"]).itertuples(index=False)
+        ):
+            stage = ORDER[int(best[str(team)])]
+            entry = [season, str(team), stage, int(str(team) == champion)]
             players.setdefault(str(pid), []).append(entry)
     return {
         "seasons": seasons,
         "clubs": clubs,
         "players": {pid: players[pid] for pid in sorted(players)},
+        "stat_titles": stat_titles(box_players, seasons),
     }
