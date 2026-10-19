@@ -21,7 +21,8 @@ import ScheduleStrength from "../../components/team/ScheduleStrength.astro";
 import { hasSchedule } from "../../lib/strength";
 import { sportsTeam } from "../../lib/jsonld";
 import { GREEK_CLUB_NAMES } from "../../lib/greek_names";
-import { coachIndex } from "../../lib/coach_files";
+import { coachIndex, coachPage } from "../../lib/coach_files";
+import { shownCoaches, type ClubCoach } from "../../lib/team_coaches";
 import { clubLineups } from "../../lib/stats";
 import Lineups from "../../components/team/Lineups.astro";
 
@@ -31,8 +32,18 @@ export async function getStaticPaths() {
 }
 
 const { club } = Astro.props as { club: TeamIndexRow };
-// The head coaches who have coached this club, linked to their pages (the club's own page links them).
-const coachRows = ((await coachIndex())?.coaches ?? []).filter((c) => c.clubs.includes(club.code));
+// The head coaches of this club: the current one, then the most recent, each linked to a page.
+const coachIdx = await coachIndex();
+const currentCoach = coachIdx?.current.find((c) => c.team === club.code)?.slug;
+const clubCoaches: ClubCoach[] = await Promise.all(
+  (coachIdx?.coaches ?? [])
+    .filter((c) => c.clubs.includes(club.code))
+    .map(async (c) => {
+      const seasons = (await coachPage(c.slug)).seasons.filter((s) => s.team === club.code).map((s) => s.season);
+      return { slug: c.slug, name: c.name, last: seasons.length ? Math.max(...seasons) : 0 };
+    }),
+);
+const coachList = shownCoaches(clubCoaches, currentCoach);
 const m = (await meta())!;
 const open = defaultSeason(m).season;
 const year = [...club.seasons].reverse().find((s) => s <= open) ?? club.seasons[club.seasons.length - 1];
@@ -80,7 +91,7 @@ const bandHead = [
     data={sportsTeam({
       name: t.name,
       url: abs(`${base}/teams/${club.code.toLowerCase()}/`),
-      alternateName: GREEK_CLUB_NAMES[club.code],
+      alternateName: [m.short_teams?.[club.code], GREEK_CLUB_NAMES[club.code]],
       athletes: t.roster
         .filter((p) => p.slug)
         .map((p) => ({ name: p.name, url: abs(`${base}/players/${p.slug}/`) })),
@@ -106,15 +117,20 @@ const bandHead = [
       <h1 id="t-name">{t.name}</h1>
     </div>
     {
-      coachRows.length > 0 && (
+      coachList.shown.length > 0 && (
         <p class="facts coaches">
           <span>Coaches</span>
-          {coachRows.map((c, i) => (
+          {coachList.shown.map((c, i) => (
             <>
               {i > 0 && ", "}
               <a href={`${base}/coaches/${c.slug}/`}>{c.name}</a>
             </>
           ))}
+          {coachList.more > 0 && (
+            <>
+              , <a href={`${base}/coaches/`}>+{coachList.more} more</a>
+            </>
+          )}
         </p>
       )
     }
