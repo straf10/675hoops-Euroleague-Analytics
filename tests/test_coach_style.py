@@ -128,6 +128,51 @@ def test_a_timeout_inside_the_own_possession_does_not_restart_it() -> None:
     assert result[A] == (1, 2)
 
 
+def test_timeout_after_own_rebound_and_foul_is_not_an_after_timeout_possession() -> None:
+    # A rebounds, B fouls, A calls timeout, then shoots the free throws: the trip began before it.
+    result = ato(
+        act("D", A), act("CM", B), act("TOUT", A), act("FTM", A), act("FTM", A), act("D", B)
+    )
+    assert result[A] == (0, 0)
+
+
+def test_timeout_between_own_free_throws_is_not_an_after_timeout_possession() -> None:
+    result = ato(act("FTM", A), act("TOUT", A), act("FTM", A), act("2FGA", B))
+    assert result[A] == (0, 0)
+
+
+def test_timeout_after_the_other_teams_turnover_counts_when_the_ball_comes_to_it() -> None:
+    result = ato(act("TO", B), act("TOUT", A), act("2FGM", A), act("D", B))
+    assert result[A] == (1, 2)
+
+
+def test_two_waiting_timeouts_each_count_for_their_next_possession() -> None:
+    # B scores, the ball goes to A. B calls timeout (waits), then A calls its own (has the ball).
+    rows = [
+        act("2FGM", B),
+        act("TOUT", B),  # B waits for its possession
+        act("TOUT", A),  # A has the ball from B's basket: its possession starts now
+        act("2FGA", A),
+        act("D", B),  # B gets the ball: B's possession, started by the timeout it waited for
+        act("2FGM", B),
+    ]
+    result = ato(*rows)
+    assert result[A] == (1, 0)
+    assert result[B] == (1, 2)
+
+
+def test_a_timeout_at_the_end_of_a_period_counts_for_the_first_possession_of_the_next() -> None:
+    result = ato(
+        act("2FGA", B, period=1, left=3),
+        act("TOUT", A, period=1, left=1),
+        act("EP", period=1, left=0),
+        act("2FGM", B, period=2, left=600),
+        act("2FGM", A, period=2, left=590),
+        act("D", B, period=2, left=580),
+    )
+    assert result[A] == (1, 2)
+
+
 # ---- clutch ----
 
 
