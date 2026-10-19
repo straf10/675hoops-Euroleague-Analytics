@@ -12,6 +12,7 @@ from eurohoops.stats.coaches import (
     coach_games,
     coach_payloads,
     current_coaches,
+    final_winners,
 )
 
 
@@ -49,6 +50,8 @@ def _game(i: int, home: str, away: str, home_won: bool, p_home: float = 0.6) -> 
         "away_score": away_score,
         "p_home": p_home,
         "tipoff_utc": f"2020-10-{i:02d}T18:00:00Z",
+        "phase": "RS",
+        "round": 1,
     }
 
 
@@ -198,3 +201,92 @@ def test_current_coach_is_the_one_of_each_clubs_latest_game_in_the_latest_season
 def test_no_rows_means_no_current_season(tmp_path: Path) -> None:
     rows = pd.DataFrame(columns=["season", "team", "slug", "tipoff_utc"])
     assert current_coaches(rows, codes={}) == (None, [])
+
+
+def _ff(  # noqa: PLR0917 -- compact Final Four row builder
+    i: int, season: int, rnd: int, home: str, away: str, hs: int, aws: int
+) -> dict:
+    return {
+        "season": season,
+        "game_id": f"E{season}_{i}",
+        "home": home,
+        "away": away,
+        "home_score": hs,
+        "away_score": aws,
+        "phase": "FF",
+        "round": rnd,
+        "played": True,
+        "forfeit": False,
+    }
+
+
+def test_final_is_the_later_game_between_the_semifinal_winners() -> None:
+    # Semifinals in round 40 (AAA and DDD win). The final is AAA-DDD in round 41; the
+    # third-place game (BBB-CCC) has two losing semifinalists and is not the final.
+    games = pd.DataFrame(
+        [
+            _ff(1, 2021, 40, "AAA", "BBB", 80, 70),
+            _ff(2, 2021, 40, "CCC", "DDD", 60, 75),
+            _ff(3, 2021, 41, "AAA", "DDD", 70, 65),
+            _ff(4, 2021, 41, "BBB", "CCC", 90, 80),
+        ]
+    )
+    assert final_winners(games) == {"E2021_3": "AAA"}
+
+
+def test_a_season_without_one_clear_final_gets_no_champion() -> None:
+    # Only the semifinals are in the data: no final, so no entry rather than a guess.
+    games = pd.DataFrame(
+        [_ff(1, 2021, 40, "AAA", "BBB", 80, 70), _ff(2, 2021, 40, "CCC", "DDD", 60, 75)]
+    )
+    assert final_winners(games) == {}
+
+
+def _named(  # noqa: PLR0917 -- compact one-game builder: a box score and its games row
+    tmp_path: Path,
+    i: int,
+    season: int,
+    phase: str,
+    rnd: int,
+    teams: tuple[str, str, str, str],
+    home_won: bool,
+) -> dict:
+    home, away, home_coach, away_coach = teams
+    _write(tmp_path, season, str(i), _box(home, away, home_coach, away_coach))
+    home_score, away_score = (80, 70) if home_won else (70, 80)
+    return {
+        "season": season,
+        "game_id": f"E{season}_{i}",
+        "game_code": str(i),
+        "home": home,
+        "away": away,
+        "home_score": home_score,
+        "away_score": away_score,
+        "p_home": 0.5,
+        "tipoff_utc": f"{season}-05-{i:02d}T18:00:00Z",
+        "phase": phase,
+        "round": rnd,
+        "played": True,
+        "forfeit": False,
+    }
+
+
+def test_playoff_seasons_final_fours_and_titles_come_from_the_named_games(tmp_path: Path) -> None:
+    smith, jones, lee, park = "SMITH, JOHN", "JONES, ANN", "LEE, KIM", "PARK, SU"
+    games = [
+        # 2020: semifinals AAA-BBB and CCC-DDD (AAA and DDD win), then the final AAA-DDD (AAA wins).
+        _named(tmp_path, 1, 2020, "FF", 40, ("AAA", "BBB", smith, jones), True),
+        _named(tmp_path, 2, 2020, "FF", 40, ("CCC", "DDD", lee, park), False),
+        _named(tmp_path, 3, 2020, "FF", 41, ("AAA", "DDD", smith, park), True),
+        _named(tmp_path, 4, 2020, "PO", 30, ("CCC", "AAA", lee, smith), False),
+        # 2021: a playoff game for LEE's CCC and JONES's BBB; a play-in game is not a playoff game.
+        _named(tmp_path, 5, 2021, "PO", 30, ("CCC", "BBB", lee, jones), True),
+        _named(tmp_path, 6, 2021, "PI", 9, ("DDD", "CCC", park, lee), True),
+    ]
+    rows = coach_games(tmp_path, _games(games))
+    index = coach_payloads(rows, codes={}, names={})["coaches/index.json"]
+    playoffs = {c["slug"]: c["playoffs"] for c in index["coaches"]}
+    assert playoffs["john-smith"] == {"seasons": 1, "final_four": 1, "titles": 1}
+    assert playoffs["ann-jones"] == {"seasons": 2, "final_four": 1, "titles": 0}
+    assert playoffs["kim-lee"] == {"seasons": 2, "final_four": 1, "titles": 0}
+    assert playoffs["su-park"] == {"seasons": 1, "final_four": 1, "titles": 0}
