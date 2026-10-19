@@ -19,6 +19,7 @@ import csv
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from itertools import combinations
 from pathlib import Path
 from typing import Any
 
@@ -230,21 +231,79 @@ def _matched_pbp(lines: tuple[BoxLine, ...], side: pd.DataFrame) -> dict[int, di
     return out
 
 
+def _pbp_only(
+    side: pd.DataFrame, players: tuple[BoxLine, ...], filled_ids: set[str]
+) -> list[dict[str, Any]]:
+    """PBP player lines of a side that no ESAKE line or PBP fill accounts for, each with minutes.
+
+    ESAKE lines consume PBP lines in two passes: first the line with the same counting stats and
+    the same seconds, then any line with the same counting stats (for a player whose minutes
+    differ). What is left is a player the box score does not list at all.
+    """
+    rows = [
+        {str(key): value for key, value in record.items()}
+        for record in side.to_dict("records")
+        if f"pbp:{record['number']}:{record['player']}" not in filled_ids
+    ]
+    pairs = Counter(
+        (tuple(getattr(line, c) for c in SIGNATURE), int(line.seconds)) for line in players
+    )
+    used = [False] * len(rows)
+    for index, row in enumerate(rows):
+        key = (tuple(int(row[c]) for c in SIGNATURE), int(row["seconds"]))
+        if pairs[key] > 0:
+            pairs[key] -= 1
+            used[index] = True
+    stats: Counter[tuple[int, ...]] = Counter()
+    for (signature, _), count in pairs.items():
+        stats[signature] += count
+    for index, row in enumerate(rows):
+        signature = tuple(int(row[c]) for c in SIGNATURE)
+        if not used[index] and stats[signature] > 0:
+            stats[signature] -= 1
+            used[index] = True
+    return [row for index, row in enumerate(rows) if not used[index] and int(row["seconds"]) > 0]
+
+
+def _added_players(
+    lines: list[dict[str, Any]], gap: int, points_gap: int
+) -> list[dict[str, Any]] | None:
+    """The one subset of PBP-only lines whose minutes close ``gap`` and points ``points_gap``.
+
+    None when no subset (of up to three players) or more than one subset fits.
+    """
+    fits: list[list[dict[str, Any]]] = []
+    for size in range(1, min(3, len(lines)) + 1):
+        for subset in combinations(lines, size):
+            seconds = sum(int(row["seconds"]) for row in subset)
+            points = sum(int(row["points"]) for row in subset)
+            if abs(seconds - gap) <= MINUTES_TOLERANCE and points == points_gap:
+                fits.append(list(subset))
+    return fits[0] if len(fits) == 1 else None
+
+
 def _minutes_from_pbp(
     game: _Game,
     boxes: tuple[tuple[BoxLine, ...], ...],
     pbp: pd.DataFrame,
     filled: list[dict[str, object]],
-) -> tuple[tuple[tuple[BoxLine, ...], ...], list[dict[str, object]]]:
-    """Replace mismatched ESAKE minutes with the PBP on-court seconds of the same player.
+) -> tuple[tuple[tuple[BoxLine, ...], ...], list[dict[str, object]], list[dict[str, object]]]:
+    """Make each team-side's minutes match 5 x game length, from the PBP on-court seconds.
 
     A team-side is checked when its seconds (ESAKE lines plus any PBP-filled player) are not
     5 x game length within a minute, and its PBP on-court seconds are exactly 5 x game length.
-    Only players whose ESAKE minutes differ from a unique PBP line are replaced. The change is
-    kept only if the side then sums to 5 x game length; otherwise the side is logged unchanged.
+    Then, in order:
+    1. each ESAKE player whose minutes differ from its unique PBP line takes the PBP minutes;
+    2. if the side is still short, the one set of PBP-only players (lines no ESAKE or fill row
+       accounts for, up to three) whose minutes close the gap and whose points equal the points
+       missing from the score is added with its PBP line.
+    A change is kept only if the side then sums to the length; otherwise the side is logged
+    unchanged. Returns the boxes, the log, and the added player rows (source ``pbp``).
     """
     new = list(boxes)
     log: list[dict[str, object]] = []
+    added_rows: list[dict[str, object]] = []
+    filled_ids = {str(row["player_id"]) for row in filled}
     for side in (0, 1):
         team, name = game.teams[side], ("home", "away")[side]
         lines = pbp[pbp["side"] == name]
@@ -257,13 +316,30 @@ def _minutes_from_pbp(
         total = sum(line.seconds for line in players) + added
         if abs(total - target) <= MINUTES_TOLERANCE:
             continue
+        base = {"game_id": game.game_id, "season": game.season, "team": team}
         changes = [
             (index, row)
             for index, row in _matched_pbp(players, lines).items()
             if int(row["seconds"]) != players[index].seconds
         ]
         after = total + sum(int(row["seconds"]) - players[i].seconds for i, row in changes)
-        base = {"game_id": game.game_id, "season": game.season, "team": team}
+        replaced = list(players)
+        for index, row in changes:
+            line = players[index]
+            replaced[index] = replace(line, seconds=int(row["seconds"]))
+        extra: list[dict[str, Any]] = []
+        if abs(after - target) > MINUTES_TOLERANCE:
+            points_now = sum(line.points for line in players) + sum(
+                int(str(row["points"])) for row in filled if row["team"] == team
+            )
+            extra_found = _added_players(
+                _pbp_only(lines, players, filled_ids),
+                target - after,
+                game.scores[side] - points_now,
+            )
+            if extra_found is not None:
+                extra = extra_found
+                after += sum(int(row["seconds"]) for row in extra)
         if abs(after - target) > MINUTES_TOLERANCE:
             log.append(
                 {
@@ -273,15 +349,13 @@ def _minutes_from_pbp(
                     "raw_seconds": total,
                     "seconds": total,
                     "fix": "not_applied",
-                    "detail": f"sum {total} s vs {target} s; no unique PBP replacement closes "
-                    f"the {target - total} s gap",
+                    "detail": f"sum {total} s vs {target} s; no replacement or PBP-only set "
+                    f"closes the {target - total} s gap",
                 }
             )
             continue
-        replaced = list(players)
         for index, row in changes:
             line = players[index]
-            replaced[index] = replace(line, seconds=int(row["seconds"]))
             log.append(
                 {
                     **base,
@@ -293,8 +367,31 @@ def _minutes_from_pbp(
                     "detail": f"team sum {total} s vs {target} s; PBP on-court sums exactly",
                 }
             )
+        for row in extra:
+            player_id = f"pbp:{row['number']}:{row['player']}"
+            log.append(
+                {
+                    **base,
+                    "player_id": player_id,
+                    "player": f"#{row['number']} {row['player']}",
+                    "raw_seconds": 0,
+                    "seconds": int(row["seconds"]),
+                    "fix": "added_from_pbp",
+                    "detail": f"ESAKE box omits this player; team sum {total} s vs {target} s "
+                    f"closes with his PBP minutes; {int(row['points'])} points",
+                }
+            )
+            added_rows.append(
+                {
+                    "game_id": game.game_id,
+                    "team": team,
+                    "player_id": player_id,
+                    **{column: int(row[column]) for column in COUNTS},
+                    "source": "pbp",
+                }
+            )
         new[side] = tuple(replaced)
-    return tuple(new), log
+    return tuple(new), log, added_rows
 
 
 def _fill(
@@ -391,8 +488,9 @@ def build_box_tables(
         )
         pbp = _pbp(root, game)
         pbp_players, pbp_teams, log = _fill(game, boxes, pbp)
+        added: list[dict[str, object]] = []
         if boxes is not None and not isinstance(pbp, str):
-            boxes, changes = _minutes_from_pbp(game, boxes, pbp, pbp_players)
+            boxes, changes, added = _minutes_from_pbp(game, boxes, pbp, pbp_players)
             minutes += changes
         for side, (team, box) in enumerate(zip(game.teams, parsed or (), strict=False)):
             teams.append(
@@ -405,7 +503,7 @@ def build_box_tables(
             )
             current = boxes if boxes is not None else ((), ())
             players.extend(_player_row(game_id, team, line) for line in current[side])
-        players += pbp_players
+        players += pbp_players + added
         teams += pbp_teams
         fills += log
     player_box = pd.DataFrame(players, columns=list(PLAYER_BOX_SCHEMA.columns))

@@ -55,7 +55,7 @@ def test_mismatched_minutes_are_replaced_from_pbp_and_logged() -> None:
             ("away", 70, 9, 12000),
         ]
     )
-    new, log = _minutes_from_pbp(GAME, (home, away), pbp, [])
+    new, log, _ = _minutes_from_pbp(GAME, (home, away), pbp, [])
     assert sum(line.seconds for line in new[0]) == 12000
     assert new[1] == away  # the away side already sums to 5 x 2400: untouched
     assert [row["fix"] for row in log] == ["replaced_from_pbp", "replaced_from_pbp"]
@@ -77,7 +77,7 @@ def test_a_side_that_cannot_be_closed_is_logged_and_left_alone() -> None:
             ("away", 1, 0, 12000),
         ]
     )
-    new, log = _minutes_from_pbp(GAME, (home, (_line("X", 1, 12000),)), pbp, [])
+    new, log, _ = _minutes_from_pbp(GAME, (home, (_line("X", 1, 12000),)), pbp, [])
     assert new[0] == home
     assert [(row["team"], row["fix"]) for row in log] == [("HOM", "not_applied")]
 
@@ -85,7 +85,7 @@ def test_a_side_that_cannot_be_closed_is_logged_and_left_alone() -> None:
 def test_pbp_that_is_not_exact_changes_nothing() -> None:
     home = (_line("A", 10, 2000, fg2a=3),)
     pbp = _pbp([("home", 10, 3, 2000), ("away", 1, 0, 11999)])
-    new, log = _minutes_from_pbp(GAME, (home, (_line("X", 1, 12000),)), pbp, [])
+    new, log, _ = _minutes_from_pbp(GAME, (home, (_line("X", 1, 12000),)), pbp, [])
     assert new[0] == home and log == []
 
 
@@ -108,5 +108,37 @@ def test_a_sum_within_one_minute_is_not_checked() -> None:
             ("away", 1, 0, 12000),
         ]
     )
-    new, log = _minutes_from_pbp(GAME, (home, (_line("X", 1, 12000),)), pbp, [])
+    new, log, _ = _minutes_from_pbp(GAME, (home, (_line("X", 1, 12000),)), pbp, [])
     assert new[0] == home and log == []
+
+
+def test_a_player_the_box_omits_is_added_from_pbp_when_points_agree() -> None:
+    # Home ESAKE sums to 9600 s and 28 points (the score); PBP adds a zero-point player with 2400 s.
+    game = _Game("G2", 2019, "00000002", ("HOM", "AWY"), (28, 70))
+    home = (
+        _line("A", 10, 2400, fg2a=3),
+        _line("B", 8, 2400, fg2a=2),
+        _line("C", 6, 2400, fg2a=4),
+        _line("D", 4, 2400, fg2a=1),
+    )
+    away = (_line("X", 70, 12000, fg2a=9),)
+    pbp = _pbp(
+        [
+            ("home", 10, 3, 2400),
+            ("home", 8, 2, 2400),
+            ("home", 6, 4, 2400),
+            ("home", 4, 1, 2400),
+            ("home", 0, 0, 2400),
+            ("away", 70, 9, 12000),
+        ]
+    )
+    new, log, added = _minutes_from_pbp(game, (home, away), pbp, [])
+    assert sum(line.seconds for line in new[0]) == 9600  # the zero-point line is not an ESAKE line
+    assert [row["fix"] for row in log] == ["added_from_pbp"]
+    [row] = added
+    assert (row["player_id"], row["seconds"], row["points"], row["source"]) == (
+        "pbp:4:P4",
+        2400,
+        0,
+        "pbp",
+    )

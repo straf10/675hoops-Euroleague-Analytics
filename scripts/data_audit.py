@@ -100,6 +100,7 @@ def _overtime(games: pd.DataFrame, seasons: list[int]) -> dict[tuple[int, str], 
 
 REPO = Path(__file__).resolve().parents[1]
 CORRECTIONS = REPO / "corrections" / "gbl_box.csv"  # repo files: read from the checkout
+SCHEDULE = REPO / "corrections" / "gbl_schedule.csv"  # documented source schedule items
 OVERRIDES = REPO / "entity" / "overrides.csv"
 
 
@@ -137,6 +138,12 @@ def _raw_coaches(games: pd.DataFrame) -> dict[tuple[str, str], str]:
                 team = str(players[0]["Team"]).strip()
                 out[(str(game["game_id"]), team)] = str(side.get("Coach") or "").strip()
     return out
+
+
+def _schedule() -> dict[str, str]:
+    """game_id -> reason, for source schedule items documented in corrections/gbl_schedule.csv."""
+    frame = pd.read_csv(SCHEDULE, dtype=str, keep_default_na=False)
+    return dict(zip(frame["game_id"], frame["reason"], strict=True))
 
 
 def _postponed(path: str) -> dict[str, str]:
@@ -181,6 +188,7 @@ def main(argv: list[str]) -> int:
     }
     corrections.update(_documented_matches(str(path)))
     corrections.update(_postponed(str(path)))
+    corrections.update(_schedule())
     findings = run_audit(str(path), corrections) + _coach(str(path)) + _standings(str(path))
     print(f"UNEXPLAINED FAILURES: {sum(f.unexplained for f in findings)}")
     _print(findings)

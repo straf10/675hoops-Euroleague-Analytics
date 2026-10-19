@@ -1,19 +1,19 @@
 {
   "by_method": {
-    "rule": 379,
-    "override": 4,
+    "rule": 377,
+    "override": 36,
     "pbp": 0,
-    "none": 2806
+    "none": 2778
   },
   "by_competition": {
     "euroleague": 2188,
-    "gbl": 1001
+    "gbl": 1003
   },
-  "candidate_pairs": 93344,
-  "accepted_pairs": 196,
-  "matched_gbl_ids": 191,
-  "persons": 2997,
-  "name_rows": 7907,
+  "candidate_pairs": 93444,
+  "accepted_pairs": 197,
+  "matched_gbl_ids": 206,
+  "persons": 2984,
+  "name_rows": 7909,
   "params": {
     "w_surname": 0.5,
     "t_dob": 0.78,
@@ -25,7 +25,7 @@
     "near_days": 7
   },
   "pbp_links": {
-    "keys": 8,
+    "keys": 10,
     "linked": 0,
     "unlinked": {
       "pbp:0:Gabe York": "no jersey in the key",
@@ -33,9 +33,11 @@
       "pbp:23:Demetric Austin": "0 ids with jersey 23, 0 with the name",
       "pbp:23:Giorgos Aggelou": "0 ids with jersey 23, 0 with the name",
       "pbp:30:Brandon Wood": "0 ids with jersey 30, 0 with the name",
+      "pbp:33:Nikos Chougkaz": "0 ids with jersey 33, 0 with the name",
       "pbp:33:Stefan Jankovic": "1 ids with jersey 33, 0 with the name",
       "pbp:44:Tyrone Outlaw": "0 ids with jersey 44, 0 with the name",
-      "pbp:6:Giannis Gkavasiadis": "0 ids with jersey 6, 0 with the name"
+      "pbp:6:Giannis Gkavasiadis": "0 ids with jersey 6, 0 with the name",
+      "pbp:7:Al Durham": "0 ids with jersey 7, 0 with the name"
     }
   },
   "silver": {
@@ -53,7 +55,7 @@
     ]
   },
   "bios": {
-    "euroleague": 2591,
+    "euroleague": 2665,
     "gbl": 993
   },
   "labels": {
@@ -157,14 +159,14 @@
         },
         "greek/unmatched": {
           "n": 50,
-          "predicted": 0,
+          "predicted": 1,
           "true_matches": 0,
           "correct": 0,
-          "precision": null,
+          "precision": 0.0,
           "recall": null,
           "precision_ci95": [
             0.0,
-            1.0
+            0.7934506882081973
           ],
           "recall_ci95": [
             0.0,
@@ -189,14 +191,14 @@
         },
         "latin/unmatched": {
           "n": 50,
-          "predicted": 1,
+          "predicted": 2,
           "true_matches": 1,
           "correct": 1,
-          "precision": 1.0,
+          "precision": 0.5,
           "recall": 1.0,
           "precision_ci95": [
-            0.20654931179180275,
-            1.0
+            0.09453120463920085,
+            0.9054687953607992
           ],
           "recall_ci95": [
             0.20654931179180275,
@@ -204,17 +206,17 @@
           ]
         }
       },
-      "precision": 1.0,
+      "precision": 0.977528,
       "recall": 1.0,
       "precision_ci95": [
-        0.9577124924169734,
-        1.0
+        0.9217236525985111,
+        0.9938156013535209
       ],
       "recall_ci95": [
         0.9577124924169734,
         1.0
       ],
-      "precision_weighted": 1.0,
+      "precision_weighted": 0.942836,
       "recall_weighted": 1.0,
       "label": "fitted on the labels (overrides added from them)"
     }
