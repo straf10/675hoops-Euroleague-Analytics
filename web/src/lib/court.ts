@@ -36,6 +36,10 @@ const BASKET = `<path class="line" d="M-0.9 ${toY(-0.375)}H0.9"/><circle class="
  * so the floor fills more of the chart. Every chart uses it. */
 export const SQUEEZE = 0.84;
 
+/** A coordinate with at most two decimals and no trailing zeros or leading zero: "-7.5", ".5", "1.58".
+ * Path data is most of a chart's bytes, and centimetre precision is all a court needs. */
+export const num = (v: number): string => String(+v.toFixed(2)).replace(/^(-?)0\./, "$1.");
+
 /** The court with a mark layer clipped to the floor. `closed` draws it to the halfway line. */
 export const court = (layer: string, label: string, closed = false) => {
   const depth = closed ? MIDCOURT : DEPTH;

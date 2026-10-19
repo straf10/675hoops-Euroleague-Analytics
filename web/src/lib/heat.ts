@@ -3,7 +3,7 @@
 // one at a time: frequency (how many shots from each spot, in the team's colour, more is stronger)
 // and shot making (points per attempt above the league's expectation: teal above, red-orange below).
 
-import { court, DEPTH, toY, type HexCell } from "./court";
+import { court, DEPTH, num, toY, type HexCell } from "./court";
 import { colours, luminance } from "./jersey";
 
 export const SQUARE = 0.5; // metres
@@ -87,9 +87,6 @@ export type Lit = (x: number, y: number) => boolean;
 
 /** A square outside the lit zones is faded to a fifth of its opacity, so the picked zones still read in place. */
 const dimming = (s: Square, lit?: Lit): number => (!lit || lit(s.x + s.w / 2, s.y + s.h / 2) ? 1 : 0.2);
-
-/** A number with at most two decimals and no trailing zeros: "-7.5", ".5", "1.58". */
-const num = (v: number): string => String(+v.toFixed(2)).replace(/^(-?)0\./, "$1.");
 
 /** Squares of one class and one opacity step become a single path: about a fifth of the bytes of one
  * rect per square, which is most of a shot map. Opacity is rounded to steps of 0.05, too fine to see.
