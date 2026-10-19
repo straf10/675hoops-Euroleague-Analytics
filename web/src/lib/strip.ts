@@ -2,12 +2,15 @@
 // value do not sit on top of each other. Pure, so the build and the page script place dots the same
 // way (the same pattern as lib/scatter.ts). No runtime imports, so Node can run it directly.
 
-/** The plot's height in px. The dots' y is a px offset from its top. */
-export const STRIP_HEIGHT = 360;
+/** The plot's height in px (20% taller than the first cut, so the ranked dots spread further). The
+ *  dots' y is a px offset from its top. */
+export const STRIP_HEIGHT = 432;
 /** Dots whose centres fall in the same band of this many px share one jitter row. */
 export const BIN = 6;
 /** Each step a dot takes out from the centre in its band, to the right then the left. */
 export const STEP = 6;
+/** Half the width a tie group may spread to when the plot's width is not known (server render, tests). */
+export const DEFAULT_HALF_WIDTH = 120;
 
 export interface StripItem {
   key: string;
@@ -61,20 +64,37 @@ export function valueY(value: number, lo: number, hi: number, height = STRIP_HEI
 /** Show top: whether the item at `index` (in ranked order) is one of the first `top`; 0 is all. */
 export const isTop = (index: number, top: number): boolean => top === 0 || index < top;
 
-/** Places every item. Items are sorted by value (ties by key, so the result never depends on input
- *  order). Within each 6 px band the first dot sits on the centre line, then the dots step out to the
- *  right and the left in turn: 0, +6, -6, +12, -12 px. */
-export function stripLayout(items: StripItem[], lo: number, hi: number, height = STRIP_HEIGHT) {
+/** Places every item. Every dot keeps its exact y (its value, rounded to 0.01 px).
+ *
+ *  Tie groups (items with the same value, such as the same games played) share one row centred on the
+ *  axis. Their spacing is STEP, compressed so that no dot is further than `maxHalfWidth` from the axis:
+ *  step = min(STEP, maxHalfWidth / ceil((n - 1) / 2)). Overlapping dots are allowed.
+ *
+ *  Other items (singletons) are placed as before: within each 6 px band the first sits on the centre
+ *  line, then the dots step out to the right and the left in turn, 0, +6, -6, +12, -12 px, and so on. */
+export function stripLayout(items: StripItem[], lo: number, hi: number, height = STRIP_HEIGHT, maxHalfWidth = Infinity) {
   const placed = items
     .map((it) => ({ ...it, y: valueY(it.value, lo, hi, height) }))
     .sort((a, b) => a.y - b.y || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const groups = new Map<number, typeof placed>();
+  for (const p of placed) groups.set(p.value, [...(groups.get(p.value) ?? []), p]);
+  const tieDx = new Map<string, number>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const reach = Math.ceil((group.length - 1) / 2); // steps out to each side from the centre
+    const step = Math.min(STEP, maxHalfWidth / reach);
+    group.forEach((p, k) => tieDx.set(p.key, (k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2)) * step));
+  }
   const inBand = new Map<number, number>();
   const dots: StripDot[] = placed.map((p) => {
+    const y = Math.round(p.y * 100) / 100;
+    const tied = tieDx.get(p.key);
+    if (tied !== undefined) return { key: p.key, dx: tied, y, top: p.top };
     const band = Math.floor(p.y / BIN);
     const k = inBand.get(band) ?? 0;
     inBand.set(band, k + 1);
     const dx = k === 0 ? 0 : (k % 2 ? 1 : -1) * STEP * Math.ceil(k / 2);
-    return { key: p.key, dx, y: Math.round(p.y * 100) / 100, top: p.top };
+    return { key: p.key, dx, y, top: p.top };
   });
   const ticks: StripTick[] = niceTicks(lo, hi).map((value) => ({ value, y: valueY(value, lo, hi, height) }));
   return { dots, ticks };

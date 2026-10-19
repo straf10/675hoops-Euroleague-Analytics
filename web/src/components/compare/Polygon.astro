@@ -67,7 +67,7 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
       </svg>
     </div>
     <div class="profile-legend">
-      <ul id="profile-legend" class="profile-list"></ul>
+      <ul id="profile-legend" class="profile-list" aria-label="Colour key: player and season"></ul>
       <p class="profile-status" id="profile-status" aria-live="polite"></p>
     </div>
   </div>
@@ -147,14 +147,16 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
         const shapes = drawn.map(({ p, i }) => {
           const file = fileOf(p)!;
           const prof: Profile = profile(rows(file), file.fields, p.slug, axes, { career, careerGames, position: pool });
-          return { name: p.name, slot: (i % 5) + 1, profile: prof, text: describeProfile(p.name, prof, axisObjs) };
+          // The key names each shape by player and season ("career" in Career scope).
+          const season = career ? "career" : seasonName(p.season);
+          return { name: p.name, season, slot: (i % 5) + 1, profile: prof, text: describeProfile(p.name, prof, axisObjs) };
         });
         const label = career ? "career pool" : "season pool";
         const where = pool ? `, against the same position in the ${label}` : `, against the ${label}`;
         const desc = shapes.map((s) => s.text).join(" ");
         figure.innerHTML = profileSvg(
           axisObjs,
-          shapes.map((s) => ({ name: s.name, slot: s.slot, profile: s.profile })),
+          shapes.map((s) => ({ name: `${s.name} ${s.season}`, slot: s.slot, profile: s.profile })),
           `Percentile profile${where}`,
           desc,
         );
@@ -171,10 +173,10 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
             const name = document.createElement("span");
             name.className = "series-name";
             name.textContent = s.name;
-            const text = document.createElement("span");
-            text.className = "series-text";
-            text.textContent = s.profile.note ? s.profile.note : s.profile.axes.map((a, j) => `${axisObjs[j].head} ${a.pct === null ? "–" : Math.round(a.pct)}`).join(", ");
-            li.append(sw, name, text);
+            const season = document.createElement("span");
+            season.className = "series-season";
+            season.textContent = s.season;
+            li.append(sw, name, " ", season); // the space is not drawn in the flex row, but a reader hears it
             return li;
           }),
         );
@@ -330,27 +332,30 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
     list-style: none;
     border-top: 1px solid var(--rule);
   }
+  /* The key: one row per player-season, its series colour in a swatch beside the name (ink, never coloured). */
   .profile-list li {
-    display: grid;
-    grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr);
-    gap: 4px 10px;
+    display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
+    gap: 2px 10px;
     padding: 10px 0;
     border-bottom: 1px solid var(--rule);
+    color: var(--ink);
     font-size: 0.875rem;
   }
   .swatch {
+    flex: none;
+    align-self: center;
     display: inline-block;
     width: 12px;
     height: 12px;
     border-radius: 2px;
-    transform: translateY(1px);
   }
   .series-name {
     font-weight: 600;
+    overflow-wrap: anywhere;
   }
-  .series-text {
-    grid-column: 2 / -1;
+  .series-season {
     color: var(--ink-2);
     font-variant-numeric: tabular-nums;
     font-size: 0.8125rem;

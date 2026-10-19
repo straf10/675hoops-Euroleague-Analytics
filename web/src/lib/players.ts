@@ -7,7 +7,7 @@ import { signClass } from "./delta";
 import { esc } from "./format";
 import { position } from "./position";
 import { dataTip, linkTip, tip } from "./tip";
-import { domainOf, isTop, stripLayout, valueY, type StripDot } from "./strip";
+import { DEFAULT_HALF_WIDTH, STRIP_HEIGHT, domainOf, isTop, stripLayout, valueY, type StripDot } from "./strip";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 import { BY_KEY, columnsOf, format, MEASURES, measureTitle, rated, type RapmData, type View } from "./measures";
 
@@ -89,7 +89,8 @@ export interface Strip {
   avg: { y: number; text: string; n: number } | null;
 }
 
-export function strip(ls: Line[], view: View): Strip {
+/** `halfWidth`: how far a tie group may spread from the axis, in px (the plot's real width on the page). */
+export function strip(ls: Line[], view: View, halfWidth = DEFAULT_HALF_WIDTH): Strip {
   const m = BY_KEY[view.metric] ?? BY_KEY.pts;
   const ranked = ls.filter((l) => l.ranked);
   const byId = new Map(ranked.map((l) => [l.row.id, l] as const));
@@ -100,6 +101,8 @@ export function strip(ls: Line[], view: View): Strip {
     ranked.map((l, i) => ({ key: l.row.id, value: l.values[m.key] as number, top: isTop(i, view.top) })),
     lo,
     hi,
+    STRIP_HEIGHT,
+    halfWidth,
   );
   return {
     title: measureTitle(view),

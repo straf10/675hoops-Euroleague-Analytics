@@ -237,3 +237,42 @@ export function teamsFromQuery(search: string, known: (code: string, season: num
   }
   return { mode: q.get("mode") === "teams" ? "teams" : "players", picks: picks.slice(0, TEAM_MAX) };
 }
+
+/** The season with the largest start year, or undefined when there are none. */
+export function latestSeason(seasons: TeamSeasonRows[]): TeamSeasonRows | undefined {
+  return seasons.reduce<TeamSeasonRows | undefined>((best, s) => (!best || s.season > best.season ? s : best), undefined);
+}
+
+/**
+ * The club picker's options for one season: every club of that season, by name, and whether the club
+ * is already picked for that same season (a picked club is disabled; the same club in another season
+ * stays available).
+ */
+export function clubChoices(seasons: TeamSeasonRows[], season: number, picks: TeamPick[]): { code: string; name: string; picked: boolean }[] {
+  const s = seasons.find((x) => x.season === season);
+  if (!s) return [];
+  const picked = new Set(picks.filter((p) => p.season === season).map((p) => p.code));
+  return [...s.rows]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((r) => ({ code: r.code, name: r.name, picked: picked.has(r.code) }));
+}
+
+/** Adds a club-season unless that club already has the same season in the list, or the list is full. */
+export function addClub(picks: TeamPick[], pick: TeamPick): TeamPick[] {
+  if (picks.length >= TEAM_MAX || picks.some((p) => p.code === pick.code && p.season === pick.season)) return picks;
+  return [...picks, pick];
+}
+
+/**
+ * The Teams mode starting point, so the page is never empty: the two clubs with the best net rating
+ * in the latest season (ties by name). The strongest pair of the newest season, with a real matchup.
+ */
+export function defaultTeamPicks(seasons: TeamSeasonRows[]): TeamPick[] {
+  const latest = latestSeason(seasons);
+  if (!latest) return [];
+  return [...latest.rows]
+    .filter((r) => Number.isFinite(r.f.net))
+    .sort((a, b) => b.f.net - a.f.net || a.name.localeCompare(b.name))
+    .slice(0, 2)
+    .map((r) => ({ code: r.code, season: latest.season }));
+}

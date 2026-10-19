@@ -569,7 +569,12 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
     slugs = player_slugs(names)  # the last spelling of a name wins, as in the season rows
     files: dict[str, dict[str, Any]] = {}
     seasons: list[dict[str, Any]] = []
-    missing = inputs.box.missing.groupby("season").size()
+    # An empty frame has no "season" column to group on: then no game lacks a box score.
+    missing: pd.Series = (
+        inputs.box.missing.groupby("season").size()
+        if not inputs.box.missing.empty
+        else pd.Series(dtype="int64")
+    )
     coverage = {int(r["season"]): r for r in inputs.shots.coverage.to_dict("records")}
     for season in window:
         lines = frame[frame["season"] == season]

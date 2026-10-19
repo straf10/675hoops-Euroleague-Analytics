@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { presetHref, presetProblems, usablePresets, type Preset } from "./compare_presets.ts";
+import { PRESETS, defaultPresetQuery, presetHref, presetProblems, presetQuery, usablePresets, type Preset } from "./compare_presets.ts";
 
 const known: Record<string, number[]> = {
   "sergio-llull": [2007, 2008, 2022],
@@ -21,6 +21,20 @@ test("a season preset links with slug:season and a career preset with scope=care
 test("an unknown slug or a season the player has no lines for is a problem", () => {
   const p: Preset = { label: "z", scope: "season", picks: ["walter-tavares:2021", "luka-doncic:2022"] };
   assert.deepEqual(presetProblems(p, seasonsOf), ["walter-tavares: no 2021 season", "luka-doncic: no such player"]);
+});
+
+test("every curated player preset compares three players, each picked once", () => {
+  for (const p of PRESETS) {
+    assert.equal(p.picks.length, 3, `${p.label} should compare 3 players`);
+    const slugs = p.picks.map((pick) => pick.split(":")[0]);
+    assert.equal(new Set(slugs).size, slugs.length, `${p.label} repeats a player`);
+  }
+});
+
+test("the default query opens on the first preset, with its scope", () => {
+  assert.equal(defaultPresetQuery(PRESETS), presetQuery(PRESETS[0]));
+  assert.equal(presetQuery(PRESETS[0]), `?scope=career&p=${PRESETS[0].picks.join(",")}`);
+  assert.equal(defaultPresetQuery([]), "");
 });
 
 test("usablePresets keeps the good ones and warns about the rest", () => {

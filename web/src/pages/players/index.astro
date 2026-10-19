@@ -197,12 +197,15 @@ const description =
                 </span>
               </p>
             </figcaption>
-            <div class="strip" id="strip">
+            <div class="strip" id="strip" hidden={view.metric === "gp"}>
               <span class="ticks" id="ticks" aria-hidden="true" set:html={ticksHtml(plot)} />
               <span class="gridlines" id="gridlines" aria-hidden="true" set:html={gridHtml(plot)} />
               <i class="avg" id="avg" aria-hidden="true" hidden={!plot.avg} style={`--y:${plot.avg?.y.toFixed(2) ?? 0}`} />
               <div class="plot" id="plot" set:html={dotsHtml(plot, base)} />
             </div>
+            <p class="strip-note" id="strip-note" hidden={view.metric !== "gp"}>
+              Games played is a whole number, so most players share one value and the dots would pile into a solid band. The players table lists every player's games.
+            </p>
           </figure>
         </div>
 
@@ -220,6 +223,7 @@ const description =
 </Base>
 
 <script>
+  import { DEFAULT_HALF_WIDTH } from "../../lib/strip";
   import {
     bodyHtml,
     countText,
@@ -357,12 +361,22 @@ const description =
     });
     $("tbody").addEventListener("pointerleave", () => hot(null));
 
+    // How far a tie may spread: half the plot's real width less a dot's radius (the default before it is laid out).
+    const halfWidth = () => (plot.clientWidth ? Math.max(0, plot.clientWidth / 2 - 5) : DEFAULT_HALF_WIDTH);
+    let lastData: SeasonPlayers | null = null;
+    let lastHalf = -1;
     const paint = (data: SeasonPlayers) => {
+      lastData = data;
+      lastHalf = halfWidth();
       const ls = lines(data, view, cfg.rapm);
       const top = shown(ls, view);
-      const s = strip(ls, view);
+      const s = strip(ls, view, lastHalf);
       const rapm = hasRapm();
       $("rank-title").textContent = s.title;
+      // Games played hides the strip: whole-number ties form a solid band that no spacing can separate.
+      const noPlot = view.metric === "gp";
+      $("strip").hidden = noPlot;
+      $("strip-note").hidden = !noPlot;
       $("top-text").textContent = view.top ? `Top ${view.top}` : "All ranked";
       $("key-rest").hidden = view.top === 0;
       $("ticks").innerHTML = ticksHtml(s);
@@ -399,6 +413,11 @@ const description =
     const atEnd = () => box.classList.toggle("end", box.scrollTop + box.clientHeight >= box.scrollHeight - 2);
     box.addEventListener("scroll", atEnd, { passive: true });
     new ResizeObserver(atEnd).observe(box);
+
+    // A resize changes how far a tie may spread: repaint the dots once the width moves by a pixel.
+    window.addEventListener("resize", () => {
+      if (lastData && Math.abs(halfWidth() - lastHalf) >= 1) paint(lastData);
+    });
 
     let pending = 0;
     const update = async () => {
@@ -653,9 +672,19 @@ const description =
 
   /* The strip: a value axis on the left (ticks), the dots in the column to its right. Dots are
      placed by lib/strip.ts (px from the top, and an offset from the centre line). */
+  .strip[hidden],
+  .strip-note[hidden] {
+    display: none;
+  }
+  .strip-note {
+    margin: 12px 0 0;
+    max-width: 60ch;
+    color: var(--muted, inherit);
+    font-size: 0.875rem;
+  }
   .strip {
     position: relative;
-    height: 360px;
+    height: 432px; /* STRIP_HEIGHT in lib/strip.ts */
     margin: 12px 0 0 3.25rem;
     font-size: 0.8125rem;
   }

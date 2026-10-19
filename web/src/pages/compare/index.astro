@@ -1,13 +1,14 @@
 ---
 import plus from "@phosphor-icons/core/assets/regular/user-plus.svg?raw";
 import x from "@phosphor-icons/core/assets/regular/x.svg?raw";
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import Base from "../../layouts/Base.astro";
 import { MAX, RATES } from "../../lib/compare";
-import { PRESETS, presetHref, usablePresets } from "../../lib/compare_presets";
+import { PRESETS, defaultPresetQuery, presetHref, usablePresets } from "../../lib/compare_presets";
 import { seasonLabel } from "../../lib/leaders";
 import { cardData, meta, season } from "../../lib/stats";
 import { clubRows } from "../../lib/team";
-import { TEAM_MAX, teamOptions, withShots, type BandCounts, type TeamSeasonRows } from "../../lib/compare_teams";
+import { TEAM_MAX, withShots, type BandCounts, type TeamSeasonRows } from "../../lib/compare_teams";
 import "../../styles/stats.css";
 import Polygon from "../../components/compare/Polygon.astro";
 import TeamProfile from "../../components/compare/TeamProfile.astro";
@@ -24,7 +25,8 @@ const teamSeasons: TeamSeasonRows[] = m
       }),
     )
   : [];
-const teamChoices = teamOptions([...teamSeasons].reverse());
+// The season picker lists the latest season first.
+const seasonChoices = [...teamSeasons].reverse();
 const base = import.meta.env.BASE_URL;
 // Curated sets: a preset is dropped (with a build warning) when a slug or season is not in the data.
 const known = new Map<string, { name: string; seasons: number[] } | null>();
@@ -49,7 +51,8 @@ const presets = curated.ok.map((p) => ({
     })
     .join(", "),
 }));
-const cfg = { base, xIcon: x };
+// Opened with no players in the link, Compare loads the first curated preset (see the script).
+const cfg = { base, xIcon: x, defaultQuery: defaultPresetQuery(curated.ok) };
 const description = "Up to five EuroLeague players side by side, a season each or whole careers, measure by measure.";
 ---
 
@@ -136,7 +139,8 @@ const description = "Up to five EuroLeague players side by side, a season each o
           // Opened with players in the link: the table paints once their cards arrive. Until then
           // the empty state keeps its place unseen and a screen tall, so the footer starts below
           // the fold and nothing jumps when the table replaces it (0.096 CLS before).
-          if (/[?&]p=[^&]/.test(location.search)) document.documentElement.dataset.picks = "";
+          // With no p= in the link the default preset loads, so the table is coming too.
+          if (!/[?&]p=/.test(location.search) || /[?&]p=[^&]/.test(location.search)) document.documentElement.dataset.picks = "";
         </script>
         <div class="empty" id="empty">
           <p>Add a player by name, or start from one of these:</p>
@@ -181,30 +185,34 @@ const description = "Up to five EuroLeague players side by side, a season each o
         </div>
 
         <div id="teams-view" data-seasons={JSON.stringify(teamSeasons)} data-x={x}>
-          <form class="filters" id="team-filters" aria-label="Clubs and seasons">
-            <label class="field grow">
-              <span>Add a club and season</span>
-              <span class="search">
-                <span class="glass" set:html={plus} />
-                <input
-                  type="search"
-                  id="team-add"
-                  list="team-names"
-                  placeholder="Type a club"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-                <datalist id="team-names">
-                  {teamChoices.map((c) => (
-                    <option value={c.text} />
+          <form class="filters" id="team-filters" aria-label="Season and club">
+            <label class="field">
+              <span>Season</span>
+              <span class="select">
+                <select id="team-season" name="season" style="--select-w: 7.875rem">
+                  {seasonChoices.map((s) => (
+                    <option value={s.season}>{s.label}</option>
                   ))}
-                </datalist>
+                </select>
+                <span class="caret" set:html={caret} />
+              </span>
+            </label>
+            <label class="field grow">
+              <span>Add a club</span>
+              <span class="select">
+                <select id="team-club" name="club" style="--select-w: min(20rem, 100%)">
+                  <option value="">Choose a club</option>
+                </select>
+                <span class="caret" set:html={caret} />
               </span>
             </label>
             <p class="count" id="team-status" aria-live="polite">Up to {TEAM_MAX} clubs.</p>
           </form>
           <div class="empty" id="team-empty">
-            <p>Add a club and season by name. Each club is one season, so the same club can appear twice.</p>
+            <p>
+              Choose a season, then a club. A club is picked once per season, so the same club can appear again for a
+              different season.
+            </p>
           </div>
           <div class="scroll busy-fade" id="team-board" hidden>
             <table class="grid h2h" id="team-table">
@@ -224,10 +232,11 @@ const description = "Up to five EuroLeague players side by side, a season each o
 
 <script>
   import { bodyHtml, column, fromQuery, grid, headHtml, MAX, toQuery, type Card, type CRate, type Pick, type Scope } from "../../lib/compare";
+  import { addPlayer, unpickedNames } from "../../lib/compare_picks";
 
   const host = document.getElementById("compare");
   if (host) {
-    const cfg = JSON.parse(host.dataset.cfg ?? "{}") as { base: string; xIcon: string };
+    const cfg = JSON.parse(host.dataset.cfg ?? "{}") as { base: string; xIcon: string; defaultQuery: string };
     const root = cfg.base.replace(/\/$/, "");
     const form = document.getElementById("filters") as HTMLFormElement;
     const input = document.getElementById("add") as HTMLInputElement;
@@ -238,16 +247,26 @@ const description = "Up to five EuroLeague players side by side, a season each o
       return cards.get(slug)!;
     };
     let names: Map<string, string> | null = null;
+    // The picker offers only players not yet compared: a picked player is taken out of the list.
+    const refreshNames = () => {
+      if (!names) return;
+      $("names").replaceChildren(...unpickedNames([...names.entries()], picks).map((k) => new Option(k)));
+    };
     const loadNames = async () => {
       if (names) return names;
       const rows = (await fetch(`${root}/data/names.json`).then((r) => r.json())) as [string, string, number, number][];
       const span = (a: number, b: number) => (a === b ? `${a}-${String((a + 1) % 100).padStart(2, "0")}` : `${a} to ${b + 1}`);
       names = new Map(rows.map(([slug, name, a, b]) => [`${name} (${span(a, b)})`, slug]));
-      $("names").replaceChildren(...[...names.keys()].map((k) => new Option(k)));
+      refreshNames();
       return names;
     };
 
-    let { picks, scope, rate } = fromQuery(location.search);
+    // No players in the link (and not an explicit empty p=, nor Teams mode, whose link this page must keep):
+    // open on the default preset.
+    const q = new URLSearchParams(location.search);
+    const teamsMode = q.get("mode") === "teams";
+    if (!teamsMode && !q.has("p") && cfg.defaultQuery) for (const [k, v] of new URLSearchParams(cfg.defaultQuery)) if (!q.has(k)) q.set(k, v);
+    let { picks, scope, rate } = fromQuery(q.toString() ? `?${q.toString()}` : "");
     let shown: { slug: string; season: number }[] = [];
 
     const syncForm = () => {
@@ -274,6 +293,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
           else seen.add(cols[i].card.slug);
         }
         picks = cols.map((c) => ({ slug: c.card.slug, season: scope === "season" ? c.season : 0 }));
+        refreshNames();
         const g = grid(cols, rate);
         $("heads").innerHTML = headHtml(cols, scope, cfg.base, cfg.xIcon);
         const table = $("heads").parentElement!;
@@ -305,19 +325,20 @@ const description = "Up to five EuroLeague players side by side, a season each o
 
     const add = async () => {
       const n = await loadNames();
-      const slug = n.get(input.value);
-      if (!slug || picks.length >= MAX) return;
-      const c = await card(slug);
-      if (!c) return;
-      if (scope === "career" && picks.some((p) => p.slug === slug)) {
-        input.value = "";
-        return;
-      }
-      const season = c.seasons[c.seasons.length - 1].season;
+      const label = input.value;
+      const slug = n.get(label);
+      if (!slug) return;
       input.value = "";
       // Enter fires both change and submit: the second call finds the pick already made.
-      if (picks.some((p) => p.slug === slug && p.season === season)) return;
-      picks = [...picks, { slug, season }];
+      if (picks.some((p) => p.slug === slug)) {
+        $("status").textContent = `${label.replace(/ \(.*\)$/, "")} is already in the comparison.`;
+        return;
+      }
+      if (picks.length >= MAX) return;
+      const c = await card(slug);
+      if (!c) return;
+      const season = scope === "career" ? 0 : c.seasons[c.seasons.length - 1].season;
+      picks = addPlayer(picks, { slug, season }, MAX);
       await paint();
       input.focus();
     };
@@ -356,7 +377,23 @@ const description = "Up to five EuroLeague players side by side, a season each o
 </script>
 
 <script>
-  import { POLYGON_AXES, TEAM_MAX, teamBodyHtml, teamColumns, teamDescription, teamHeadHtml, teamOptions, teamSeries, teamsFromQuery, teamsToQuery, type TeamPick, type TeamSeasonRows } from "../../lib/compare_teams";
+  import {
+    POLYGON_AXES,
+    TEAM_MAX,
+    addClub,
+    clubChoices,
+    defaultTeamPicks,
+    latestSeason,
+    teamBodyHtml,
+    teamColumns,
+    teamDescription,
+    teamHeadHtml,
+    teamSeries,
+    teamsFromQuery,
+    teamsToQuery,
+    type TeamPick,
+    type TeamSeasonRows,
+  } from "../../lib/compare_teams";
   import { profileSvg } from "../../lib/polygon";
 
   const root = document.getElementById("teams-view");
@@ -364,9 +401,25 @@ const description = "Up to five EuroLeague players side by side, a season each o
   const parsed = teamsFromQuery(location.search, (code, season) => cfg.some((s) => s.season === season && s.rows.some((r) => r.code === code)));
   if (root && parsed.mode === "teams") {
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
-    const input = $("team-add") as HTMLInputElement;
-    const choices = new Map(teamOptions(cfg).map((o) => [o.text, o.pick]));
-    let picks: TeamPick[] = parsed.picks;
+    const seasonSel = $("team-season") as HTMLSelectElement;
+    const clubSel = $("team-club") as HTMLSelectElement;
+    // No clubs in the link (no t= at all): open on the two strongest clubs of the latest season.
+    let picks: TeamPick[] = /[?&]t=/.test(location.search) ? parsed.picks : defaultTeamPicks(cfg);
+    const latest = latestSeason(cfg);
+    if (latest) seasonSel.value = String(latest.season);
+
+    // The club picker lists the clubs of the chosen season; a club already picked for that season is disabled.
+    const fillClubs = () => {
+      const choices = clubChoices(cfg, Number(seasonSel.value), picks);
+      clubSel.replaceChildren(
+        new Option("Choose a club", ""),
+        ...choices.map((c) => {
+          const o = new Option(c.name, c.code);
+          o.disabled = c.picked;
+          return o;
+        }),
+      );
+    };
 
     const paint = () => {
       const cols = teamColumns(picks, cfg);
@@ -378,6 +431,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
       table.style.setProperty("--cols", String(cols.length));
       const series = teamSeries(cols);
       $("team-figure").innerHTML = profileSvg(POLYGON_AXES, series, "Percentile profile, club-seasons", teamDescription(cols), "team-profile-svg");
+      // The key: the same series token as the chart's shape, so the colour matches exactly.
       $("team-legend").replaceChildren(
         ...series.map((s) => {
           const li = document.createElement("li");
@@ -388,17 +442,11 @@ const description = "Up to five EuroLeague players side by side, a season each o
           const name = document.createElement("span");
           name.className = "series-name";
           name.textContent = s.name;
-          const text = document.createElement("span");
-          text.className = "series-text";
-          text.textContent =
-            s.profile.note ?? s.profile.axes.map((a, j) => `${POLYGON_AXES[j].head} ${a.pct === null ? "–" : Math.round(a.pct)}`).join(", ");
-          li.append(sw, name, text);
+          li.append(sw, name);
           return li;
         }),
       );
-      const full = picks.length >= TEAM_MAX;
-      input.disabled = full;
-      input.placeholder = full ? "Remove one to add more" : "Type a club";
+      fillClubs();
       $("team-board").hidden = !cols.length;
       $("team-note").hidden = !cols.length;
       $("team-profile").hidden = !cols.length;
@@ -408,26 +456,39 @@ const description = "Up to five EuroLeague players side by side, a season each o
       history.replaceState(null, "", location.pathname + teamsToQuery(picks));
     };
 
+    // A club is added on its choice in the club picker, for the season the season picker shows.
     const add = () => {
-      const pick = choices.get(input.value);
-      input.value = "";
-      if (!pick || picks.length >= TEAM_MAX || picks.some((p) => p.code === pick.code && p.season === pick.season)) return;
-      picks = [...picks, pick];
+      const code = clubSel.value;
+      if (!code) return;
+      const pick = { code, season: Number(seasonSel.value) };
+      const name = clubSel.options[clubSel.selectedIndex].text;
+      if (picks.length >= TEAM_MAX) {
+        $("team-status").textContent = `Remove a club to add ${name}.`;
+        clubSel.value = "";
+        return;
+      }
+      if (picks.some((p) => p.code === pick.code && p.season === pick.season)) {
+        $("team-status").textContent = `${name} is already in the comparison for ${seasonSel.options[seasonSel.selectedIndex].text}.`;
+        clubSel.value = "";
+        return;
+      }
+      picks = addClub(picks, pick);
       paint();
-      input.focus();
+      clubSel.focus();
     };
-    input.addEventListener("change", add);
-    $("team-filters").addEventListener("submit", (e) => {
-      e.preventDefault();
-      add();
+    clubSel.addEventListener("change", add);
+    seasonSel.addEventListener("change", () => {
+      fillClubs();
+      clubSel.focus();
     });
     $("team-board").addEventListener("click", (e) => {
       const b = (e.target as Element).closest<HTMLButtonElement>("button[data-drop]");
       if (!b) return;
       picks = picks.filter((_, j) => j !== Number(b.dataset.drop));
       paint();
-      input.focus();
+      clubSel.focus();
     });
+    $("team-filters").addEventListener("submit", (e) => e.preventDefault());
     paint();
   }
 </script>
