@@ -1,0 +1,113 @@
+---
+// Compare, Teams mode: the percentile polygon for club-seasons. The same drawing as the player
+// polygon (lib/polygon.ts profileSvg, the same series tokens), with the eight team axes fixed and
+// filled in by the page's script (lib/compare_teams.ts). Its styles repeat the player polygon's
+// figure and legend rules, since the two sections never share a page state.
+---
+
+<section class="profile" id="team-profile" aria-labelledby="team-profile-heading" hidden>
+  <h2 id="team-profile-heading">Percentile profile</h2>
+  <p class="profile-note">
+    Each club against every club of its own season. 100 is the best on each measure, 0 the worst. Rings mark 25, 50, 75 and
+    100. Turnover % and the defence measures are inverted, so fewer turnovers and a lower defensive rating reach further out.
+  </p>
+  <div class="profile-body">
+    <div class="profile-figure" id="team-figure">
+      <svg viewBox="0 0 320 320" role="img" aria-labelledby="team-profile-fallback-title team-profile-fallback-desc" class="profile-svg">
+        <title id="team-profile-fallback-title">Percentile profile</title>
+        <desc id="team-profile-fallback-desc">Add a club to see its percentile profile.</desc>
+      </svg>
+    </div>
+    <div class="profile-legend">
+      <ul id="team-legend" class="profile-list"></ul>
+      <p class="profile-status" id="team-profile-status" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .profile {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+  }
+  .profile[hidden] {
+    display: none;
+  }
+  .profile h2 {
+    margin: 0;
+  }
+  .profile-note {
+    margin: 8px 0 0;
+    max-width: 64ch;
+    color: var(--ink-2);
+  }
+  .profile-body {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+    margin-top: 22px;
+  }
+  .profile-figure {
+    width: 100%;
+    max-width: 360px;
+  }
+  .profile-figure :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .profile-figure :global(.ring-label),
+  .profile-figure :global(.axis-label) {
+    fill: var(--muted);
+    font-size: 10px;
+    font-family: var(--font);
+  }
+  .profile-figure :global(.axis-label) {
+    fill: var(--ink-2);
+    font-size: 11px;
+  }
+  .profile-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--rule);
+  }
+  .profile-list li {
+    display: grid;
+    grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr);
+    gap: 4px 10px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.875rem;
+  }
+  .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    transform: translateY(1px);
+  }
+  .series-name {
+    font-weight: 600;
+  }
+  .series-text {
+    grid-column: 2 / -1;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8125rem;
+  }
+  .profile-status {
+    margin: 8px 0 0;
+    color: var(--ink-2);
+  }
+  @media (max-width: 720px) {
+    .profile-body {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+    }
+  }
+</style>

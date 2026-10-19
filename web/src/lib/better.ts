@@ -40,6 +40,9 @@ const DIRECTION = new Map<string, BetterIs>([
   ["pace", "neither"], // possessions per 40 minutes: a style, not a better side
   ["tpar", "neither"], // three-point attempt rate (club): a style
   ["otpar", "neither"], // opponent three-point attempt rate: what the club allows, a style
+  ["rim_share", "neither"], // Compare (teams): share of a club's shots from the rim and short range
+  ["mid_share", "neither"], // share of shots from mid-range and long two
+  ["three_share", "neither"], // share of shots from the three-point line (three and deep three)
   // Returning minutes: neither. Continuity is not better or worse by itself: a club can keep its
   // roster and still be weak, or rebuild and be strong. It is context, not a rating.
   ["returning", "neither"],

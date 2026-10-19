@@ -5,11 +5,26 @@ import Base from "../../layouts/Base.astro";
 import { MAX, RATES } from "../../lib/compare";
 import { PRESETS, presetHref, usablePresets } from "../../lib/compare_presets";
 import { seasonLabel } from "../../lib/leaders";
-import { cardData, meta } from "../../lib/stats";
+import { cardData, meta, season } from "../../lib/stats";
+import { clubRows } from "../../lib/team";
+import { TEAM_MAX, teamOptions, withShots, type BandCounts, type TeamSeasonRows } from "../../lib/compare_teams";
 import "../../styles/stats.css";
 import Polygon from "../../components/compare/Polygon.astro";
+import TeamProfile from "../../components/compare/TeamProfile.astro";
 
 const m = await meta();
+// Teams mode: every published club-season, with the teams index's figures and the shot shares, embedded
+// for the browser (the same rows the Teams index draws from, so the numbers agree).
+const teamSeasons: TeamSeasonRows[] = m
+  ? await Promise.all(
+      m.seasons.map(async (s) => {
+        const d = await season(s.season, "teams");
+        const bands = Object.fromEntries(d.teams.map((t) => [t.code, t.bands as BandCounts]));
+        return { season: s.season, label: s.label, rows: withShots(clubRows(d.fields, d.teams), bands) };
+      }),
+    )
+  : [];
+const teamChoices = teamOptions([...teamSeasons].reverse());
 const base = import.meta.env.BASE_URL;
 // Curated sets: a preset is dropped (with a build warning) when a slug or season is not in the data.
 const known = new Map<string, { name: string; seasons: number[] } | null>();
@@ -41,10 +56,28 @@ const description = "Up to five EuroLeague players side by side, a season each o
 <Base title="Compare" description={description} current="compare">
   <section class="wrap head" aria-labelledby="compare-title">
     <h1 id="compare-title">Compare</h1>
-    <p>
+    <p class="mode-players">
       Up to five players side by side, each in one season or over his whole career. Every measure is
       a row; the orange dot marks who leads it among the players compared.
     </p>
+    <p class="mode-teams">
+      Up to five club-seasons side by side: ratings, four factors and shot profile. The polygon ranks each club against
+      every club of its season. The orange dot marks who leads each measure among those compared.
+    </p>
+    {
+      m && (
+        <nav class="mode-switch" aria-label="Compare players or teams">
+          <a href="?" data-mode-link="players">Players</a>
+          <a href="?mode=teams" data-mode-link="teams">Teams</a>
+        </nav>
+      )
+    }
+    <script is:inline>
+      // Teams mode comes from the link (?mode=teams). One view shows at a time; the current link is marked.
+      const mode = /(^|[?&])mode=teams(&|$)/.test(location.search) ? "teams" : "players";
+      document.documentElement.dataset.mode = mode;
+      document.querySelectorAll("[data-mode-link]").forEach((a) => a.setAttribute("aria-current", a.dataset.modeLink === mode ? "page" : "false"));
+    </script>
   </section>
 
   {
@@ -56,6 +89,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
       </section>
     ) : (
       <section class="wrap" id="compare" data-cfg={JSON.stringify(cfg)}>
+        <div id="players-view">
         <form class="filters" id="filters" aria-label="Players and options">
           <label class="field grow">
             <span>Add a player</span>
@@ -144,6 +178,45 @@ const description = "Up to five EuroLeague players side by side, a season each o
           Career numbers add up every EuroLeague season since 2007-08.
         </p>
         <Polygon base={base} />
+        </div>
+
+        <div id="teams-view" data-seasons={JSON.stringify(teamSeasons)} data-x={x}>
+          <form class="filters" id="team-filters" aria-label="Clubs and seasons">
+            <label class="field grow">
+              <span>Add a club and season</span>
+              <span class="search">
+                <span class="glass" set:html={plus} />
+                <input
+                  type="search"
+                  id="team-add"
+                  list="team-names"
+                  placeholder="Type a club"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <datalist id="team-names">
+                  {teamChoices.map((c) => (
+                    <option value={c.text} />
+                  ))}
+                </datalist>
+              </span>
+            </label>
+            <p class="count" id="team-status" aria-live="polite">Up to {TEAM_MAX} clubs.</p>
+          </form>
+          <div class="empty" id="team-empty">
+            <p>Add a club and season by name. Each club is one season, so the same club can appear twice.</p>
+          </div>
+          <div class="scroll busy-fade" id="team-board" hidden>
+            <table class="grid h2h" id="team-table">
+              <caption class="sr-only">Clubs compared measure by measure</caption>
+              <thead id="team-heads" />
+            </table>
+          </div>
+          <p class="note" id="team-note" hidden>
+            Small figures are the club's place among all clubs that season. Shot shares are of each club's own shots.
+          </p>
+          <TeamProfile />
+        </div>
       </section>
     )
   }
@@ -282,6 +355,83 @@ const description = "Up to five EuroLeague players side by side, a season each o
   }
 </script>
 
+<script>
+  import { POLYGON_AXES, TEAM_MAX, teamBodyHtml, teamColumns, teamDescription, teamHeadHtml, teamOptions, teamSeries, teamsFromQuery, teamsToQuery, type TeamPick, type TeamSeasonRows } from "../../lib/compare_teams";
+  import { profileSvg } from "../../lib/polygon";
+
+  const root = document.getElementById("teams-view");
+  const cfg = root ? (JSON.parse(root.dataset.seasons ?? "[]") as TeamSeasonRows[]) : [];
+  const parsed = teamsFromQuery(location.search, (code, season) => cfg.some((s) => s.season === season && s.rows.some((r) => r.code === code)));
+  if (root && parsed.mode === "teams") {
+    const $ = (id: string) => document.getElementById(id) as HTMLElement;
+    const input = $("team-add") as HTMLInputElement;
+    const choices = new Map(teamOptions(cfg).map((o) => [o.text, o.pick]));
+    let picks: TeamPick[] = parsed.picks;
+
+    const paint = () => {
+      const cols = teamColumns(picks, cfg);
+      picks = cols.map((c) => ({ code: c.code, season: c.season }));
+      const table = $("team-table");
+      $("team-heads").innerHTML = teamHeadHtml(cols, root.dataset.x ?? "");
+      table.querySelectorAll("tbody").forEach((t) => t.remove());
+      table.insertAdjacentHTML("beforeend", teamBodyHtml(cols));
+      table.style.setProperty("--cols", String(cols.length));
+      const series = teamSeries(cols);
+      $("team-figure").innerHTML = profileSvg(POLYGON_AXES, series, "Percentile profile, club-seasons", teamDescription(cols), "team-profile-svg");
+      $("team-legend").replaceChildren(
+        ...series.map((s) => {
+          const li = document.createElement("li");
+          const sw = document.createElement("i");
+          sw.className = "swatch";
+          sw.style.background = `var(--series-${s.slot})`;
+          sw.setAttribute("aria-hidden", "true");
+          const name = document.createElement("span");
+          name.className = "series-name";
+          name.textContent = s.name;
+          const text = document.createElement("span");
+          text.className = "series-text";
+          text.textContent =
+            s.profile.note ?? s.profile.axes.map((a, j) => `${POLYGON_AXES[j].head} ${a.pct === null ? "–" : Math.round(a.pct)}`).join(", ");
+          li.append(sw, name, text);
+          return li;
+        }),
+      );
+      const full = picks.length >= TEAM_MAX;
+      input.disabled = full;
+      input.placeholder = full ? "Remove one to add more" : "Type a club";
+      $("team-board").hidden = !cols.length;
+      $("team-note").hidden = !cols.length;
+      $("team-profile").hidden = !cols.length;
+      $("team-empty").hidden = cols.length > 0;
+      $("team-status").textContent =
+        cols.length === 0 ? `Up to ${TEAM_MAX} clubs.` : cols.length === 1 ? "Add another club to compare." : `${cols.length} of ${TEAM_MAX} clubs.`;
+      history.replaceState(null, "", location.pathname + teamsToQuery(picks));
+    };
+
+    const add = () => {
+      const pick = choices.get(input.value);
+      input.value = "";
+      if (!pick || picks.length >= TEAM_MAX || picks.some((p) => p.code === pick.code && p.season === pick.season)) return;
+      picks = [...picks, pick];
+      paint();
+      input.focus();
+    };
+    input.addEventListener("change", add);
+    $("team-filters").addEventListener("submit", (e) => {
+      e.preventDefault();
+      add();
+    });
+    $("team-board").addEventListener("click", (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>("button[data-drop]");
+      if (!b) return;
+      picks = picks.filter((_, j) => j !== Number(b.dataset.drop));
+      paint();
+      input.focus();
+    });
+    paint();
+  }
+</script>
+
 <style>
   .head p {
     margin-top: 10px;
@@ -380,6 +530,63 @@ const description = "Up to five EuroLeague players side by side, a season each o
   .empty li span {
     color: var(--muted);
     font-size: 0.8125rem;
+  }
+
+  /* Mode: one view at a time. The page marks data-mode on <html> before the views paint (inline script). */
+  .mode-teams {
+    display: none;
+  }
+  .mode-switch {
+    display: inline-flex;
+    gap: 2px;
+    margin-top: 18px;
+    padding: 2px;
+    border-radius: 9px;
+    background: var(--sunk);
+    box-shadow: inset 0 0 0 1px var(--rule);
+  }
+  .mode-switch a {
+    padding: 6px 16px;
+    border-radius: 7px;
+    color: var(--ink-2);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .mode-switch a[aria-current="page"] {
+    background: var(--page);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--rule-strong);
+  }
+  .mode-switch a:focus-visible {
+    outline: 2px solid var(--data-1);
+    outline-offset: 1px;
+  }
+  :global(html[data-mode="teams"]) .mode-players {
+    display: none;
+  }
+  :global(html[data-mode="teams"]) .mode-teams {
+    display: block;
+  }
+  :global(html[data-mode="teams"]) #players-view {
+    display: none;
+  }
+  #teams-view {
+    display: none;
+  }
+  :global(html[data-mode="teams"]) #teams-view {
+    display: block;
+  }
+  #teams-view .filters {
+    margin-top: 32px;
+  }
+  .h2h :global(th.card .tcode) {
+    display: block;
+    color: var(--ink);
+    font-size: 1.125rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
   }
 
   /* The grid: measure names stick on the left; each player owns an equal column. */
