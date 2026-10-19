@@ -4,6 +4,7 @@ import "../../styles/stats.css";
 import { rate, seasonRange, share, signed, winPct } from "../../lib/coaches";
 import { coachIndex, coachPage } from "../../lib/coach_files";
 import { teamHref } from "../../lib/players";
+import { teamIndex } from "../../lib/stats";
 
 export async function getStaticPaths() {
   const index = await coachIndex();
@@ -13,6 +14,8 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const page = await coachPage(slug!);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// A club links to its page only when the site has one (a club gets a page with a published season).
+const teamPages = new Set((await teamIndex()).map((t) => t.code.toUpperCase()));
 const career = page.career;
 const firstSeason = Math.min(...page.seasons.map((s) => s.season));
 const lede = `${career.games} games since ${seasonRange([firstSeason])}: ${career.wins}-${career.losses} (${winPct(career)}), ${career.expected_wins.toFixed(1)} expected wins, ${signed(career.wins_above_expectation)} above expectation.`;
@@ -23,6 +26,10 @@ const MIN_ATO = 50;
 const clutchRecord = style ? `${style.clutch.wins}-${style.clutch.losses}` : "-";
 const clutchWinPct = style ? winPct({ games: style.clutch.wins + style.clutch.losses, wins: style.clutch.wins }) : "-";
 const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / style.clutch.team_games : null;
+// Every opponent (the head to head search reads this list; the page's table shows the five most met).
+const h2hJson = JSON.stringify(
+  page.h2h.map((o) => ({ ...o, href: `${base}/coaches/${o.slug}/` })),
+).replace(/</g, "\\u003c");
 ---
 
 <Base title={page.name} description={description} current="coaches">
@@ -34,7 +41,11 @@ const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / 
         {page.clubs.map((c, i) => (
           <>
             {i > 0 && ", "}
-            <a href={teamHref(base, c.team)}>{c.team_name}</a>
+            {teamPages.has(c.team.toUpperCase()) ? (
+              <a href={teamHref(base, c.team)}>{c.team_name}</a>
+            ) : (
+              c.team_name
+            )}
           </>
         ))}
       </span>
@@ -42,63 +53,6 @@ const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / 
     </p>
     <p class="lede">{lede}</p>
   </header>
-
-  <section class="wrap band" id="seasons" aria-labelledby="seasons-title">
-    <header class="sec-head">
-      <h2 id="seasons-title">Season by season</h2>
-      <p>
-        One line per season and club. Expected wins sum each game's pre-game Elo win probability;
-        wins above expectation is wins minus that sum.
-      </p>
-    </header>
-    <div class="scroll">
-      <table class="grid coach-seasons">
-        <thead>
-          <tr>
-            <th scope="col">Season</th>
-            <th scope="col">Team</th>
-            <th scope="col" class="num">G</th>
-            <th scope="col" class="num">W-L</th>
-            <th scope="col" class="num">Win %</th>
-            <th scope="col" class="num">Expected W</th>
-            <th scope="col" class="num">Wins above exp.</th>
-          </tr>
-        </thead>
-        <tbody>
-          {
-            page.seasons.map((s) => (
-              <tr>
-                <th scope="row">{seasonRange([s.season])}</th>
-                <td class="team">
-                  <a href={teamHref(base, s.team, s.season)}>{s.team_name}</a>
-                </td>
-                <td class="num">{s.games}</td>
-                <td class="num">{s.wins}-{s.losses}</td>
-                <td class="num">{winPct(s)}</td>
-                <td class="num">{s.expected_wins.toFixed(1)}</td>
-                <td class="num">{signed(s.wins_above_expectation)}</td>
-              </tr>
-            ))
-          }
-        </tbody>
-        {
-          page.seasons.length > 1 && (
-            <tfoot>
-              <tr>
-                <th scope="row">Career</th>
-                <td class="team" />
-                <td class="num">{career.games}</td>
-                <td class="num">{career.wins}-{career.losses}</td>
-                <td class="num">{winPct(career)}</td>
-                <td class="num">{career.expected_wins.toFixed(1)}</td>
-                <td class="num">{signed(career.wins_above_expectation)}</td>
-              </tr>
-            </tfoot>
-          )
-        }
-      </table>
-    </div>
-  </section>
 
   {
     style && (
@@ -204,43 +158,235 @@ const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / 
     <header class="sec-head">
       <h2 id="h2h-title">Head to head</h2>
       <p>
-        Against other named coaches, in games they both coached: pairs with at least four games together.
+        Against other named coaches, in games they both coached. The five he has met most are
+        listed first; search for any other coach.
       </p>
     </header>
     {
       page.h2h.length === 0 ? (
-        <p>No other coach has shared four or more games with this coach.</p>
+        <p>No other named coach has coached against him yet.</p>
       ) : (
-        <div class="scroll">
-          <table class="grid coach-h2h">
-            <thead>
-              <tr>
-                <th scope="col">Coach</th>
-                <th scope="col" class="num">G</th>
-                <th scope="col" class="num">W-L</th>
-                <th scope="col" class="num">Win %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {page.h2h.map((o) => (
+        <>
+          <div class="scroll">
+            <table class="grid coach-h2h">
+              <caption class="sr-only">The five coaches he has met most often</caption>
+              <thead>
                 <tr>
-                  <th scope="row">
-                    <a href={`${base}/coaches/${o.slug}/`}>{o.name}</a>
-                  </th>
-                  <td class="num">{o.games}</td>
-                  <td class="num">{o.wins}-{o.losses}</td>
-                  <td class="num">{winPct(o)}</td>
+                  <th scope="col">Coach</th>
+                  <th scope="col" class="num">G</th>
+                  <th scope="col" class="num">W-L</th>
+                  <th scope="col" class="num">Win %</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {page.h2h.slice(0, 5).map((o) => (
+                  <tr>
+                    <th scope="row">
+                      <a href={`${base}/coaches/${o.slug}/`}>{o.name}</a>
+                    </th>
+                    <td class="num">{o.games}</td>
+                    <td class="num">{o.wins}-{o.losses}</td>
+                    <td class="num">{winPct(o)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {page.h2h.length > 5 && (
+            <div class="h2h-find">
+              <label class="find-label" for="h2h-q">Find another coach</label>
+              <input
+                type="search"
+                id="h2h-q"
+                placeholder="Type part of a name"
+                autocomplete="off"
+                spellcheck="false"
+                aria-controls="h2h-box"
+              />
+              <p class="find-count" id="h2h-count" aria-live="polite" />
+              <div class="scroll" id="h2h-box" hidden>
+                <table class="grid coach-h2h">
+                  <caption class="sr-only">Coaches matching the search</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Coach</th>
+                      <th scope="col" class="num">G</th>
+                      <th scope="col" class="num">W-L</th>
+                      <th scope="col" class="num">Win %</th>
+                    </tr>
+                  </thead>
+                  <tbody id="h2h-results" />
+                </table>
+              </div>
+              <noscript>
+                <p class="find-count">
+                  Search needs JavaScript. All {page.h2h.length} opponents:
+                </p>
+                <ul class="h2h-all">
+                  {page.h2h.map((o) => (
+                    <li>
+                      <a href={`${base}/coaches/${o.slug}/`}>{o.name}</a> {o.games} games, {o.wins}-
+                      {o.losses}
+                    </li>
+                  ))}
+                </ul>
+              </noscript>
+              <script type="application/json" id="h2h-data" set:html={h2hJson} />
+            </div>
+          )}
+        </>
       )
     }
   </section>
+
+  <section class="wrap band" id="seasons" aria-labelledby="seasons-title">
+    <header class="sec-head">
+      <h2 id="seasons-title">Season by season</h2>
+      <p>
+        One line per season and club. Expected wins sum each game's pre-game Elo win probability;
+        wins above expectation is wins minus that sum.
+      </p>
+    </header>
+    <div class="scroll">
+      <table class="grid coach-seasons">
+        <thead>
+          <tr>
+            <th scope="col">Season</th>
+            <th scope="col">Team</th>
+            <th scope="col" class="num">G</th>
+            <th scope="col" class="num">W-L</th>
+            <th scope="col" class="num">Win %</th>
+            <th scope="col" class="num">Expected W</th>
+            <th scope="col" class="num">Wins above exp.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            page.seasons.map((s) => (
+              <tr>
+                <th scope="row">{seasonRange([s.season])}</th>
+                <td class="team">
+                  {teamPages.has(s.team.toUpperCase()) ? (
+                    <a href={teamHref(base, s.team, s.season)}>{s.team_name}</a>
+                  ) : (
+                    s.team_name
+                  )}
+                </td>
+                <td class="num">{s.games}</td>
+                <td class="num">{s.wins}-{s.losses}</td>
+                <td class="num">{winPct(s)}</td>
+                <td class="num">{s.expected_wins.toFixed(1)}</td>
+                <td class="num">{signed(s.wins_above_expectation)}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+        {
+          page.seasons.length > 1 && (
+            <tfoot>
+              <tr>
+                <th scope="row">Career</th>
+                <td class="team" />
+                <td class="num">{career.games}</td>
+                <td class="num">{career.wins}-{career.losses}</td>
+                <td class="num">{winPct(career)}</td>
+                <td class="num">{career.expected_wins.toFixed(1)}</td>
+                <td class="num">{signed(career.wins_above_expectation)}</td>
+              </tr>
+            </tfoot>
+          )
+        }
+      </table>
+    </div>
+  </section>
+
 </Base>
 
+<script>
+  import { searchCoaches, winPct, type CoachHeadToHead } from "../../lib/coaches";
+
+  type Opponent = CoachHeadToHead & { href: string; wins: number; losses: number };
+
+  const data = JSON.parse(document.getElementById("h2h-data")?.textContent ?? "[]") as Opponent[];
+  const input = document.getElementById("h2h-q") as HTMLInputElement | null;
+  const box = document.getElementById("h2h-box");
+  const out = document.getElementById("h2h-results");
+  const count = document.getElementById("h2h-count");
+
+  const cell = (text: string) => {
+    const td = document.createElement("td");
+    td.className = "num";
+    td.textContent = text;
+    return td;
+  };
+
+  function render() {
+    if (!input || !box || !out || !count) return;
+    const query = input.value.trim();
+    const hits = query === "" ? [] : searchCoaches(data, query);
+    out.replaceChildren(
+      ...hits.map((o) => {
+        const row = document.createElement("tr");
+        const head = document.createElement("th");
+        head.scope = "row";
+        const link = document.createElement("a");
+        link.href = o.href;
+        link.textContent = o.name;
+        head.append(link);
+        row.append(head, cell(String(o.games)), cell(`${o.wins}-${o.losses}`), cell(winPct(o)));
+        return row;
+      }),
+    );
+    box.hidden = query === "";
+    count.textContent =
+      query === ""
+        ? ""
+        : hits.length === 0
+          ? "No coach matches."
+          : hits.length === 1
+            ? "1 coach"
+            : `${hits.length} coaches`;
+  }
+
+  input?.addEventListener("input", render);
+</script>
+
 <style>
+  .h2h-find {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 420px;
+    margin: 20px 0 0;
+  }
+  .h2h-find .find-label {
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+  .h2h-find input[type="search"] {
+    appearance: none;
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--rule-strong);
+    color: var(--ink);
+    font: 500 0.875rem/1 var(--font);
+  }
+  .h2h-find input[type="search"]::-webkit-search-cancel-button {
+    display: none;
+  }
+  .h2h-find .find-count {
+    margin: 4px 0 0;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  .h2h-all {
+    margin: 8px 0 0;
+    padding-left: 18px;
+  }
   .coach-style tbody th {
     white-space: normal;
   }

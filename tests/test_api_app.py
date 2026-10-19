@@ -271,7 +271,8 @@ def test_stats_responses_are_the_bytes_write_stats_writes(
         ),
     )
     paths = sorted(p.relative_to(written).as_posix() for p in written.rglob("*.json"))
-    assert client.get("/stats").json()["files"] == paths and len(paths) == 38
+    assert "coaches/seasons.json" in paths
+    assert client.get("/stats").json()["files"] == paths and len(paths) == 39
     for path in paths:
         response = client.get(f"/stats/{path}")
         assert response.content == (written / path).read_bytes(), path

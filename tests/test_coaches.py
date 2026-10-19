@@ -110,14 +110,36 @@ def test_expected_wins_head_to_head_and_coverage(tmp_path: Path) -> None:
         "expected_wins": 4.5,
         "wins_above_expectation": 2.5,
     }
-    # Only pairs with at least H2H_MIN_GAMES games are listed: Jones (5) yes, Lee (3) no.
-    assert H2H_MIN_GAMES == 4
-    assert [(o["slug"], o["games"], o["wins"]) for o in smith["h2h"]] == [("ann-jones", 5, 4)]
+    # Every pair with at least H2H_MIN_GAMES games is listed, most games first: Jones (5), Lee (3).
+    assert H2H_MIN_GAMES == 1
+    assert [(o["slug"], o["games"], o["wins"]) for o in smith["h2h"]] == [
+        ("ann-jones", 5, 4),
+        ("kim-lee", 3, 3),
+    ]
     jones = files["coaches/ann-jones.json"]
     assert [(o["slug"], o["wins"]) for o in jones["h2h"]] == [("john-smith", 1)]
     index = files["coaches/index.json"]
     assert [c["slug"] for c in index["coaches"]] == ["john-smith", "ann-jones", "kim-lee"]
     assert index["coverage"] == [{"season": 2020, "games": 9, "with_coach": 8}]
+
+
+def test_seasons_merge_a_coaches_clubs_and_flag_his_playoffs(tmp_path: Path) -> None:
+    # Smith coaches AAA, then CCC in the same season; CCC's playoff game is his only one.
+    rows = []
+    _write(tmp_path, 2020, "1", _box("AAA", "BBB", "SMITH, JOHN", "JONES, ANN"))
+    rows.append(_game(1, "AAA", "BBB", home_won=True))
+    _write(tmp_path, 2020, "2", _box("CCC", "DDD", "SMITH, JOHN", "LEE, KIM"))
+    rows.append(_game(2, "CCC", "DDD", home_won=False))
+    _write(tmp_path, 2020, "3", _box("CCC", "AAA", "SMITH, JOHN", "JONES, ANN"))
+    rows.append({**_game(3, "CCC", "AAA", home_won=True), "phase": "PO"})
+    files = coach_payloads(coach_games(tmp_path, _games(rows)), codes={}, names={})
+    season = [r for r in files["coaches/seasons.json"]["rows"] if r["slug"] == "john-smith"]
+    assert len(season) == 1
+    assert season[0]["season"] == 2020
+    assert season[0]["clubs"] == ["AAA", "CCC"]
+    assert (season[0]["games"], season[0]["wins"], season[0]["losses"]) == (3, 2, 1)
+    assert season[0]["playoffs"] == {"seasons": 1, "final_four": 0, "titles": 0}
+    assert season[0]["style"] is None
 
 
 def test_current_coach_is_the_one_of_each_clubs_latest_game_in_the_latest_season(

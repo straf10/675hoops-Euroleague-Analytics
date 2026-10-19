@@ -4,44 +4,39 @@ import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import {
   DEFAULT_METRIC,
-  MIN_SAMPLE,
+  DEFAULT_SECTION,
+  SECTIONS,
+  SEASON_MIN_SAMPLE,
   coachCaption,
   coachHeadHtml,
-  coachRows,
   coachRowsHtml,
   coachViewFromQuery,
-  scopeRows,
-  seasonRange,
+  namedSeasons,
+  seasonLabel,
+  seasonRows,
   sortCoaches,
-  type CoachRow,
   type CoachSearchEntry,
   type CoachView,
-  type Scope,
 } from "../../lib/coaches";
-import { coachIndex, coachStyles } from "../../lib/coach_files";
+import { coachIndex, coachSeasons } from "../../lib/coach_files";
 
 const index = await coachIndex();
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-// The first season in which most games name their coaches (2014-15 has a single named side).
-const named = index ? index.coverage.filter((c) => 2 * c.with_coach >= c.games) : [];
-const first = named.length ? Math.min(...named.map((c) => c.season)) : null;
-const firstLabel = first === null ? "" : seasonRange([first]);
+const allRows = await coachSeasons();
+// The season options: every season the box scores name coaches for, newest first.
+const seasons = index ? namedSeasons(index.coverage) : [];
+const firstLabel = seasons.length ? seasonLabel(seasons[seasons.length - 1]) : "";
 const description =
-  "EuroLeague head coaches since the box scores name them: record, playoffs, and coaching style such as after-timeout scoring, clutch games, rotation and challenges.";
+  "EuroLeague head coaches season by season since the box scores name them: record, expected wins, finish, after-timeout scoring, clutch games, challenges and rotation.";
 
-const season = index?.current_season ?? null;
+// The page opens on the current season (the latest one with coach rows).
+const fallback = index?.current_season ?? seasons[0] ?? 0;
 const through = index?.current_through ?? "";
-const currentTitle = season === null ? "" : `${seasonRange([season])} EuroLeague coaches`;
-const allTitle = `All coaches${firstLabel ? ` since ${firstLabel}` : ""}`;
-// Every coach with the figures the table sorts by (career); the style figures come from each coach's page.
-const rows: CoachRow[] = index
-  ? coachRows(index, await coachStyles(index.coaches.map((c) => c.slug)), base)
-  : [];
-// The page opens on this season's coaches, or on every coach when no season is published.
-const fallback: Scope = season === null ? "all" : "current";
-const view: CoachView = { scope: fallback, metric: DEFAULT_METRIC, dir: "desc" };
-const shown = sortCoaches(scopeRows(rows, view.scope), view.metric, view.dir);
-const shownTitle = view.scope === "all" ? allTitle : currentTitle;
+const view: CoachView = { season: fallback, section: DEFAULT_SECTION, metric: DEFAULT_METRIC, dir: "desc" };
+const rows = seasonRows(allRows, view.season, base);
+const shown = sortCoaches(rows, view.metric, view.dir);
+const title = `${seasonLabel(view.season)} EuroLeague coaches`;
+
 // Every coach, any season, for the search box (the page script reads this list).
 const entries: CoachSearchEntry[] = (index?.coaches ?? []).map((c) => ({
   name: c.name,
@@ -50,15 +45,16 @@ const entries: CoachSearchEntry[] = (index?.coaches ?? []).map((c) => ({
   clubs: c.clubs,
 }));
 const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
-const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
+const embeddedRows = JSON.stringify(allRows).replace(/</g, "\\u003c");
+const seasonsJson = JSON.stringify(seasons);
 ---
 
 <Base title="Coaches" description={description} current="coaches">
   <section class="wrap head" aria-labelledby="coaches-title">
     <h1 id="coaches-title">Coaches</h1>
     <p>
-      Every EuroLeague coach the box scores name{firstLabel ? `, from ${firstLabel} on` : ""}. Wins
-      above expectation is wins minus the sum of each game's pre-game Elo win probability.
+      Every EuroLeague coach the box scores name{firstLabel ? `, from ${firstLabel} on` : ""}, season
+      by season. Expected wins sum each game's pre-game Elo win probability.
     </p>
   </section>
 
@@ -91,7 +87,7 @@ const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
           <p class="find-count" id="coach-count" aria-live="polite"></p>
           <ul class="find-results" id="coach-results"></ul>
           <noscript>
-            <p class="find-count">Search needs JavaScript. The current coaches below link to their pages.</p>
+            <p class="find-count">Search needs JavaScript. The season table below links to every coach's page.</p>
           </noscript>
           <script type="application/json" id="coach-search" set:html={embedded} />
         </section>
@@ -99,16 +95,30 @@ const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
         {rows.length > 0 && (
           <section class="wrap band" aria-labelledby="table-title">
             <header class="sec-head split">
-              <h2 id="table-title">{shownTitle}</h2>
+              <h2 id="table-title">{title}</h2>
               <div class="filters">
                 <label class="field">
-                  <span>Show</span>
+                  <span>Season</span>
                   <span class="select">
-                    <select id="scope" name="scope" style="--select-w: 11.5rem">
-                      <option value="current" selected={view.scope === "current"}>
-                        This season's coaches
-                      </option>
-                      <option value="all" selected={view.scope === "all"}>All coaches</option>
+                    <select id="season" name="season" style="--select-w: 7.875rem">
+                      {seasons.map((s) => (
+                        <option value={s} selected={s === view.season}>
+                          {seasonLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                    <span class="caret" set:html={caret} />
+                  </span>
+                </label>
+                <label class="field">
+                  <span>Section</span>
+                  <span class="select">
+                    <select id="section" name="section" style="--select-w: 9.5rem">
+                      {SECTIONS.map((s) => (
+                        <option value={s.key} selected={s.key === view.section}>
+                          {s.label}
+                        </option>
+                      ))}
                     </select>
                     <span class="caret" set:html={caret} />
                   </span>
@@ -116,31 +126,31 @@ const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
               </div>
             </header>
             <p class="lede-sm">
-              Career EuroLeague figures from the box scores that name each coach.
-              {through && ` This season's coaches are the coach of each club's latest game, through ${through}.`}
-              {" "}Tap a heading to sort; tap it again to reverse.
+              {shown.length} {shown.length === 1 ? "coach" : "coaches"} with games that season.
+              {through && ` The latest season's box scores run through ${through}.`}{" "}
+              Tap a heading to sort; tap it again to reverse.
             </p>
             <div
               class="scroll"
               id="coaches"
-              data-current-title={currentTitle}
-              data-all-title={allTitle}
+              data-base={base}
+              data-seasons={seasonsJson}
               data-fallback={fallback}
             >
               <table class="grid coach-table">
-                <caption class="sr-only">{coachCaption(view, shownTitle)}</caption>
+                <caption class="sr-only">{coachCaption(view, title)}</caption>
                 <thead set:html={coachHeadHtml(view)} />
-                <tbody set:html={coachRowsHtml(shown, view.metric)} />
+                <tbody set:html={coachRowsHtml(shown, view)} />
               </table>
             </div>
             <p class="note">
-              Rates need a minimum sample: win % {MIN_SAMPLE.games} games; after timeout{" "}
-              {MIN_SAMPLE.possessions} possessions; clutch win % {MIN_SAMPLE.clutch} clutch games;
-              players used and top 7 minutes {MIN_SAMPLE.games} games; challenges {MIN_SAMPLE.games}{" "}
-              games. A figure below its sample is greyed and sorts last, as does a dash (no value:
-              challenges start in 2021-22, and style needs a coach page). League figures over the
-              same seasons are on each coach's page. Playoffs, Final Four and titles are counted from
-              2015-16 on, when the box scores name the coach; earlier seasons are not counted.
+              Rates need a minimum sample within the season: win %, players used, top 7 minutes and
+              challenges {SEASON_MIN_SAMPLE.games} games; after timeout {SEASON_MIN_SAMPLE.possessions}{" "}
+              possessions; clutch win % {SEASON_MIN_SAMPLE.clutch} clutch games. A figure below its
+              sample is greyed and sorts last, as does a dash (no value: challenges start in 2021-22,
+              and style needs a coach page). Finish is the furthest stage the season reached; playoffs,
+              Final Four and titles are counted from 2015-16 on, when the box scores name the coach.
+              The club column lists every club the coach managed that season.
             </p>
             <script type="application/json" id="coach-rows" set:html={embeddedRows} />
           </section>
@@ -152,19 +162,22 @@ const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
 
 <script>
   import {
+    SECTIONS,
     coachCaption,
     coachHeadHtml,
     coachRowsHtml,
     coachViewFromQuery,
     coachViewToQuery,
-    scopeRows,
     searchCoaches,
+    seasonLabel,
     seasonRange,
+    seasonRows,
     sortCoaches,
-    type CoachRow,
+    switchSection,
     type CoachSearchEntry,
+    type CoachSeasonRow,
     type CoachView,
-    type Scope,
+    type SectionKey,
   } from "../../lib/coaches";
 
   const data = JSON.parse(document.getElementById("coach-search")?.textContent ?? "[]") as CoachSearchEntry[];
@@ -200,30 +213,38 @@ const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
 
   input?.addEventListener("input", render);
 
-  // The scope switch and the sortable heads redraw the table from the view, then write the view to the query string.
+  // The season and section selects and the sortable heads redraw the table from the view, then write the view to the query string.
   const host = document.getElementById("coaches");
-  const scope = document.getElementById("scope") as HTMLSelectElement | null;
+  const seasonSel = document.getElementById("season") as HTMLSelectElement | null;
+  const sectionSel = document.getElementById("section") as HTMLSelectElement | null;
   const title = document.getElementById("table-title");
-  if (host && scope && title) {
-    const rows = JSON.parse(document.getElementById("coach-rows")?.textContent ?? "[]") as CoachRow[];
-    const fallback = (host.dataset.fallback ?? "current") as Scope;
+  if (host && seasonSel && sectionSel && title) {
+    const all = JSON.parse(document.getElementById("coach-rows")?.textContent ?? "[]") as CoachSeasonRow[];
+    const base = host.dataset.base ?? "";
+    const seasons = JSON.parse(host.dataset.seasons ?? "[]") as number[];
+    const fallback = Number(host.dataset.fallback);
     const caption = host.querySelector("caption")!;
     const thead = host.querySelector("thead")!;
     const body = host.querySelector("tbody")!;
-    let view: CoachView = coachViewFromQuery(location.search, fallback);
+    let view: CoachView = coachViewFromQuery(location.search, seasons, fallback);
 
     const paint = () => {
-      const heading = view.scope === "all" ? host.dataset.allTitle ?? "" : host.dataset.currentTitle ?? "";
-      scope.value = view.scope;
+      const heading = `${seasonLabel(view.season)} EuroLeague coaches`;
+      seasonSel.value = String(view.season);
+      sectionSel.value = view.section;
       title.textContent = heading;
       caption.textContent = coachCaption(view, heading);
       thead.innerHTML = coachHeadHtml(view);
-      body.innerHTML = coachRowsHtml(sortCoaches(scopeRows(rows, view.scope), view.metric, view.dir), view.metric);
+      body.innerHTML = coachRowsHtml(sortCoaches(seasonRows(all, view.season, base), view.metric, view.dir), view);
       history.replaceState(null, "", location.pathname + coachViewToQuery(view, fallback));
     };
 
-    scope.addEventListener("change", () => {
-      view = { ...view, scope: scope.value as Scope };
+    seasonSel.addEventListener("change", () => {
+      view = { ...view, season: Number(seasonSel.value) };
+      paint();
+    });
+    sectionSel.addEventListener("change", () => {
+      view = switchSection(view, sectionSel.value as SectionKey);
       paint();
     });
     // The same head again flips the order; another head starts from the highest figure.
@@ -305,7 +326,7 @@ const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
     max-width: 68ch;
   }
   /* The table is built in lib/coaches.ts (and redrawn by the page script): its classes are global. */
-  .coach-table :global(td.now) {
+  .coach-table :global(td.club) {
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
