@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   breadcrumbList,
+  coach,
   person,
   sportsEvent,
   sportsTeam,
@@ -124,4 +125,24 @@ test("a person is a Person with a name and URL, and a club affiliation only when
   assert.deepEqual(withClub.affiliation, [
     { "@type": "SportsTeam", name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
   ]);
+});
+
+test("a coach is a head coach; worksFor is the current club only, and past clubs are not affiliations", () => {
+  const url = "https://675hoops.com/coaches/ilias-kantzouris/";
+  const current = coach({
+    name: "Ilias Kantzouris",
+    url,
+    currentClub: { name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
+  });
+  assert.equal(current["@type"], "Person");
+  assert.equal(current.jobTitle, "Head coach");
+  assert.deepEqual(current.worksFor, {
+    "@type": "SportsTeam",
+    name: "Panathinaikos",
+    url: "https://675hoops.com/teams/pan/",
+  });
+  assert.equal("affiliation" in current, false);
+  const former = coach({ name: "Ilias Kantzouris", url });
+  assert.equal("worksFor" in former, false);
+  assert.equal("affiliation" in former, false);
 });

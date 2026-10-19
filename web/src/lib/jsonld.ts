@@ -60,6 +60,26 @@ export function person(p: PlayerInput): JsonLdObject {
   };
 }
 
+export interface CoachInput extends Ref {
+  /** The club the coach is with now, when the coach is in the latest season and the club has a page. */
+  currentClub?: Ref;
+}
+
+/**
+ * A head coach as a Person. Past clubs are not affiliations (the coach has left them); only the
+ * current club is worksFor, and only when it is known.
+ */
+export function coach(c: CoachInput): JsonLdObject {
+  return {
+    "@context": CONTEXT,
+    "@type": "Person",
+    name: c.name,
+    url: c.url,
+    jobTitle: "Head coach",
+    ...(c.currentClub ? { worksFor: ref("SportsTeam", c.currentClub) } : {}),
+  };
+}
+
 /** The arena a game is played at. The address only when the schedule gives one; never estimated. */
 export interface Venue {
   name: string;

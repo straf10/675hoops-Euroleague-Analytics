@@ -6,7 +6,7 @@ import { coachIndex, coachPage } from "../../lib/coach_files";
 import { teamHref } from "../../lib/players";
 import { teamIndex } from "../../lib/stats";
 import JsonLd from "../../components/JsonLd.astro";
-import { person } from "../../lib/jsonld";
+import { coach } from "../../lib/jsonld";
 
 export async function getStaticPaths() {
   const index = await coachIndex();
@@ -21,12 +21,13 @@ const abs = (path: string) => new URL(path, origin).href;
 // A club links to its team page only when that page exists (a club needs a published season for one).
 const teamPages = new Set((await teamIndex()).map((t) => t.code.toLowerCase()));
 const hasTeamPage = (code: string) => teamPages.has(code.toLowerCase());
-const coachJsonLd = person({
+// The current club: the one with the latest season, when it has a team page. Past clubs are not listed as employers.
+const latest = (await coachIndex())?.current_season ?? null;
+const now = latest === null ? undefined : page.clubs.find((c) => c.seasons.includes(latest) && hasTeamPage(c.team));
+const coachJsonLd = coach({
   name: page.name,
   url: abs(`${base}/coaches/${slug}/`),
-  affiliation: page.clubs
-    .filter((c) => hasTeamPage(c.team))
-    .map((c) => ({ name: c.team_name, url: abs(teamHref(base, c.team)) })),
+  ...(now ? { currentClub: { name: now.team_name, url: abs(teamHref(base, now.team)) } } : {}),
 });
 const career = page.career;
 const firstSeason = Math.min(...page.seasons.map((s) => s.season));
