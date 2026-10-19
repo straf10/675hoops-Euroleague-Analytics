@@ -3,7 +3,7 @@
 // Both states are rendered at build time; a small script shows the one that matches the visitor's clock.
 import type { Competition } from "../lib/format";
 import { athensDay } from "../lib/format";
-import { matchdayState, scorecard, type MatchdayRound } from "../lib/matchday";
+import { averageMiss, marginCheck, matchdayState, scorecard, type MatchdayRound } from "../lib/matchday";
 import MatchRow from "./MatchRow.astro";
 
 interface Props {
@@ -32,6 +32,12 @@ if (state.kind === "live") {
 }
 const liveNow = state.kind === "live";
 const card = last ? scorecard(last) : null;
+// The published model's expected home margin per game, by game id (the home page's Points chart uses the same).
+const fc = comp.forecasts;
+const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
+const expMargin = new Map((fc && model ? fc.games : []).map((g) => [g.game_id, g.models[model]?.exp_margin]));
+const lastChecks = last ? last.games.map((g) => marginCheck(g, expMargin.get(g.game_id))) : [];
+const lastMiss = averageMiss(lastChecks);
 // "Sat 24 Oct to Sun 25 Oct" style: the first and last day the round is played on.
 const dayRange = (r: MatchdayRound) => {
   const days = [...new Set(r.games.map((g) => athensDay(g.tipoff_utc)))];
@@ -59,12 +65,15 @@ const dayRange = (r: MatchdayRound) => {
   <div class="block" data-state="between" hidden={liveNow}>
     <header class="head">
       <h4>{last ? `Round ${last.round}` : "Last round"}</h4>
-      <p>{card && card.scored > 0 ? `We picked ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
+      <div class="tally">
+        <p>{card && card.scored > 0 ? `We picked ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
+        {lastMiss !== null && <p class="miss">Average miss: {lastMiss.toFixed(1)} points</p>}
+      </div>
     </header>
     {
       last ? (
         <ol class="rows">
-          {last.games.map((g) => <MatchRow game={g} />)}
+          {last.games.map((g, i) => <MatchRow game={g} margin={lastChecks[i]} />)}
         </ol>
       ) : (
         <p class="none">The first round tips off {next ? dayRange(next) : "soon"}.</p>
@@ -139,6 +148,12 @@ const dayRange = (r: MatchdayRound) => {
   .head p {
     color: var(--muted);
     font-size: 0.8125rem;
+  }
+  .tally {
+    text-align: right;
+  }
+  .tally .miss {
+    margin-top: 2px;
   }
   .head.next {
     margin-top: 32px;

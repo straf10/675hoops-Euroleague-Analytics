@@ -2,13 +2,15 @@
 // One game on the matchday: the chance and the call before tip-off, the score and whether the call held after.
 import check from "@phosphor-icons/core/assets/bold/check-bold.svg?raw";
 import cross from "@phosphor-icons/core/assets/bold/x-bold.svg?raw";
-import type { MatchdayGame } from "../lib/matchday";
+import { marginText, type MarginCheck, type MatchdayGame } from "../lib/matchday";
 import { athensDay, athensTime, pct } from "../lib/format";
 
 interface Props {
   game: MatchdayGame;
+  /** The model's margin against the final, when the page has both; shown under the row. */
+  margin?: MarginCheck | null;
 }
-const { game: g } = Astro.props;
+const { game: g, margin = null } = Astro.props;
 const homeWon = g.played && g.home_score !== null && g.away_score !== null && g.home_score > g.away_score;
 // The call: the side with the higher logged chance; null when nothing was logged before tip-off.
 const homePick = g.p_home !== null && g.p_home >= 0.5;
@@ -69,6 +71,7 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
       )
     }
   </span>
+  {margin && <p class="margin">{marginText(g, margin)}</p>}
 </li>
 
 <style>
@@ -198,6 +201,16 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
     text-align: right;
     white-space: nowrap;
   }
+  /* The model's margin against the final, under the teams; muted, the wording carries it. */
+  .margin {
+    grid-column: 2 / -1;
+    margin: 0 0 10px;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
   .call {
     font-weight: 500;
   }
@@ -244,9 +257,15 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
       grid-template-columns: 3.2rem minmax(0, 1fr) minmax(0, 1fr) max-content;
       grid-template-areas:
         "when away home verdict"
-        "when mid mid mid";
+        "when mid mid mid"
+        "when margin margin margin";
       row-gap: 6px;
       padding-block: 10px;
+    }
+    .margin {
+      grid-column: auto;
+      grid-area: margin;
+      margin: 0;
     }
     .when {
       grid-area: when;
