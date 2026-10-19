@@ -344,19 +344,6 @@ def test_a_finished_season_has_no_games_left(store: rm.Store, root: Path) -> Non
     assert out["played"]["games"] == len(mine)
 
 
-def test_teams_index_sos_is_the_team_page_schedule_strength(store: rm.Store) -> None:
-    # The stats export's team rows carry the team page's own figures: the venue-adjusted mean
-    # opponent Elo of the played and of the remaining games, for the same season.
-    rows = {r["code"]: r for r in rm.stats_payloads(store, NOW)["seasons/2024/teams.json"]["teams"]}
-    page = rm.team_factors(store, "euroleague", "BAR", 2024)["schedule_strength"]
-    assert rows["BAR"]["sos"] == rm.schedule_sos(page)
-    assert rows["BAR"]["sos"]["played"] == page["played"]["mean_opponent_elo_adjusted"]
-    # A finished season has no games left: the ahead figure is null, as the team page's block is.
-    assert page["remaining"]["games"] == 0
-    assert rows["BAR"]["sos"]["ahead"] is None
-    assert rows["BAR"]["sos"]["played"] is not None
-
-
 def test_strength_block_venue_adjusts_each_opponent() -> None:
     # A (1600) is the team; the season's mean rating is (1600 + 1500 + 1300) / 3 = 1466.67
     ratings = {"A": (1600.0, 0.0), "B": (1500.0, 0.0), "C": (1300.0, 0.0)}

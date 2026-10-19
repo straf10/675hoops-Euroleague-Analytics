@@ -468,26 +468,10 @@ def stats_inputs(store: Store) -> Inputs:
     return store.memo("stats_inputs", make)
 
 
-def schedule_sos(strength: Mapping[str, Any]) -> dict[str, float | None]:
-    """The two strength-of-schedule figures of the Teams index, from a team's schedule strength
-    (``_schedule_strength``, which the team page shows too): the venue-adjusted mean opponent Elo
-    of the games played (``played``) and of the games left (``ahead``). Higher is a harder
-    schedule; None where the block has no games."""
-
-    def figure(block: Mapping[str, Any]) -> float | None:
-        return float(block["mean_opponent_elo_adjusted"]) if block.get("games") else None
-
-    return {"played": figure(strength["played"]), "ahead": figure(strength["remaining"])}
-
-
 def stats_payloads(store: Store, now: datetime) -> dict[str, dict[str, Any]]:
     """Every stats file by relative path (``stats.export.build_payloads``), built once per Store;
-    ``meta.json`` carries the time of that build. Each team row carries its ``sos`` figures."""
-
-    def sos(team: str, season: int) -> dict[str, float | None]:
-        return schedule_sos(_schedule_strength(store, EUROLEAGUE, team, season))
-
-    return store.memo("stats", lambda: build_payloads(stats_inputs(store), now, sos))
+    ``meta.json`` carries the time of that build."""
+    return store.memo("stats", lambda: build_payloads(stats_inputs(store), now))
 
 
 def stats_index(store: Store, now: datetime) -> dict[str, Any]:

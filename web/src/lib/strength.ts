@@ -47,3 +47,11 @@ export function venueLine(b: StrengthBlock): string {
   const away = b.away ?? 0;
   return `${home} at home, ${away} away`;
 }
+
+/** The Teams index's two SoS figures from a team's schedule strength: the venue-adjusted mean opponent
+ * Elo of the games played and of the games left (higher is a harder schedule). NaN where the block has
+ * no games, so the index shows a dash. The team page shows the same blocks (ScheduleStrength). */
+export const sosOf = (s: Strength): { played: number; ahead: number } => {
+  const figure = (b: StrengthBlock) => (b.games > 0 && b.mean_opponent_elo_adjusted !== undefined ? b.mean_opponent_elo_adjusted : NaN);
+  return { played: figure(s.played), ahead: figure(s.remaining) };
+};
