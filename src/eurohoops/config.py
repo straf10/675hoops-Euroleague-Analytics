@@ -608,4 +608,6 @@ M6_SIMILARITY = Path("reports/m6_similarity.json")
 SIM_UNGATED = {name: Path(f"reports/sim_ungated_{name}.json") for name in ("euroleague", "gbl")}
 # In-game WP (docs/models/wp.md, protocol v1): the one-time gate report and its per-game rows.
 WP_REPORT = Path("reports/backtest_wp.json")
+# Candidate Elo + ridge margin blend (docs/models/candidate_elo_blend.md); not the live model.
+BLEND_REPORT = Path("reports/backtest_blend.json")
 WP_GAMES_REPORT = Path("reports/backtest_wp_games.csv")
