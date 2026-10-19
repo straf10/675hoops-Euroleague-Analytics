@@ -1,7 +1,9 @@
 """Assist network: each ``AS`` (assist) play-by-play row paired with the made basket it belongs to.
 
 The linking rule is rule D of the WP pre-study (``wave1/wp-prestudy``, ``scripts/wp_t1c.py``,
-``link_variants``), used unchanged. For each ``AS`` row, the first rule that finds a make wins:
+``link_variants``), with one addition: a make by the passer himself is never a candidate (a
+player cannot assist his own basket; the feed's order sometimes puts the make first). For each
+``AS`` row, the first rule that finds a make wins:
 
 - A. the nearest preceding made field goal in the same period, if it is the passer's team's;
 - B. else the next made field goal in the period, if it is the passer's team's and at the same
@@ -60,21 +62,27 @@ def _next_make(events_: Sequence[Event], i: int) -> int:
     return -1
 
 
+def _credited(make: Event, row: Event) -> bool:
+    """Whether ``make`` can be the basket of the ``AS`` row ``row``: the passer's team's, and not
+    the passer's own (a player cannot assist his own basket, so such a link is a feed error)."""
+    return make.team == row.team and (not row.player or make.player != row.player)
+
+
 def _rule_d(events_: Sequence[Event], i: int, last: int) -> int | None:
     """The make linked to the ``AS`` row at ``i`` by rules A, B, C in turn; ``last`` is the most
     recent made field goal (any team) in the same period before ``i``, or -1."""
     row = events_[i]
-    if last >= 0 and events_[last].team == row.team:  # A
+    if last >= 0 and _credited(events_[last], row):  # A
         return last
     nxt = _next_make(events_, i)  # B
-    if nxt >= 0 and events_[nxt].team == row.team and events_[nxt].elapsed == row.elapsed:
+    if nxt >= 0 and _credited(events_[nxt], row) and events_[nxt].elapsed == row.elapsed:
         return nxt
     best: tuple[int, int] | None = None  # C: nearest, earliest on a tie
     for j in range(max(0, i - WINDOW), min(len(events_), i + WINDOW + 1)):
         other = events_[j]
         if j == i or other.kind not in MAKES or other.period != row.period:
             continue
-        if other.team != row.team:
+        if not _credited(other, row):
             continue
         gap = abs(j - i)
         if (gap <= NEAR or other.elapsed == row.elapsed) and (best is None or gap < best[0]):

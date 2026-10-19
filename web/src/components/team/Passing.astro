@@ -1,101 +1,238 @@
 ---
-// The team page's Passing tab: the assist network of one club-season. The matrix is the picture;
-// the list of top connections is the same data as text, for screen readers and for reading across.
+// The team page's Passing tab: the assist network of one club, for every season the club has.
+// Each season is rendered up front and the team page's season picker shows one of them
+// (data-passing-season), so the tab follows the picker with or without JavaScript.
+// The network is the picture: players at the vertices of a polygon, a line for each pair that
+// assisted. The pair table and the list of top connections hold the same numbers as text.
 import { assistsData } from "../../lib/stats";
-import { LIST_SIZE, MATRIX_SIZE, MIN_ASSISTS, TARGET, passingView, roster } from "../../lib/passing";
-import { plural } from "../../lib/live";
+import { sourceCode } from "../../lib/live";
+import {
+  LIST_SIZE,
+  MATRIX_SIZE,
+  MIN_ASSISTS,
+  TARGET,
+  VIEW,
+  edgeTitle,
+  passingView,
+  roster,
+} from "../../lib/passing";
 
 interface Props {
+  /** the club's code as the site shows it (display code) */
   code: string;
-  season: number;
-  roster: { id: string; name: string; slug: string; totals: number[] }[];
-  fields: string[];
+  /** the season the page opens on */
+  current: number;
+  /** every season the club has, with its roster and the roster's field names */
+  seasons: { season: number; roster: { id: string; name: string; slug: string; totals: number[] }[]; fields: string[] }[];
 }
 
-const { code, season, roster: lines, fields } = Astro.props;
-const file = await assistsData(season);
-const view = passingView(season, file?.clubs[code], roster(lines, fields));
+const { code, current, seasons } = Astro.props;
+// assists.json is keyed by source code (ULK, PAM, PAN, ...); the page shows display codes (FBT, VBC, PAO).
+const source = sourceCode("euroleague", code);
+const sections = await Promise.all(
+  seasons.map(async (s) => {
+    const file = await assistsData(s.season);
+    return { season: s.season, view: passingView(s.season, file?.clubs[source], roster(s.roster, s.fields)) };
+  }),
+);
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 ---
 
 <div class="wrap tabpanel" role="tabpanel" id="panel-passing" aria-labelledby="tab-passing">
   <section class="band" id="passing" aria-labelledby="passing-title">
     <header class="sec-head">
       <h2 id="passing-title">Assist network</h2>
-      <p>Who assisted whom this EuroLeague season, from the play-by-play. Each assist is paired with the basket it set up.</p>
+      <p>Who assisted whom in the EuroLeague season, from the play-by-play. Each assist is paired with the basket it set up.</p>
     </header>
 
     {
-      !view ? (
-        <p class="note">No assist data for this season.</p>
-      ) : (
-        <>
-          {view.matched !== null && (
-            <p class="note" id="passing-caveat">
-              Pairing matched <b>{pct(view.matched)}</b> of box-score assists ({view.linked} of {view.box}).
-              {view.matched < TARGET
-                ? ` The target is ${pct(TARGET)}, so read this as a sample. Unpaired assists are left out.`
-                : " Unpaired assists are left out."}
-            </p>
-          )}
-
-          <h3 id="matrix-title">Passer to scorer</h3>
-          {view.matrix.players.length === 0 || view.connections.length === 0 ? (
-            <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
+      sections.map(({ season, view }) => (
+        <div class="season-passing" data-passing-season={season} hidden={season !== current}>
+          {!view ? (
+            <p class="note">No assist data for this season.</p>
           ) : (
-            <div class="passing-scroll">
-              <table class="grid passing-matrix">
-                <caption class="sr-only">
-                  Assists from each passer (rows) to each scorer (columns), for the top {MATRIX_SIZE} players by assists plus made field goals. Only pairs with {MIN_ASSISTS} or more assists are shaded.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col"><span class="sr-only">Passer</span></th>
-                    {view.matrix.players.map((p) => (
-                      <th scope="col" class="turn">{p.name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {view.matrix.players.map((p, r) => (
-                    <tr>
-                      <th scope="row">{p.name}</th>
-                      {view.matrix.cells[r].map((c) =>
-                        c ? (
-                          <td class="num shade" style={`--shade: ${Math.round(12 + c.shade * 20)}%`}>
-                            {c.assists}
-                          </td>
-                        ) : (
-                          <td class="num" aria-hidden="true"></td>
-                        ),
-                      )}
-                    </tr>
+            <>
+              {view.matched !== null && (
+                <p class="note" id={`passing-caveat-${season}`}>
+                  Pairing matched <b>{pct(view.matched)}</b> of box-score assists ({view.linked} of {view.box}).
+                  {view.matched < TARGET
+                    ? ` The target is ${pct(TARGET)}, so read this as a sample. Unpaired assists are left out.`
+                    : " Unpaired assists are left out."}
+                </p>
+              )}
+
+              <h3 id={`network-title-${season}`}>Passer to scorer</h3>
+              {view.network.edges.length === 0 ? (
+                <p class="note">No pair has assisted yet.</p>
+              ) : view.network.players.length < 3 ? (
+                <p class="note">Only {count(view.network.players.length, "player")} assisted, so there is no network to draw. The pairs are listed below.</p>
+              ) : (
+                <figure class="net-fig">
+                  <svg
+                    class="net"
+                    data-net
+                    viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+                    role="group"
+                    aria-labelledby={`network-title-${season}`}
+                    aria-describedby={`network-note-${season}`}
+                  >
+                    <g class="edges">
+                      {view.network.edges.map((e) => {
+                        const a = view.network.players[e.a];
+                        const b = view.network.players[e.b];
+                        return (
+                          <g class="edge" data-a={e.a} data-b={e.b}>
+                            <line class="hit" x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke-width={Math.max(14, e.width + 8)}>
+                              <title>{edgeTitle(e, view.network.players)}</title>
+                            </line>
+                            <line class="vis" x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke-width={e.width} />
+                          </g>
+                        );
+                      })}
+                    </g>
+                    <g class="nodes">
+                      {view.network.players.map((p, i) => (
+                        <g class="node" data-i={i} tabindex="0" role="img" aria-label={`${p.name}: ${p.given} assists given, ${p.received} received`}>
+                          <circle cx={p.x} cy={p.y} r="5" />
+                          <text x={p.lx} y={p.ly} text-anchor={p.anchor} aria-hidden="true">
+                            {p.label}
+                          </text>
+                        </g>
+                      ))}
+                    </g>
+                  </svg>
+                  <figcaption class="note" id={`network-note-${season}`}>
+                    Each line joins two players who assisted each other at least once, and is thicker for more assists.
+                    The {count(view.network.players.length, "player")} with the most assists are drawn. Hover or focus a
+                    player to see their pairs. The pair table below lists every pair.
+                  </figcaption>
+                </figure>
+              )}
+
+              <details class="pair-table">
+                <summary>Pair table</summary>
+                {view.matrix.players.length === 0 || view.connections.length === 0 ? (
+                  <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
+                ) : (
+                  <div class="passing-scroll">
+                    <table class="grid passing-matrix">
+                      <caption class="sr-only">
+                        Assists from each passer (rows) to each scorer (columns), for the top {MATRIX_SIZE} players by assists plus made field goals. Only pairs with {MIN_ASSISTS} or more assists are shaded.
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col"><span class="sr-only">Passer</span></th>
+                          {view.matrix.players.map((p) => (
+                            <th scope="col" class="turn">{p.name}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {view.matrix.players.map((p, r) => (
+                          <tr>
+                            <th scope="row">{p.name}</th>
+                            {view.matrix.cells[r].map((c) =>
+                              c ? (
+                                <td class="num shade" style={`--shade: ${Math.round(12 + c.shade * 20)}%`}>
+                                  {c.assists}
+                                </td>
+                              ) : (
+                                <td class="num" aria-hidden="true"></td>
+                              ),
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </details>
+
+              <h3 id={`connections-title-${season}`}>Top connections</h3>
+              {view.connections.length === 0 ? (
+                <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
+              ) : (
+                <ol class="connections" aria-labelledby={`connections-title-${season}`}>
+                  {view.connections.map((c) => (
+                    <li>
+                      {c.passer} to {c.scorer}: {count(c.assists, "assist")}, {c.points} points
+                    </li>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </ol>
+              )}
+              {view.connections.length === LIST_SIZE && <p class="note">The {LIST_SIZE} strongest pairs.</p>}
+            </>
           )}
-
-          <h3 id="connections-title">Top connections</h3>
-          {view.connections.length === 0 ? (
-            <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
-          ) : (
-            <ol class="connections" aria-labelledby="connections-title">
-              {view.connections.map((c) => (
-                <li>
-                  {c.passer} to {c.scorer}: {plural(c.assists, "assist")}, {c.points} points
-                </li>
-              ))}
-            </ol>
-          )}
-          {view.connections.length === LIST_SIZE && <p class="note">The {LIST_SIZE} strongest pairs.</p>}
-        </>
-      )
+        </div>
+      ))
     }
   </section>
 </div>
 
 <style>
+  .season-passing[hidden] {
+    display: none;
+  }
+  .net-fig {
+    margin: 0.5rem 0 0;
+  }
+  .net {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    margin: 0 auto;
+    overflow: visible;
+  }
+  .net .vis {
+    fill: none;
+    stroke: var(--data-1);
+    stroke-linecap: round;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .net .hit {
+    fill: none;
+    stroke: transparent;
+  }
+  .net .node {
+    outline: none;
+    transition: opacity 0.15s;
+  }
+  .net .node circle {
+    fill: var(--ink);
+  }
+  .net .node text {
+    fill: var(--ink);
+    font-size: 18px;
+  }
+  .net .node:focus-visible circle {
+    stroke: var(--data-1);
+    stroke-width: 3;
+  }
+  .net.dim .edge:not(.on) .vis {
+    opacity: 0.1;
+  }
+  .net.dim .edge.on .vis {
+    opacity: 1;
+  }
+  .net.dim .node:not(.on) {
+    opacity: 0.4;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .net .vis,
+    .net .node {
+      transition: none;
+    }
+  }
+  .pair-table {
+    margin: 1.5rem 0 0;
+  }
+  .pair-table > summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
   .passing-scroll {
     overflow-x: auto;
   }
@@ -116,3 +253,49 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
     margin: 0.25rem 0;
   }
 </style>
+
+<script>
+  // Hover or focus a player to keep their pairs and dim the rest; hover a line to keep only that pair.
+  function wire(svg: SVGSVGElement) {
+    const nodes = [...svg.querySelectorAll<SVGGElement>(".node")];
+    const edges = [...svg.querySelectorAll<SVGGElement>(".edge")];
+    const reset = () => {
+      svg.classList.remove("dim");
+      for (const el of [...nodes, ...edges]) el.classList.remove("on");
+    };
+    const focusPlayer = (i: number) => {
+      const lit = new Set<number>([i]);
+      for (const e of edges) {
+        const a = Number(e.dataset.a);
+        const b = Number(e.dataset.b);
+        const hit = a === i || b === i;
+        e.classList.toggle("on", hit);
+        if (hit) {
+          lit.add(a);
+          lit.add(b);
+        }
+      }
+      for (const n of nodes) n.classList.toggle("on", lit.has(Number(n.dataset.i)));
+      svg.classList.add("dim");
+    };
+    const focusEdge = (edge: SVGGElement) => {
+      const ends = [Number(edge.dataset.a), Number(edge.dataset.b)];
+      for (const e of edges) e.classList.toggle("on", e === edge);
+      for (const n of nodes) n.classList.toggle("on", ends.includes(Number(n.dataset.i)));
+      svg.classList.add("dim");
+    };
+    for (const n of nodes) {
+      const i = Number(n.dataset.i);
+      n.addEventListener("pointerenter", () => focusPlayer(i));
+      n.addEventListener("focus", () => focusPlayer(i));
+      n.addEventListener("pointerleave", reset);
+      n.addEventListener("blur", reset);
+    }
+    for (const e of edges) {
+      const hit = e.querySelector(".hit");
+      hit?.addEventListener("pointerenter", () => focusEdge(e));
+      hit?.addEventListener("pointerleave", reset);
+    }
+  }
+  for (const svg of document.querySelectorAll<SVGSVGElement>("svg[data-net]")) wire(svg);
+</script>
