@@ -7,7 +7,7 @@ from pathlib import Path
 from eurohoops.models.elo import EloParams
 
 LIVE_SEASON = 2026
-SITE_SEASONS = 5  # the site shows the latest this many EuroLeague seasons; models use all
+SITE_SEASONS = 20  # site EuroLeague seasons, latest first (20 = all since 2007-08); not model input
 # EuroLeague seasons the data cannot treat as ordinary: season -> (kind, note shown on the site).
 # Checked against the cached schedules: 2019 has 252 of 306 regular-season games played, the
 # last on 2020-03-06, and no playoffs or Final Four; in 2020 251 of 328 played games report zero

@@ -130,6 +130,7 @@ def test_people_command_refetches_only_the_live_season(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(ingest_mod, "LIVE_SEASON", 2026)
+    monkeypatch.setattr(ingest_mod, "SITE_SEASONS", 5)  # the window this test caches
     body = json.dumps({"data": [person("000001", "Forward", "AAA")]}).encode()
     urls: list[str] = []
 

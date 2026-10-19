@@ -710,15 +710,16 @@ export async function unitsData(year: number): Promise<UnitsFile | null> {
 }
 
 /** A club's duos and units in every season with a units file, and the names of the players in them. */
+/** One club's lineups for one season (the rows, and the names of the players in them). */
 export async function clubLineups(
-  code: string
+  code: string,
+  year: number,
 ): Promise<{ seasons: ClubUnits; names: Record<string, PlayerName> }> {
   const seasons: ClubUnits = {};
-  for (const s of (await meta())?.seasons ?? []) {
-    const file = await unitsData(s.season);
-    if (!file) continue;
+  const file = await unitsData(year);
+  if (file) {
     const club = file.clubs[code] ?? { pairs: [], units: [] };
-    seasons[String(s.season)] = { sd: file.sd, minimums: file.minimums, pairs: club.pairs, units: club.units };
+    seasons[String(year)] = { sd: file.sd, minimums: file.minimums, pairs: club.pairs, units: club.units };
   }
   const ids = new Set<string>();
   for (const club of Object.values(seasons))

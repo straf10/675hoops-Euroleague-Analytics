@@ -3,13 +3,10 @@ import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import { teamHref } from "../../lib/players";
-import { clubIndex, defaultSeason, meta, published, season, type TeamIndexRow } from "../../lib/stats";
+import { clubIndex, defaultSeason, meta, published, type TeamIndexRow } from "../../lib/stats";
 import { clubHeadHtml, clubRowsHtml } from "../../lib/clubs";
 import { GROUPS, colsHtml } from "../../lib/cols";
-import { clubRows, leagueRates } from "../../lib/team";
-import { sourceCode, teamFactors } from "../../lib/live";
-import { sosOf } from "../../lib/strength";
-import type { IndexRow } from "../../lib/ranking";
+import { indexSeason } from "../../lib/clubs_season";
 import { paceChart, ratingsChart } from "../../lib/scatter";
 import {
   DEFAULT_METRIC,
@@ -33,27 +30,12 @@ const open = m ? defaultSeason(m).season : 0;
 // draw the others from the same figures (no second fetch).
 // Schedule strength (SoS) comes from each club's factors file, which the API writes for the live season
 // only: the live season's rows take it, and the other seasons show a dash.
-const withSos = (rows: IndexRow[], live: number) =>
-  Promise.all(
-    rows.map(async (r) => {
-      const factors = await teamFactors("euroleague", sourceCode("euroleague", r.code));
-      if (!factors || factors.season !== live) return r;
-      const { played, ahead } = sosOf(factors.schedule_strength);
-      return { ...r, f: { ...r.f, sos_played: played, sos_ahead: ahead } };
-    }),
-  );
-const bySeason: Record<string, IndexSeason> = m
-  ? Object.fromEntries(
-      await Promise.all(
-        [...m.seasons].reverse().map(async (s) => {
-          const data = await season(s.season, "teams");
-          const rows = clubRows(data.fields, data.teams);
-          return [String(s.season), { label: s.label, league: leagueRates(data.fields, data.league), rows: s.live ? await withSos(rows, s.season) : rows }] as const;
-        }),
-      ),
-    )
-  : {};
-const shown = bySeason[String(open)];
+// Only the season the page opens on is built into the page; the others load on the season switch
+// (data/clubs/{season}.json), so the page does not grow with every season.
+const openRef = m?.seasons.find((s) => s.season === open);
+const shown: IndexSeason | undefined = openRef ? await indexSeason(openRef) : undefined;
+const bySeason: Record<string, IndexSeason> = shown ? { [String(open)]: shown } : {};
+
 const view: View = { season: open, metric: DEFAULT_METRIC, dir: bestDir(DEFAULT_METRIC) };
 const rows = shown ? sortRows(shown.rows, view.metric, view.dir) : [];
 const clubs = await clubIndex();
@@ -222,18 +204,29 @@ const seasons = m ? [...m.seasons].reverse() : [];
   const pace = document.getElementById("pace-chart");
   const groups = [...document.querySelectorAll<HTMLInputElement>('input[name="cc"]')];
   if (host && season && metric && title) {
+    // Only the open season is embedded; the rest are fetched once each, on the season switch.
     const seasons = JSON.parse(host.dataset.seasons ?? "{}") as Record<string, IndexSeason>;
+    const allSeasons = Array.from(season.options, (o) => Number(o.value));
     const open = Number(host.dataset.open);
     const base = host.dataset.base ?? "";
     const caption = host.querySelector("caption")!;
     const thead = host.querySelector("thead")!;
     const body = host.querySelector("tbody")!;
-    let view: View = fromQuery(location.search, Object.keys(seasons).map(Number), open);
+    let view: View = fromQuery(location.search, allSeasons, open);
+    const loadSeason = async (n: number): Promise<IndexSeason | undefined> => {
+      if (!seasons[String(n)]) {
+        const r = await fetch(`${base}/data/clubs/${n}.json`);
+        if (!r.ok) return undefined;
+        seasons[String(n)] = (await r.json()) as IndexSeason;
+      }
+      return seasons[String(n)];
+    };
 
     // Redraws the table, the heading and the charts from the view, then writes the view to the query string.
-    const paint = () => {
-      const s = seasons[String(view.season)];
-      if (!s) return;
+    const paint = async () => {
+      const wanted = view.season;
+      const s = await loadSeason(wanted);
+      if (!s || view.season !== wanted) return; // a later switch has taken over
       season.value = String(view.season);
       metric.value = view.metric;
       title.textContent = headingOf(view.metric);
@@ -250,12 +243,12 @@ const seasons = m ? [...m.seasons].reverse() : [];
 
     season.addEventListener("change", () => {
       view = { ...view, season: Number(season.value) };
-      paint();
+      void paint();
     });
     // A new metric starts from its best end (lowest for defensive rating, highest for the rest).
     metric.addEventListener("change", () => {
       view = { ...view, metric: metric.value, dir: bestDir(metric.value) };
-      paint();
+      void paint();
     });
     thead.addEventListener("click", (e) => {
       const button = (e.target as Element).closest<HTMLButtonElement>("button[data-sort]");
@@ -264,10 +257,10 @@ const seasons = m ? [...m.seasons].reverse() : [];
       // The same head again flips the order; another head starts from its best end.
       const dir = key === view.metric ? (view.dir === "desc" ? "asc" : "desc") : bestDir(key);
       view = { ...view, metric: key, dir };
-      paint();
+      void paint();
       (thead.querySelector(`[data-sort="${key}"]`) as HTMLElement | null)?.focus({ preventScroll: true });
     });
-    if (location.search) paint();
+    if (location.search) void paint();
   }
 </script>
 

@@ -307,4 +307,9 @@ const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
     }
   }
   for (const svg of document.querySelectorAll<SVGSVGElement>("svg[data-net]")) wire(svg);
+  // A season the visitor switches to arrives as HTML (data/passing/{code}/{season}.json): wire its network.
+  document.addEventListener("passing:rendered", (e) => {
+    const holder = (e as CustomEvent<HTMLElement>).detail;
+    for (const svg of holder.querySelectorAll<SVGSVGElement>("svg[data-net]")) wire(svg);
+  });
 </script>

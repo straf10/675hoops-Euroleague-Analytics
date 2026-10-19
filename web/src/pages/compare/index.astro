@@ -6,27 +6,16 @@ import Base from "../../layouts/Base.astro";
 import { MAX, RATES } from "../../lib/compare";
 import { PRESETS, defaultPresetQuery, presetHref, usablePresets } from "../../lib/compare_presets";
 import { seasonLabel } from "../../lib/leaders";
-import { cardData, meta, season } from "../../lib/stats";
-import { clubRows } from "../../lib/team";
-import { TEAM_MAX, withShots, type BandCounts, type TeamSeasonRows } from "../../lib/compare_teams";
+import { cardData, meta } from "../../lib/stats";
+import { TEAM_MAX, type TeamSeasonRows } from "../../lib/compare_teams";
 import "../../styles/stats.css";
 import Polygon from "../../components/compare/Polygon.astro";
 import TeamProfile from "../../components/compare/TeamProfile.astro";
 
 const m = await meta();
-// Teams mode: every published club-season, with the teams index's figures and the shot shares, embedded
-// for the browser (the same rows the Teams index draws from, so the numbers agree).
-const teamSeasons: TeamSeasonRows[] = m
-  ? await Promise.all(
-      m.seasons.map(async (s) => {
-        const d = await season(s.season, "teams");
-        const bands = Object.fromEntries(d.teams.map((t) => [t.code, t.bands as BandCounts]));
-        return { season: s.season, label: s.label, rows: withShots(clubRows(d.fields, d.teams), bands) };
-      }),
-    )
-  : [];
-// The season picker lists the latest season first.
-const seasonChoices = [...teamSeasons].reverse();
+// Teams mode's club-season rows are fetched when the page opens in that mode (data/compare/teams.json);
+// the page itself needs only the season labels for its season picker, latest first.
+const seasonChoices = m ? [...m.seasons].reverse().map((s) => ({ season: s.season, label: s.label })) : [];
 const base = import.meta.env.BASE_URL;
 // Curated sets: a preset is dropped (with a build warning) when a slug or season is not in the data.
 const known = new Map<string, { name: string; seasons: number[] } | null>();
@@ -184,7 +173,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
         <Polygon base={base} />
         </div>
 
-        <div id="teams-view" data-seasons={JSON.stringify(teamSeasons)} data-x={x}>
+        <div id="teams-view" data-base={base.replace(/\/$/, "")} data-x={x}>
           <form class="filters" id="team-filters" aria-label="Season and club">
             <label class="field">
               <span>Season</span>
@@ -397,7 +386,13 @@ const description = "Up to five EuroLeague players side by side, a season each o
   import { profileSvg } from "../../lib/polygon";
 
   const root = document.getElementById("teams-view");
-  const cfg = root ? (JSON.parse(root.dataset.seasons ?? "[]") as TeamSeasonRows[]) : [];
+  // The club-season rows load only when the page opens in Teams mode; a failed load leaves the picker empty.
+  const teamsMode = new URLSearchParams(location.search).get("mode") === "teams";
+  const cfg: TeamSeasonRows[] = root && teamsMode
+    ? await fetch(`${root.dataset.base ?? ""}/data/compare/teams.json`)
+        .then((r) => (r.ok ? (r.json() as Promise<TeamSeasonRows[]>) : []))
+        .catch(() => [] as TeamSeasonRows[])
+    : [];
   const parsed = teamsFromQuery(location.search, (code, season) => cfg.some((s) => s.season === season && s.rows.some((r) => r.code === code)));
   if (root && parsed.mode === "teams") {
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
