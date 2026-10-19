@@ -9,8 +9,9 @@ EuroLeague team-game of the coach's seasons.
 Definitions (plain words for the page):
 - After timeout: points per possession on the team's first possession after its own timeout
   (``TOUT``; TV timeouts are ignored). A possession ends when the ball goes to the other team.
-  A possession the team already had when it called the timeout (its own rebound, its shot, its
-  free throws) began before the timeout and does not count.
+  The possession is the one the team holds after its timeout, or the next one it receives. Only
+  points scored after the timeout count. A timeout called inside the team's own free-throw trip
+  is not counted.
 - Clutch: the score margin was within 5 points at some moment with 5:00 or less left in the
   fourth quarter, or in any overtime.
 - Rotation: players with minutes in the game, and the share of minutes taken by the top 7 players.
@@ -171,24 +172,19 @@ def _next_ball_row(acts: Sequence[Action], index: int) -> Action | None:
 
 
 class _Ball:
-    """Who has the ball, and the possessions of each team that starts right after its own timeout.
+    """Who has the ball, and the after-timeout possessions of each team.
 
-    A run is one ATO possession: it starts when the team that called the timeout gets the ball
-    after the timeout and closes when the ball goes to the other team (or the period ends).
-
-    A team's timeout counts for its next possession unless the team already had the ball from its
-    own action (a rebound, a steal, its own shot or free throws) when it called the timeout: that
-    possession began before the timeout. ``owner_by`` is the team whose action handed the ball to
-    the owner, so a timeout by the owner counts only when ``owner_by`` is the other team (a
-    turnover, a made basket or a last free throw of the other team, with the inbound still to come).
-    Several timeouts can wait at once (``armed`` is a set): each team's next possession counts.
+    A team's own timeout starts an ATO possession: at once when the team holds the ball, or when
+    it next receives the ball. The possession closes when the ball goes to the other team (or the
+    period ends). Points count only from the timeout on. Waiting timeouts are kept per team
+    (``armed`` is a set), so a timeout is not lost when the other team calls one too. Period end
+    clears the waiting timeouts.
     """
 
     def __init__(self, teams: tuple[str, str]) -> None:
         self.teams = teams
         self.totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # team -> [poss, points]
         self.owner: str | None = None
-        self.owner_by: str | None = None
         self.armed: set[str] = set()  # teams whose timeout waits for their next possession
         self.run: str | None = None
 
@@ -200,12 +196,12 @@ class _Ball:
             self.totals[self.run][0] += 1
             self.run = None
 
-    def give(self, team: str, source: str) -> None:
-        """``team`` has the ball now, handed over by an action of ``source``."""
+    def give(self, team: str) -> None:
+        """``team`` has the ball now."""
         if not team:
             return
         if team != self.owner:
-            self.owner, self.owner_by = team, source
+            self.owner = team
             if self.run is not None and self.run != team:
                 self.close()
         if team in self.armed and self.run is None:
@@ -215,18 +211,35 @@ class _Ball:
     def timeout(self, team: str) -> None:
         if self.run == team:  # already inside its own possession
             return
-        if self.owner == team:
-            # Got the ball from the other side, inbound still to come: this possession is after
-            # the timeout. Otherwise the team's own possession was under way before the timeout.
-            if self.owner_by != team:
-                self.run = team
-                self.armed.discard(team)
-            return
-        self.armed.add(team)
+        if self.owner == team:  # the team holds the ball: the possession after the timeout is now
+            self.run = team
+            self.armed.discard(team)
+        else:
+            self.armed.add(team)
 
     def score(self, team: str, points: int) -> None:
         if self.run is not None and self.run == team:
             self.totals[self.run][1] += points
+
+
+def _prev_ball_row(acts: Sequence[Action], index: int) -> Action | None:
+    for act in reversed(acts[:index]):
+        if act.kind in BALL_KINDS:
+            return act
+    return None
+
+
+def _in_own_free_throw_trip(acts: Sequence[Action], index: int, team: str) -> bool:
+    """True when a timeout falls between two free throws of the team's own trip."""
+    prev, nxt = _prev_ball_row(acts, index), _next_ball_row(acts, index)
+    return (
+        prev is not None
+        and nxt is not None
+        and prev.kind in FREE_THROW
+        and nxt.kind in FREE_THROW
+        and prev.team == team
+        and nxt.team == team
+    )
 
 
 def after_timeout(acts: Sequence[Action], teams: tuple[str, str]) -> dict[str, tuple[int, int]]:
@@ -235,33 +248,34 @@ def after_timeout(acts: Sequence[Action], teams: tuple[str, str]) -> dict[str, t
     for index, act in enumerate(acts):
         kind, team = act.kind, act.team
         if kind in PERIOD_END:
-            # The ball is dead: runs end. A timeout still waiting carries into the next period.
             ball.close()
-            ball.owner = ball.owner_by = None
+            ball.owner = None
+            ball.armed.clear()
         elif kind == TIMEOUT:
-            ball.timeout(team)
+            if not _in_own_free_throw_trip(acts, index, team):
+                ball.timeout(team)
         elif kind in MADE_FIELD_GOAL:
-            ball.give(team, team)  # the shooter has the ball
+            ball.give(team)  # the shooter has the ball
             ball.score(team, POINTS[kind])
             nxt = _next_ball_row(acts, index)
             and_one = nxt is not None and nxt.kind in FREE_THROW and nxt.team == team
             if not and_one:
-                ball.give(ball.other(team), team)
+                ball.give(ball.other(team))
         elif kind in FIELD_GOAL_ATTEMPT:
-            ball.give(team, team)  # a miss or a block: the shooter keeps the ball until a rebound
+            ball.give(team)  # a miss or a block: the shooter keeps the ball until a rebound
         elif kind == "TO":
-            ball.give(team, team)  # a turnover: the team had the ball, then the other team gets it
-            ball.give(ball.other(team), team)
+            ball.give(team)  # a turnover: the team had the ball, then the other team gets it
+            ball.give(ball.other(team))
         elif kind == "FTM":
-            ball.give(team, team)  # the shooter has the ball during the trip
+            ball.give(team)  # the shooter has the ball during the trip
             ball.score(team, POINTS[kind])
             nxt = _next_ball_row(acts, index)
             if nxt is None or nxt.kind not in FREE_THROW or nxt.team != team:
-                ball.give(ball.other(team), team)  # the last free throw hands the ball over
+                ball.give(ball.other(team))  # the last free throw hands the ball over
         elif kind == "FTA":
-            ball.give(team, team)  # a missed free throw: a rebound (or the next free throw) follows
+            ball.give(team)  # a missed free throw: a rebound (or the next free throw) follows
         elif kind in ("D", "O", "ST"):
-            ball.give(team, team)
+            ball.give(team)
     ball.close()
     return {team: (ball.totals[team][0], ball.totals[team][1]) for team in teams if team}
 
