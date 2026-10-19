@@ -28,6 +28,11 @@ const events: JsonLdObject[] = (comp?.upcoming ?? []).flatMap((g) =>
             away: g.away.name,
             date: athensDate.format(new Date(g.tipoff_utc)),
           }),
+          alternateName: gameTitle({
+            home: g.home.short ?? g.home.name,
+            away: g.away.short ?? g.away.name,
+            date: athensDate.format(new Date(g.tipoff_utc)),
+          }),
           url: abs(`${root}/#${g.game_id}`),
           description: `EuroLeague ${comp?.season} game: ${g.home.name} vs ${g.away.name}.`,
           image: abs(`${root}/og.png`),

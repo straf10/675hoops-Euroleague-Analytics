@@ -101,6 +101,27 @@ test("a Greek club carries its Greek name as alternateName; other clubs have non
   assert.equal("alternateName" in other, false);
 });
 
+test("a club's short name and Greek name are both alternate names; empty entries are dropped", () => {
+  const greek = sportsTeam({
+    name: "Panathinaikos AKTOR Athens",
+    url: "https://675hoops.com/teams/pao/",
+    alternateName: ["Panathinaikos", "Παναθηναϊκός"],
+  });
+  assert.deepEqual(greek.alternateName, ["Panathinaikos", "Παναθηναϊκός"]);
+  const short = sportsTeam({
+    name: "Baskonia",
+    url: "https://675hoops.com/teams/kba/",
+    alternateName: ["Baskonia", undefined],
+  });
+  assert.equal(short.alternateName, "Baskonia");
+});
+
+test("a played game's structured data name is the full name; its short form is the alternate name", () => {
+  const ev = sportsEvent(game({ name: "Real Madrid 86–78 Virtus Bologna", alternateName: "Real Madrid 86–78 Virtus" }));
+  assert.equal(ev.name, "Real Madrid 86–78 Virtus Bologna");
+  assert.equal(ev.alternateName, "Real Madrid 86–78 Virtus");
+});
+
 test("team references stay bare: name and url only", () => {
   const team = sportsTeam({ name: "Baskonia", url: "https://675hoops.com/teams/kba/" });
   assert.deepEqual(Object.keys(team).sort(), ["@context", "@type", "memberOf", "name", "sport", "url"]);

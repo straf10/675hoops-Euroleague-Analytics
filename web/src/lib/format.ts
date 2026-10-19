@@ -4,6 +4,8 @@ import type { MatchdayRound } from "./matchday";
 export interface Team {
   code: string;
   name: string;
+  /** The short club name (publish.SHORT_NAMES); absent in data built before short names. */
+  short?: string;
 }
 
 export interface Game {

@@ -22,16 +22,20 @@ const league = () => ({
 export interface ClubInput extends Ref {
   /** The players in the club's roster that have a page; omitted when empty. */
   athletes?: Ref[];
-  /** The club's name in its own language, when the site has one (e.g. the Greek name of a Greek club). */
-  alternateName?: string;
+  /**
+   * Other names of the club: its short name and, for a Greek club, its Greek name. Omitted when none;
+   * one name is given as a string, more as a list.
+   */
+  alternateName?: string | (string | undefined)[];
 }
 
 export function sportsTeam(club: ClubInput): JsonLdObject {
+  const alt = [club.alternateName].flat().filter((n): n is string => Boolean(n));
   return {
     "@context": CONTEXT,
     "@type": "SportsTeam",
     name: club.name,
-    ...(club.alternateName ? { alternateName: club.alternateName } : {}),
+    ...(alt.length ? { alternateName: alt.length === 1 ? alt[0] : alt } : {}),
     sport: SPORT,
     url: club.url,
     memberOf: league(),
@@ -96,6 +100,8 @@ export interface GameInput {
   description: string;
   /** Absolute URL of the social card. */
   image: string;
+  /** The short form of the name (the title), when it differs from `name`. */
+  alternateName?: string;
   /**
    * ISO 8601 with a time zone (2027-10-01T18:00:00Z) when the tip-off time is known; a bare date
    * (2027-10-01) while it is not. Never a made-up time.
@@ -132,6 +138,7 @@ export function sportsEvent(g: GameInput): JsonLdObject {
     "@context": CONTEXT,
     "@type": "SportsEvent",
     name: g.name,
+    ...(g.alternateName ? { alternateName: g.alternateName } : {}),
     url: g.url,
     description: g.description,
     image: g.image,

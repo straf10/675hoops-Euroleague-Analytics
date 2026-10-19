@@ -34,6 +34,8 @@ export interface Meta {
   player_fields: string[];
   team_fields: string[];
   teams: Record<string, string>;
+  /** Short club names (publish.SHORT_NAMES), keyed like `teams`; a club without one has none here. */
+  short_teams?: Record<string, string>;
   /** Every club that played a game since 2007-08, with all the seasons it played (not only the published). */
   clubs: { code: string; name: string; seasons: number[] }[];
   seasons: SeasonMeta[];
