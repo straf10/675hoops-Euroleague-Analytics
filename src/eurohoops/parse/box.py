@@ -8,6 +8,9 @@ with ``source = "pbp"``; they never count toward an official-box claim:
 - a team whose ESAKE player lines add up to less than its result gets the one missing
   player's PBP line, but only when exactly one PBP line with stats has no exact match among
   the ESAKE lines and adding it makes the result.
+- a team-side whose player seconds are not 5 x game length (within a minute) while its PBP
+  on-court seconds are exactly 5 x game length gets each mismatched player's PBP minutes, if
+  that closes the gap (``_minutes_from_pbp``); every change is logged in ``BoxTables.minutes``.
 
 Every short game gets a row in the fill log: what was filled, or why not.
 """
@@ -78,6 +81,7 @@ class BoxTables:
     player_box: pd.DataFrame
     team_box: pd.DataFrame
     fill: pd.DataFrame  # one row per team of a short game
+    minutes: pd.DataFrame  # one row per replaced player minute, or unapplied team-side
 
 
 @dataclass(frozen=True)
@@ -188,8 +192,113 @@ def _missing_player(
     return unmatched[0]
 
 
+MINUTES_TOLERANCE = 60  # seconds: "5 x game length, plus or minus one minute"
+MINUTES_COLUMNS = [
+    "game_id",
+    "season",
+    "team",
+    "player_id",
+    "player",
+    "raw_seconds",
+    "seconds",
+    "fix",
+    "detail",
+]
+
+
+def _pbp_length(seconds: int) -> int | None:
+    """The game length (s) whose five-man total the PBP on-court seconds equal exactly."""
+    for overtimes in range(5):
+        length = 2400 + 300 * overtimes
+        if seconds == 5 * length:
+            return length
+    return None
+
+
+def _matched_pbp(lines: tuple[BoxLine, ...], side: pd.DataFrame) -> dict[int, dict[str, Any]]:
+    """ESAKE line index -> the PBP line of the side it equals; only one-to-one matches count."""
+    esake = Counter(tuple(getattr(line, c) for c in SIGNATURE) for line in lines)
+    pbp: dict[tuple[int, ...], list[dict[str, Any]]] = {}
+    for record in side.to_dict("records"):
+        key = tuple(int(record[c]) for c in SIGNATURE)
+        pbp.setdefault(key, []).append({str(k): v for k, v in record.items()})
+    out: dict[int, dict[str, Any]] = {}
+    for index, line in enumerate(lines):
+        key = tuple(getattr(line, c) for c in SIGNATURE)
+        if esake[key] == 1 and len(pbp.get(key, ())) == 1:
+            out[index] = pbp[key][0]
+    return out
+
+
+def _minutes_from_pbp(
+    game: _Game,
+    boxes: tuple[tuple[BoxLine, ...], ...],
+    pbp: pd.DataFrame,
+    filled: list[dict[str, object]],
+) -> tuple[tuple[tuple[BoxLine, ...], ...], list[dict[str, object]]]:
+    """Replace mismatched ESAKE minutes with the PBP on-court seconds of the same player.
+
+    A team-side is checked when its seconds (ESAKE lines plus any PBP-filled player) are not
+    5 x game length within a minute, and its PBP on-court seconds are exactly 5 x game length.
+    Only players whose ESAKE minutes differ from a unique PBP line are replaced. The change is
+    kept only if the side then sums to 5 x game length; otherwise the side is logged unchanged.
+    """
+    new = list(boxes)
+    log: list[dict[str, object]] = []
+    for side in (0, 1):
+        team, name = game.teams[side], ("home", "away")[side]
+        lines = pbp[pbp["side"] == name]
+        length = _pbp_length(int(lines["seconds"].sum()))
+        if length is None:
+            continue
+        target = 5 * length
+        players = boxes[side]
+        added = sum(int(str(row["seconds"])) for row in filled if row["team"] == team)
+        total = sum(line.seconds for line in players) + added
+        if abs(total - target) <= MINUTES_TOLERANCE:
+            continue
+        changes = [
+            (index, row)
+            for index, row in _matched_pbp(players, lines).items()
+            if int(row["seconds"]) != players[index].seconds
+        ]
+        after = total + sum(int(row["seconds"]) - players[i].seconds for i, row in changes)
+        base = {"game_id": game.game_id, "season": game.season, "team": team}
+        if abs(after - target) > MINUTES_TOLERANCE:
+            log.append(
+                {
+                    **base,
+                    "player_id": "",
+                    "player": "",
+                    "raw_seconds": total,
+                    "seconds": total,
+                    "fix": "not_applied",
+                    "detail": f"sum {total} s vs {target} s; no unique PBP replacement closes "
+                    f"the {target - total} s gap",
+                }
+            )
+            continue
+        replaced = list(players)
+        for index, row in changes:
+            line = players[index]
+            replaced[index] = replace(line, seconds=int(row["seconds"]))
+            log.append(
+                {
+                    **base,
+                    "player_id": line.player_id,
+                    "player": f"#{row['number']} {row['player']}",
+                    "raw_seconds": line.seconds,
+                    "seconds": int(row["seconds"]),
+                    "fix": "replaced_from_pbp",
+                    "detail": f"team sum {total} s vs {target} s; PBP on-court sums exactly",
+                }
+            )
+        new[side] = tuple(replaced)
+    return tuple(new), log
+
+
 def _fill(
-    root: Path, game: _Game, boxes: tuple[tuple[BoxLine, ...], ...] | None
+    game: _Game, boxes: tuple[tuple[BoxLine, ...], ...] | None, pbp: pd.DataFrame | str
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
     """PBP player rows, PBP team rows and fill-log rows for one game's short teams."""
     short = [
@@ -205,7 +314,6 @@ def _fill(
     if game.season not in FILL_SEASONS and game.game_id not in OWNER_FILL_GAMES:
         reason = "outside the 2018-19/2019-20 fill scope (user decision 2026-09-25)"
         return [], [], [{**row, "fill": "not_filled", "detail": reason} for row in log]
-    pbp = _pbp(root, game)
     if isinstance(pbp, str):
         return [], [], [{**row, "fill": "not_filled", "detail": pbp} for row in log]
     players: list[dict[str, object]] = []
@@ -250,12 +358,14 @@ def build_box_tables(
 ) -> BoxTables:
     """Parse every cached box score of a played, non-forfeit game in ``games``, then fill.
 
-    Games without a cached or published box score get no ESAKE rows; the invariant report
-    flags them as ``missing_box`` whatever the PBP fill adds.
+    Order per game: documented corrections, the PBP fill of short teams, then the minutes rule
+    (``_minutes_from_pbp``). Games without a cached or published box score get no ESAKE rows;
+    the invariant report flags them as ``missing_box`` whatever the PBP fill adds.
     """
     players: list[dict[str, object]] = []
     teams: list[dict[str, object]] = []
     fills: list[dict[str, object]] = []
+    minutes: list[dict[str, object]] = []
     rated = games[games["played"] & ~games["forfeit"]]
     if corrections is None:
         corrections = load_box_corrections(BOX_CORRECTIONS)
@@ -276,8 +386,15 @@ def build_box_tables(
         parsed = parse_box_score(read_cached(path).decode()) if path.exists() else None
         if parsed is not None:
             parsed = _corrected(game_id, game.teams, parsed, corrections)
-        boxes = None if parsed is None else (parsed[0].players, parsed[1].players)
-        for team, box in zip(game.teams, parsed or (), strict=False):
+        boxes: tuple[tuple[BoxLine, ...], ...] | None = (
+            None if parsed is None else (parsed[0].players, parsed[1].players)
+        )
+        pbp = _pbp(root, game)
+        pbp_players, pbp_teams, log = _fill(game, boxes, pbp)
+        if boxes is not None and not isinstance(pbp, str):
+            boxes, changes = _minutes_from_pbp(game, boxes, pbp, pbp_players)
+            minutes += changes
+        for side, (team, box) in enumerate(zip(game.teams, parsed or (), strict=False)):
             teams.append(
                 {
                     "game_id": game_id,
@@ -286,8 +403,8 @@ def build_box_tables(
                     "source": "esake",
                 }
             )
-            players.extend(_player_row(game_id, team, line) for line in box.players)
-        pbp_players, pbp_teams, log = _fill(root, game, boxes)
+            current = boxes if boxes is not None else ((), ())
+            players.extend(_player_row(game_id, team, line) for line in current[side])
         players += pbp_players
         teams += pbp_teams
         fills += log
@@ -298,4 +415,5 @@ def build_box_tables(
         validated(player_box, PLAYER_BOX_SCHEMA),
         validated(team_box, TEAM_BOX_SCHEMA),
         validated(fill, FILL_SCHEMA),
+        pd.DataFrame(minutes, columns=MINUTES_COLUMNS),
     )

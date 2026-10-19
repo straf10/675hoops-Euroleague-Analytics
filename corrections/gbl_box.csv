@@ -1,2 +1,1 @@
 game_id,team,player_id,raw_seconds,seconds,reason
-GBL2018_D989D3EB,DD83ED41,D98A0DB4,3782,2163,"ESAKE prints the minutes cell as 01:03:02 (over an hour; the game had no overtime). Replaced with the PBP on-court seconds of the player with the same line (9 pts, 2/5 2P, 1/6 3P, 2/2 FT; DeVaughn Washington). Home PBP on-court seconds sum to exactly 5 x 2400 with this value. Open: ESAKE gives Lewis JeQuan (0A8C28AB, 754 s) where PBP gives 1027 s; not changed here."

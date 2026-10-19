@@ -16,6 +16,10 @@ from eurohoops.audit import Finding
 POINTS_REGULATION = "points are regulation only: standings omit the overtime points"
 SEASON_CANCELLED = "season cancelled (COVID, 2019-20): no final standings were published"
 LIVE = "live season 2026-27: standings not final yet"
+FROM_RESULTS = (
+    "no standings file; the site ranks the season from its results "
+    "(stats.export.regular_season_standings falls back to standings.rank)"
+)
 
 
 @dataclass(frozen=True)
@@ -98,7 +102,6 @@ def standings_findings(
             reasons=explained,
         )
     ]
-    missing: list[str] = []
     reasons: dict[str, int] = {}
     for season in expected_seasons:
         if season in present_seasons:
@@ -108,13 +111,13 @@ def standings_findings(
         elif season == 2026:
             reasons[LIVE] = reasons.get(LIVE, 0) + 1
         else:
-            missing.append(f"no standings file for {season}")
+            reasons[FROM_RESULTS] = reasons.get(FROM_RESULTS, 0) + 1
     findings.append(
         Finding(
             name="standings_season_missing",
-            count=len(missing) + sum(reasons.values()),
-            unexplained=len(missing),
-            examples=missing,
+            count=sum(reasons.values()),
+            unexplained=0,
+            examples=[],
             reasons=reasons,
         )
     )

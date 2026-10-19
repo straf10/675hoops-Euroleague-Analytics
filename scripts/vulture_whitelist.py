@@ -286,3 +286,9 @@ from eurohoops.audit_standings import standings_findings  # noqa: E402
 
 coach_findings
 standings_findings
+
+# Audit: postponed-game reader (scripts/data_audit.py)
+from eurohoops.audit_status import POSTPONED_REASON, is_postponed  # noqa: E402
+
+POSTPONED_REASON
+is_postponed

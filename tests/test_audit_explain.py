@@ -7,6 +7,7 @@ import pytest
 from eurohoops.audit import Finding, audit
 from eurohoops.audit_coaches import coach_findings
 from eurohoops.audit_standings import Standing, standings_findings
+from eurohoops.audit_status import is_postponed
 from tests.test_audit import (
     BOX_FILL_DDL,
     GAMES_DDL,
@@ -238,7 +239,46 @@ def test_a_wins_mismatch_is_unexplained(wins: int) -> None:
     assert finding.unexplained == (0 if wins == 2 else 1)
 
 
-def test_a_missing_standings_season_is_explained_only_when_cancelled_or_live() -> None:
+def test_a_missing_standings_file_is_explained_by_the_results_fallback() -> None:
     missing = standings_findings([], _rs_rows(), {}, [2019, 2021, 2026], set())[1]
-    assert missing.unexplained == 1  # 2021 has no file and no excuse
-    assert sum(missing.reasons.values()) == 2  # 2019 cancelled, 2026 live
+    assert missing.unexplained == 0
+    assert sum(missing.reasons.values()) == 3  # 2019 cancelled, 2026 live, 2021 from results
+
+
+def test_a_postponed_schedule_block_explains_the_game_only() -> None:
+    block = (
+        '<div class="esake-program-game"><div>ΑΝΑΒΑΛΛΕΤΑΙ</div>'
+        '<a href="/el/action/EsakegameView?idgame=B16D0588&mode=3">x</a></div>'
+        '<div class="esake-program-game"><a href="?idgame=0000ABCD">y</a></div>'
+    )
+    assert is_postponed(block, "B16D0588")
+    assert not is_postponed(block, "0000ABCD")
+    assert not is_postponed(block, "FFFFFFFF")
+
+
+def _coach_row(game: str, team: str, slug: str | None) -> dict[str, object]:
+    row = _coach_rows().iloc[0].to_dict()
+    row.update({"game_id": game, "team": team, "slug": slug, "name": None})
+    return row
+
+
+def test_an_unnamed_side_is_explained_only_when_its_box_has_no_coach() -> None:
+    rows = pd.DataFrame([_coach_row("g1", "AAA", None), _coach_row("g1", "BBB", "b")])
+    games = _games()
+    no_coach = {("g1", "AAA"): "", ("g1", "BBB"): ""}
+    ok = coach_findings(rows, games, no_coach)
+    assert _finding(ok, "coach_side_unnamed").unexplained == 0
+    assert sum(_finding(ok, "coach_side_unnamed").reasons.values()) == 1
+    placeholder = {("g1", "AAA"): "XX", ("g1", "BBB"): ""}
+    assert _finding(coach_findings(rows, games, placeholder), "coach_side_unnamed").unexplained == 0
+    named_in_box = {("g1", "AAA"): "SMITH JOHN", ("g1", "BBB"): ""}
+    assert (
+        _finding(coach_findings(rows, games, named_in_box), "coach_side_unnamed").unexplained == 1
+    )
+    assert _finding(coach_findings(rows, games, {}), "coach_side_unnamed").unexplained == 1
+
+
+def test_a_cached_box_game_without_coach_rows_is_flagged() -> None:
+    raw = {("g1", "AAA"): "", ("g1", "BBB"): "", ("g9", "CCC"): "COACH X"}
+    finding = _finding(coach_findings(_coach_rows(), _games(), raw), "coach_game_without_rows")
+    assert finding.unexplained == 1
