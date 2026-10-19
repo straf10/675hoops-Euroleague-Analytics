@@ -305,6 +305,52 @@ falls from 87% (2007) to 32–41% (2014–2022). Box totals are used only for th
 Rule D gives 3,376 makes that are linked by more than one AS row. The first AS row is kept as the
 passer, and the rest are dropped.
 
+**Linkage, production rule (revised).** The 94.9% above is over the pre-study's included games
+(2007–2022, with unreadable-clock, score-mismatch and ND games removed). The production code in
+`src/eurohoops/stats/assists.py` ran the same rule over every played game and measured 91.6%
+(152,164 of 166,195 AS rows linked in the 5,025 games it checked; 2,706 AS rows of 75 ND-clock
+games of 2016 were skipped entirely). Causes of the unlinked rows (old rule, all played games):
+
+| Cause | AS rows |
+|---|---|
+| Whole game skipped (ND clock, 2016) | 2,706 |
+| Make already credited to an earlier AS row | 3,832 |
+| Nearest same-team make more than 30 s away | 2,893 |
+| Nearest same-team make 6–30 s away | 1,055 |
+| Only an opposing make nearby | 2,773 |
+| No make of the team within 10 events | 1,462 |
+| Nearest same-team make is the passer's own | 1,318 |
+| Team code mismatch near the row | 822 |
+| Other (1–5 s same-team make beyond 2 events, same-clock self-scorer, no clock) | 103 |
+
+Box totals equal the play-by-play AS counts (168,899 vs 168,901), and FGM totals equal the
+play-by-play makes (one team-game differs by 9). So every assist has a make in the feed. The
+losses are linking errors, not missing rows.
+
+The new rule is a one-to-one maximum matching per game. An edge needs the passer's team's make,
+not the passer's own; no opposing make between the two rows; the clocks at most 60 s apart and
+the rows at most 30 events apart (3 events when a clock is missing). It is in `assists.py`.
+Measured over all played EuroLeague games 2007–2026, **92.9% of AS rows link (156,837 of
+168,901), and 92.9% of box-score assists (156,837 of 168,899).** Per season: 97.6% (2007),
+97.9% (2008), 92–94% (2009–2015), 92–94% (2016–2022), 91–93% (2023–2026). The 98% target
+is **not met**.
+
+*Why not 98%.* About 7% of AS rows have no plausible make left. Looser rules do reach 98%
+(index-only matching with a 30-event window reaches 98.1%), but a hand-check shows they are
+wrong. Hand-check (25 links per stratum, read from the play-by-play windows; a reading, not an
+independent label): links with an opposing make between the rows, 25 of 25 read as wrong or
+doubtful. Links more than 60 s apart, 25 of 25 read as doubtful or wrong. Links with no
+opposing make between and within 60 s, 25 of 25 read as plausible, with the make adjacent to
+the AS row in most cases. The first two strata come from the ungated and index-only matchings;
+the last from the ungated 60 s / 30-event matching restricted to unopposed pairs. The rule
+uses only the last kind of pair. Precision of the final matching itself was not hand-checked
+beyond this.
+
+*Clock.* The clock gap between an AS row and its make is 0 s for about 90–98% of linked rows
+in 2007–2010 but 16–27% from 2011 on. From 2011 most links are 1–2 s apart (about 55%), and
+3–5 s for 14–18%. So the feed clock of AS rows lags the make by 1–2 s, and rule timing must
+allow a few seconds of offset.
+
 **Other caveats.**
 
 - The WPA credit follows the section 8 definition (every play, with `ΔWP` including time passage
