@@ -12,6 +12,7 @@ from eurohoops.config import (
     EUROLEAGUE,
     GBL,
     GBL_BOX_FILL,
+    GBL_MINUTES_REPORT,
     GBL_PBP,
     GBL_PLAYER_BOX,
     GBL_TEAM_BOX,
@@ -104,6 +105,7 @@ def ingest(
                 write_table(tables.player_box, GBL_PLAYER_BOX)
                 write_table(tables.team_box, GBL_TEAM_BOX)
                 write_table(tables.fill, GBL_BOX_FILL)
+                tables.minutes.to_csv(GBL_MINUTES_REPORT, index=False)
             if pbp:
                 write_table(build_pbp_table(comp.raw_dir, games), GBL_PBP)
         else:

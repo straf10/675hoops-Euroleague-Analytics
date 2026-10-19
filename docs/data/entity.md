@@ -71,11 +71,11 @@ move; `player_xwalk` carries every override.
 ## Numbers
 | Value | Shown | Source |
 |---|---|---|
-| persons | 2997 | `entity_resolution.json:persons` |
-| matched GBL ids | 191 | `entity_resolution.json:matched_gbl_ids` |
-| candidate pairs | 93344 | `entity_resolution.json:candidate_pairs` |
-| accepted pairs | 196 | `entity_resolution.json:accepted_pairs` |
-| override ids | 4 | `entity_resolution.json:by_method.override` |
+| persons | 2984 | `entity_resolution.json:persons` |
+| matched GBL ids | 206 | `entity_resolution.json:matched_gbl_ids` |
+| candidate pairs | 93444 | `entity_resolution.json:candidate_pairs` |
+| accepted pairs | 197 | `entity_resolution.json:accepted_pairs` |
+| override ids | 36 | `entity_resolution.json:by_method.override` |
 | silver positives | 140 | `entity_resolution.json:silver.positives` |
 | silver negatives | 3055 | `entity_resolution.json:silver.negatives` |
 | silver precision | 1.0 | `entity_resolution.json:silver.precision` |
@@ -90,7 +90,7 @@ move; `player_xwalk` carries every override.
 | label recall, after overrides | 1.0 | `entity_resolution.json:labels.after_overrides.recall` |
 | label recall CI low, after overrides | 0.957712 | `entity_resolution.json:labels.after_overrides.recall_ci95.0` |
 | GBL birth dates | 993 | `entity_resolution.json:bios.gbl` |
-| EuroLeague birth dates | 2591 | `entity_resolution.json:bios.euroleague` |
+| EuroLeague birth dates | 2665 | `entity_resolution.json:bios.euroleague` |
 | tuning recall, dates hidden | 0.864286 | `entity_tuning.json:chosen_silver_hidden_dates.recall` |
 | tuning precision, dates hidden | 1.0 | `entity_tuning.json:chosen_silver_hidden_dates.precision` |
 | t_dob | 0.78 | `entity_tuning.json:chosen.t_dob` |

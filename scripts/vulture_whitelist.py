@@ -274,3 +274,21 @@ displayed_wp
 tipoff_gap
 game_parts
 team_view
+
+# Data audit (scripts/data_audit.py, a read-only CLI over the marts)
+from eurohoops.audit import run_audit  # noqa: E402
+
+run_audit
+
+# Data audit: the coach and standings checks (scripts/data_audit.py)
+from eurohoops.audit_coaches import coach_findings  # noqa: E402
+from eurohoops.audit_standings import standings_findings  # noqa: E402
+
+coach_findings
+standings_findings
+
+# Audit: postponed-game reader (scripts/data_audit.py)
+from eurohoops.audit_status import POSTPONED_REASON, is_postponed  # noqa: E402
+
+POSTPONED_REASON
+is_postponed
