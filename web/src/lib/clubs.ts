@@ -5,6 +5,7 @@ import { signClass } from "./delta";
 import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
 import { columnKeys, metricOf, type Dir, type IndexRow } from "./ranking";
+import { elo } from "./strength";
 
 /** The head: rank, club, W–L (not sortable), then one sortable column per metric in columnKeys. */
 export const clubHeadHtml = (metric: string, dir: Dir): string => {
@@ -29,6 +30,7 @@ const cell = (key: string, v: number): string => {
   if (!Number.isFinite(v)) return "–";
   if (key === "net") return `<span class="${signClass(v)}">${signed(v)}</span>`;
   if (key === "returning") return `${Math.round(v)}%`;
+  if (key.startsWith("sos_")) return elo(v);
   return v.toFixed(1);
 };
 

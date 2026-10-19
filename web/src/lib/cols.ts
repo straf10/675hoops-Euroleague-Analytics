@@ -8,7 +8,7 @@
 export const GROUPS = {
   line: ["Scoring", "All-round", "Shooting"], // season lines, rosters, game log: 14.27rem
   bands: ["FG%", "Share"], // 6.946rem
-  clubs: ["Record", "Ratings", "Pace"], // 11.859rem
+  clubs: ["Record", "Ratings", "Pace", "Schedule"], // 16.06rem (re-measure in Geist)
   players: ["Scoring", "All-round", "Shots", "Efficiency"], // 18.125rem
 };
 

@@ -229,7 +229,8 @@ export function clubRows(fields: string[], teams: ClubLine[]): IndexRow[] {
       const share = (x: Totals) => (100 * x.fg3a) / (x.fg2a + x.fg3a);
       // NaN with no value (no roster list or no last season): sorts last and shows a dash.
       const returning = t.continuity ? 100 * t.continuity.share : NaN;
-      return { code: t.code, name: t.name, w: t.w, l: t.l, f: { ...f, tpar: share(own), otpar: share(opp), returning } };
+      const sos = { sos_played: t.sos?.played ?? NaN, sos_ahead: t.sos?.ahead ?? NaN };
+      return { code: t.code, name: t.name, w: t.w, l: t.l, f: { ...f, tpar: share(own), otpar: share(opp), returning, ...sos } };
     })
     .sort((a, b) => b.f.net - a.f.net);
 }

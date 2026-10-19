@@ -455,7 +455,7 @@ svg.court {
   --seg-w: 6.946rem;
 }
 .cols:has(+ .scroll > .clubs) {
-  --seg-w: 11.859rem;
+  --seg-w: 16.06rem;
 }
 
 /* Column groups on phones (lib/cols.ts): the control sits right before the table's box, and a
@@ -480,14 +480,15 @@ svg.court {
     white-space: normal;
   }
 }
-/* Teams index, after rank and club: W–L | ORtg DRtg | Net (every group: the ranking) | Pace. */
+/* Teams index, after rank and club: W–L | ORtg DRtg | Net (every group: the ranking) | Pace | SoS played SoS ahead. */
 @media (max-width: 560px) {
   .cols:has(+ .scroll > .clubs) {
     display: inline-flex;
   }
-  .cols:has(> :nth-child(1) > :checked) + .scroll > .clubs :is(th, td):is(:nth-child(4), :nth-child(5), :nth-child(7)),
-  .cols:has(> :nth-child(2) > :checked) + .scroll > .clubs :is(th, td):is(:nth-child(3), :nth-child(7)),
-  .cols:has(> :nth-child(3) > :checked) + .scroll > .clubs :is(th, td):nth-child(n + 3):nth-child(-n + 5) {
+  .cols:has(> :nth-child(1) > :checked) + .scroll > .clubs :is(th, td):is(:nth-child(4), :nth-child(5), :nth-child(7), :nth-child(8), :nth-child(9)),
+  .cols:has(> :nth-child(2) > :checked) + .scroll > .clubs :is(th, td):is(:nth-child(3), :nth-child(7), :nth-child(8), :nth-child(9)),
+  .cols:has(> :nth-child(3) > :checked) + .scroll > .clubs :is(th, td):is(:nth-child(n + 3):nth-child(-n + 5), :nth-child(8), :nth-child(9)),
+  .cols:has(> :nth-child(4) > :checked) + .scroll > .clubs :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(7)) {
     display: none;
   }
 }
