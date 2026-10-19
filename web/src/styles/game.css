@@ -1,0 +1,115 @@
+/* Game page (src/pages/games/[id]). Global, not scoped: scoped styles add an astro-* attribute to every element of the page. */
+  .wp-figure {
+    position: relative;
+    margin: 16px 0 0;
+    min-width: 0;
+  }
+  .wp-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    user-select: none;
+  }
+  .wp-plot {
+    fill: var(--surface);
+  }
+  .wp-gridline {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .wp-mid {
+    stroke: var(--axis);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+  .wp-sep {
+    stroke: var(--rule-strong);
+    stroke-width: 1;
+  }
+  .wp-tick {
+    fill: var(--muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wp-series {
+    fill: none;
+    stroke: var(--data-1);
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  .wp-hit {
+    fill: transparent;
+    cursor: crosshair;
+    touch-action: pan-y;
+  }
+  .wp-hit:focus {
+    outline: none;
+  }
+  .wp-hit:focus-visible {
+    stroke: var(--data-1);
+    stroke-width: 2;
+  }
+  .wp-probe-line {
+    stroke: var(--ink-2);
+    stroke-width: 1;
+  }
+  .wp-probe-dot {
+    fill: var(--data-1);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+  .wp-tip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    max-width: 260px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: var(--on-ink);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .wp-tip[hidden],
+  .wp-probe[hidden] {
+    display: none;
+  }
+  .wp-tip strong {
+    font-weight: 600;
+  }
+  .wp-sub {
+    margin-top: 24px;
+    font-size: 1rem;
+  }
+  .swings {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .swings li {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 0.875rem;
+  }
+  .sw-clock {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-gain {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-score {
+    margin-left: auto;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
