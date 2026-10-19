@@ -70,6 +70,13 @@ function round(v: number): number {
       <p>{how}</p>
     </div>
   </figcaption>
+  <div class="legend-row">
+    <ul class="legend" aria-hidden="true">
+      <li><i class="sw series" />Our forecast vs the guess</li>
+      <li><i class="sw level" />0 = level with the guess</li>
+    </ul>
+  </div>
+  <div class="plot-area">
   {
     games === 0 ? (
       <p class="empty">No finished games yet.</p>
@@ -107,6 +114,7 @@ function round(v: number): number {
       </svg>
     )
   }
+  </div>
   <table class="sr-only">
     <caption>{title}</caption>
     <thead>
@@ -147,6 +155,40 @@ function round(v: number): number {
     margin-top: 4px;
     color: var(--muted);
     font-size: 0.8125rem;
+  }
+  /* Same height in every card, so the plots start on one line. */
+  .legend-row {
+    min-height: 24px;
+    margin-bottom: 8px;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    color: var(--ink-2);
+    font-size: 0.8125rem;
+  }
+  .legend li {
+    display: inline-flex;
+    align-items: center;
+  }
+  .sw {
+    display: inline-block;
+    width: 14px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .sw.series {
+    height: 0;
+    border-top: 2.25px solid var(--data-1);
+    border-radius: 2px;
+  }
+  .sw.level {
+    height: 0;
+    border-top: 1px dashed var(--ink-2);
   }
   .chart {
     display: block;

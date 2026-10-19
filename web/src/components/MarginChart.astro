@@ -59,11 +59,13 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
       <p>{how}</p>
     </div>
   </figcaption>
-  <div class="plot-area">
+  <div class="legend-row">
     <ul class="legend" aria-hidden="true">
       <li><i class="sw actual" />Final margin</li>
       <li><i class="sw predicted" />Predicted margin</li>
     </ul>
+  </div>
+  <div class="plot-area">
     {
       n === 0 ? (
         <p class="empty">No finished games yet.</p>
@@ -149,10 +151,16 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
     color: var(--muted);
     font-size: 0.8125rem;
   }
+  /* Same height in every card, so the plots start on one line. */
+  .legend-row {
+    min-height: 24px;
+    margin-bottom: 8px;
+  }
   .legend {
     display: flex;
-    gap: 18px;
-    margin: 0 0 8px;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 0;
     padding: 0;
     list-style: none;
     color: var(--ink-2);

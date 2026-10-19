@@ -13,7 +13,7 @@ const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
 const acc = fc?.accuracy ?? [];
 
 // One size for every chart in the scoring row (see index.astro): a card a third of the page wide.
-const spec: ChartSpec = { w: 320, h: 240, l: 40, r: 48, t: 14, b: 32 };
+const spec: ChartSpec = { w: 320, h: 240, l: 40, r: 48, t: 14, b: 36 };
 const chart = acc.length ? brierChart(acc, spec) : null;
 const c = chart;
 ---
@@ -34,13 +34,15 @@ const c = chart;
           </p>
         </div>
       </div>
-      <div class="plot-area">
+      <div class="legend-row">
         <ul class="legend">
           <li>
             <span class="key model" aria-hidden="true" />
             {label}
           </li>
         </ul>
+      </div>
+      <div class="plot-area">
         <svg
           class="chart"
           viewBox={`0 0 ${c.spec.w} ${c.spec.h}`}
@@ -100,6 +102,9 @@ const c = chart;
               />
             );
           })}
+          <text class="axis-label" x={c.spec.l + (c.spec.w - c.spec.l - c.spec.r) / 2} y={c.spec.h - 4} text-anchor="middle">
+            Rounds played · Brier score, season to date
+          </text>
         </svg>
       </div>
       <table class="sr-only">
@@ -145,14 +150,24 @@ const c = chart;
     color: var(--muted);
     font-size: 0.8125rem;
   }
+  /* Same height in every card, so the plots start on one line. */
+  .legend-row {
+    min-height: 24px;
+    margin-bottom: 8px;
+  }
   .legend {
     display: flex;
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 6px 20px;
     list-style: none;
-    margin: 0 0 8px;
+    margin: 0;
     padding: 0;
     font-size: 0.8125rem;
     color: var(--ink-2);
+  }
+  .axis-label {
+    fill: var(--muted);
+    font-size: 11px;
   }
   .legend li {
     display: inline-flex;

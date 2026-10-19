@@ -146,7 +146,7 @@ const scoreRows = [
             id="trend-logloss"
             title="Win chances"
             what="How far ahead of a simple 'home team wins' guess our chances are, added up game by game."
-            how="Above 0 means we are ahead of the guess. A line that climbs to 2.0 means our chances have 2.0 less log loss in total than the guess."
+            how="Above 0 means our chances have beaten the home-team guess so far; the higher the line, the bigger our lead. A dip means the guess did better over those games."
             unit="log loss, summed"
             digits={2}
             points={logloss}
@@ -264,12 +264,12 @@ const scoreRows = [
   .charts {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     column-gap: 32px;
   }
   .charts :global(.chart-card) {
     display: grid;
-    grid-row: span 2;
+    grid-row: span 3;
     grid-template-rows: subgrid;
     min-width: 0;
     margin: 0;
