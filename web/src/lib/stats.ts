@@ -474,36 +474,6 @@ interface RawAttempts {
   opp: number[];
 }
 
-/** One season's attempts with the names the explorer's pickers need. */
-export async function explorerData(year: number): Promise<Attempts | null> {
-  const raw = await load<RawAttempts>(`seasons/${year}/attempts.json`);
-  if (!raw) return null;
-  const m = (await meta())!;
-  const [players, teams] = await Promise.all([season(year, "players"), season(year, "teams")]);
-  const info = m.seasons.find((s) => s.season === year);
-  const people = new Map(players.players.map((p) => [p.id, p]));
-  const clubs = new Map(teams.teams.map((t) => [t.code, t.name]));
-  return {
-    season: year,
-    label: info?.label ?? String(year),
-    validated: info?.coords_validated ?? true,
-    radius: m.hex_radius_m,
-    bits: raw.bits,
-    bands: m.bands,
-    teams: raw.teams.map((c) => [c, clubs.get(c) ?? m.teams[c] ?? c]),
-    players: raw.players.map((id) => {
-      const p = people.get(id);
-      return [id, p?.name ?? id, p?.slug ?? "", p?.teams[p.teams.length - 1] ?? ""];
-    }),
-    x: raw.x,
-    y: raw.y,
-    flags: raw.flags,
-    player: raw.player,
-    team: raw.team,
-    opp: raw.opp,
-  };
-}
-
 /** One club's shots taken and allowed in a season (the team page's Shot attempts chart), or null
  * when the season has no attempts file. */
 export async function clubShots(code: string, year: number): Promise<ClubShots | null> {

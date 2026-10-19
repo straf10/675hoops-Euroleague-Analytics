@@ -8,8 +8,7 @@ export default defineConfig({
   outDir: "../site",
   trailingSlash: "ignore",
   integrations: [sitemap({ filter: (page) => !new URL(page).pathname.startsWith("/cards/") })],
-  // Scouting and Shots are hidden: their code stays in src/pages/_scouting and _shots. Their
-  // redirects are real 301s in public/_redirects (Cloudflare static assets).
+  // The removed Scouting and Shots pages redirect with real 301s in public/_redirects.
   build: { inlineStylesheets: "auto" },
   // Scope component styles with an astro-* class rather than a data-astro-cid-* attribute: the
   // same specificity (one class = one attribute), but ~9 bytes shorter on every scoped element.

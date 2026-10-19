@@ -1,10 +1,8 @@
 // M6 on the site (weeks 16-18): the player card's projection, impact, shot-making and "plays like"
-// blocks and the Scouting page. The data is what `eurohoops publish` writes below src/data/api
+// blocks. The data is what `eurohoops publish` writes below src/data/api
 // (the read-only API's responses, one file per route); every file may be absent.
 
 import codes from "./m6_codes.json";
-import { signed } from "./format";
-import { playerIndex } from "./stats";
 
 // ---- Data -------------------------------------------------------------------------------------
 
@@ -120,43 +118,9 @@ export interface SimilarReport {
   similar: SimilarRow[];
 }
 
-export interface Dimension {
-  stability: number;
-  pairs?: number;
-  n_min: number;
-  labelled?: boolean; // false: the gap does not repeat year to year, so rows carry no label
-  k: number;
-}
-
-export interface BoardRow {
-  person_id: string;
-  competition: string;
-  season: number;
-  dimension: string;
-  observed: number;
-  expected: number;
-  gap: number;
-  se: number;
-  z: number;
-  persist: number;
-  expected_next: number;
-  n: number;
-  label: string | null;
-  name: string;
-  team: string;
-}
-
-export interface Board {
-  model: string;
-  season: number;
-  dimensions: Record<string, Dimension>;
-  rows: BoardRow[];
-}
-
 // Lazy, like lib/stats.ts: a page only parses the files it reads, and no export means no files.
 const files = {
   ...import.meta.glob<unknown>("../data/api/players/*/*.json", { import: "default" }),
-  ...import.meta.glob<unknown>("../data/api/scouting/*.json", { import: "default" }),
   ...import.meta.glob<unknown>("../data/api/rapm.json", { import: "default" }),
 };
 const cache = new Map<string, Promise<unknown>>();
@@ -186,18 +150,6 @@ export async function playerM6(id: string): Promise<PlayerM6> {
     load<SimilarReport>(`${dir}/similar.json`),
   ]);
   return { projection, index, similar };
-}
-
-let slugs: Promise<Record<string, string>> | null = null;
-
-/** EuroLeague person id (`P:` + source id) -> player page slug, for the players the site has pages for. */
-export function playerSlugs(): Promise<Record<string, string>> {
-  slugs ??= playerIndex().then((ps) => Object.fromEntries(ps.map((p) => [`P:${p.id}`, p.slug])));
-  return slugs;
-}
-
-export async function scoutingData() {
-  return { board: await load<Board>("scouting/board.json") };
 }
 
 // ---- Words and numbers ------------------------------------------------------------------------
@@ -239,53 +191,3 @@ export const PROJECTED: StatInfo[] = [
 export const fixed = (x: number, digits = 1): string => (Math.abs(x) < 0.5 * 10 ** -digits ? 0 : x).toFixed(digits).replace(/^-/, "−");
 export const percent = (x: number): string => `${fixed(100 * x)}%`;
 export const range = (lo: number, hi: number, f: (x: number) => string = fixed): string => `${f(lo)} to ${f(hi)}`;
-
-// ---- The board --------------------------------------------------------------------------------
-
-export interface DimensionInfo {
-  key: string;
-  title: string;
-  about: string;
-  /** What `n` counts. */
-  nUnit: string;
-  /** Observed, expected and gap are fractions shown as percent. */
-  pct: boolean;
-  unit: string;
-}
-
-export const DIMENSIONS: DimensionInfo[] = [
-  {
-    key: "shot_making",
-    title: "Shot-making",
-    about: "Points per 100 field-goal attempts above what the shots' difficulty predicts (M2).",
-    nUnit: "field-goal attempts",
-    pct: false,
-    unit: "points per 100 FGA",
-  },
-  {
-    key: "fg3_pct",
-    title: "3-point shooting",
-    about: "3P% against the 3P% expected from the player's free-throw percentage.",
-    nUnit: "3-point attempts",
-    pct: true,
-    unit: "% (gap in percentage points)",
-  },
-  {
-    key: "on_off",
-    title: "On/off",
-    about: "Team net rating with him on court minus off court, against his BRAPM rating.",
-    nUnit: "possessions on court",
-    pct: false,
-    unit: "net points per 100 possessions",
-  },
-];
-
-export const LABEL_WORDS: Record<string, string> = {
-  "likely real": "Likely real",
-  "likely regression": "Likely regression",
-  "too few attempts": "Too few attempts",
-  "within noise": "Within noise",
-};
-
-export const boardNumber = (d: DimensionInfo, x: number, gap = false): string =>
-  d.pct ? (gap ? signed(100 * x) : percent(x)) : gap ? signed(x) : fixed(x);
