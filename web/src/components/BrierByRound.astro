@@ -20,7 +20,10 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
 <div class="brier">
         {charts.length > 0 && (
           <section aria-labelledby={`fc-chart-${comp.key}`}>
-            <h3 id={`fc-chart-${comp.key}`}>Brier score by round</h3>
+            <div class="cap-row">
+              <h3 id={`fc-chart-${comp.key}`}>Brier score by round</h3>
+              <span class="dir">Better ↓</span>
+            </div>
             <p class="sub">
               Season to date, after each round. Lower is better: 0 is a perfect forecast, 0.25 is a coin flip.
             </p>
@@ -123,8 +126,22 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
 
 <style>
   /* Chart */
-  .legend {
+  .cap-row {
     display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  /* Which way is better, in the chart's top-right corner: muted, never a data colour. */
+  .dir {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .legend {
+display: flex;
     gap: 20px;
     list-style: none;
     margin: 0 0 8px;

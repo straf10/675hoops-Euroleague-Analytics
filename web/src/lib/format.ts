@@ -1,4 +1,5 @@
 import type { Forecasts } from "./forecasts";
+import type { MatchdayRound } from "./matchday";
 
 export interface Team {
   code: string;
@@ -76,6 +77,8 @@ export interface Competition {
   next_tipoff_time_tbc: boolean;
   upcoming: UpcomingGame[];
   results: Result[];
+  /** Every round of the live season, in round order (the home page's matchday). */
+  matchday: { rounds: MatchdayRound[] };
   scorecard: {
     elo: Metrics;
     b0: Metrics;
@@ -98,8 +101,8 @@ export interface Competition {
 export interface SiteData {
   generated_at_utc: string;
   competitions: Competition[];
-  /** Headline data counts, from the marts (`marts.data_volume`). */
-  data_volume: { games: number; seasons: number; shots_with_coordinates?: number };
+  /** Headline data counts, EuroLeague only (`marts.data_volume`): actions from the play-by-play cache. */
+  data_volume: { games: number; seasons: number; shots_with_coordinates?: number; actions?: number };
   /** EuroLeague titles, all-time since `since`: titles by display code (clubs with one or more). */
   el_titles: {
     since: number;

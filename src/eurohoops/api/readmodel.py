@@ -418,7 +418,9 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                 ),
             )
         )
-    return site_data(sections, now, data_volume(_mart(store)))
+    return site_data(
+        sections, now, data_volume(_mart(store), store.path(EUROLEAGUE.raw_dir / "playbyplay"))
+    )
 
 
 # ---- stats ----

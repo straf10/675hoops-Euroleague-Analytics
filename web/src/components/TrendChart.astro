@@ -14,8 +14,10 @@ interface Props {
   digits: number;
   /** The first point is the origin (0, 0). */
   points: TrendPoint[];
+  /** The corner label: which way is better, e.g. "Above 0 = model ahead". */
+  better: string;
 }
-const { id, title, caption, unit, digits, points } = Astro.props;
+const { id, title, caption, unit, digits, points, better } = Astro.props;
 const capId = `${id}-cap`;
 
 const games = points.at(-1)?.n ?? 0;
@@ -55,7 +57,10 @@ function round(v: number): number {
 
 <figure class="panel">
   <figcaption class="cap">
-    <h3 id={id}>{title}</h3>
+    <div class="cap-row">
+      <h3 id={id}>{title}</h3>
+      <span class="dir">{better}</span>
+    </div>
     <p id={capId}>{caption}</p>
   </figcaption>
   {
@@ -120,6 +125,20 @@ function round(v: number): number {
   .panel {
     margin: 0;
     min-width: 0;
+  }
+  .cap-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  /* Which way is better, in the chart's top-right corner: muted, never a data colour. */
+  .dir {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
   }
   .cap {
     padding-bottom: 12px;

@@ -99,7 +99,9 @@ def test_site_is_the_publish_payload(store: rm.Store) -> None:
     assert [g["game_id"] for g in el["upcoming"]] == ["E2026_4", "E2026_6"]
     assert el["upcoming"][0]["away"] == {"code": "FBT", "name": "Fenerbahce Beko Istanbul"}
     assert len(el["ratings"]) == 6
-    assert payload["data_volume"] == data_volume(store.path(MART_PATH))
+    assert payload["data_volume"] == data_volume(
+        store.path(MART_PATH), store.path(EUROLEAGUE.raw_dir / "playbyplay")
+    )
 
 
 def test_site_without_its_inputs_is_not_found(fresh: Path) -> None:

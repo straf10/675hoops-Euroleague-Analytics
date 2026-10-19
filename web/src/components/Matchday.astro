@@ -1,0 +1,156 @@
+---
+// One competition's matchday: the round on now, or between rounds the last round's scorecard and the next round.
+// Both states are rendered at build time; a small script shows the one that matches the visitor's clock.
+import type { Competition } from "../lib/format";
+import { athensDay } from "../lib/format";
+import { matchdayState, scorecard, type MatchdayRound } from "../lib/matchday";
+import MatchRow from "./MatchRow.astro";
+
+interface Props {
+  comp: Competition;
+}
+const { comp } = Astro.props;
+const rounds = comp.matchday.rounds;
+const windows = rounds.map((r) => ({ round: r.round, start_utc: r.start_utc, end_utc: r.end_utc }));
+const byNumber = (n: number | null): MatchdayRound | null => rounds.find((r) => r.round === n) ?? null;
+
+const state = matchdayState(windows, Date.now());
+// Block "live": the round on now, or (between rounds) the next one, so a round that starts while the page is open shows up.
+// Block "between": the last completed round's scorecard and the next round's preview.
+let live: MatchdayRound | null;
+let last: MatchdayRound | null;
+let next: MatchdayRound | null;
+if (state.kind === "live") {
+  live = byNumber(state.round);
+  const idx = rounds.findIndex((r) => r.round === state.round);
+  last = idx > 0 ? rounds[idx - 1] : null;
+  next = idx >= 0 && idx < rounds.length - 1 ? rounds[idx + 1] : null;
+} else {
+  live = byNumber(state.next);
+  last = byNumber(state.last);
+  next = byNumber(state.next);
+}
+const liveNow = state.kind === "live";
+const card = last ? scorecard(last) : null;
+// "Sat 24 Oct to Sun 25 Oct" style: the first and last day the round is played on.
+const dayRange = (r: MatchdayRound) => {
+  const days = [...new Set(r.games.map((g) => athensDay(g.tipoff_utc)))];
+  return days.length > 2 ? `${days[0]} to ${days.at(-1)}` : days.join(" and ");
+};
+---
+
+<div class="matchday" data-matchday={comp.key} data-windows={JSON.stringify(windows)}>
+  <h3 class="comp">{comp.title}</h3>
+
+  {
+    live && (
+      <div class="block" data-state="live" hidden={!liveNow}>
+        <header class="head">
+          <h4>Round {live.round}</h4>
+          <p>{liveNow ? "On now" : `Starts ${dayRange(live)}, Athens time`}</p>
+        </header>
+        <ol class="rows">
+          {live.games.map((g) => <MatchRow game={g} />)}
+        </ol>
+      </div>
+    )
+  }
+
+  <div class="block" data-state="between" hidden={liveNow}>
+    <header class="head">
+      <h4>{last ? `Round ${last.round}` : "Last round"}</h4>
+      <p>{card && card.scored > 0 ? `We picked ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
+    </header>
+    {
+      last ? (
+        <ol class="rows">
+          {last.games.map((g) => <MatchRow game={g} />)}
+        </ol>
+      ) : (
+        <p class="none">The first round tips off {next ? dayRange(next) : "soon"}.</p>
+      )
+    }
+    <header class="head next">
+      <h4>{next ? `Next round: ${next.round}` : "Next round"}</h4>
+      <p>{next ? `${dayRange(next)}, Athens time` : "No more games are scheduled this season"}</p>
+    </header>
+    {
+      next && (
+        <ol class="rows">
+          {next.games.map((g) => <MatchRow game={g} />)}
+        </ol>
+      )
+    }
+  </div>
+</div>
+
+<script>
+  import { matchdayState, type RoundWindow } from "../lib/matchday";
+
+  // Show the live block while a round is on, otherwise the between-rounds block. A page left open
+  // across a round boundary follows the clock; the data is as of the last build.
+  for (const root of document.querySelectorAll<HTMLElement>("[data-matchday]")) {
+    let windows: RoundWindow[] = [];
+    try {
+      windows = JSON.parse(root.dataset.windows ?? "[]") as RoundWindow[];
+    } catch {
+      continue; // keep the build-time state
+    }
+    const live = root.querySelector<HTMLElement>('[data-state="live"]');
+    const between = root.querySelector<HTMLElement>('[data-state="between"]');
+    if (!between) continue;
+    const onNow = matchdayState(windows, Date.now()).kind === "live";
+    if (live) live.hidden = !onNow;
+    between.hidden = onNow;
+  }
+</script>
+
+<style>
+  .matchday,
+  .rows {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .matchday + .matchday {
+    margin-top: 48px;
+  }
+  .comp {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .block[hidden] {
+    display: none;
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .head h4 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .head p {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+  .head.next {
+    margin-top: 32px;
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .none {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+</style>
