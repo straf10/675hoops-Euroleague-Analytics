@@ -1,7 +1,13 @@
 ---
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
-import { seasonRange, signed, winPct } from "../../lib/coaches";
+import {
+  seasonRange,
+  signed,
+  winPct,
+  searchCoaches,
+  type CoachSearchEntry,
+} from "../../lib/coaches";
 import { coachIndex } from "../../lib/coach_files";
 
 const index = await coachIndex();
@@ -12,6 +18,25 @@ const first = named.length ? Math.min(...named.map((c) => c.season)) : null;
 const firstLabel = first === null ? "" : seasonRange([first]);
 const description =
   "EuroLeague head coaches since the box scores name them: games, record, win percentage and wins above the Elo expectation.";
+
+// The latest season's club coaches, with their career figures from the index.
+const bySlug = new Map((index?.coaches ?? []).map((c) => [c.slug, c]));
+const season = index?.current_season ?? null;
+const through = index?.current_through ?? "";
+const current = index
+  ? index.current.flatMap((r) => {
+      const coach = bySlug.get(r.slug);
+      return coach ? [{ team: r.team, coach }] : [];
+    })
+  : [];
+// Every coach, any season, for the search box (the page script reads this list).
+const entries: CoachSearchEntry[] = (index?.coaches ?? []).map((c) => ({
+  name: c.name,
+  href: `${base}/coaches/${c.slug}/`,
+  seasons: c.seasons_played,
+  clubs: c.clubs,
+}));
+const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
 ---
 
 <Base title="Coaches" description={description} current="coaches">
@@ -32,46 +57,168 @@ const description =
         </p>
       </section>
     ) : (
-      <section class="wrap band" aria-labelledby="table-title">
-        <header class="sec-head">
-          <h2 id="table-title">All coaches</h2>
-          <p>
-            Ordered by games. A game counts when its box score names the coach of that side; games
-            without a named coach are left out. Expected wins come from the history Elo, which knows
-            nothing about the coach, so the gap is a rating signal, not proof of coaching skill.
-          </p>
-        </header>
-        <div class="scroll">
-          <table class="grid coaches">
-            <thead>
-              <tr>
-                <th scope="col">Coach</th>
-                <th scope="col">Seasons</th>
-                <th scope="col">Clubs</th>
-                <th scope="col" class="num">G</th>
-                <th scope="col" class="num">W-L</th>
-                <th scope="col" class="num">Win %</th>
-                <th scope="col" class="num">Wins above exp.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {index.coaches.map((c) => (
-                <tr>
-                  <th scope="row">
-                    <a href={`${base}/coaches/${c.slug}/`}>{c.name}</a>
-                  </th>
-                  <td>{seasonRange(c.seasons_played)}</td>
-                  <td class="team">{c.clubs.join(" · ")}</td>
-                  <td class="num">{c.games}</td>
-                  <td class="num">{c.wins}-{c.losses}</td>
-                  <td class="num">{winPct(c)}</td>
-                  <td class="num">{signed(c.wins_above_expectation)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <>
+        {season !== null && (
+          <section class="wrap band" aria-labelledby="current-title">
+            <header class="sec-head">
+              <h2 id="current-title">{seasonRange([season])} EuroLeague coaches</h2>
+              <p>
+                One coach per club: whoever coached the club's most recent game this season, from
+                the box scores up to {through}. A coach replaced mid-season drops off, and a club
+                whose latest box score names no coach is left out. G, W-L, Win % and wins above exp.
+                are career totals. Expected wins come from the history Elo, which knows nothing about
+                the coach, so the gap is a rating signal, not proof of coaching skill.
+              </p>
+            </header>
+            <div class="scroll">
+              <table class="grid coaches">
+                <thead>
+                  <tr>
+                    <th scope="col">Club</th>
+                    <th scope="col">Coach</th>
+                    <th scope="col" class="num">G</th>
+                    <th scope="col" class="num">W-L</th>
+                    <th scope="col" class="num">Win %</th>
+                    <th scope="col" class="num">Wins above exp.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {current.map((r) => (
+                    <tr>
+                      <td class="team">{r.team}</td>
+                      <th scope="row">
+                        <a href={`${base}/coaches/${r.coach.slug}/`}>{r.coach.name}</a>
+                      </th>
+                      <td class="num">{r.coach.games}</td>
+                      <td class="num">{r.coach.wins}-{r.coach.losses}</td>
+                      <td class="num">{winPct(r.coach)}</td>
+                      <td class="num">{signed(r.coach.wins_above_expectation)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        <section class="wrap band" aria-labelledby="find-title">
+          <header class="sec-head">
+            <h2 id="find-title">Find a coach</h2>
+            <p>Any coach in the box scores, from any season. Accents and capitals do not matter.</p>
+          </header>
+          <div class="find" role="search">
+            <label class="find-label" for="coach-q">Coach name</label>
+            <input
+              type="search"
+              id="coach-q"
+              placeholder="Type part of a name"
+              autocomplete="off"
+              spellcheck="false"
+              aria-controls="coach-results"
+            />
+          </div>
+          <p class="find-count" id="coach-count" aria-live="polite"></p>
+          <ul class="find-results" id="coach-results"></ul>
+          <noscript>
+            <p class="find-count">Search needs JavaScript. The current coaches above link to their pages.</p>
+          </noscript>
+          <script type="application/json" id="coach-search" set:html={embedded} />
+        </section>
+      </>
     )
   }
 </Base>
+
+<script>
+  import { searchCoaches, seasonRange, type CoachSearchEntry } from "../../lib/coaches";
+
+  const data = JSON.parse(document.getElementById("coach-search")?.textContent ?? "[]") as CoachSearchEntry[];
+  const input = document.getElementById("coach-q") as HTMLInputElement | null;
+  const list = document.getElementById("coach-results");
+  const count = document.getElementById("coach-count");
+
+  function render() {
+    if (!input || !list || !count) return;
+    const hits = searchCoaches(data, input.value);
+    list.replaceChildren(
+      ...hits.map((c) => {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = c.href;
+        link.textContent = c.name;
+        const meta = document.createElement("span");
+        meta.className = "meta";
+        meta.textContent = `${seasonRange(c.seasons)} · ${c.clubs.join(" · ")}`;
+        item.append(link, " ", meta);
+        return item;
+      }),
+    );
+    count.textContent =
+      input.value.trim() === ""
+        ? ""
+        : hits.length === 0
+          ? "No coach matches."
+          : hits.length === 1
+            ? "1 coach"
+            : `${hits.length} coaches`;
+  }
+
+  input?.addEventListener("input", render);
+</script>
+
+<style>
+  .find {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 420px;
+  }
+  .find-label {
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+  input[type="search"] {
+    appearance: none;
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--rule-strong);
+    color: var(--ink);
+    font: 500 0.875rem/1 var(--font);
+  }
+  input[type="search"]::placeholder {
+    color: var(--muted);
+  }
+  input[type="search"]::-webkit-search-cancel-button {
+    display: none;
+  }
+  .find-count {
+    margin: 12px 0 0;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  .find-results {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .find-results a {
+    color: var(--ink);
+    font-weight: 550;
+    text-decoration: none;
+  }
+  .find-results .meta {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .find-results a:hover {
+      text-decoration: underline;
+    }
+  }
+</style>
