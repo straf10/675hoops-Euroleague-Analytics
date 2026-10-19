@@ -176,7 +176,6 @@ export function headCells(t: TeamSeason) {
     playoffSub: t.playoff ? "" : `${place} now`,
   };
 }
-export type HeadCells = ReturnType<typeof headCells>;
 
 // ---- Shots ---------------------------------------------------------------------------------
 

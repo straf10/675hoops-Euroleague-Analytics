@@ -359,15 +359,6 @@
   gap: 32px 56px;
   align-items: start;
 }
-.fig-title {
-  margin: 0 0 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--rule-strong);
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
-}
 /* One shot view at a time: the switch hides the other two. */
 #shots:has(#sv-dots:checked) :is(.v-freq, .v-quality),
 #shots:has(#sv-freq:checked) :is(.v-dots, .v-quality),

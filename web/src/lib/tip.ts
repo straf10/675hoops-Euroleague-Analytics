@@ -22,7 +22,3 @@ export const linkTip = (html: string): string =>
 /** The "?" hint beside an interval label: the share of intervals that hold the true value. */
 export const intervalHint = (percent: 80 | 90): string =>
   tip`<b>${percent}% interval</b><br>The range the true value very likely lies in: ${percent === 90 ? "9 times in 10" : "4 times in 5"}. A wider range means less certainty, usually from fewer minutes or shots.`;
-
-/** The "?" button as an HTML string, for markup built as a string or on the client. */
-export const infoTipHtml = (html: string): string =>
-  `<button type="button" class="info-tip" aria-label="What does this mean?"${dataTip(html)}>?</button>`;
