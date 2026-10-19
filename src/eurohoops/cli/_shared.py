@@ -26,6 +26,7 @@ class ModelName(StrEnum):
     elo = "elo"
     elor = "elor"
     eloc = "eloc"
+    blend = "blend"
     m1 = "m1"
     m2 = "m2"
     m3 = "m3"

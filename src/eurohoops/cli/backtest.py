@@ -14,6 +14,7 @@ import typer
 from eurohoops import research
 from eurohoops.cli._shared import CompetitionName, CompetitionOption, ModelName, _live, log
 from eurohoops.config import (
+    BLEND_REPORT,
     COMPETITIONS,
     ELOC_CV,
     ELOR_CV,
@@ -46,6 +47,9 @@ from eurohoops.config import (
 )
 from eurohoops.eval import eloc_cv
 from eurohoops.eval.backtest import format_table, run_backtest
+from eurohoops.eval.blend_backtest import FOLDS as BLEND_FOLDS
+from eurohoops.eval.blend_backtest import WARMUP_FOLDS as BLEND_WARMUP_FOLDS
+from eurohoops.eval.blend_backtest import run_blend
 from eurohoops.eval.elor_cv import ElorInputs, cv_check, run_cv
 from eurohoops.eval.m1_backtest import format_m1_table, run_m1_backtest
 from eurohoops.eval.m3_backtest import format_m3_table, run_m3_backtest
@@ -390,6 +394,19 @@ def _live_elo_params_match(params: EloParams = ELOR_CV.elo_params) -> bool:
 def _eloc_games() -> pd.DataFrame:
     """ELOC's input: the EuroLeague games mart (Elo's replay and the calibration seasons)."""
     return read_games(MART_PATH, EUROLEAGUE.name)
+
+
+def _backtest_blend() -> None:
+    """``backtest --model blend``: the candidate (docs/models/candidate_elo_blend.md).
+
+    Writes reports/backtest_blend.json: the scored folds and the same protocol on the warm-up
+    seasons. Read-only for the live log: nothing in predict or publish reads this report."""
+    games = read_games(MART_PATH, "euroleague")
+    _, report = run_blend(games, BLEND_FOLDS)
+    _, warmup = run_blend(games, BLEND_WARMUP_FOLDS)
+    payload = {"folds": report, "warmup": warmup}
+    write_json(BLEND_REPORT, payload)
+    log.info("wrote %s", BLEND_REPORT)
 
 
 def _cv_backtest(
@@ -877,6 +894,7 @@ def backtest(  # noqa: PLR0911, PLR0912, PLR0915 -- one dispatch return per mode
                 "elo (live), elor (roster prior CV), m1, m2, m3 (players), m4, m5 (roster), "
                 "m6 (projections), m7 (season), wp (in-game win probability, run once), "
                 "eloc (calibrated Elo CV: --cv or --cv-check), "
+                "blend (candidate: Elo + ridge margin, walk-forward; not live), "
                 "pool (equal-weight pool, read-only --check)"
             )
         ),
@@ -955,6 +973,12 @@ def backtest(  # noqa: PLR0911, PLR0912, PLR0915 -- one dispatch return per mode
             log.error("--gate-v2 belongs to --model m7")
             raise typer.Exit(code=1)
         _backtest_m7_v2(competition)
+        return
+    if model is ModelName.blend:
+        if competition is not CompetitionName.euroleague:
+            log.error("the blend candidate is EuroLeague only")
+            raise typer.Exit(code=1)
+        _backtest_blend()
         return
     if model is ModelName.wp:
         if competition is not CompetitionName.euroleague:
