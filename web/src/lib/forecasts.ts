@@ -109,8 +109,6 @@ export const groupKey = (phase: string, round: number | null) => (round === null
 
 export const dash = "–";
 export const share = (x: number | null) => (x === null ? dash : `${Math.round(x * 100)}%`);
-export const rightOf = (m: FcMetrics) =>
-  m.picks === 0 ? dash : `${m.right} of ${m.picks} (${share(m.right_pct)})`;
 
 /** "Round 3" -> "R3" for chart ticks; a postseason phase keeps a short name. */
 export const shortGroup = (phase: string, round: number | null) =>

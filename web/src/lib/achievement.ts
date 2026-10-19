@@ -32,9 +32,6 @@ export const TITLE_LABEL: Record<TitleStat, string> = {
   pir: "PIR",
 };
 
-/** The first season the accolades cover; careers that started earlier are cut short. */
-export const ACH_SINCE = "2007-08";
-
 /** The furthest stage in one season over all his clubs that season, with the club it came from. */
 export interface SeasonAch {
   reached: Reached;
