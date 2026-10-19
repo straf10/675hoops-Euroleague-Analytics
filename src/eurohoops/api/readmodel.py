@@ -83,7 +83,7 @@ from eurohoops.models.rest import rest_features
 from eurohoops.models.roster import read_rosters
 from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
-from eurohoops.publish import DISPLAY_CODES, Section, site_data
+from eurohoops.publish import DISPLAY_CODES, Section, short_name, site_data
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import BoxGames, build_box_games
 from eurohoops.stats.coach_style import StyleIndex, game_styles
@@ -314,7 +314,13 @@ def _names(store: Store, comp: Competition) -> dict[str, str]:
 
 def _team(comp: Competition, code: str, names: Mapping[str, str]) -> dict[str, str]:
     shown = DISPLAY_CODES.get(comp.name, {}).get(code, code)
-    return {"code": code, "display_code": shown, "name": names.get(code, code)}
+    name = names.get(code, code)
+    return {
+        "code": code,
+        "display_code": shown,
+        "name": name,
+        "short": short_name(comp.name, code, name),
+    }
 
 
 def _read_log(store: Store, relative: Path | None) -> pd.DataFrame:
