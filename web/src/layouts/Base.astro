@@ -31,6 +31,7 @@ const pages = [
   { key: "leaders", href: `${root}/leaders/`, label: "Leaders" },
   { key: "compare", href: `${root}/compare/`, label: "Compare" },
   { key: "teams", href: `${root}/teams/`, label: "Teams" },
+  { key: "coaches", href: `${root}/coaches/`, label: "Coaches" },
   { key: "standings", href: `${root}/standings/`, label: "Season projection" },
   { key: "forecasts", href: `${root}/`, label: "Forecasts" },
 ] as const;
@@ -38,7 +39,6 @@ const footLinks = [
   { key: "about", href: `${root}/about/`, label: "About" },
   { key: "methodology", href: `${root}/methodology/`, label: "Methodology" },
   { key: "glossary", href: `${root}/glossary/`, label: "Glossary" },
-  { key: "coaches", href: `${root}/coaches/`, label: "Coaches" },
   { key: "downloads", href: `${root}/downloads/`, label: "Downloads" },
 ] as const;
 ---
@@ -435,7 +435,7 @@ const footLinks = [
     .bar-inner {
       gap: 16px;
     }
-    /* Six links do not fit a phone: the row scrolls sideways, the page never does. */
+    /* Seven links do not fit a phone: the row scrolls sideways, the page never does. */
     .links {
       gap: 14px;
       overflow-x: auto;

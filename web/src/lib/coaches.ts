@@ -22,9 +22,20 @@ export interface Coverage {
   with_coach: number;
 }
 
+/** The coach of a club in the latest season: their most recent game there (display code). */
+export interface CoachCurrent {
+  team: string;
+  slug: string;
+}
+
 export interface CoachIndex {
   h2h_min_games: number;
   coverage: Coverage[];
+  /** The latest season with coach rows, or null without any. */
+  current_season: number | null;
+  /** The day (YYYY-MM-DD) of the latest box score behind `current`; null without one. */
+  current_through: string | null;
+  current: CoachCurrent[];
   coaches: CoachIndexRow[];
 }
 
@@ -73,4 +84,27 @@ export function seasonRange(seasons: number[]): string {
   const first = Math.min(...seasons);
   const last = Math.max(...seasons);
   return first === last ? label(first) : `${label(first)} to ${label(last)}`;
+}
+
+/** One entry of the coach search list the coaches page embeds (every coach, any season). */
+export interface CoachSearchEntry {
+  name: string;
+  href: string;
+  seasons: number[];
+  clubs: string[];
+}
+
+/** Lower case, no accents, single spaces: "Željko  Obradović" becomes "zeljko obradovic". */
+export function normaliseName(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** The entries whose name holds every word of the query (parts of words, any order); none for a blank query. */
+export function searchCoaches<T extends { name: string }>(entries: T[], query: string): T[] {
+  const words = normaliseName(query).split(" ").filter(Boolean);
+  if (words.length === 0) return [];
+  return entries.filter((e) => {
+    const name = normaliseName(e.name);
+    return words.every((w) => name.includes(w));
+  });
 }

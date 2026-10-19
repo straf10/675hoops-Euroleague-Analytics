@@ -30,6 +30,7 @@ ROWS_COLUMNS = [
     "p_win",
     "slug",
     "name",
+    "tipoff_utc",
 ]
 
 
@@ -78,6 +79,7 @@ def _sides(raw_dir: Path, games: pd.DataFrame) -> list[dict[str, Any]]:
                     "home": is_home,
                     "won": home_won == is_home,
                     "p_win": p_home if is_home else 1.0 - p_home,
+                    "tipoff_utc": game["tipoff_utc"],
                     "raw": raw,
                 }
             )
@@ -111,6 +113,28 @@ def _count(rows: pd.DataFrame) -> dict[str, Any]:
         "expected_wins": round(expected, 2),
         "wins_above_expectation": round(wins - expected, 2),
     }
+
+
+def current_coaches(
+    rows: pd.DataFrame, codes: Mapping[str, str]
+) -> tuple[int | None, list[dict[str, Any]]]:
+    """The latest season and, per club of it, the coach of that club's most recent game there.
+
+    A club whose most recent game names no coach is left out, as is a coach replaced mid-season.
+    Clubs carry their display code (``codes``); ordered by it.
+    """
+    if rows.empty:
+        return None, []
+    latest = int(rows["season"].max())
+    part = rows[rows["season"] == latest].sort_values("tipoff_utc", kind="stable")
+    last = part.groupby("team", sort=False).tail(1)
+    current = [
+        {"team": codes.get(str(row["team"]), str(row["team"])), "slug": row["slug"]}
+        for row in last.to_dict("records")
+        if isinstance(row["slug"], str)
+    ]
+    current.sort(key=lambda row: row["team"])
+    return latest, current
 
 
 def coach_payloads(
@@ -179,9 +203,18 @@ def coach_payloads(
             "h2h": h2h,
         }
     index.sort(key=lambda row: (-row["games"], row["name"]))
+    current_season, current = current_coaches(rows, codes)
+    # The day of the latest box score behind ``current``: games played after it have no coach yet.
+    through = None
+    if current_season is not None:
+        latest_rows = rows[rows["season"] == current_season]
+        through = str(latest_rows["tipoff_utc"].max())[:10]
     files["coaches/index.json"] = {
         "h2h_min_games": H2H_MIN_GAMES,
         "coverage": coverage,
+        "current_season": current_season,
+        "current_through": through,
+        "current": current,
         "coaches": index,
     }
     return files

@@ -7,7 +7,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from eurohoops.stats.coaches import H2H_MIN_GAMES, coach_games, coach_payloads
+from eurohoops.stats.coaches import (
+    H2H_MIN_GAMES,
+    coach_games,
+    coach_payloads,
+    current_coaches,
+)
 
 
 def _box(home: str, away: str, home_coach: str, away_coach: str) -> dict:
@@ -43,6 +48,7 @@ def _game(i: int, home: str, away: str, home_won: bool, p_home: float = 0.6) -> 
         "home_score": home_score,
         "away_score": away_score,
         "p_home": p_home,
+        "tipoff_utc": f"2020-10-{i:02d}T18:00:00Z",
     }
 
 
@@ -109,3 +115,86 @@ def test_expected_wins_head_to_head_and_coverage(tmp_path: Path) -> None:
     index = files["coaches/index.json"]
     assert [c["slug"] for c in index["coaches"]] == ["john-smith", "ann-jones", "kim-lee"]
     assert index["coverage"] == [{"season": 2020, "games": 9, "with_coach": 8}]
+
+
+def test_current_coach_is_the_one_of_each_clubs_latest_game_in_the_latest_season(
+    tmp_path: Path,
+) -> None:
+    def game(
+        *, season: int, i: int, home: str, away: str, day: str, home_c: str, away_c: str
+    ) -> dict:
+        _write(tmp_path, season, str(i), _box(home, away, home_c, away_c))
+        row = _game(i, home, away, home_won=True, p_home=0.5)
+        return {**row, "season": season, "game_id": f"E{season}_{i}", "tipoff_utc": day}
+
+    games = _games(
+        [
+            # 2020 (not the latest season): AAA's coach is Kim Lee.
+            game(
+                season=2020,
+                i=1,
+                home="AAA",
+                away="BBB",
+                day="2020-10-01T18:00:00Z",
+                home_c="LEE, KIM",
+                away_c="JONES, ANN",
+            ),
+            # 2021: AAA fires Smith after game 2 and Lee takes over; BBB keeps Jones.
+            game(
+                season=2021,
+                i=2,
+                home="AAA",
+                away="BBB",
+                day="2021-10-02T18:00:00Z",
+                home_c="SMITH, JOHN",
+                away_c="JONES, ANN",
+            ),
+            game(
+                season=2021,
+                i=3,
+                home="BBB",
+                away="AAA",
+                day="2021-10-09T18:00:00Z",
+                home_c="JONES, ANN",
+                away_c="LEE, KIM",
+            ),
+            # CCC's latest game names no coach: the club has no current coach.
+            game(
+                season=2021,
+                i=4,
+                home="CCC",
+                away="BBB",
+                day="2021-10-03T18:00:00Z",
+                home_c="PARK, SAM",
+                away_c="JONES, ANN",
+            ),
+            game(
+                season=2021,
+                i=5,
+                home="CCC",
+                away="AAA",
+                day="2021-10-10T18:00:00Z",
+                home_c="",
+                away_c="LEE, KIM",
+            ),
+        ]
+    )
+    rows = coach_games(tmp_path, games)
+    latest, current = current_coaches(rows, codes={"AAA": "ALP", "BBB": "BET"})
+    assert latest == 2021
+    assert current == [
+        {"team": "ALP", "slug": "kim-lee"},
+        {"team": "BET", "slug": "ann-jones"},
+    ]
+    files = coach_payloads(rows, codes={}, names={})
+    assert files["coaches/index.json"]["current_season"] == 2021
+    assert files["coaches/index.json"]["current_through"] == "2021-10-10"
+    assert files["coaches/index.json"]["current"] == [
+        {"team": "AAA", "slug": "kim-lee"},
+        {"team": "BBB", "slug": "ann-jones"},
+    ]
+
+
+def test_no_rows_means_no_current_season(tmp_path: Path) -> None:
+    rows = pd.DataFrame(columns=["season", "team", "slug", "tipoff_utc"])
+    assert current_coaches(rows, codes={}) == (None, [])
