@@ -174,3 +174,23 @@ export function dataset(d: DatasetInput): JsonLdObject {
     })),
   };
 }
+
+/** One step of a breadcrumb trail: its label and absolute URL. */
+export interface Crumb {
+  name: string;
+  url: string;
+}
+
+/** The breadcrumb trail of a page, first step first (the home page is the first step of every trail). */
+export function breadcrumbList(trail: Crumb[]): JsonLdObject {
+  return {
+    "@context": CONTEXT,
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: c.url,
+    })),
+  };
+}

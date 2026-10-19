@@ -4,6 +4,9 @@ import "../../styles/stats.css";
 import { rate, seasonRange, share, signed, winPct } from "../../lib/coaches";
 import { coachIndex, coachPage } from "../../lib/coach_files";
 import { teamHref } from "../../lib/players";
+import { teamIndex } from "../../lib/stats";
+import JsonLd from "../../components/JsonLd.astro";
+import { person } from "../../lib/jsonld";
 
 export async function getStaticPaths() {
   const index = await coachIndex();
@@ -13,6 +16,18 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const page = await coachPage(slug!);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const origin = Astro.site ?? "https://675hoops.com";
+const abs = (path: string) => new URL(path, origin).href;
+// A club links to its team page only when that page exists (a club needs a published season for one).
+const teamPages = new Set((await teamIndex()).map((t) => t.code.toLowerCase()));
+const hasTeamPage = (code: string) => teamPages.has(code.toLowerCase());
+const coachJsonLd = person({
+  name: page.name,
+  url: abs(`${base}/coaches/${slug}/`),
+  affiliation: page.clubs
+    .filter((c) => hasTeamPage(c.team))
+    .map((c) => ({ name: c.team_name, url: abs(teamHref(base, c.team)) })),
+});
 const career = page.career;
 const firstSeason = Math.min(...page.seasons.map((s) => s.season));
 const lede = `${career.games} games since ${seasonRange([firstSeason])}: ${career.wins}-${career.losses} (${winPct(career)}), ${career.expected_wins.toFixed(1)} expected wins, ${signed(career.wins_above_expectation)} above expectation.`;
@@ -25,7 +40,8 @@ const clutchWinPct = style ? winPct({ games: style.clutch.wins + style.clutch.lo
 const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / style.clutch.team_games : null;
 ---
 
-<Base title={page.name} description={description} current="coaches">
+<Base title={page.name} description={description} current="coaches" section={[{ name: "Coaches", href: `${base}/coaches/` }]}>
+  <JsonLd data={coachJsonLd} />
   <header class="wrap head">
     <h1>{page.name}</h1>
     <p class="facts">
@@ -34,7 +50,7 @@ const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / 
         {page.clubs.map((c, i) => (
           <>
             {i > 0 && ", "}
-            <a href={teamHref(base, c.team)}>{c.team_name}</a>
+            {hasTeamPage(c.team) ? <a href={teamHref(base, c.team)}>{c.team_name}</a> : c.team_name}
           </>
         ))}
       </span>
@@ -70,7 +86,7 @@ const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / 
               <tr>
                 <th scope="row">{seasonRange([s.season])}</th>
                 <td class="team">
-                  <a href={teamHref(base, s.team, s.season)}>{s.team_name}</a>
+                  {hasTeamPage(s.team) ? <a href={teamHref(base, s.team, s.season)}>{s.team_name}</a> : s.team_name}
                 </td>
                 <td class="num">{s.games}</td>
                 <td class="num">{s.wins}-{s.losses}</td>

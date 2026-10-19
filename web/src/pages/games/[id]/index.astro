@@ -161,7 +161,7 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
 };
 ---
 
-<Base title={`${name(away)} at ${name(home)}, ${label}`} description={description}>
+<Base title={`${name(away)} at ${name(home)}, ${day}`} description={description}>
   {
     jsonLd && <JsonLd data={jsonLd} />
   }

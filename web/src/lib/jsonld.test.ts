@@ -4,7 +4,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sportsEvent, sportsTeam, type GameInput, type JsonLdObject } from "./jsonld.ts";
+import {
+  breadcrumbList,
+  person,
+  sportsEvent,
+  sportsTeam,
+  type GameInput,
+  type JsonLdObject,
+} from "./jsonld.ts";
 
 const game = (over: Partial<GameInput> = {}): GameInput => ({
   name: "Crvena Zvezda at Baskonia",
@@ -85,4 +92,36 @@ test("a date-only startDate passes through unchanged when the time is not set", 
 test("team references stay bare: name and url only", () => {
   const team = sportsTeam({ name: "Baskonia", url: "https://675hoops.com/teams/kba/" });
   assert.deepEqual(Object.keys(team).sort(), ["@context", "@type", "memberOf", "name", "sport", "url"]);
+});
+
+test("a breadcrumb trail is a BreadcrumbList with 1-based positions in order", () => {
+  const out = breadcrumbList([
+    { name: "6.75 Analytics", url: "https://675hoops.com/" },
+    { name: "Teams", url: "https://675hoops.com/teams/" },
+    { name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
+  ]);
+  assert.equal(out["@context"], "https://schema.org");
+  assert.equal(out["@type"], "BreadcrumbList");
+  assert.deepEqual(
+    (out.itemListElement as JsonLdObject[]).map((i) => [i.position, i["@type"], i.name, i.item]),
+    [
+      [1, "ListItem", "6.75 Analytics", "https://675hoops.com/"],
+      [2, "ListItem", "Teams", "https://675hoops.com/teams/"],
+      [3, "ListItem", "Panathinaikos", "https://675hoops.com/teams/pan/"],
+    ],
+  );
+});
+
+test("a person is a Person with a name and URL, and a club affiliation only when given", () => {
+  const bare = person({ name: "Ilias Kantzouris", url: "https://675hoops.com/coaches/ilias-kantzouris/" });
+  assert.equal(bare["@type"], "Person");
+  assert.equal("affiliation" in bare, false);
+  const withClub = person({
+    name: "Ilias Kantzouris",
+    url: "https://675hoops.com/coaches/ilias-kantzouris/",
+    affiliation: [{ name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" }],
+  });
+  assert.deepEqual(withClub.affiliation, [
+    { "@type": "SportsTeam", name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
+  ]);
 });

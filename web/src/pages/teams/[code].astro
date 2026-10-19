@@ -70,7 +70,7 @@ const bandHead = [
 ];
 ---
 
-<Base title={club.name} description={description} current="teams">
+<Base title={club.name} description={description} current="teams" section={[{ name: "Teams", href: `${base}/teams/` }]}>
   <JsonLd
     slot="head"
     data={sportsTeam({
