@@ -86,6 +86,7 @@ from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import BoxGames, build_box_games
+from eurohoops.stats.coach_style import StyleIndex, game_styles
 from eurohoops.stats.coaches import coach_games, with_elo
 from eurohoops.stats.export import (
     Inputs,
@@ -468,6 +469,7 @@ def stats_inputs(store: Store) -> Inputs:
             assists=game_assists(raw, played),
             wp=_wp_lines(store, games),
             coaches=_coach_games(store, games),
+            styles=_coach_styles(store, games),
         )
 
     return store.memo("stats_inputs", make)
@@ -481,6 +483,18 @@ def _coach_games(store: Store, games: pd.DataFrame) -> pd.DataFrame | None:
         return None
     params = load_tuned_model(store.path(history.report)).params
     return coach_games(store.path(EUROLEAGUE.raw_dir), with_elo(games, params, history.warmup[0]))
+
+
+def _coach_styles(store: Store, games: pd.DataFrame) -> StyleIndex | None:
+    """Per-game coaching style from the cached play-by-play and box scores, once per Store; None
+    without the coach history report (no coach pages)."""
+
+    def make() -> StyleIndex:
+        return game_styles(store.path(EUROLEAGUE.raw_dir), games)
+
+    if not store.path(EUROLEAGUE.history_backtests[0].report).exists():
+        return None
+    return store.memo("coach_styles", make)
 
 
 def _wp_lines(store: Store, games: pd.DataFrame) -> WpLines | None:

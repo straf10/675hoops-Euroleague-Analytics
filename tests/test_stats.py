@@ -31,6 +31,7 @@ from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games, game_lines, seconds
+from eurohoops.stats.coach_style import game_styles
 from eurohoops.stats.coaches import coach_games, with_elo
 from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
 from eurohoops.stats.export import (
@@ -101,6 +102,7 @@ def inputs() -> Inputs:
             RAW,
             with_elo(games, load_tuned_model(HISTORY_REPORT).params, 2007),
         ),
+        styles=game_styles(RAW, games),
     )
 
 

@@ -1,7 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
-import { seasonRange, signed, winPct } from "../../lib/coaches";
+import { rate, seasonRange, share, signed, winPct } from "../../lib/coaches";
 import { coachIndex, coachPage } from "../../lib/coach_files";
 import { teamHref } from "../../lib/players";
 
@@ -17,6 +17,10 @@ const career = page.career;
 const firstSeason = Math.min(...page.seasons.map((s) => s.season));
 const lede = `${career.games} games since ${seasonRange([firstSeason])}: ${career.wins}-${career.losses} (${winPct(career)}), ${career.expected_wins.toFixed(1)} expected wins, ${signed(career.wins_above_expectation)} above expectation.`;
 const description = `${page.name}: EuroLeague record by season and club, wins above the Elo expectation, and head-to-head results against other coaches.`;
+const style = page.style;
+const clutchRecord = style ? `${style.clutch.wins}-${style.clutch.losses}` : "-";
+const clutchWinPct = style ? winPct({ games: style.clutch.wins + style.clutch.losses, wins: style.clutch.wins }) : "-";
+const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / style.clutch.team_games : null;
 ---
 
 <Base title={page.name} description={description} current="coaches">
@@ -94,6 +98,103 @@ const description = `${page.name}: EuroLeague record by season and club, wins ab
     </div>
   </section>
 
+  {
+    style && (
+      <section class="wrap band" id="style" aria-labelledby="style-title">
+        <header class="sec-head">
+          <h2 id="style-title">Coaching style</h2>
+          <p>
+            EuroLeague games in the seasons he coached, each figure next to the league average for
+            the same seasons.
+          </p>
+        </header>
+        <div class="scroll">
+          <table class="grid coach-style">
+            <thead>
+              <tr>
+                <th scope="col">Measure</th>
+                <th scope="col" class="num">Coach</th>
+                <th scope="col" class="num">League</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">
+                  After timeout
+                  <small>Points per possession right after his own timeouts</small>
+                </th>
+                <td class="num">{rate(style.ato.ppp)}</td>
+                <td class="num">{rate(style.ato.league_ppp)}</td>
+              </tr>
+              <tr>
+                <th scope="row">
+                  Clutch record
+                  <small>
+                    Wins and losses in games within 5 points with 5:00 or less left in the 4th or in
+                    overtime. Every clutch game has one winner, so the league is 50%.
+                  </small>
+                </th>
+                <td class="num">{clutchRecord} ({clutchWinPct})</td>
+                <td class="num">50.0%</td>
+              </tr>
+              <tr>
+                <th scope="row">
+                  Clutch games
+                  <small>Share of his games that were clutch games</small>
+                </th>
+                <td class="num">{share(clutchShare)}</td>
+                <td class="num">{share(style.clutch.league_share)}</td>
+              </tr>
+              <tr>
+                <th scope="row">
+                  Players used
+                  <small>Players who played a minute, per game</small>
+                </th>
+                <td class="num">{rate(style.rotation.players_per_game, 1)}</td>
+                <td class="num">{rate(style.rotation.league_players_per_game, 1)}</td>
+              </tr>
+              <tr>
+                <th scope="row">
+                  Top 7 minutes
+                  <small>Share of minutes played by the top seven players by minutes</small>
+                </th>
+                <td class="num">{share(style.rotation.top7_share)}</td>
+                <td class="num">{share(style.rotation.league_top7_share)}</td>
+              </tr>
+              {style.challenges && (
+                <>
+                  <tr>
+                    <th scope="row">
+                      Challenges per game
+                      <small>
+                        Coach challenges per team-game since 2021-22. The data does not show whether
+                        they were upheld.
+                      </small>
+                    </th>
+                    <td class="num">{rate(style.challenges.per_game)}</td>
+                    <td class="num">{rate(style.challenges.league_per_game)}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">
+                      Challenges late
+                      <small>Share of challenges used in the 4th quarter or overtime</small>
+                    </th>
+                    <td class="num">{share(style.challenges.late_share)}</td>
+                    <td class="num">{share(style.challenges.league_late_share)}</td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          After-timeout figures count the first possession after each of his own timeouts; a
+          possession ends when the ball changes team.
+        </p>
+      </section>
+    )
+  }
+
   <section class="wrap band" id="h2h" aria-labelledby="h2h-title">
     <header class="sec-head">
       <h2 id="h2h-title">Head to head</h2>
@@ -133,3 +234,12 @@ const description = `${page.name}: EuroLeague record by season and club, wins ab
     }
   </section>
 </Base>
+
+<style>
+  .coach-style tbody th {
+    white-space: normal;
+  }
+  .coach-style th small {
+    max-width: 34ch;
+  }
+</style>
