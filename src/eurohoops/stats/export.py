@@ -62,7 +62,18 @@ OPP_TOTALS = ("opp_oreb", "opp_dreb")
 PLAYER_FIELDS = ("gp", "gs", "sec", *STATS, "pm", "poss", "game_sec", *TEAM_TOTALS, *OPP_TOTALS)
 TEAM_FIELDS = ("gp", *STATS, "poss", "game_sec")
 LOG_FIELDS = ("game_id", "team", "starter", "sec", *STATS, "pm")
-GAME_FIELDS = ("date", "round", "phase", "home", "away", "home_score", "away_score")
+GAME_FIELDS = (
+    "date",
+    "round",
+    "phase",
+    "home",
+    "away",
+    "home_score",
+    "away_score",
+    "tipoff_utc",
+    "venue",
+    "venue_address",
+)
 # attempts.json ``flags``: bit -> meaning (``band`` takes three bits, ``period`` the rest)
 ATTEMPT_BITS = {"made": 0, "three": 1, "fastbreak": 2, "second_chance": 3, "band": 4, "period": 7}
 
@@ -437,6 +448,11 @@ def _teams_payload(
     }
 
 
+def _text_or_none(value: Any) -> str | None:
+    """A text column's value, or None for a missing one (NaN is not JSON)."""
+    return None if pd.isna(value) else str(value)
+
+
 def _games_payload(
     season: int, frame: pd.DataFrame, games: pd.DataFrame, inputs: Inputs
 ) -> dict[str, Any]:
@@ -450,6 +466,9 @@ def _games_payload(
             inputs.codes.get(str(g["away"]), str(g["away"])),
             int(g["home_score"]),
             int(g["away_score"]),
+            g["tipoff_utc"].tz_convert("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
+            _text_or_none(g["venue"]),
+            _text_or_none(g["venue_address"]),
         ]
         for g in played.to_dict("records")
     }

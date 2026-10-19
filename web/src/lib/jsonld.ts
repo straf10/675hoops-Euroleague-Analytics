@@ -12,9 +12,12 @@ export interface Ref {
 
 const CONTEXT = "https://schema.org";
 const SPORT = "Basketball";
-const SCHEDULED = "https://schema.org/EventScheduled";
 const ref = (type: string, r: Ref) => ({ "@type": type, name: r.name, url: r.url });
-const league = () => ({ "@type": "SportsOrganization", name: "EuroLeague" });
+const league = () => ({
+  "@type": "SportsOrganization",
+  name: "EuroLeague",
+  url: "https://www.euroleaguebasketball.net",
+});
 
 export interface ClubInput extends Ref {
   /** The players in the club's roster that have a page; omitted when empty. */
@@ -57,34 +60,66 @@ export function person(p: PlayerInput): JsonLdObject {
   };
 }
 
-export interface GameInput {
+/** The arena a game is played at. The address only when the schedule gives one; never estimated. */
+export interface Venue {
   name: string;
-  /** The game's page on the site, when it has one. */
-  url?: string;
-  /** ISO 8601 with timezone, e.g. 2027-10-01T18:00:00Z. */
-  startDate: string;
-  home: Ref;
-  away: Ref;
-  /** The competition's season label, e.g. "2027-28". */
-  season?: string;
-  /** Venue name, only when known. */
-  location?: string;
+  address?: string;
 }
 
+export interface GameInput {
+  name: string;
+  /** The game's page on the site. */
+  url: string;
+  description: string;
+  /** Absolute URL of the social card. */
+  image: string;
+  /**
+   * ISO 8601 with a time zone (2027-10-01T18:00:00Z) when the tip-off time is known; a bare date
+   * (2027-10-01) while it is not. Never a made-up time.
+   */
+  startDate: string;
+  eventStatus: "completed" | "scheduled";
+  home: Ref;
+  away: Ref;
+  location: Venue;
+}
+
+const EVENT_STATUS = {
+  completed: "https://schema.org/EventCompleted",
+  scheduled: "https://schema.org/EventScheduled",
+} as const;
+const OFFLINE = "https://schema.org/OfflineEventAttendanceMode";
+
+/** The venue as a schema.org Place; the PostalAddress only when there is an address. */
+function place(v: Venue): JsonLdObject {
+  return {
+    "@type": "Place",
+    name: v.name,
+    ...(v.address ? { address: { "@type": "PostalAddress", streetAddress: v.address } } : {}),
+  };
+}
+
+/**
+ * One EuroLeague game as a SportsEvent. No superEvent: a nested season event would carry no date
+ * or place of its own, and Search Console reads it as a second, broken event. No endDate (not in
+ * the data) and no offers (the site sells no tickets).
+ */
 export function sportsEvent(g: GameInput): JsonLdObject {
   return {
     "@context": CONTEXT,
     "@type": "SportsEvent",
     name: g.name,
-    ...(g.url ? { url: g.url } : {}),
+    url: g.url,
+    description: g.description,
+    image: g.image,
     sport: SPORT,
     startDate: g.startDate,
-    eventStatus: SCHEDULED,
+    eventStatus: EVENT_STATUS[g.eventStatus],
+    eventAttendanceMode: OFFLINE,
+    location: place(g.location),
     homeTeam: ref("SportsTeam", g.home),
     awayTeam: ref("SportsTeam", g.away),
     organizer: league(),
-    ...(g.season ? { superEvent: { "@type": "SportsEvent", name: `EuroLeague ${g.season}` } } : {}),
-    ...(g.location ? { location: { "@type": "Place", name: g.location } } : {}),
   };
 }
 

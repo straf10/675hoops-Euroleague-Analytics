@@ -1,7 +1,9 @@
 ---
 // SportsEvent markup for the EuroLeague games listed on the home page (the same upcoming games
 // Tonight shows). Team codes are the display codes; the team links use the source codes, as the
-// team pages do. Forecast values (win chances, margins) never go into the markup.
+// team pages do. Forecast values (win chances, margins) never go into the markup. A game with no
+// arena in the schedule gets no markup (location is required); a tip-off time the league has not
+// confirmed is given as its date only.
 import JsonLd from "./JsonLd.astro";
 import raw from "../data/site.json";
 import type { SiteData } from "../lib/format";
@@ -12,17 +14,26 @@ const origin = Astro.site ?? "https://675hoops.com";
 const abs = (path: string) => new URL(path, origin).href;
 const root = import.meta.env.BASE_URL.replace(/\/$/, "");
 const teamUrl = (shown: string) => abs(`${root}/teams/${sourceCode("euroleague", shown).toLowerCase()}/`);
+// The calendar day in Athens, the zone the site shows times in: YYYY-MM-DD.
+const athensDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens" });
 
 const comp = (raw as SiteData).competitions.find((c) => c.key === "euroleague");
-const events: JsonLdObject[] = (comp?.upcoming ?? []).map((g) =>
-  sportsEvent({
-    name: `${g.home.name} vs ${g.away.name}`,
-    url: abs(`${root}/#${g.game_id}`),
-    startDate: g.tipoff_utc,
-    home: { name: g.home.name, url: teamUrl(g.home.code) },
-    away: { name: g.away.name, url: teamUrl(g.away.code) },
-    season: comp?.season,
-  }),
+const events: JsonLdObject[] = (comp?.upcoming ?? []).flatMap((g) =>
+  g.venue
+    ? [
+        sportsEvent({
+          name: `${g.home.name} vs ${g.away.name}`,
+          url: abs(`${root}/#${g.game_id}`),
+          description: `EuroLeague ${comp?.season} game: ${g.home.name} vs ${g.away.name}.`,
+          image: abs(`${root}/og.png`),
+          startDate: g.tipoff_time_confirmed ? g.tipoff_utc : athensDate.format(new Date(g.tipoff_utc)),
+          eventStatus: "scheduled",
+          home: { name: g.home.name, url: teamUrl(g.home.code) },
+          away: { name: g.away.name, url: teamUrl(g.away.code) },
+          location: { name: g.venue, ...(g.venue_address ? { address: g.venue_address } : {}) },
+        }),
+      ]
+    : [],
 );
 ---
 

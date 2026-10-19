@@ -72,6 +72,8 @@ def make_games(seasons: dict[int, bool], seed: int = 7, gbl_like: bool = False) 
                     "forfeit": forfeit,
                     "neutral": False,
                     "confirmed_date": True,
+                    "venue": f"Hall {home}",
+                    "venue_address": None,
                 }
             )
     return conform(pd.DataFrame(rows))

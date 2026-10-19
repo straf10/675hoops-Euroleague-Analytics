@@ -23,7 +23,10 @@
             "name": "Team BBB & Co"
           },
           "p_home": 0.4657,
-          "exp_margin": -0.86
+          "exp_margin": -0.86,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         },
         {
           "game_id": "E2027_2",
@@ -39,7 +42,10 @@
             "name": "Team CCC & Co"
           },
           "p_home": 0.6152,
-          "exp_margin": 2.94
+          "exp_margin": 2.94,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         },
         {
           "game_id": "E2027_3",
@@ -55,7 +61,10 @@
             "name": "Team DDD & Co"
           },
           "p_home": 0.7095,
-          "exp_margin": 5.6
+          "exp_margin": 5.6,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         },
         {
           "game_id": "E2027_4",
@@ -71,7 +80,10 @@
             "name": "Team EEE & Co"
           },
           "p_home": 0.5848,
-          "exp_margin": 2.15
+          "exp_margin": 2.15,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         }
       ],
       "results": [
@@ -2747,7 +2759,10 @@
             "name": "Team BBB & Co"
           },
           "p_home": 0.4842,
-          "exp_margin": -0.47
+          "exp_margin": -0.47,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         },
         {
           "game_id": "GBL2027_2",
@@ -2763,7 +2778,10 @@
             "name": "Team CCC & Co"
           },
           "p_home": 0.6403,
-          "exp_margin": 4.3
+          "exp_margin": 4.3,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         },
         {
           "game_id": "GBL2027_3",
@@ -2779,7 +2797,10 @@
             "name": "Team DDD & Co"
           },
           "p_home": 0.721,
-          "exp_margin": 7.09
+          "exp_margin": 7.09,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         },
         {
           "game_id": "GBL2027_4",
@@ -2795,7 +2816,10 @@
             "name": "Team EEE & Co"
           },
           "p_home": 0.6183,
-          "exp_margin": 3.6
+          "exp_margin": 3.6,
+          "venue": "Hall AAA",
+          "venue_address": null,
+          "tipoff_time_confirmed": true
         }
       ],
       "results": [

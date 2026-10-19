@@ -9,8 +9,21 @@ import { meta, runsData, season, type RunRow } from "../../../lib/stats";
 import { clockText, gameBox, phaseLabel, type LogEntry, type PersonRef } from "../../../lib/game";
 import { signClass } from "../../../lib/delta";
 import { playerHref, teamHref } from "../../../lib/players";
+import { sportsEvent, type JsonLdObject } from "../../../lib/jsonld";
 
-type Game = [date: string, round: number, phase: string, home: string, away: string, homeScore: number, awayScore: number];
+// games.json tuple: date (Athens), round, phase, home, away, scores, tip-off (UTC, Z), venue, address.
+type Game = [
+  date: string,
+  round: number,
+  phase: string,
+  home: string,
+  away: string,
+  homeScore: number,
+  awayScore: number,
+  tipoff: string,
+  venue: string | null,
+  venueAddress: string | null,
+];
 
 interface Props {
   gameId: string;
@@ -71,7 +84,7 @@ export async function getStaticPaths() {
 
 const { gameId, year, label, game, fields, entries, people, runs, names } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-const [date, round, phase, home, away, homeScore, awayScore] = game;
+const [date, round, phase, home, away, homeScore, awayScore, tipoff, venue, venueAddress] = game;
 const name = (code: string) => names[code] ?? code;
 const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", {
   weekday: "short",
@@ -87,25 +100,30 @@ const boxes = [
 ];
 const finalLine = `${name(away)} ${awayScore}, ${name(home)} ${homeScore}`;
 const description = `${finalLine}, ${label} EuroLeague. Box score per team and the top scoring runs.`;
+// Markup needs an arena (location is required); a game without one gets no Event block.
+const origin = Astro.site ?? "https://675hoops.com";
+const jsonLd: JsonLdObject | null = venue
+  ? sportsEvent({
+      name: `${name(away)} at ${name(home)}`,
+      url: new URL(Astro.url.pathname, origin).href,
+      description,
+      image: new URL(`${base}/og.png`, origin).href,
+      startDate: tipoff,
+      eventStatus: "completed",
+      home: { name: name(home), url: new URL(teamHref(base, home), origin).href },
+      away: { name: name(away), url: new URL(teamHref(base, away), origin).href },
+      location: { name: venue, ...(venueAddress ? { address: venueAddress } : {}) },
+    })
+  : null;
 const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "");
 // Runs are [points, start period, start left, end period, end left, from home, from away, to home, to away].
 const runScore = (r: RunRow) => `${r[6]}–${r[5]} to ${r[8]}–${r[7]}`;
 ---
 
 <Base title={`${name(away)} at ${name(home)}, ${label}`} description={description}>
-  <JsonLd
-    data={{
-      "@context": "https://schema.org",
-      "@type": "SportsEvent",
-      name: `${name(away)} at ${name(home)}`,
-      startDate: date,
-      eventStatus: "https://schema.org/EventCompleted",
-      sport: "Basketball",
-      superEvent: { "@type": "SportsEvent", name: `EuroLeague ${label}` },
-      homeTeam: { "@type": "SportsTeam", name: name(home) },
-      awayTeam: { "@type": "SportsTeam", name: name(away) },
-    }}
-  />
+  {
+    jsonLd && <JsonLd data={jsonLd} />
+  }
   <header class="game-head">
     <p class="kicker">{label} EuroLeague · {phrase} · {day}</p>
     <h1>{name(away)} at {name(home)}</h1>

@@ -64,6 +64,10 @@ GAMES_SCHEMA = pa.DataFrameSchema(
         "forfeit": pa.Column(bool),
         "neutral": pa.Column(bool),
         "confirmed_date": pa.Column(bool),
+        # The arena the game is played at, as the schedule names it; the address only when the
+        # schedule has one (about 1 game in 9 has none). Both null for GBL games (no venue feed).
+        "venue": pa.Column(str, nullable=True),
+        "venue_address": pa.Column(str, nullable=True),
     },
     checks=[
         pa.Check(lambda df: df["home"] != df["away"], error="home team equals away team"),
@@ -126,6 +130,14 @@ def conform(df: pd.DataFrame) -> pd.DataFrame:
     return GAMES_SCHEMA.validate(ordered.reset_index(drop=True))
 
 
+def _venue_field(game: RawGame, field: str) -> str | None:
+    """A venue name or address from the schedule's ``venue`` block; None when it is blank."""
+    value = (game.get("venue") or {}).get(field)
+    if not isinstance(value, str) or not value.split():
+        return None
+    return " ".join(value.split())
+
+
 def parse_schedule(season: int, games: list[RawGame]) -> pd.DataFrame:
     """Parse one season. Tip-off comes from ``utcDate``; ``date`` is local time and never used.
 
@@ -150,6 +162,8 @@ def parse_schedule(season: int, games: list[RawGame]) -> pd.DataFrame:
             "forfeit": False,
             "neutral": game["isNeutralVenue"] or game["phaseType"]["code"] == "FF",
             "confirmed_date": game["confirmedDate"],
+            "venue": _venue_field(game, "name"),
+            "venue_address": _venue_field(game, "address"),
         }
         for game in games
     ]
@@ -200,6 +214,8 @@ def build_gbl_tables(rounds: list[RoundPage]) -> tuple[pd.DataFrame, pd.DataFram
             "forfeit": game.forfeit,
             "neutral": False,
             "confirmed_date": game.confirmed_date,
+            "venue": None,
+            "venue_address": None,
         }
         for r in sorted(rounds, key=lambda r: r.season)
         for game in r.page.games

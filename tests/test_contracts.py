@@ -121,3 +121,21 @@ def test_team_games_contract_rejects(team_games: pd.DataFrame, column: str, valu
 def test_team_games_contract_needs_both_teams(team_games: pd.DataFrame) -> None:
     with pytest.raises(pandera.errors.SchemaError):
         TEAM_GAMES_SCHEMA.validate(team_games.iloc[[0]].assign(poss_game=69.72))
+
+
+def test_venue_comes_from_the_schedule_and_blank_address_is_null() -> None:
+    raw = load_fixture("schedule_E2024.json")
+    raw[0]["venue"] = {"name": " BUESA ARENA ", "address": "Ctra. Zurbano s/n, 01013 Vitoria"}
+    raw[1]["venue"] = {"name": "UBER ARENA", "address": ""}
+    table = parse_schedule(2024, raw).set_index("game_id")
+    first, second = raw[0]["identifier"], raw[1]["identifier"]
+    assert table.loc[first, "venue"] == "BUESA ARENA"
+    assert table.loc[first, "venue_address"] == "Ctra. Zurbano s/n, 01013 Vitoria"
+    assert table.loc[second, "venue"] == "UBER ARENA"
+    assert pd.isna(table.loc[second, "venue_address"])
+
+
+def test_a_schedule_without_a_venue_block_gives_no_venue() -> None:
+    table = parse_schedule(2024, load_fixture("schedule_E2024.json"))
+    assert table["venue"].isna().all()
+    assert table["venue_address"].isna().all()

@@ -69,7 +69,17 @@ def _logged(section: Section) -> list[dict[Hashable, Any]]:
         >= pd.to_datetime(section.log["tipoff_utc"], utc=True)
     )
     first = log.sort_values(["late", "predicted_at_utc"]).drop_duplicates("game_id", keep="first")
-    cols = ["game_id", "tipoff_utc", "played", "forfeit", "home_score", "away_score"]
+    cols = [
+        "game_id",
+        "tipoff_utc",
+        "played",
+        "forfeit",
+        "home_score",
+        "away_score",
+        "venue",
+        "venue_address",
+        "confirmed_date",
+    ]
     joined = first.drop(columns="tipoff_utc").merge(section.games[cols], on="game_id")
     return joined.sort_values("tipoff_utc").to_dict("records")
 
@@ -164,7 +174,12 @@ def section_data(section: Section, now: datetime) -> dict[str, Any]:
     logged = _logged(section)
     hidden = set(section.scorecard.get("games_not_provable", []))
     upcoming = [
-        _game(section, g)
+        {
+            **_game(section, g),
+            "venue": None if pd.isna(g["venue"]) else g["venue"],
+            "venue_address": None if pd.isna(g["venue_address"]) else g["venue_address"],
+            "tipoff_time_confirmed": bool(g["confirmed_date"]),
+        }
         for g in logged
         if not g["played"] and not g["late"] and g["tipoff_utc"] > now
     ]
