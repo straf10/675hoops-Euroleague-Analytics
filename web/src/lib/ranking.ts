@@ -55,6 +55,8 @@ export const METRICS: Metric[] = [
   { key: "oftr", name: "Opponent free-throw rate", head: "Opp FT rate", about: "Opponent free throws made per 100 of their field-goal attempts" },
   { key: "otpar", name: "Opponent 3PA rate", head: "Opp 3PA rate", about: "Opponent three-point attempts per 100 of their field-goal attempts" },
   { key: "returning", name: "Returning minutes", head: "Returning", about: "Share of last season's club minutes played by players on this season's roster" },
+  { key: "sos_played", name: "Schedule strength, played so far", head: "SoS played", about: "Venue-adjusted mean Elo of the opponents played so far. Higher is a harder schedule" },
+  { key: "sos_ahead", name: "Schedule strength, upcoming", head: "SoS ahead", about: "Venue-adjusted mean Elo of the games still to play. Higher is a harder schedule" },
 ];
 
 /** The Metric select's groups, in the order they show. */
@@ -63,12 +65,13 @@ export const METRIC_GROUPS: { label: string; keys: string[] }[] = [
   { label: "Shooting and turnovers", keys: ["efg", "tov", "oreb", "ftr", "tpar"] },
   { label: "Opponent", keys: ["oefg", "otov", "dreb", "oftr", "otpar"] },
   { label: "Roster", keys: ["returning"] },
+  { label: "Schedule", keys: ["sos_played", "sos_ahead"] },
 ];
 
 export const DEFAULT_METRIC = "net";
 
 /** The columns every table shows (the sortable ones); a metric outside them gets a column after Pace. */
-export const BASE_KEYS = ["ortg", "drtg", "net", "pace"];
+export const BASE_KEYS = ["ortg", "drtg", "net", "pace", "sos_played", "sos_ahead"];
 
 export const metricOf = (key: string): Metric | undefined => METRICS.find((m) => m.key === key);
 
@@ -79,7 +82,8 @@ export const bestDir = (key: string): Dir => (betterOf(key) === "lower" ? "asc" 
 export const columnKeys = (metric: string): string[] => (BASE_KEYS.includes(metric) ? BASE_KEYS : [...BASE_KEYS, metric]);
 
 /** The phone column group (lib/cols.ts GROUPS.clubs) that holds a metric's column, or -1 for any group. */
-export const phoneGroup = (metric: string): number => (metric === "ortg" || metric === "drtg" ? 1 : metric === "pace" ? 2 : -1);
+export const phoneGroup = (metric: string): number =>
+  metric === "ortg" || metric === "drtg" ? 1 : metric === "pace" ? 2 : metric.startsWith("sos_") ? 3 : -1;
 
 /**
  * Rows in the order of a metric. A tie keeps the order the rows came in (net order), and a missing

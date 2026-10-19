@@ -43,6 +43,10 @@ const DIRECTION = new Map<string, BetterIs>([
   // Returning minutes: neither. Continuity is not better or worse by itself: a club can keep its
   // roster and still be weak, or rebuild and be strong. It is context, not a rating.
   ["returning", "neither"],
+  // Schedule strength (venue-adjusted mean opponent Elo): higher is a harder schedule, not a better
+  // one, so it is ranked high-first and carries no colour.
+  ["sos_played", "neither"],
+  ["sos_ahead", "neither"],
 ]);
 
 /** The direction of a metric by its key. Unknown keys read as "higher". */

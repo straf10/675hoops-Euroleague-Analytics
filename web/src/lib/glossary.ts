@@ -285,7 +285,7 @@ export const TERMS: GlossaryTerm[] = [
     term: "Mean opponent Elo",
     group: "Team ratings",
     def: "The average Elo rating of the teams a team has played or will play. The venue-adjusted figure takes off the home-court advantage when the team is at home and adds it when away, so a home game against a strong team counts for less.",
-    shownOn: [TP],
+    shownOn: [TP, TI],
   },
   {
     id: "average-team-win",

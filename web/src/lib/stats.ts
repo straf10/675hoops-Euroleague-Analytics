@@ -322,6 +322,9 @@ export interface ClubLine {
   opp: number[];
   standing: number;
   continuity: Continuity | null;
+  /** Schedule strength (api/readmodel.py schedule_sos): venue-adjusted mean opponent Elo of the games
+   * played and of the games left; null with no such games. Absent from exports made without it. */
+  sos?: { played: number | null; ahead: number | null };
 }
 
 export interface RosterLine {

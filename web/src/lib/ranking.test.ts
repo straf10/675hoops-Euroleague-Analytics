@@ -56,8 +56,8 @@ test("the heading follows the metric", () => {
 });
 
 test("a metric outside the base columns gets a column after Pace", () => {
-  assert.deepEqual(columnKeys("net"), ["ortg", "drtg", "net", "pace"]);
-  assert.deepEqual(columnKeys("efg"), ["ortg", "drtg", "net", "pace", "efg"]);
+  assert.deepEqual(columnKeys("net"), ["ortg", "drtg", "net", "pace", "sos_played", "sos_ahead"]);
+  assert.deepEqual(columnKeys("efg"), ["ortg", "drtg", "net", "pace", "sos_played", "sos_ahead", "efg"]);
 });
 
 test("the phone group that shows a metric's column", () => {
