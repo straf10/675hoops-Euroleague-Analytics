@@ -4,6 +4,8 @@
 command sees the same validated union of both competitions.
 """
 
+import gzip
+import json
 from pathlib import Path
 from typing import Any
 
@@ -51,17 +53,19 @@ def build_marts(mart_path: Path, sql_dir: Path) -> bool:
     return has_box
 
 
-def data_volume(mart_path: Path) -> dict[str, int]:
-    """The site's headline data counts, read from the marts.
+def data_volume(mart_path: Path, playbyplay_dir: Path | None = None) -> dict[str, int]:
+    """The site's headline data counts, EuroLeague only, read from the marts and the cache.
 
-    ``games``: played games that were not forfeits, both competitions. ``seasons``: the distinct
-    seasons of those games. ``shots_with_coordinates``: rows of the ``shots`` mart with both
-    coordinates (that mart holds EuroLeague shots only); left out when that mart was never built.
+    ``games``: played EuroLeague games that were not forfeits. ``seasons``: the distinct seasons
+    of those games. ``shots_with_coordinates``: rows of the ``shots`` mart with both coordinates
+    (that mart holds EuroLeague shots only); left out when that mart was never built. ``actions``:
+    play-by-play entries across the cached EuroLeague files in ``playbyplay_dir`` (see
+    ``playbyplay_actions``); left out when no directory is given.
     """
     with duckdb.connect(str(mart_path), read_only=True) as con:
         games = con.execute(
             "SELECT count(*), count(DISTINCT season) FROM games "
-            "WHERE played AND NOT coalesce(forfeit, FALSE)"
+            "WHERE competition = 'euroleague' AND played AND NOT coalesce(forfeit, FALSE)"
         ).fetchone()
         has_shots = "shots" in {row[0] for row in con.execute("SHOW TABLES").fetchall()}
         shots_sql = "SELECT count(*) FROM shots WHERE x IS NOT NULL AND y IS NOT NULL"
@@ -70,7 +74,25 @@ def data_volume(mart_path: Path) -> dict[str, int]:
     volume = {"games": int(games[0]), "seasons": int(games[1])}
     if shots is not None:  # the shots mart is optional (never built without play-by-play)
         volume["shots_with_coordinates"] = int(shots[0])
+    if playbyplay_dir is not None:
+        volume["actions"] = playbyplay_actions(playbyplay_dir)
     return volume
+
+
+def playbyplay_actions(playbyplay_dir: Path) -> int:
+    """Play-by-play entries in the cached files: each dict with a ``PLAYTYPE`` key, in every list.
+
+    The files are ``E<season>/<code>.json.gz``, one JSON object per game whose period lists hold
+    the rows. About 13 s for the whole EuroLeague cache (5,070 files), so it runs in the publish
+    step only, never in ``export-stats --from-cache``.
+    """
+    total = 0
+    for path in sorted(playbyplay_dir.glob("E*/*.json.gz")):
+        game = json.loads(gzip.decompress(path.read_bytes()))
+        for rows in game.values():
+            if isinstance(rows, list):
+                total += sum(1 for row in rows if isinstance(row, dict) and "PLAYTYPE" in row)
+    return total
 
 
 def write_tables(mart_path: Path, tables: dict[str, pd.DataFrame]) -> None:

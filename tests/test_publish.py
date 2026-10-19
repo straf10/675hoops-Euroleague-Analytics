@@ -173,3 +173,19 @@ def test_next_tip_off_is_a_date_with_time_tbc_when_no_time_is_confirmed() -> Non
     first = games[(games["season"] == 2026) & ~games["played"]]["tipoff_utc"].min()
     assert data["next_tipoff_utc"] == stamp_of(first)
     assert data["next_tipoff_time_tbc"] is True
+
+
+def test_matchday_lists_every_round_of_the_live_season_with_its_window() -> None:
+    rounds = section_data(section(), NOW)["matchday"]["rounds"]
+    assert [r["round"] for r in rounds] == sorted(
+        {g.round for g in make_games({2026: False}).itertuples()}
+    )
+    first = rounds[0]
+    assert first["start_utc"] <= min(g["tipoff_utc"] for g in first["games"])
+    assert first["end_utc"] > max(g["tipoff_utc"] for g in first["games"])
+    played = first["games"][0]
+    assert played["played"] and (played["home_score"], played["away_score"]) == (90, 80)
+    assert played["p_home"] == 0.4 and played["hit"] is False  # the pick was away; home won
+    assert all(g["hit"] is None for g in rounds[1]["games"] if not g["played"])
+    assert rounds[1]["games"][0]["p_home"] is not None  # logged before tip-off
+    assert rounds[-1]["games"][0]["p_home"] is None  # not logged yet

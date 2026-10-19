@@ -17,8 +17,10 @@ interface Props {
   games: MarginGame[];
   /** The model's average miss in points over these games. */
   miss: number | null;
+  /** The corner label: which way is better, e.g. "Closer = better". */
+  better: string;
 }
-const { id, title, caption, games, miss } = Astro.props;
+const { id, title, caption, games, miss, better } = Astro.props;
 const capId = `${id}-cap`;
 
 const S = 640;
@@ -46,7 +48,10 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
 
 <figure class="panel">
   <figcaption class="cap">
-    <h3 id={id}>{title}</h3>
+    <div class="cap-row">
+      <h3 id={id}>{title}</h3>
+      <span class="dir">{better}</span>
+    </div>
     <p id={capId}>{caption}</p>
   </figcaption>
   <ul class="legend" aria-hidden="true">
@@ -128,6 +133,20 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
   .panel {
     margin: 0;
     min-width: 0;
+  }
+  .cap-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  /* Which way is better, in the chart's top-right corner: muted, never a data colour. */
+  .dir {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
   }
   .cap {
     padding-bottom: 12px;

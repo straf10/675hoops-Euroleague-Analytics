@@ -1,0 +1,274 @@
+---
+// One game on the matchday: the chance and the call before tip-off, the score and whether the call held after.
+import check from "@phosphor-icons/core/assets/bold/check-bold.svg?raw";
+import cross from "@phosphor-icons/core/assets/bold/x-bold.svg?raw";
+import type { MatchdayGame } from "../lib/matchday";
+import { athensDay, athensTime, pct } from "../lib/format";
+
+interface Props {
+  game: MatchdayGame;
+}
+const { game: g } = Astro.props;
+const homeWon = g.played && g.home_score !== null && g.away_score !== null && g.home_score > g.away_score;
+// The call: the side with the higher logged chance; null when nothing was logged before tip-off.
+const homePick = g.p_home !== null && g.p_home >= 0.5;
+const pickTeam = g.p_home === null ? null : homePick ? g.home : g.away;
+const pickP = g.p_home === null ? null : homePick ? g.p_home : 1 - g.p_home;
+const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
+---
+
+<li class="row" id={g.game_id}>
+  <time class="when" datetime={g.tipoff_utc}>
+    {when}
+    <small>{athensDay(g.tipoff_utc)}</small>
+  </time>
+  <span class:list={["team away", { won: g.played && !homeWon, fav: !g.played && g.p_home !== null && !homePick }]}>
+    <b>{g.away.code}</b>
+    <span class="name">{g.away.name}</span>
+  </span>
+  {
+    g.played ? (
+      <span class="mid score">
+        <span class:list={{ won: !homeWon }}>{g.away_score}</span>
+        <span class="dash">-</span>
+        <span class:list={{ won: homeWon }}>{g.home_score}</span>
+      </span>
+    ) : g.p_home !== null ? (
+      <span class="mid split" aria-label={`${g.home.name} win chance ${pct(g.p_home)}, ${g.away.name} ${pct(1 - g.p_home)}`}>
+        <span class="pa">{pct(1 - g.p_home)}</span>
+        <span class="bars" aria-hidden="true">
+          <span class="seg-away" style={`flex-basis:${((1 - g.p_home) * 100).toFixed(1)}%`} />
+          <span class="seg-home" />
+        </span>
+        <span class="ph">{pct(g.p_home)}</span>
+      </span>
+    ) : (
+      <span class="mid none">No chance logged</span>
+    )
+  }
+  <span class:list={["team home", { won: g.played && homeWon, fav: !g.played && g.p_home !== null && homePick }]}>
+    <b>{g.home.code}</b>
+    <span class="name">{g.home.name}</span>
+  </span>
+  <span class="verdict">
+    {
+      g.played && g.hit !== null ? (
+        <span class:list={["pill", g.hit ? "hit" : "miss"]}>
+          <span class="icon" set:html={g.hit ? check : cross} />
+          {g.hit ? "Right" : "Wrong"}
+        </span>
+      ) : pickTeam && pickP !== null ? (
+        <span class="call">
+          {pickTeam.code} <span>{pct(pickP)}</span>
+        </span>
+      ) : (
+        <span class="call muted">-</span>
+      )
+    }
+  </span>
+</li>
+
+<style>
+  .row {
+    display: grid;
+    min-width: 0;
+    max-width: 100%;
+    grid-template-columns: 3.4rem minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr) 6rem;
+    align-items: center;
+    gap: 14px;
+    min-height: 56px;
+    border-bottom: 1px solid var(--rule);
+    list-style: none;
+  }
+  .when {
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .when small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+  .team {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    color: var(--ink-2);
+  }
+  .team.home {
+    justify-content: flex-start;
+  }
+  .team.away {
+    justify-content: flex-end;
+    text-align: right;
+  }
+  .team.away .name {
+    order: -1;
+  }
+  .team b {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    letter-spacing: 0.01em;
+  }
+  .team .name {
+    font-size: 0.8125rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .team.won,
+  .team.won b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .team.fav b {
+    color: var(--ink);
+  }
+  .mid {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8125rem;
+  }
+  .score {
+    display: flex;
+    justify-content: center;
+    color: var(--muted);
+  }
+  .score .won {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .dash {
+    margin-inline: 6px;
+    color: var(--rule-strong);
+  }
+  .none {
+    color: var(--muted);
+    text-align: center;
+  }
+  /* Split bar: away share (neutral) meets home share (orange) at P(home). */
+  .split {
+    display: grid;
+    grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem;
+    align-items: center;
+    gap: 8px;
+  }
+  .pa {
+    text-align: right;
+    color: var(--muted);
+  }
+  .ph {
+    color: var(--muted);
+  }
+  .row:has(.team.away.fav) .pa,
+  .row:has(.team.home.fav) .ph {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .bars {
+    position: relative;
+    display: flex;
+    gap: 2px;
+    height: 10px;
+  }
+  .seg-away,
+  .seg-home {
+    height: 100%;
+  }
+  .seg-away {
+    flex: 0 0 auto;
+    background: var(--data-2);
+    border-radius: 4px 0 0 4px;
+  }
+  .seg-home {
+    flex: 1 1 auto;
+    background: var(--data-1);
+    border-radius: 0 4px 4px 0;
+  }
+  .verdict {
+    font-size: 0.8125rem;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .call {
+    font-weight: 500;
+  }
+  .call span {
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 4px;
+  }
+  .call.muted {
+    color: var(--muted);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px 2px 7px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .pill .icon {
+    display: inline-grid;
+    font-size: 11px;
+  }
+  /* Text stays ink; the icon and wash carry the outcome (orange: the call held, blue: it did not). */
+  .hit {
+    color: var(--ink);
+    background: var(--data-1-wash);
+  }
+  .hit .icon {
+    color: var(--data-1);
+  }
+  .miss {
+    color: var(--ink);
+    background: var(--data-neg-wash);
+  }
+  .miss .icon {
+    color: var(--data-neg);
+  }
+
+  /* Phones: the time and the two teams on one line, the chance or score under them. */
+  @media (max-width: 560px) {
+    .row {
+      grid-template-columns: 3.2rem minmax(0, 1fr) minmax(0, 1fr) max-content;
+      grid-template-areas:
+        "when away home verdict"
+        "when mid mid mid";
+      row-gap: 6px;
+      padding-block: 10px;
+    }
+    .when {
+      grid-area: when;
+      align-self: start;
+    }
+    .team.away {
+      grid-area: away;
+      justify-content: flex-start;
+      text-align: left;
+    }
+    .team.away .name {
+      order: 0;
+    }
+    .team.home {
+      grid-area: home;
+      justify-content: flex-end;
+    }
+    .team .name {
+      display: none;
+    }
+    .mid {
+      grid-area: mid;
+    }
+    .verdict {
+      grid-area: verdict;
+    }
+  }
+</style>

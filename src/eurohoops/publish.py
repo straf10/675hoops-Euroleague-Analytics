@@ -7,7 +7,7 @@ every number the page shows, so the page never recomputes or reinterprets the pi
 from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -170,6 +170,57 @@ def _forecasts(section: Section) -> dict[str, Any] | None:
     return {**record, "games": games, "headline": headline}
 
 
+GAME_WINDOW = pd.Timedelta(hours=3)  # a round stays "live" this long after its last tip-off
+ROUND_SPREAD = pd.Timedelta(days=10)  # a tip-off this far from its round's median is a bad date
+
+
+def _matchday(section: Section, logged: list[dict[Hashable, Any]]) -> dict[str, Any]:
+    """The season's rounds for the home page, in round order.
+
+    Each round holds its games with the logged chance (only rows logged before tip-off), the
+    final score and whether the pick held once played. ``start_utc`` and ``end_utc`` bound the
+    round for the page's live state: the first tip-off, and the last tip-off plus a game length.
+    A stray date far from the rest of its round is left out of those bounds only.
+    """
+    hidden = set(section.scorecard.get("games_not_provable", []))
+    picks = {g["game_id"]: g for g in logged if not g["late"]}
+    games = section.games[section.games["season"] == section.season]
+    rounds = []
+    for number, frame in games.groupby("round"):
+        tips = frame["tipoff_utc"]
+        near = tips[(tips - tips.median()).abs() <= ROUND_SPREAD]
+        rows = []
+        for _, g in frame.sort_values("tipoff_utc").iterrows():
+            pick = picks.get(g["game_id"])
+            played = bool(g["played"]) and not bool(g["forfeit"])
+            hit = None
+            if played and pick is not None and g["game_id"] not in hidden:
+                hit = bool((pick["p_home"] >= 0.5) == (g["home_score"] > g["away_score"]))
+            rows.append(
+                {
+                    "game_id": g["game_id"],
+                    "tipoff_utc": _stamp(g["tipoff_utc"]),
+                    "tipoff_time_confirmed": bool(g["confirmed_date"]),
+                    "home": _team(section, g["home"]),
+                    "away": _team(section, g["away"]),
+                    "p_home": None if pick is None else float(pick["p_home"]),
+                    "played": played,
+                    "home_score": int(g["home_score"]) if played else None,
+                    "away_score": int(g["away_score"]) if played else None,
+                    "hit": hit,
+                }
+            )
+        rounds.append(
+            {
+                "round": int(cast(Any, number)),
+                "start_utc": _stamp(near.min()),
+                "end_utc": _stamp(near.max() + GAME_WINDOW),
+                "games": rows,
+            }
+        )
+    return {"rounds": rounds}
+
+
 def section_data(section: Section, now: datetime) -> dict[str, Any]:
     logged = _logged(section)
     hidden = set(section.scorecard.get("games_not_provable", []))
@@ -217,6 +268,7 @@ def section_data(section: Section, now: datetime) -> dict[str, Any]:
         "backtest": _backtest(section.backtest),
         "ratings": _ratings(section),
         "forecasts": _forecasts(section),
+        "matchday": _matchday(section, logged),
     }
 
 

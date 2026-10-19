@@ -4,14 +4,12 @@ import BrierByRound from "../components/BrierByRound.astro";
 import Ratings from "../components/Ratings.astro";
 import MarginChart, { type MarginGame } from "../components/MarginChart.astro";
 import TrendChart from "../components/TrendChart.astro";
-import Results from "../components/Results.astro";
-import Tonight from "../components/Tonight.astro";
+import Matchday from "../components/Matchday.astro";
 import GamesJsonLd from "../components/GamesJsonLd.astro";
 import raw from "../data/site.json";
 import type { SiteData } from "../lib/format";
-import { seasonSpan } from "../lib/format";
-import { count } from "../lib/live";
-import { rightText, score3, share, type TrendPoint } from "../lib/forecasts";
+import { share, score3, type TrendPoint } from "../lib/forecasts";
+import { headlineNumbers } from "../lib/volume";
 
 const data = raw as SiteData;
 const comps = data.competitions;
@@ -26,10 +24,8 @@ const fc = main.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
 const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
 const ours = fc?.season.find((r) => r.model === model) ?? null;
-const held = main.backtest;
-const gap = held.log_loss_diff;
 const live = main.scorecard;
-const volume = data.data_volume;
+const nums = headlineNumbers(data.data_volume);
 
 // The running win-chance edge, from the record (eval/forecasts.py _trend), with the origin first.
 const trend = fc?.trend ?? [];
@@ -70,78 +66,53 @@ const scoreRows = [
     description,
   })} />
   <GamesJsonLd slot="head" />
-  <section class="hero wrap" aria-labelledby="hero-title">
-    <div class="copy">
-      <h1 id="hero-title">Forecasts</h1>
-      <p class="lede">
-        The simplest benchmark is a home-win baseline: the home side wins at its historical rate, every game.
-        Our model rates each team from every result so far, and turns the gap between two ratings into a win
-        chance and an expected margin for each game.
-      </p>
-      <dl class="differs">
-        <div>
-          <dt>Team strength, updated after each game</dt>
-          <dd>
-            A result moves both ratings, and a bigger margin moves them more. A win over a strong side counts for
-            more than the same win over a weak one.
-          </dd>
-        </div>
-        <div>
-          <dt>Chances, not picks</dt>
-          <dd>
-            Every game gets a percentage. A 70% call that loses costs less than a 90% call that loses, so the
-            scores reward honest chances.
-          </dd>
-        </div>
-        <div>
-          <dt>Ratings carry over, part way</dt>
-          <dd>Between seasons each rating moves part of the way back to the average, since rosters change.</dd>
-        </div>
-        {
-          gap && (
-            <div>
-              <dt>Against the baseline</dt>
-              <dd>
-                On the held-out {seasonSpan(held.test_seasons)}, log loss was {held.test.elo.log_loss?.toFixed(3)}{" "}
-                for the model and {held.test.b0.log_loss?.toFixed(3)} for the baseline (lower is better). The gap's
-                95% range is {gap.ci95[0].toFixed(3)} to {gap.ci95[1].toFixed(3)}.
-              </dd>
-            </div>
-          )
-        }
-      </dl>
-      <p class="links">
-        <a href={`${base}/forecasts/`}>Full forecast record</a>
-        {" · "}
-        <a href={`${base}/methodology/`}>How it works</a>
-      </p>
-      <p class="volume">
-        {count(volume.games)} games · {count(volume.seasons)} seasons{volume.shots_with_coordinates !== undefined && ` · ${count(Math.round(volume.shots_with_coordinates / 1000) * 1000)} shots with coordinates (EuroLeague)`}
-      </p>
-    </div>
-    <div class="board">
+
+  <section class="numbers wrap" aria-label="How much data is behind the forecasts">
+    <p class="figures">
+      <span><b>{nums.seasons}</b> seasons</span>
+      <span class="sep" aria-hidden="true">·</span>
+      <span><b>{nums.games}</b> games</span>
       {
-        ours && (
-          <div class="stat">
-            <p class="who">{label}, picked the winner</p>
-            <p class="big">{share(ours.right_pct)}</p>
-            <p class="what">
-              <b>{rightText(ours)}</b> finished games called before tip-off
-            </p>
-          </div>
+        nums.actions && (
+          <>
+            <span class="sep" aria-hidden="true">·</span>
+            <span><b>{nums.actions}</b> actions</span>
+          </>
         )
       }
-      {comps.map((c) => <Tonight comp={c} />)}
-    </div>
+    </p>
+    <p class="scope">EuroLeague only. An action is one play-by-play entry.</p>
+  </section>
+
+  <header class="page-head wrap">
+    <h1>Forecasts</h1>
+    <p class="links">
+      <a href={`${base}/methodology/`}>How it works</a>
+      {" · "}
+      <a href={`${base}/forecasts/`}>Full forecast record</a>
+    </p>
+  </header>
+
+  <section class="band wrap" id="matchday" aria-labelledby="matchday-title">
+    <header class="sec-head">
+      <h2 id="matchday-title">Matchday</h2>
+      <p>Our chance for each game before tip-off, then the result and whether the pick held.</p>
+    </header>
+    {comps.map((c) => <Matchday comp={c} />)}
+  </section>
+
+  <section class="band wrap" id="ratings" aria-labelledby="ratings-title">
+    <header class="sec-head">
+      <h2 id="ratings-title">Power ratings</h2>
+      <p>Each team's rating this season, and how far it has moved since the season began.</p>
+    </header>
+    {comps.map((c) => <Ratings comp={c} />)}
   </section>
 
   <section class="band wrap" id="scoring" aria-labelledby="scoring-title">
     <header class="sec-head">
       <h2 id="scoring-title">How the model scores</h2>
-      <p>
-        The same finished games, scored three ways. Hit rate is the share of games called right. Brier score and
-        log loss are the error of each probability: lower is better, and a Brier score of 0.25 is a coin flip.
-      </p>
+      <p>The same finished games, three scores: hit rate (higher is better), Brier and log loss (lower is better).</p>
     </header>
     <table class="score-table">
       <caption class="sr-only">Forecast scores on the same games</caption>
@@ -176,10 +147,11 @@ const scoreRows = [
           <TrendChart
             id="trend-logloss"
             title="Win chances"
-            caption="How much better each forecast's chance was than the baseline's (a home-win pick), summed game by game. Log loss: lower loss per game is better. Above zero, the model is ahead."
+            caption="How much better each forecast's chance was than the baseline's (a home-win pick), summed game by game. Log loss: lower loss per game is better."
             unit="log loss, summed"
             digits={2}
             points={logloss}
+            better="Above 0 = model ahead"
           />
           <MarginChart
             id="margin-points"
@@ -187,45 +159,47 @@ const scoreRows = [
             caption="Each game's predicted home margin (orange line) against the final home margin (grey bars), in tip-off order. Where the line meets the top of a bar, the model called the margin exactly."
             games={margins}
             miss={fc?.season.find((r) => r.model === model)?.margin_mae ?? null}
+            better="Closer = better"
           />
         </div>
       )
     }
   </section>
 
-  <section class="band wrap" id="results" aria-labelledby="results-title">
-    <header class="sec-head">
-      <h2 id="results-title">Results</h2>
-      <p>The latest finished games and the forecast made for each.</p>
-    </header>
-    {comps.map((c) => <Results comp={c} />)}
-  </section>
-
-  <section class="band wrap" id="ratings" aria-labelledby="ratings-title">
-    <header class="sec-head">
-      <h2 id="ratings-title">Power ratings</h2>
-      <p>
-        Current rating for every team in the {comps[0].season} season, with the change since the season
-        started.
-      </p>
-    </header>
-    {comps.map((c) => <Ratings comp={c} />)}
-  </section>
-
   <p class="wrap more"><a href={`${base}/forecasts/#every-game`}>Read the log</a></p>
 </Base>
 
 <style>
-  .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 64px;
-    align-items: start;
-    padding-top: 64px;
-    padding-bottom: 24px;
+  .numbers {
+    padding-top: 56px;
   }
-  .copy {
-    padding-top: 4px;
+  .figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    font-size: 1.125rem;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .figures b {
+    font-size: 2.5rem;
+    font-weight: 620;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .sep {
+    color: var(--rule-strong);
+  }
+  .scope {
+    margin-top: 10px;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  .page-head {
+    padding-top: 64px;
   }
   h1 {
     font-size: 2.75rem;
@@ -233,36 +207,8 @@ const scoreRows = [
     letter-spacing: -0.035em;
     font-weight: 620;
   }
-  .lede {
-    margin-top: 16px;
-    color: var(--ink-2);
-    font-size: 1.0625rem;
-    line-height: 1.55;
-    max-width: 46ch;
-  }
-  .differs {
-    display: grid;
-    gap: 16px;
-    margin: 28px 0 0;
-    max-width: 52ch;
-  }
-  .differs > div {
-    padding-top: 12px;
-    border-top: 1px solid var(--rule);
-  }
-  .differs dt {
-    font-weight: 600;
-    color: var(--ink);
-    font-size: 0.9375rem;
-  }
-  .differs dd {
-    margin: 4px 0 0;
-    color: var(--ink-2);
-    font-size: 0.9375rem;
-    line-height: 1.5;
-  }
   .links {
-    margin-top: 24px;
+    margin-top: 12px;
     font-size: 0.875rem;
     color: var(--muted);
   }
@@ -271,41 +217,6 @@ const scoreRows = [
     text-decoration: underline;
     text-decoration-color: var(--rule-strong);
     text-underline-offset: 3px;
-  }
-  .volume {
-    margin-top: 8px;
-    font-size: 0.8125rem;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .board {
-    min-width: 0;
-  }
-  .stat {
-    border-top: 1px solid var(--rule-strong);
-    padding-top: 14px;
-    margin-bottom: 28px;
-  }
-  .who {
-    color: var(--muted);
-    font-size: 0.8125rem;
-    font-weight: 500;
-  }
-  .big {
-    margin-top: 6px;
-    font-size: 3.25rem;
-    font-weight: 620;
-    letter-spacing: -0.035em;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-  }
-  .what {
-    margin-top: 8px;
-    color: var(--ink-2);
-  }
-  .what b {
-    color: var(--ink);
-    font-weight: 600;
   }
   .band {
     padding-top: 88px;
@@ -355,7 +266,6 @@ const scoreRows = [
     gap: 56px;
     margin-top: 56px;
   }
-
   .more {
     padding-top: 48px;
     font-size: 0.875rem;
@@ -363,16 +273,19 @@ const scoreRows = [
   }
 
   @media (max-width: 980px) {
-    .hero {
-      grid-template-columns: 1fr;
-      gap: 40px;
-      padding-top: 40px;
+    .band {
+      padding-top: 64px;
+    }
+  }
+  @media (max-width: 560px) {
+    .figures b {
+      font-size: 2rem;
+    }
+    .figures {
+      font-size: 1rem;
     }
     h1 {
       font-size: 2.25rem;
-    }
-    .band {
-      padding-top: 64px;
     }
   }
 </style>

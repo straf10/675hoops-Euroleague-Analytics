@@ -109,7 +109,9 @@ def legacy_site(out: Path, now: datetime) -> None:
                 ),
             )
         )
-    write_json(out, site_data(sections, now, data_volume(MART_PATH)))
+    write_json(
+        out, site_data(sections, now, data_volume(MART_PATH, EUROLEAGUE.raw_dir / "playbyplay"))
+    )
 
 
 def _json(path: Path) -> dict[str, Any]:
