@@ -1,22 +1,19 @@
 """Assist network: each ``AS`` (assist) play-by-play row paired with what it created.
 
-An ``AS`` row is linked in three tiers, tried in this order:
+An ``AS`` row is linked in two tiers, tried in this order:
 
-- ``fg`` (strict): a one-to-one maximum matching of AS rows to made field goals. An edge needs
-  the passer's team's make, not the passer's own; no opposing make between the two rows; the
-  clocks at most ``CLOCK_WINDOW`` seconds apart and the rows at most ``EVENT_WINDOW`` events
-  apart (``NO_CLOCK_WINDOW`` events when a row has no clock).
-- ``ft`` (strict): the assist credits a free throw. The pass led to a foul on a teammate (not the
-  passer) who made at least one free throw in the same trip: a made free throw (FTM) of that
-  teammate within ``FT_WINDOW`` events and ``FT_CLOCK`` seconds of the row, with his foul received
-  (``RV``) within ``FOUL_WINDOW`` events before it. One foul credits at most one assist.
-- ``loose`` (lower confidence): the rows still unlinked are assigned to unclaimed teammate makes by
-  a minimum-cost assignment per team-game. The cost is the clock gap plus the event gap, plus
-  ``OPPOSING_PENALTY`` when an opposing make lies between the rows. Pairs need both clocks and a
-  clock gap of at most ``LOOSE_CLOCK`` seconds (the shot clock).
+- ``fg``: a one-to-one maximum matching of AS rows to made field goals. An edge needs the
+  passer's team's make, not the passer's own; no opposing make between the two rows; the clocks at
+  most ``CLOCK_WINDOW`` seconds apart and the rows at most ``EVENT_WINDOW`` events apart
+  (``NO_CLOCK_WINDOW`` events when a row has no clock).
+- ``ft``: the assist credits a free throw. The pass led to a foul on a teammate (not the passer)
+  who made at least one free throw in the same trip: a made free throw (FTM) of that teammate
+  within ``FT_WINDOW`` events and ``FT_CLOCK`` seconds of the row, with his foul received (``RV``)
+  within ``FOUL_WINDOW`` events before it. One foul credits at most one assist.
 
-Every make and every foul is credited at most once. A row that fits no tier stays unlinked
-(``scorer`` None). Free-throw assists are kept apart from field-goal assists in the payload.
+Every make and every foul is credited at most once. A row that fits neither tier stays unlinked
+(``scorer`` None). The payload's ``pairs``, ``passers`` and ``linked`` count both tiers (an assist
+is an assist); ``fg_pairs`` and ``ft_pairs`` keep the tiers apart.
 
 Raw facts only: passer, scorer (the field-goal or free-throw shooter), and the points that
 basket was worth (2 or 3 for a field goal, 1 for a free throw).
@@ -29,15 +26,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-from scipy.optimize import linear_sum_assignment
 
 from eurohoops.ingest.cache import read_cached
 from eurohoops.parse.stints import POINTS, Event, events
 
 ASSIST = "AS"
-# Made field goals only for the field-goal tiers; free throws (FTM) are used by the FT tier.
+# Made field goals only for the field-goal tier; free throws (FTM) are used by the FT tier.
 MAKES = frozenset({"2FGM", "3FGM", "LAYUPMD", "DUNK"})
 CLOCK_WINDOW = 60  # seconds between an AS row and its field goal (fg tier)
 EVENT_WINDOW = 30  # events between an AS row and its field goal (fg tier)
@@ -45,19 +40,16 @@ NO_CLOCK_WINDOW = 3  # events, when either row has no clock (fg tier)
 FT_WINDOW = 4  # events between an AS row and the made free throw (ft tier)
 FT_CLOCK = 2  # seconds between an AS row and the made free throw (ft tier)
 FOUL_WINDOW = 6  # events before the made free throw that hold the foul received (ft tier)
-LOOSE_CLOCK = 24  # seconds: hard cap of the loose tier (the shot clock)
-OPPOSING_PENALTY = 1000  # loose tier: cost added when an opposing make lies between the rows
-TIERS = ("fg", "ft", "loose")
+TIERS = ("fg", "ft")
 SCHEMA = ("passer", "scorer", "assists", "points")  # pairs in assists.json
 PASSER_SCHEMA = ("passer", "as_rows", "linked", "points")  # passers in assists.json
-_INFEASIBLE = 10**6
 
 
 @dataclass(frozen=True)
 class AssistRow:
     """One ``AS`` row: the club, the passer, the scorer of what it created (None when unlinked),
-    that basket's points (0 when unlinked) and the tier that linked it (``fg``, ``ft``, ``loose``;
-    None when unlinked; a linked row without a tier is a field-goal link)."""
+    that basket's points (0 when unlinked) and the tier that linked it (``fg`` or ``ft``; None when
+    unlinked; a linked row without a tier is a field-goal link)."""
 
     team: str
     passer: str
@@ -158,33 +150,8 @@ def _ft_candidates(log: Sequence[Event], i: int) -> list[tuple[tuple[int, int], 
     return out
 
 
-def _loose_links(log: Sequence[Event], rows: list[int], makes: list[int]) -> dict[int, int]:
-    """Minimum-cost assignment of the unlinked ``AS`` rows (``rows``) to the unclaimed teammate
-    makes (``makes``) of one team. Only pairs with both clocks and a gap of at most LOOSE_CLOCK."""
-    if not rows or not makes:
-        return {}
-    cost = np.full((len(rows), len(makes)), float(_INFEASIBLE))
-    for r, i in enumerate(rows):
-        a = log[i]
-        if a.elapsed is None:
-            continue
-        for c, j in enumerate(makes):
-            m = log[j]
-            if m.elapsed is None or (a.player and m.player == a.player):
-                continue
-            dt = abs(m.elapsed - a.elapsed)
-            if dt > LOOSE_CLOCK:
-                continue
-            penalty = OPPOSING_PENALTY if _opposing_make_between(log, i, j) else 0
-            cost[r, c] = dt + abs(j - i) + penalty
-    row_ind, col_ind = linear_sum_assignment(cost)
-    return {
-        rows[r]: makes[c] for r, c in zip(row_ind, col_ind, strict=True) if cost[r, c] < _INFEASIBLE
-    }
-
-
 def _linked(log: Sequence[Event]) -> dict[int, tuple[int, str]]:
-    """AS row index -> (credited index: the make or the free throw, tier), all three tiers."""
+    """AS row index -> (credited index: the make or the free throw, tier), both tiers."""
     as_idx = [i for i, e in enumerate(log) if e.kind == ASSIST]
     out: dict[int, tuple[int, str]] = {}
     edges = {i: c for i in as_idx if (c := _fg_candidates(log, i))}
@@ -201,18 +168,6 @@ def _linked(log: Sequence[Event]) -> dict[int, tuple[int, str]]:
             claimed_rv.add(rv)
             out[i] = (ft, "ft")
             break
-    # loose tier: per team, the leftover AS rows to the teammate makes nobody claimed
-    claimed_make = {j for j, _ in out.values()}
-    for team in {log[i].team for i in as_idx}:
-        rows = [i for i in as_idx if i not in out and log[i].team == team]
-        makes = [
-            j
-            for j, e in enumerate(log)
-            if e.kind in MAKES and e.team == team and j not in claimed_make
-        ]
-        for i, j in _loose_links(log, rows, makes).items():
-            out[i] = (j, "loose")
-            claimed_make.add(j)
     return out
 
 
@@ -260,24 +215,21 @@ def assists_payload(
     rows_by_game: Mapping[str, Sequence[AssistRow]],
     box_assists: Mapping[str, int],
 ) -> dict[str, object]:
-    """``seasons/{season}/assists.json``: per club, the assist counts by tier and the pairs.
+    """``seasons/{season}/assists.json``: per club, the assist counts and the pairs.
 
     ``box_assists`` is the club's box-score assist total over the same games (the check that the
     pairing covers the official count). Each club holds ``as_rows`` (AS rows in the play-by-play),
-    ``linked`` (all tiers), ``linked_fg`` / ``linked_ft`` / ``linked_loose`` (per tier), ``box``
-    (box-score assists), ``pairs`` (field-goal ``SCHEMA`` rows, most assists first), ``ft_pairs``
-    and ``loose_pairs`` (the same schema for the free-throw and loose tiers) and ``passers``
-    (``PASSER_SCHEMA`` rows over all tiers, most points first). Team and player ids are source
-    codes.
+    ``linked`` (field-goal and free-throw links), ``linked_fg`` / ``linked_ft`` (per tier), ``box``
+    (box-score assists), ``pairs`` (``SCHEMA`` rows over both tiers, most assists first),
+    ``fg_pairs`` and ``ft_pairs`` (the same schema per tier) and ``passers`` (``PASSER_SCHEMA`` rows
+    over both tiers, most points first). Team and player ids are source codes.
     """
     pairs: dict[str, dict[str, dict[tuple[str, str], list[int]]]] = {}
     passers: dict[str, dict[str, list[int]]] = {}
     clubs: dict[str, dict[str, int]] = {}
     for game_id in sorted(game_ids):
         for row in rows_by_game.get(game_id, ()):
-            club = clubs.setdefault(
-                row.team, {"as_rows": 0, "linked": 0, "fg": 0, "ft": 0, "loose": 0}
-            )
+            club = clubs.setdefault(row.team, {"as_rows": 0, "linked": 0, "fg": 0, "ft": 0})
             club["as_rows"] += 1
             stat = passers.setdefault(row.team, {}).setdefault(row.passer, [0, 0, 0])
             stat[0] += 1
@@ -288,19 +240,20 @@ def assists_payload(
             club[tier] += 1
             stat[1] += 1
             stat[2] += row.points
-            by_tier = pairs.setdefault(row.team, {}).setdefault(tier, {})
-            pair = by_tier.setdefault((row.passer, row.scorer), [0, 0])
-            pair[0] += 1
-            pair[1] += row.points
+            for key in ("all", tier):
+                by_key = pairs.setdefault(row.team, {}).setdefault(key, {})
+                pair = by_key.setdefault((row.passer, row.scorer), [0, 0])
+                pair[0] += 1
+                pair[1] += row.points
     out: dict[str, object] = {}
     for team in sorted(clubs):
         tiered: dict[str, list[list[object]]] = {}
-        for tier in TIERS:
+        for key in ("all", *TIERS):
             club_pairs = sorted(
-                pairs.get(team, {}).get(tier, {}).items(),
+                pairs.get(team, {}).get(key, {}).items(),
                 key=lambda kv: (-kv[1][0], -kv[1][1], kv[0]),
             )
-            tiered[tier] = [[p, s, a, pts] for (p, s), (a, pts) in club_pairs]
+            tiered[key] = [[p, s, a, pts] for (p, s), (a, pts) in club_pairs]
         club_passers = sorted(
             passers.get(team, {}).items(), key=lambda kv: (-kv[1][2], -kv[1][1], kv[0])
         )
@@ -309,11 +262,10 @@ def assists_payload(
             "linked": clubs[team]["linked"],
             "linked_fg": clubs[team]["fg"],
             "linked_ft": clubs[team]["ft"],
-            "linked_loose": clubs[team]["loose"],
             "box": int(box_assists.get(team, 0)),
-            "pairs": tiered["fg"],
+            "pairs": tiered["all"],
+            "fg_pairs": tiered["fg"],
             "ft_pairs": tiered["ft"],
-            "loose_pairs": tiered["loose"],
             "passers": [[p, *stat] for p, stat in club_passers],
         }
     return {

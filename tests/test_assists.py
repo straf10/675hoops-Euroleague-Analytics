@@ -8,7 +8,6 @@ from eurohoops.parse.stints import Event
 from eurohoops.stats.assists import (
     CLOCK_WINDOW,
     EVENT_WINDOW,
-    LOOSE_CLOCK,
     NO_CLOCK_WINDOW,
     AssistRow,
     assist_rows,
@@ -45,10 +44,9 @@ def test_a_make_by_the_other_team_never_links() -> None:
 
 
 def test_an_opposing_make_between_the_rows_blocks_the_fg_tier() -> None:
-    # B scores between the assist and the make: the fg tier refuses; only the loose tier, with its
-    # penalty, can take it
+    # B scores between the assist and the make: no tier takes it, so the row stays unlinked
     log = [ev("AS", A, "passer", 480), ev("2FGM", B, "other", 470), ev("DUNK", A, "scorer", 470)]
-    assert assist_rows(log)[0].tier == "loose"
+    assert assist_rows(log) == [AssistRow(A, "passer", None, 0)]
 
 
 def test_a_make_beyond_the_clock_window_does_not_link_in_fg() -> None:
@@ -62,7 +60,7 @@ def test_a_make_beyond_the_event_window_is_not_fg() -> None:
     far = [ev("AS", A, "passer", 480)]
     far += [ev("2FGA", B, "x", 480) for _ in range(EVENT_WINDOW)]  # misses, no opposing make
     far.append(ev("2FGM", A, "scorer", 480))  # EVENT_WINDOW + 1 events away
-    assert assist_rows(far)[0].tier == "loose"  # the fg tier stops here; the loose tier catches it
+    assert assist_rows(far) == [AssistRow(A, "passer", None, 0)]
 
 
 def test_a_row_without_a_clock_links_only_within_a_few_events() -> None:
@@ -162,24 +160,6 @@ def test_a_field_goal_takes_precedence_over_a_free_throw() -> None:
     assert assist_rows(log) == [AssistRow(A, "passer", "scorer", 2, "fg")]
 
 
-# ---- loose tier: minimum-cost assignment of the leftovers, shot-clock cap, opposing penalty
-
-
-def test_a_loose_link_pays_the_penalty_across_an_opposing_make() -> None:
-    log = [ev("AS", A, "passer", 470), ev("2FGM", B, "other", 480), ev("2FGM", A, "scorer", 490)]
-    assert assist_rows(log)[0] == AssistRow(A, "passer", "scorer", 2, "loose")
-
-
-def test_the_loose_tier_respects_the_shot_clock_cap() -> None:
-    gap = LOOSE_CLOCK + 6
-    log = [
-        ev("AS", A, "passer", 500),
-        ev("2FGM", B, "other", 490),
-        ev("2FGM", A, "scorer", 500 - gap),
-    ]
-    assert assist_rows(log) == [AssistRow(A, "passer", None, 0)]
-
-
 # ---- aggregation
 
 
@@ -202,31 +182,31 @@ def test_payload_aggregates_pairs_and_passers_and_checks_box_totals() -> None:
         "linked": 3,
         "linked_fg": 3,
         "linked_ft": 0,
-        "linked_loose": 0,
         "box": 4,
         "pairs": [["p1", "s1", 2, 5], ["p2", "s2", 1, 2]],
+        "fg_pairs": [["p1", "s1", 2, 5], ["p2", "s2", 1, 2]],
         "ft_pairs": [],
-        "loose_pairs": [],
         "passers": [["p1", 2, 2, 5], ["p2", 2, 1, 2]],
     }
     assert clubs[B]["pairs"] == [["q1", "q2", 1, 2]]
     assert clubs[B]["box"] == 3
 
 
-def test_payload_keeps_the_tiers_apart() -> None:
+def test_payload_counts_both_tiers_and_keeps_them_apart() -> None:
     rows = {
         "g1": [
             AssistRow(A, "p1", "s1", 2, "fg"),
             AssistRow(A, "p2", "f1", 1, "ft"),
-            AssistRow(A, "p3", "l1", 2, "loose"),
+            AssistRow(A, "p3", None, 0),
         ]
     }
     club = assists_payload(2024, ["g1"], rows, {A: 3})["clubs"][A]
-    assert club["linked"] == 3
-    assert (club["linked_fg"], club["linked_ft"], club["linked_loose"]) == (1, 1, 1)
-    assert club["pairs"] == [["p1", "s1", 1, 2]]
+    assert club["linked"] == 2
+    assert (club["linked_fg"], club["linked_ft"]) == (1, 1)
+    assert club["pairs"] == [["p1", "s1", 1, 2], ["p2", "f1", 1, 1]]
+    assert club["fg_pairs"] == [["p1", "s1", 1, 2]]
     assert club["ft_pairs"] == [["p2", "f1", 1, 1]]
-    assert club["loose_pairs"] == [["p3", "l1", 1, 2]]
+    assert club["passers"] == [["p1", 1, 1, 2], ["p2", 1, 1, 1], ["p3", 1, 0, 0]]
 
 
 def test_fixture_games_are_paired_and_counted() -> None:
