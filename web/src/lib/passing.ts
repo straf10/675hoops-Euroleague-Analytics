@@ -173,9 +173,15 @@ export function passingView(
 
 /** The polygon draws this many players: the top by assists given and received. */
 export const NETWORK_SIZE = 8;
-/** The thinnest and thickest line, in viewBox units (the SVG scales with its column). */
+/** The thinnest and thickest line, in viewBox units (the SVG scales with its column). A pair with
+ *  one assist is EDGE_MIN; the team's largest pair is EDGE_MAX; the widths between are linear. */
 export const EDGE_MIN = 1;
-export const EDGE_MAX = 10;
+export const EDGE_MAX = 9;
+/** Opacity: the weakest pair is OPACITY_MIN, the strongest OPACITY_MAX, linear in between. */
+export const OPACITY_MIN = 0.25;
+export const OPACITY_MAX = 1;
+/** Above this many drawn pairs, the pairs with one assist are not drawn: the picture would be a tangle. */
+export const MAX_DRAWN_PAIRS = 20;
 /** The viewBox: the polygon's centre and radius, and the gap between a vertex and its label. */
 export const VIEW = { w: 560, h: 440, cx: 280, cy: 220, r: 150, gap: 18 } as const;
 
@@ -206,6 +212,8 @@ export interface NetEdge {
   total: number;
   /** stroke width in viewBox units */
   width: number;
+  /** stroke opacity, 0 to 1 */
+  opacity: number;
 }
 
 export interface Network {
@@ -213,6 +221,8 @@ export interface Network {
   players: NetPlayer[];
   /** thinnest first, so the thick lines paint on top */
   edges: NetEdge[];
+  /** pairs with one assist that are not drawn, because there are more than MAX_DRAWN_PAIRS pairs */
+  hiddenPairs: number;
 }
 
 const SUFFIX = /^(jr\.?|sr\.?|i{2,3}|iv)$/i;
@@ -257,11 +267,23 @@ function round1(x: number): number {
   return Math.round(x * 10) / 10;
 }
 
-/** The line width for a pair's cooperation: square-root scaled, so the largest pair is EDGE_MAX. */
+const round2 = (x: number) => Math.round(x * 100) / 100;
+
+/** Where a pair's cooperation sits from the weakest (one assist, 0) to the team's largest (1), linear
+ *  in the count. With no spread (every pair one assist, or no pairs) it is 0. */
+export function edgeShare(total: number, largest: number): number {
+  if (largest <= 1 || total <= 1) return 0;
+  return Math.min(1, (Math.min(total, largest) - 1) / (largest - 1));
+}
+
+/** The line width: EDGE_MIN for one assist, EDGE_MAX for the team's largest pair, linear between. */
 export function edgeWidth(total: number, largest: number): number {
-  if (total <= 0 || largest <= 0) return EDGE_MIN;
-  const share = Math.sqrt(Math.min(total, largest) / largest);
-  return round1(EDGE_MIN + (EDGE_MAX - EDGE_MIN) * share);
+  return round1(EDGE_MIN + (EDGE_MAX - EDGE_MIN) * edgeShare(total, largest));
+}
+
+/** The line's opacity: OPACITY_MIN for one assist, OPACITY_MAX for the largest pair, linear between. */
+export function edgeOpacity(total: number, largest: number): number {
+  return round2(OPACITY_MIN + (OPACITY_MAX - OPACITY_MIN) * edgeShare(total, largest));
 }
 
 /** The players drawn: the top `n` by assists involvement (given plus received). */
@@ -313,10 +335,11 @@ export function network(club: AssistClub, names: Map<string, string>, n = NETWOR
   }
   const counted = [...pairs.values()].map((e) => ({ ...e, total: e.ab + e.ba }));
   const largest = Math.max(0, ...counted.map((e) => e.total));
-  const edges = counted
-    .map((e) => ({ ...e, width: edgeWidth(e.total, largest) }))
+  const drawn = counted.length > MAX_DRAWN_PAIRS ? counted.filter((e) => e.total > 1) : counted;
+  const edges = drawn
+    .map((e) => ({ ...e, width: edgeWidth(e.total, largest), opacity: edgeOpacity(e.total, largest) }))
     .sort((x, y) => x.total - y.total || x.a - y.a || x.b - y.b);
-  return { players, edges };
+  return { players, edges, hiddenPairs: counted.length - drawn.length };
 }
 
 /** The tooltip for a line: "A to B: x assists, B to A: y assists". */

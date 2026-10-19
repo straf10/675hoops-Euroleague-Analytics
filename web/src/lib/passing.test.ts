@@ -9,6 +9,7 @@ import {
   VIEW,
   buildMatrix,
   connections,
+  edgeOpacity,
   edgeTitle,
   edgeWidth,
   labels,
@@ -173,18 +174,54 @@ test("labels anchor away from the polygon and stay inside the viewBox", () => {
   }
 });
 
-test("line width is square-root scaled between the minimum and the maximum", () => {
-  assert.equal(edgeWidth(0, 10), EDGE_MIN);
-  assert.equal(edgeWidth(10, 10), EDGE_MAX);
-  assert.equal(edgeWidth(40, 10), EDGE_MAX); // capped at the largest
-  assert.equal(edgeWidth(5, 20), round1(EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.sqrt(0.25)));
-  assert.ok(edgeWidth(2, 10) > edgeWidth(1, 10));
+test("line width is linear in the count: one assist is 1px, the team's largest pair 9px", () => {
+  assert.equal(EDGE_MIN, 1);
+  assert.equal(EDGE_MAX, 9);
+  assert.equal(edgeWidth(1, 9), 1);
+  assert.equal(edgeWidth(9, 9), 9);
+  assert.equal(edgeWidth(5, 9), 5); // halfway between one and nine is five
+  assert.equal(edgeWidth(3, 9), 3);
+  assert.equal(edgeWidth(40, 9), 9); // capped at the largest
+  assert.equal(edgeWidth(1, 1), EDGE_MIN); // no spread: every pair is one assist
   assert.equal(edgeWidth(3, 0), EDGE_MIN);
 });
 
-function round1(x: number) {
-  return Math.round(x * 10) / 10;
-}
+test("opacity is linear too: 0.25 for one assist, 1 for the team's largest pair", () => {
+  assert.equal(edgeOpacity(1, 9), 0.25);
+  assert.equal(edgeOpacity(9, 9), 1);
+  assert.equal(edgeOpacity(5, 9), 0.63); // 0.625, rounded to two places
+  assert.equal(edgeOpacity(1, 1), 0.25);
+});
+
+test("a network with more than 20 pairs does not draw the single-assist pairs and says how many", () => {
+  const ids = Array.from({ length: 8 }, (_, i) => `P${i}`);
+  const many = new Map(ids.map((id, i) => [id, `Player ${i}`]));
+  const pairs: PairRow[] = [];
+  let singles = 0;
+  for (let i = 0; i < 8; i++) {
+    for (let j = i + 1; j < 8; j++) {
+      const one = (i + j) % 3 === 0;
+      if (one) singles++;
+      pairs.push([ids[i], ids[j], one ? 1 : 2 + ((i * j) % 4), 0]);
+    }
+  }
+  const n = network(net(pairs), many);
+  assert.equal(n.players.length, 8);
+  assert.equal(n.edges.length, 28 - singles);
+  assert.equal(n.hiddenPairs, singles);
+  assert.ok(n.edges.every((e) => e.total > 1));
+});
+
+test("with 20 pairs or fewer the single-assist pairs are drawn, thinnest and faintest", () => {
+  const n = network(net([["A", "B", 1, 2], ["B", "C", 4, 8], ["C", "A", 2, 4]]), names);
+  assert.equal(n.hiddenPairs, 0);
+  assert.equal(n.edges.length, 3);
+  const weakest = n.edges[0];
+  assert.equal(weakest.total, 1);
+  assert.equal(weakest.width, EDGE_MIN);
+  assert.equal(weakest.opacity, 0.25);
+  assert.equal(n.edges[n.edges.length - 1].opacity, 1);
+});
 
 test("a pair's two directions combine into one line, with both counts kept", () => {
   const n = network(net([["A", "B", 4, 9], ["B", "A", 2, 4]]), names);
@@ -196,13 +233,14 @@ test("a pair's two directions combine into one line, with both counts kept", () 
   assert.equal(e.ab, 4);
   assert.equal(e.ba, 2);
   assert.equal(e.total, 6);
-  assert.equal(e.width, EDGE_MAX); // the only line is the largest
+  assert.equal(e.width, EDGE_MAX); // 6 is the largest pair, so it is the thickest
   assert.equal(edgeTitle(e, n.players), "Ann Ash to Ben Birch: 4 assists, Ben Birch to Ann Ash: 2 assists");
 });
 
 test("a single assist draws a line, and the tooltip says 1 assist", () => {
   const n = network(net([["A", "B", 1, 2]]), names);
   assert.equal(n.edges.length, 1);
+  assert.equal(n.edges[0].width, EDGE_MIN);
   assert.equal(edgeTitle(n.edges[0], n.players), "Ann Ash to Ben Birch: 1 assist, Ben Birch to Ann Ash: 0 assists");
 });
 
@@ -245,7 +283,7 @@ test("labels are surnames, with the initial where two drawn players share one", 
 
 test("a club with no pairs has an empty network", () => {
   const empty = network(net([]), names);
-  assert.deepEqual(empty, { players: [], edges: [] });
+  assert.deepEqual(empty, { players: [], edges: [], hiddenPairs: 0 });
 });
 
 test("the view carries the network", () => {
