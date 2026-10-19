@@ -4,14 +4,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  EDGE_MAX,
+  EDGE_MIN,
+  VIEW,
   buildMatrix,
   connections,
+  edgeTitle,
+  edgeWidth,
+  labels,
   matchedShare,
+  network,
   passingView,
   roster,
   strongPairs,
   topPlayers,
+  vertex,
   type AssistClub,
+  type PairRow,
   type Person,
 } from "./passing.ts";
 
@@ -121,4 +130,127 @@ test("the view carries the caveat numbers and the matrix players", () => {
   assert.equal(view.asRows, 20);
   assert.equal(view.matrix.players.length, 2);
   assert.equal(view.connections[0].passer, "Player A");
+});
+
+// ---- The network ----
+
+const net = (pairs: PairRow[]): AssistClub => ({ ...club, pairs, passers: [] });
+const names = new Map([
+  ["A", "Ann Ash"],
+  ["B", "Ben Birch"],
+  ["C", "Cy Cole"],
+  ["D", "Dee Dunn"],
+]);
+
+test("vertices sit on a circle, the first at the top, clockwise", () => {
+  const v = (i: number, n: number) => vertex(i, n);
+  const top = v(0, 4);
+  assert.equal(top.x, VIEW.cx);
+  assert.equal(top.y, VIEW.cy - VIEW.r);
+  assert.equal(v(1, 4).x, VIEW.cx + VIEW.r);
+  assert.equal(v(2, 4).y, VIEW.cy + VIEW.r);
+  for (const n of [3, 5, 8]) {
+    for (let i = 0; i < n; i++) {
+      const p = vertex(i, n);
+      const radius = Math.hypot(p.x - VIEW.cx, p.y - VIEW.cy);
+      assert.ok(Math.abs(radius - VIEW.r) < 0.5, `n=${n} i=${i} radius ${radius}`);
+      assert.ok(p.x > 0 && p.x < VIEW.w && p.y > 0 && p.y < VIEW.h);
+    }
+  }
+});
+
+test("labels anchor away from the polygon and stay inside the viewBox", () => {
+  assert.equal(vertex(0, 4).anchor, "middle");
+  assert.equal(vertex(1, 4).anchor, "start"); // right side: the text runs right
+  assert.equal(vertex(3, 4).anchor, "end"); // left side: the text runs left
+  for (const n of [3, 4, 8]) {
+    for (let i = 0; i < n; i++) {
+      const p = vertex(i, n);
+      assert.ok(p.ly > 0 && p.ly < VIEW.h, `label y ${p.ly} for n=${n} i=${i}`);
+      if (p.anchor === "start") assert.ok(p.lx + 110 < VIEW.w, "room for a long surname on the right");
+      if (p.anchor === "end") assert.ok(p.lx - 110 > 0, "room for a long surname on the left");
+    }
+  }
+});
+
+test("line width is square-root scaled between the minimum and the maximum", () => {
+  assert.equal(edgeWidth(0, 10), EDGE_MIN);
+  assert.equal(edgeWidth(10, 10), EDGE_MAX);
+  assert.equal(edgeWidth(40, 10), EDGE_MAX); // capped at the largest
+  assert.equal(edgeWidth(5, 20), round1(EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.sqrt(0.25)));
+  assert.ok(edgeWidth(2, 10) > edgeWidth(1, 10));
+  assert.equal(edgeWidth(3, 0), EDGE_MIN);
+});
+
+function round1(x: number) {
+  return Math.round(x * 10) / 10;
+}
+
+test("a pair's two directions combine into one line, with both counts kept", () => {
+  const n = network(net([["A", "B", 4, 9], ["B", "A", 2, 4]]), names);
+  assert.equal(n.players.length, 2);
+  assert.equal(n.edges.length, 1);
+  const [e] = n.edges;
+  assert.equal(n.players[e.a].id, "A");
+  assert.equal(n.players[e.b].id, "B");
+  assert.equal(e.ab, 4);
+  assert.equal(e.ba, 2);
+  assert.equal(e.total, 6);
+  assert.equal(e.width, EDGE_MAX); // the only line is the largest
+  assert.equal(edgeTitle(e, n.players), "Ann Ash to Ben Birch: 4 assists, Ben Birch to Ann Ash: 2 assists");
+});
+
+test("a single assist draws a line, and the tooltip says 1 assist", () => {
+  const n = network(net([["A", "B", 1, 2]]), names);
+  assert.equal(n.edges.length, 1);
+  assert.equal(edgeTitle(n.edges[0], n.players), "Ann Ash to Ben Birch: 1 assist, Ben Birch to Ann Ash: 0 assists");
+});
+
+test("self-links are never drawn or listed", () => {
+  const c = net([["A", "A", 5, 10], ["A", "B", 2, 4]]);
+  assert.deepEqual(strongPairs(c), [["A", "B", 2, 4]]);
+  const n = network(c, names);
+  assert.equal(n.edges.length, 1);
+  assert.equal(n.players.find((p) => p.id === "A")?.given, 2);
+});
+
+test("the polygon takes the top players by assists involvement and drops the rest", () => {
+  const c = net([
+    ["A", "B", 5, 10],
+    ["C", "B", 1, 2],
+    ["D", "A", 1, 2],
+  ]);
+  const n = network(c, names, 2);
+  assert.deepEqual(n.players.map((p) => p.id), ["A", "B"]);
+  assert.equal(n.edges.length, 1); // C and D are off the polygon, so their lines are not drawn
+});
+
+test("thicker lines come last, so they paint on top", () => {
+  const c = net([
+    ["A", "B", 9, 18],
+    ["B", "C", 1, 2],
+    ["C", "D", 3, 6],
+  ]);
+  const n = network(c, names);
+  const totals = n.edges.map((e) => e.total);
+  assert.deepEqual(totals, [...totals].sort((x, y) => x - y));
+  assert.equal(n.edges[n.edges.length - 1].width, EDGE_MAX);
+});
+
+test("labels are surnames, with the initial where two drawn players share one", () => {
+  assert.deepEqual(labels(["Ann Ash", "Ben Birch"]), ["Ash", "Birch"]);
+  assert.deepEqual(labels(["Wade Baldwin IV", "Ann Baldwin"]), ["W. Baldwin", "A. Baldwin"]);
+  assert.deepEqual(labels(["Madonna"]), ["Madonna"]);
+});
+
+test("a club with no pairs has an empty network", () => {
+  const empty = network(net([]), names);
+  assert.deepEqual(empty, { players: [], edges: [] });
+});
+
+test("the view carries the network", () => {
+  const view = passingView(2024, club, [person("A", 6, 0), person("B", 3, 6)]);
+  assert.ok(view);
+  assert.equal(view.network.players.length, 3);
+  assert.equal(view.network.edges.length, 3);
 });

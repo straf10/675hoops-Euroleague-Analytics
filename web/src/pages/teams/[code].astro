@@ -5,7 +5,7 @@ import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import { SEASON_COLS } from "../../lib/player";
-import { clubShots, defaultSeason, meta, teamIndex, teamSeason, type TeamIndexRow } from "../../lib/stats";
+import { clubShots, defaultSeason, meta, teamIndex, teamOwn, teamSeason, type TeamIndexRow } from "../../lib/stats";
 import { DEFENSE, OFFENSE, factorRowHtml, factorRows, headCells, rosterHtml, teamBands, teamCharts } from "../../lib/team";
 import { sourceCode, teamFactors } from "../../lib/live";
 import { tip } from "../../lib/tip";
@@ -33,6 +33,12 @@ const m = (await meta())!;
 const open = defaultSeason(m).season;
 const year = [...club.seasons].reverse().find((s) => s <= open) ?? club.seasons[club.seasons.length - 1];
 const t = (await teamSeason(club.code, year))!;
+// The Passing tab renders every season the club has, so the season picker can show each one.
+const passingSeasons = [];
+for (const season of club.seasons) {
+  const own = season === year ? t : await teamOwn(club.code, season);
+  if (own) passingSeasons.push({ season, roster: own.roster, fields: own.rosterFields });
+}
 const lineups = await clubLineups(club.code);
 // The club's orange details take its make colour, the same as the players' shot charts.
 const pair = shotPair(club.code);
@@ -376,7 +382,7 @@ const bandHead = [
     <Lineups season={t.season} seasons={lineups.seasons} names={lineups.names} />
   </div>
 
-  <Passing code={club.code} season={t.season} roster={t.roster} fields={t.rosterFields} />
+  <Passing code={club.code} current={t.season} seasons={passingSeasons} />
   {
     hasSchedule(schedule) && (
       <div class="wrap tabpanel" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" hidden={t.season !== liveSeason}>
@@ -624,6 +630,7 @@ const bandHead = [
         document.getElementById("roster-body")!.innerHTML = rosterHtml(t, base!);
         syncSchedule(s);
         if (select) select.value = s;
+        for (const panel of document.querySelectorAll<HTMLElement>("[data-passing-season]")) panel.hidden = panel.dataset.passingSeason !== s;
         document.title = `${t.name} · 6.75 Analytics`;
         if (push) {
           const url = new URL(location.href);

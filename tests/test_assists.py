@@ -107,3 +107,12 @@ def test_fixture_games_are_paired_and_counted() -> None:
     for game_id, game_rows in rows.items():
         assert all(r.scorer is None or r.points in (2, 3) for r in game_rows), game_id
         assert all((r.scorer is None) == (r.points == 0) for r in game_rows), game_id
+
+
+def test_a_players_own_make_is_never_his_assist() -> None:
+    # the passer's own basket sits just before his AS row: skipped, so the teammate's make is linked
+    log = [ev("2FGM", A, "passer", 490), ev("AS", A, "passer", 480), ev("2FGM", A, "scorer", 470)]
+    assert assist_rows(log) == [AssistRow(A, "passer", "scorer", 2)]
+
+    alone = [ev("2FGM", A, "passer", 490), ev("AS", A, "passer", 480)]
+    assert assist_rows(alone) == [AssistRow(A, "passer", None, 0)]
