@@ -1,14 +1,24 @@
 ---
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import Base from "../../layouts/Base.astro";
 import "../../styles/stats.css";
 import {
+  DEFAULT_METRIC,
+  MIN_SAMPLE,
+  coachCaption,
+  coachHeadHtml,
+  coachRows,
+  coachRowsHtml,
+  coachViewFromQuery,
+  scopeRows,
   seasonRange,
-  signed,
-  winPct,
-  searchCoaches,
+  sortCoaches,
+  type CoachRow,
   type CoachSearchEntry,
+  type CoachView,
+  type Scope,
 } from "../../lib/coaches";
-import { coachIndex } from "../../lib/coach_files";
+import { coachIndex, coachStyles } from "../../lib/coach_files";
 
 const index = await coachIndex();
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -17,18 +27,21 @@ const named = index ? index.coverage.filter((c) => 2 * c.with_coach >= c.games) 
 const first = named.length ? Math.min(...named.map((c) => c.season)) : null;
 const firstLabel = first === null ? "" : seasonRange([first]);
 const description =
-  "EuroLeague head coaches since the box scores name them: games, record, win percentage and wins above the Elo expectation.";
+  "EuroLeague head coaches since the box scores name them: record, playoffs, and coaching style such as after-timeout scoring, clutch games, rotation and challenges.";
 
-// The latest season's club coaches, with their career figures from the index.
-const bySlug = new Map((index?.coaches ?? []).map((c) => [c.slug, c]));
 const season = index?.current_season ?? null;
 const through = index?.current_through ?? "";
-const current = index
-  ? index.current.flatMap((r) => {
-      const coach = bySlug.get(r.slug);
-      return coach ? [{ team: r.team, coach }] : [];
-    })
+const currentTitle = season === null ? "" : `${seasonRange([season])} EuroLeague coaches`;
+const allTitle = `All coaches${firstLabel ? ` since ${firstLabel}` : ""}`;
+// Every coach with the figures the table sorts by (career); the style figures come from each coach's page.
+const rows: CoachRow[] = index
+  ? coachRows(index, await coachStyles(index.coaches.map((c) => c.slug)), base)
   : [];
+// The page opens on this season's coaches, or on every coach when no season is published.
+const fallback: Scope = season === null ? "all" : "current";
+const view: CoachView = { scope: fallback, metric: DEFAULT_METRIC, dir: "desc" };
+const shown = sortCoaches(scopeRows(rows, view.scope), view.metric, view.dir);
+const shownTitle = view.scope === "all" ? allTitle : currentTitle;
 // Every coach, any season, for the search box (the page script reads this list).
 const entries: CoachSearchEntry[] = (index?.coaches ?? []).map((c) => ({
   name: c.name,
@@ -37,6 +50,7 @@ const entries: CoachSearchEntry[] = (index?.coaches ?? []).map((c) => ({
   clubs: c.clubs,
 }));
 const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
+const embeddedRows = JSON.stringify(rows).replace(/</g, "\\u003c");
 ---
 
 <Base title="Coaches" description={description} current="coaches">
@@ -82,42 +96,53 @@ const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
           <script type="application/json" id="coach-search" set:html={embedded} />
         </section>
 
-        {season !== null && (
-          <section class="wrap band" aria-labelledby="current-title">
-            <header class="sec-head">
-              <h2 id="current-title">{seasonRange([season])} EuroLeague coaches</h2>
-              <p>
-                Who coached each club's latest game (through {through}). Career EuroLeague totals.
-              </p>
+        {rows.length > 0 && (
+          <section class="wrap band" aria-labelledby="table-title">
+            <header class="sec-head split">
+              <h2 id="table-title">{shownTitle}</h2>
+              <div class="filters">
+                <label class="field">
+                  <span>Show</span>
+                  <span class="select">
+                    <select id="scope" name="scope" style="--select-w: 11.5rem">
+                      <option value="current" selected={view.scope === "current"}>
+                        This season's coaches
+                      </option>
+                      <option value="all" selected={view.scope === "all"}>All coaches</option>
+                    </select>
+                    <span class="caret" set:html={caret} />
+                  </span>
+                </label>
+              </div>
             </header>
-            <div class="scroll">
-              <table class="grid coaches">
-                <thead>
-                  <tr>
-                    <th scope="col">Club</th>
-                    <th scope="col">Coach</th>
-                    <th scope="col" class="num">G</th>
-                    <th scope="col" class="num">W-L</th>
-                    <th scope="col" class="num">Win %</th>
-                    <th scope="col" class="num">Wins above exp.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {current.map((r) => (
-                    <tr>
-                      <td class="team">{r.team}</td>
-                      <th scope="row">
-                        <a href={`${base}/coaches/${r.coach.slug}/`}>{r.coach.name}</a>
-                      </th>
-                      <td class="num">{r.coach.games}</td>
-                      <td class="num">{r.coach.wins}-{r.coach.losses}</td>
-                      <td class="num">{winPct(r.coach)}</td>
-                      <td class="num">{signed(r.coach.wins_above_expectation)}</td>
-                    </tr>
-                  ))}
-                </tbody>
+            <p class="lede-sm">
+              Career EuroLeague figures from the box scores that name each coach.
+              {through && ` This season's coaches are the coach of each club's latest game, through ${through}.`}
+              {" "}Tap a heading to sort; tap it again to reverse.
+            </p>
+            <div
+              class="scroll"
+              id="coaches"
+              data-current-title={currentTitle}
+              data-all-title={allTitle}
+              data-fallback={fallback}
+            >
+              <table class="grid coach-table">
+                <caption class="sr-only">{coachCaption(view, shownTitle)}</caption>
+                <thead set:html={coachHeadHtml(view)} />
+                <tbody set:html={coachRowsHtml(shown, view.metric)} />
               </table>
             </div>
+            <p class="note">
+              Rates need a minimum sample: win % {MIN_SAMPLE.games} games; after timeout{" "}
+              {MIN_SAMPLE.possessions} possessions; clutch win % {MIN_SAMPLE.clutch} clutch games;
+              players used and top 7 minutes {MIN_SAMPLE.games} games; challenges {MIN_SAMPLE.games}{" "}
+              games. A figure below its sample is greyed and sorts last, as does a dash (no value:
+              challenges start in 2021-22, and style needs a coach page). League figures over the
+              same seasons are on each coach's page. Playoffs, Final Four and titles are counted from
+              2015-16 on, when the box scores name the coach; earlier seasons are not counted.
+            </p>
+            <script type="application/json" id="coach-rows" set:html={embeddedRows} />
           </section>
         )}
       </>
@@ -126,7 +151,21 @@ const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
 </Base>
 
 <script>
-  import { searchCoaches, seasonRange, type CoachSearchEntry } from "../../lib/coaches";
+  import {
+    coachCaption,
+    coachHeadHtml,
+    coachRowsHtml,
+    coachViewFromQuery,
+    coachViewToQuery,
+    scopeRows,
+    searchCoaches,
+    seasonRange,
+    sortCoaches,
+    type CoachRow,
+    type CoachSearchEntry,
+    type CoachView,
+    type Scope,
+  } from "../../lib/coaches";
 
   const data = JSON.parse(document.getElementById("coach-search")?.textContent ?? "[]") as CoachSearchEntry[];
   const input = document.getElementById("coach-q") as HTMLInputElement | null;
@@ -160,6 +199,45 @@ const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
   }
 
   input?.addEventListener("input", render);
+
+  // The scope switch and the sortable heads redraw the table from the view, then write the view to the query string.
+  const host = document.getElementById("coaches");
+  const scope = document.getElementById("scope") as HTMLSelectElement | null;
+  const title = document.getElementById("table-title");
+  if (host && scope && title) {
+    const rows = JSON.parse(document.getElementById("coach-rows")?.textContent ?? "[]") as CoachRow[];
+    const fallback = (host.dataset.fallback ?? "current") as Scope;
+    const caption = host.querySelector("caption")!;
+    const thead = host.querySelector("thead")!;
+    const body = host.querySelector("tbody")!;
+    let view: CoachView = coachViewFromQuery(location.search, fallback);
+
+    const paint = () => {
+      const heading = view.scope === "all" ? host.dataset.allTitle ?? "" : host.dataset.currentTitle ?? "";
+      scope.value = view.scope;
+      title.textContent = heading;
+      caption.textContent = coachCaption(view, heading);
+      thead.innerHTML = coachHeadHtml(view);
+      body.innerHTML = coachRowsHtml(sortCoaches(scopeRows(rows, view.scope), view.metric, view.dir), view.metric);
+      history.replaceState(null, "", location.pathname + coachViewToQuery(view, fallback));
+    };
+
+    scope.addEventListener("change", () => {
+      view = { ...view, scope: scope.value as Scope };
+      paint();
+    });
+    // The same head again flips the order; another head starts from the highest figure.
+    thead.addEventListener("click", (e) => {
+      const button = (e.target as Element).closest<HTMLButtonElement>("button[data-sort]");
+      if (!button) return;
+      const key = button.dataset.sort!;
+      const dir = key === view.metric ? (view.dir === "desc" ? "asc" : "desc") : "desc";
+      view = { ...view, metric: key, dir };
+      paint();
+      (thead.querySelector(`[data-sort="${key}"]`) as HTMLElement | null)?.focus({ preventScroll: true });
+    });
+    if (location.search) paint();
+  }
 </script>
 
 <style>
@@ -215,6 +293,65 @@ const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
   @media (hover: hover) and (pointer: fine) {
     .find-results a:hover {
       text-decoration: underline;
+    }
+  }
+</style>
+
+<style>
+  .lede-sm {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    max-width: 68ch;
+  }
+  /* The table is built in lib/coaches.ts (and redrawn by the page script): its classes are global. */
+  .coach-table :global(td.now) {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .coach-table :global(td.strong) {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .coach-table :global(td.thin) {
+    color: var(--muted);
+  }
+  .coach-table :global(thead th) {
+    vertical-align: bottom;
+  }
+  .coach-table :global(thead .head) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  /* The sortable heads: a button that fills its cell, and the sorted column marked. */
+  .coach-table :global(thead button[data-sort]) {
+    padding: 8px 0 8px 10px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: right;
+    cursor: pointer;
+  }
+  .coach-table :global(thead th.on),
+  .coach-table :global(thead th[aria-sort="ascending"]),
+  .coach-table :global(thead th[aria-sort="descending"]) {
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: inset 0 -2px 0 var(--ink);
+  }
+  .coach-table :global(thead button:focus-visible) {
+    outline: 2px solid var(--data-1);
+    outline-offset: 2px;
+  }
+  .coach-table :global(thead .info-tip) {
+    margin-left: 0;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .coach-table :global(thead button[data-sort]:hover) {
+      color: var(--ink);
     }
   }
 </style>

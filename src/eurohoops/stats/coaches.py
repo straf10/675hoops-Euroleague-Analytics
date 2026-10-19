@@ -5,6 +5,8 @@ Expectation: the pre-game Elo win probability of each side (the history Elo, ``a
 passes ``p_home``), so ``wins_above_expectation`` = actual wins - sum of those probabilities.
 Games whose box score names no coach are left out (``coverage`` says how many per season).
 Head-to-head: games between two named coaches, listed for pairs with ``H2H_MIN_GAMES`` or more.
+Playoffs: a season counts as a playoff season for a coach with a PO or FF game in it, a Final Four
+season with an FF game, and a title for the coach of the Final Four champion (``final_winners``).
 """
 
 import json
@@ -32,7 +34,11 @@ ROWS_COLUMNS = [
     "slug",
     "name",
     "tipoff_utc",
+    "phase",
+    "final",
+    "champion",
 ]
+PLAYOFF_PHASES = ("PO", "FF")  # the play-in (PI) and the Top 16 (TS) are not playoffs
 
 
 def with_elo(games: pd.DataFrame, params: EloParams, first_season: int) -> pd.DataFrame:
@@ -48,7 +54,39 @@ def with_elo(games: pd.DataFrame, params: EloParams, first_season: int) -> pd.Da
     return games.assign(p_home=games["game_id"].astype(str).map(probs))
 
 
-def _sides(raw_dir: Path, games: pd.DataFrame) -> list[dict[str, Any]]:
+def final_winners(games: pd.DataFrame) -> dict[str, str]:
+    """game_id -> the team code that won the Final Four final, per season where one is found.
+
+    The Final Four is two semifinals in the season's first Final Four round and then the rounds
+    after it: the final is the one later game between the two semifinal winners (a third-place
+    game, where played, has losing semifinalists). A season without exactly one such game gets no
+    entry rather than a guess.
+    """
+    phase = games[games["phase"] == "FF"]
+    played = phase[phase["played"] & ~phase["forfeit"]]
+    winners: dict[str, str] = {}
+    for _, part in played.groupby("season"):
+        first = int(part["round"].min())
+        semis = part[part["round"] == first]
+        through = {
+            str(g["home"] if g["home_score"] > g["away_score"] else g["away"])
+            for g in semis.to_dict("records")
+        }
+        later = part[part["round"] > first]
+        finals = [
+            g
+            for g in later.to_dict("records")
+            if str(g["home"]) in through and str(g["away"]) in through
+        ]
+        if len(finals) == 1:
+            final = finals[0]
+            winners[str(final["game_id"])] = str(
+                final["home"] if final["home_score"] > final["away_score"] else final["away"]
+            )
+    return winners
+
+
+def _sides(raw_dir: Path, games: pd.DataFrame, champions: dict[str, str]) -> list[dict[str, Any]]:
     """One dict per team-game of ``games`` (played, not forfeit, with a cached box score)."""
     sides: list[dict[str, Any]] = []
     rated = games[games["played"] & ~games["forfeit"] & games["p_home"].notna()]
@@ -68,19 +106,23 @@ def _sides(raw_dir: Path, games: pd.DataFrame) -> list[dict[str, Any]]:
         if sorted(t for t, _ in found) != sorted((home, away)):
             continue  # the box score is not this game's (the same check as stats.box)
         home_won = int(game["home_score"]) > int(game["away_score"])
+        game_id = str(game["game_id"])
         for team, raw in found:
             is_home = team == home
             p_home = float(game["p_home"])
             sides.append(
                 {
                     "season": int(game["season"]),
-                    "game_id": str(game["game_id"]),
+                    "game_id": game_id,
                     "team": team,
                     "opponent": away if is_home else home,
                     "home": is_home,
                     "won": home_won == is_home,
                     "p_win": p_home if is_home else 1.0 - p_home,
                     "tipoff_utc": game["tipoff_utc"],
+                    "phase": str(game["phase"]),
+                    "final": game_id in champions,
+                    "champion": champions.get(game_id) == team,
                     "raw": raw,
                 }
             )
@@ -93,14 +135,16 @@ def coach_games(raw_dir: Path, games: pd.DataFrame) -> pd.DataFrame:
     ``games`` is one competition's games table with a ``p_home`` column (the pre-game Elo win
     probability of the home side, NaN where none was computed); games without it are skipped.
     """
-    sides = _sides(raw_dir, games)
+    sides = _sides(raw_dir, games, final_winners(games))
     named = resolve(Counter(s["raw"] for s in sides if s["raw"]))
     for side in sides:
         coach = named.get(side["raw"])
         side["slug"] = None if coach is None else coach.slug
         side["name"] = None if coach is None else coach.name
     frame = pd.DataFrame(sides, columns=[*ROWS_COLUMNS, "raw"])
-    return frame.drop(columns="raw").astype({"season": "int64", "p_win": "float64"})
+    return frame.drop(columns="raw").astype(
+        {"season": "int64", "p_win": "float64", "final": "bool", "champion": "bool"}
+    )
 
 
 def _count(rows: pd.DataFrame) -> dict[str, Any]:
@@ -113,6 +157,24 @@ def _count(rows: pd.DataFrame) -> dict[str, Any]:
         "losses": games - wins,
         "expected_wins": round(expected, 2),
         "wins_above_expectation": round(wins - expected, 2),
+    }
+
+
+def _playoffs(rows: pd.DataFrame) -> dict[str, int]:
+    """Seasons with a playoff game, with a Final Four game and with the Final Four title."""
+    by_season = pd.DataFrame(
+        {
+            "season": rows["season"],
+            "playoffs": rows["phase"].isin(PLAYOFF_PHASES),
+            "final_four": rows["phase"] == "FF",
+            "title": rows["champion"],
+        }
+    ).groupby("season")
+    seasons = by_season[["playoffs", "final_four", "title"]].any()
+    return {
+        "seasons": int(seasons["playoffs"].sum()),
+        "final_four": int(seasons["final_four"].sum()),
+        "titles": int(seasons["title"].sum()),
     }
 
 
@@ -197,6 +259,7 @@ def coach_payloads(
             **total,
             "seasons_played": sorted({r["season"] for r in seasons}),
             "clubs": [c["team"] for c in clubs.values()],
+            "playoffs": _playoffs(coach),
         }
         index.append(row)
         files[f"coaches/{slug}.json"] = {
