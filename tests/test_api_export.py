@@ -227,7 +227,7 @@ def test_export_stats_replaces_stale_season_files_and_honours_raw_dir(tree: Path
     result = runner.invoke(cli.app, args)
     assert result.exit_code == 0, result.output
     assert not (out / "seasons" / "1999").exists()
-    assert "wrote 18 files" in result.output and "2 seasons" in result.output
+    assert "wrote 38 files" in result.output and "2 seasons" in result.output
     assert (out / "meta.json").read_bytes().endswith(b"}\n")
 
 

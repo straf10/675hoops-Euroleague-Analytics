@@ -85,6 +85,7 @@ from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import BoxGames, build_box_games
+from eurohoops.stats.coaches import coach_games, with_elo
 from eurohoops.stats.export import (
     Inputs,
     build_payloads,
@@ -448,6 +449,9 @@ def stats_inputs(store: Store) -> Inputs:
         window = site_window(box.players["season"].unique())
         played = games[games["played"] & games["season"].isin(window)]
         raw = store.path(EUROLEAGUE.raw_dir)
+        # the walk-forward history Elo: its tuned parameters, replayed from the first warm-up season
+        history = EUROLEAGUE.history_backtests[0]
+        history_params = load_tuned_model(store.path(history.report)).params
         seasons = (int(s) for s in box.players["season"].unique())
         cached = [s for s in seasons if el_people_path(raw, s).exists()]
         return Inputs(
@@ -463,6 +467,7 @@ def stats_inputs(store: Store) -> Inputs:
             roster=read_rosters(raw, sorted(cached)),
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
             assists=game_assists(raw, played),
+            coaches=coach_games(raw, with_elo(games, history_params, history.warmup[0])),
         )
 
     return store.memo("stats_inputs", make)

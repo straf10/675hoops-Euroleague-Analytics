@@ -26,12 +26,14 @@ from eurohoops.api.app import CompactJSON, IndentedJSON, create_app
 from eurohoops.api.readmodel import Store
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, MART_PATH, SITE_DATA
+from eurohoops.eval.backtest import load_tuned_model
 from eurohoops.ingest.bios import el_people_path
 from eurohoops.logs import write_json
 from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games
+from eurohoops.stats.coaches import coach_games, with_elo
 from eurohoops.stats.export import (
     Inputs,
     build_payloads,
@@ -212,7 +214,7 @@ def test_a_missing_report_is_a_404_naming_the_file(tmp_path: Path) -> None:
     assert "m6_board.json not found: the M6 over/under board" in response.json()["detail"]
 
 
-def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
+def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dict[str, Any]]:
     """The payloads built the way ``cli export-stats --from-cache`` builds them."""
     games, teams = load_cached_games(raw)
     box = build_box_games(raw, games)
@@ -246,6 +248,7 @@ def _independent_stats(raw: Path, now: datetime) -> dict[str, dict[str, Any]]:
                     & games["season"].isin(site_window(box.players["season"].unique()))
                 ],
             ),
+            coaches=coach_games(raw, with_elo(games, load_tuned_model(history).params, 2007)),
         ),
         now,
     )
@@ -257,9 +260,16 @@ def test_stats_responses_are_the_bytes_write_stats_writes(
 ) -> None:
     client = make_client(finished_root, from_cache=from_cache, now=STATS_NOW)
     written = tmp_path / "written"
-    write_stats(written, _independent_stats(finished_root / EUROLEAGUE.raw_dir, STATS_NOW))
+    write_stats(
+        written,
+        _independent_stats(
+            finished_root / EUROLEAGUE.raw_dir,
+            STATS_NOW,
+            finished_root / "reports" / "backtest_elo_history.json",
+        ),
+    )
     paths = sorted(p.relative_to(written).as_posix() for p in written.rglob("*.json"))
-    assert client.get("/stats").json()["files"] == paths and len(paths) == 18
+    assert client.get("/stats").json()["files"] == paths and len(paths) == 38
     for path in paths:
         response = client.get(f"/stats/{path}")
         assert response.content == (written / path).read_bytes(), path
@@ -334,6 +344,8 @@ def test_stats_from_the_cache_never_open_duckdb(
     root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     shutil.copytree(root / "data" / "raw", tmp_path / "data" / "raw")  # the daily workflow's tree
+    (tmp_path / "reports").mkdir()
+    shutil.copy(root / "reports" / "backtest_elo_history.json", tmp_path / "reports")
     opened: list[str] = []
     monkeypatch.setattr(duckdb, "connect", lambda *a, **k: opened.append("x"))
     client = make_client(tmp_path, from_cache=True)

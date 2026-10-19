@@ -224,9 +224,11 @@ def write_publish(web: Path, files: Mapping[PurePosixPath, bytes]) -> None:
 
 
 def write_stats_files(out_dir: Path, files: Mapping[str, bytes]) -> None:
-    """Replace the stats directory's ``seasons`` and write ``files`` (as ``write_stats`` does)."""
-    if (out_dir / "seasons").exists():
-        shutil.rmtree(out_dir / "seasons")
+    """Replace the stats directory's ``seasons`` and ``coaches`` and write ``files`` (as
+    ``write_stats`` does)."""
+    for generated in ("seasons", "coaches"):
+        if (out_dir / generated).exists():
+            shutil.rmtree(out_dir / generated)
     for relative, body in files.items():
         target = out_dir / relative
         target.parent.mkdir(parents=True, exist_ok=True)

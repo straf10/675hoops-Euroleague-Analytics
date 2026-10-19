@@ -1,0 +1,8 @@
+{
+  "seasons": {"warmup": [2007], "tuning": [2015], "test": [2024]},
+  "tuned": {"k": 30.0, "hca": 110.0, "reversion": 0.25, "frozen": false, "margin_scale": 28.4, "margin_sigma": 11.9},
+  "b0": {"home_win_rate": 0.632466, "home_margin": 3.721286},
+  "totals": {"baseline_by_season": {"2024": 160.0, "2025": 161.0}},
+  "metrics": {"test": {"elo": {"n": 3, "log_loss": 0.61}, "b0": {"n": 3, "log_loss": 0.66}}},
+  "test_log_loss_diff_elo_minus_b0": {"mean": -0.05, "ci95": [-0.08, -0.02]}
+}

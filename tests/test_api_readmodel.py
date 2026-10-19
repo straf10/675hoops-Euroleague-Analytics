@@ -139,6 +139,8 @@ def test_unknown_stats_file_names_the_listing(store: rm.Store) -> None:
 
 def test_stats_from_the_cache_need_no_marts(root: Path, tmp_path: Path) -> None:
     shutil.copytree(root / "data" / "raw", tmp_path / "data" / "raw")
+    (tmp_path / "reports").mkdir()  # the coach expectation reads the history Elo's parameters
+    shutil.copy(root / "reports" / "backtest_elo_history.json", tmp_path / "reports")
     local = rm.Store(tmp_path, from_cache=True)
     assert "seasons/2024/teams.json" in rm.stats_index(local, NOW)["files"]
     with pytest.raises(rm.NotFound, match="the marts are not built"):
