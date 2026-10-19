@@ -2,7 +2,7 @@
 // Guard, Forward or Center per season; the exporter writes it as "G" | "F" | "C" on each season
 // row (`pos`, absent when the player has no listing at all). The site shows Guard / Forward / Centre.
 
-export type SourcePos = "G" | "F" | "C";
+type SourcePos = "G" | "F" | "C";
 export type Position = "Guard" | "Forward" | "Centre";
 
 export const POSITIONS: Position[] = ["Guard", "Forward", "Centre"];

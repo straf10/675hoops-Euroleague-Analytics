@@ -10,10 +10,10 @@ import type { ClubUnits, UnitsFile } from "./lineups";
 import type { PlayerName } from "./lineups_html";
 import type { WpGame } from "./wp";
 
-export type Cell = [q: number, r: number, att: number, made: number, pts: number];
+type Cell = [q: number, r: number, att: number, made: number, pts: number];
 export type Bands = Record<string, [att: number, made: number]>;
 
-export interface SeasonMeta {
+interface SeasonMeta {
   season: number;
   label: string;
   live: boolean;
@@ -26,7 +26,7 @@ export interface SeasonMeta {
   players: number;
 }
 
-export interface Meta {
+interface Meta {
   generated_at: string;
   hex_radius_m: number;
   bands: string[];
@@ -61,7 +61,7 @@ export interface SeasonPlayers {
   players: PlayerRow[];
 }
 
-export interface TeamRow {
+interface TeamRow {
   code: string;
   name: string;
   w: number;
@@ -80,7 +80,7 @@ export interface TeamRow {
   continuity: Continuity | null;
 }
 
-export interface SeasonTeams {
+interface SeasonTeams {
   season: number;
   fields: string[];
   bands: string[];
@@ -96,7 +96,7 @@ export interface SeasonGames {
   logs: Record<string, (string | number)[][]>;
 }
 
-export interface SeasonShots {
+interface SeasonShots {
   season: number;
   hex_radius_m: number;
   league: Cell[];
@@ -549,7 +549,7 @@ export async function leaderPool(key: "career" | "best" | number): Promise<Pool>
   return { fields, most, rows: rows.map((e) => wire(e, fields)) };
 }
 
-export interface CardSeason {
+interface CardSeason {
   season: number;
   team: string; // the club he ended the season with
   teams: string[];
@@ -557,7 +557,7 @@ export interface CardSeason {
   totals: number[];
 }
 
-export interface CardData {
+interface CardData {
   slug: string;
   name: string;
   fields: string[];
@@ -636,7 +636,7 @@ export interface OnOffSeason {
 }
 
 /** stats/onoff.json (from the stints): present only after the exporter has run it. */
-export interface OnOffFile {
+interface OnOffFile {
   /** Seasons whose stints are processed; the others get no on/off or clutch section. */
   seasons: number[];
   clutch: { last_seconds: number; margin: number };
@@ -651,10 +651,10 @@ export async function onOffData(): Promise<OnOffFile | null> {
 // ---- Accolades (stats/achievements.json) ----------------------------------------------------
 
 /** Furthest stage: RS, PI, PO, FF (Final Four), F (lost the final), W (champion). */
-export type Reached = "RS" | "PI" | "PO" | "FF" | "F" | "W";
+type Reached = "RS" | "PI" | "PO" | "FF" | "F" | "W";
 
 /** Club and player furthest stage per season since 2007-08, before the live season, and stat titles. */
-export interface AchievementsFile {
+interface AchievementsFile {
   seasons: number[];
   /** season (string) -> source club code -> stage */
   clubs: Record<string, Record<string, Reached>>;
@@ -664,7 +664,7 @@ export interface AchievementsFile {
   stat_titles?: Record<string, [season: number, stat: "pts" | "reb" | "ast" | "stl" | "blk" | "pir"][]>;
 }
 
-export async function achievements(): Promise<AchievementsFile | null> {
+async function achievements(): Promise<AchievementsFile | null> {
   return (await load<AchievementsFile>("achievements.json")) ?? null;
 }
 
@@ -674,7 +674,7 @@ export async function achievements(): Promise<AchievementsFile | null> {
  * before and after it (from_home, from_away, to_home, to_away); null where the row had no clock. */
 export type RunRow = (number | null)[];
 
-export interface RunsFile {
+interface RunsFile {
   season: number;
   run_fields: string[];
   /** game id -> the top three scoring runs of each side (by points, ties: the earlier run first) */
@@ -688,7 +688,7 @@ export async function runsData(year: number): Promise<RunsFile | null> {
 
 // ---- In-game win probability (seasons/{season}/wp.json, stats/wp.py) -----------------------
 
-export interface WpFile {
+interface WpFile {
   season: number;
   version: string;
   model: string;
@@ -705,7 +705,7 @@ export async function wpData(year: number): Promise<WpFile | null> {
 // ---- Best duos and units (seasons/{season}/units.json, stats/units.py) ----------------------
 
 /** One season's duos and units; null when the season has no units file (it did not pass the checks). */
-export async function unitsData(year: number): Promise<UnitsFile | null> {
+async function unitsData(year: number): Promise<UnitsFile | null> {
   return (await load<UnitsFile>(`seasons/${year}/units.json`)) ?? null;
 }
 

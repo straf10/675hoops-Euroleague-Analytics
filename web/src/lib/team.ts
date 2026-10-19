@@ -13,7 +13,7 @@ import type { ClubLine, TeamSeason } from "./stats";
 import type { IndexRow, Rates } from "./ranking";
 
 /** Ratings and four factors of one side, from its totals and its opponents'. */
-export function factors(fields: string[], own: number[], against: number[]) {
+function factors(fields: string[], own: number[], against: number[]) {
   const t = totalsOf(fields, own);
   const o = totalsOf(fields, against);
   const fga = (x: Totals) => x.fg2a + x.fg3a;
@@ -61,7 +61,7 @@ export const DEFENSE: Metric[] = [
   { key: "oftr", name: "Opponent free-throw rate", about: "Opponent free throws made per 100 of their field-goal attempts" },
 ];
 
-export const ordinal = (n: number) => {
+const ordinal = (n: number) => {
   const tail = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
   return `${n}${tail}`;
 };
@@ -73,7 +73,7 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 };
 
-export interface FactorRow {
+interface FactorRow {
   key: Key;
   name: string;
   about: string;

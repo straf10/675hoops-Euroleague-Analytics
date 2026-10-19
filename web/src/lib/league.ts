@@ -8,12 +8,12 @@ import { rankLeague, type LeagueLine, type PositionPool } from "./league_rank";
 import type { PlayerRow, SeasonPlayers } from "./stats";
 
 /** The six metrics, in order. Usage is a style measure (no better side, see `betterOf`). */
-export const KEY_METRICS: string[] = ["pts", "reb", "ast", "ts", "usg", "pir"];
+const KEY_METRICS: string[] = ["pts", "reb", "ast", "ts", "usg", "pir"];
 
 /** Minutes a game to be counted, and a quarter of the most games anyone played (the dashboard's rule). */
-export const FLOOR_MINUTES = 10;
+const FLOOR_MINUTES = 10;
 /** Whatever the quarter-of-the-most rule gives, a line needs at least this many games. */
-export const MIN_FLOOR_GAMES = 5;
+const MIN_FLOOR_GAMES = 5;
 
 export interface MetricBoard {
   key: string;

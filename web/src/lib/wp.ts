@@ -31,8 +31,8 @@ export interface WpGame {
   control: { home: number[]; away: number[] };
 }
 
-export const REG_SECONDS = 2400;
-export const OT_SECONDS = 300;
+const REG_SECONDS = 2400;
+const OT_SECONDS = 300;
 export const BP = 10000;
 
 /** The control parts in the order wp_control.py writes them. */

@@ -6,7 +6,7 @@
 import { esc } from "./format";
 
 /** Display code -> [body, trim]. A club's usual colours across 2007-2026, not any one kit. */
-export const CLUB_COLOURS: Record<string, [body: string, trim: string]> = {
+const CLUB_COLOURS: Record<string, [body: string, trim: string]> = {
   ASV: ["#16181d", "#e9e8e3"], // ASVEL: black, white (green in the older years)
   BAR: ["#a50044", "#1d3f8f"], // Barcelona: garnet, blue
   BAY: ["#c8102e", "#f4f4f1"], // Bayern: red, white
@@ -42,18 +42,18 @@ export function luminance(hex: string): number {
   return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
 }
 
-export const contrast = (a: string, b: string) => {
+const contrast = (a: string, b: string) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 };
 
 /** Name and number ink for a shirt body: whichever of the two page inks reads better on it. */
-export const inkOn = (body: string) => (contrast(body, DARK_INK) >= contrast(body, LIGHT_INK) ? DARK_INK : LIGHT_INK);
+const inkOn = (body: string) => (contrast(body, DARK_INK) >= contrast(body, LIGHT_INK) ? DARK_INK : LIGHT_INK);
 
 export const colours = (code: string) => CLUB_COLOURS[code] ?? FALLBACK;
 
 /** "Nando De Colo" -> "DE COLO"; family names with particles keep them. */
-export function surname(name: string): string {
+function surname(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length < 2) return name.toUpperCase();
   let i = parts.length - 1;
@@ -67,7 +67,7 @@ const BODY =
   "M27 4H39Q50 12 61 4H73C74 21 82 31 93 33L91 108H9L7 33C18 31 26 21 27 4Z";
 const TRIM = ["M39 4Q50 12 61 4", "M73 4C74 21 82 31 93 33", "M27 4C26 21 18 31 7 33", "M9 104.5H91"];
 
-export interface Shirt {
+interface Shirt {
   code: string; // display code
   name: string;
   number: string;

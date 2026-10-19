@@ -189,14 +189,14 @@ export interface CoachRow {
 }
 
 /** A metric's figure. `thin` marks a rate below its minimum sample: shown greyed, never ranked. */
-export interface Measure {
+interface Measure {
   value: number | null;
   thin: boolean;
 }
 
-export type Kind = "int" | "pct1" | "pct0" | "dec1" | "dec2";
+type Kind = "int" | "pct1" | "pct0" | "dec1" | "dec2";
 
-export interface CoachMetric {
+interface CoachMetric {
   key: string;
   /** The column head (plain words). */
   head: string;
@@ -343,7 +343,7 @@ export const COACH_METRICS: CoachMetric[] = [
 
 export const DEFAULT_METRIC = "games";
 
-export const metricOf = (key: string): CoachMetric | undefined =>
+const metricOf = (key: string): CoachMetric | undefined =>
   COACH_METRICS.find((m) => m.key === key);
 
 /** The rows of the index, with each coach's figures; `styles` is keyed by slug (null: no coach page). */

@@ -26,7 +26,7 @@ export interface MatchdayRound {
 
 export type RoundWindow = Pick<MatchdayRound, "round" | "start_utc" | "end_utc">;
 
-export type MatchdayState =
+type MatchdayState =
   | { kind: "live"; round: number }
   | { kind: "between"; last: number | null; next: number | null };
 

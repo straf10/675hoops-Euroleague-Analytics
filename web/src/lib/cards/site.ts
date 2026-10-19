@@ -14,16 +14,16 @@ export function euroleague(): Competition | null {
 }
 
 /** "2026-10-21 08:04": a UTC ISO time as the forecast log writes it, to the minute. */
-export const utcStamp = (iso: string) => iso.slice(0, 16).replace("T", " ");
+const utcStamp = (iso: string) => iso.slice(0, 16).replace("T", " ");
 
 /** The model's name on the page, for the game card. The published Elo model is MOV-adjusted. */
-export function modelName(c: Competition): string {
+function modelName(c: Competition): string {
   const key = c.forecasts?.published ?? "";
   if (key === "elo") return "MOV-adjusted Elo";
   return c.forecasts?.models.find((m) => m.key === key)?.label ?? key;
 }
 
-export interface PreviewCard {
+interface PreviewCard {
   round: number;
   games: PreviewGame[];
   loggedAt: string;

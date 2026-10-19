@@ -6,7 +6,7 @@ import codes from "./m6_codes.json";
 
 // ---- Data -------------------------------------------------------------------------------------
 
-export interface Band {
+interface Band {
   mean: number;
   lo80: number;
   hi80: number;
@@ -99,7 +99,7 @@ export interface PlayerIndex {
   shot_making: { model: string; units: string; seasons: ShotMakingSeason[] } | null;
 }
 
-export interface SimilarRow {
+interface SimilarRow {
   rank: number;
   person_id: string;
   competition: string;
@@ -109,7 +109,7 @@ export interface SimilarRow {
   query_season?: number;
 }
 
-export interface SimilarReport {
+interface SimilarReport {
   model: string;
   season: number;
   person_id: string;
@@ -134,9 +134,9 @@ async function load<T>(relative: string): Promise<T | null> {
 }
 
 /** A EuroLeague stats player's file key: source id X is person `P:X`, file `P_X`. */
-export const personKey = (id: string): string => `P_${id}`;
+const personKey = (id: string): string => `P_${id}`;
 
-export interface PlayerM6 {
+interface PlayerM6 {
   projection: ProjectionReport | null;
   index: PlayerIndex | null;
   similar: SimilarReport | null;
@@ -160,13 +160,13 @@ export const seasonLabel = (s: number): string => `${s}-${String((s + 1) % 100).
 export const COMPETITIONS: Record<string, string> = { euroleague: "EuroLeague", gbl: "GBL" };
 
 /** A source team code as the site shows it (publish.py's DISPLAY_CODES; tests keep the copy in step). */
-export const displayCode = (competition: string, code: string): string =>
+const displayCode = (competition: string, code: string): string =>
   (codes as Record<string, Record<string, string>>)[competition]?.[code] ?? code;
 
 export const thousands = (x: number): string => Math.round(x).toLocaleString("en-GB");
 
 /** Counts per 100 possessions and shooting percentages: a stat's label, unit and kind. */
-export interface StatInfo {
+interface StatInfo {
   key: string;
   label: string;
   unit: string;
@@ -190,4 +190,3 @@ export const PROJECTED: StatInfo[] = [
 
 export const fixed = (x: number, digits = 1): string => (Math.abs(x) < 0.5 * 10 ** -digits ? 0 : x).toFixed(digits).replace(/^-/, "−");
 export const percent = (x: number): string => `${fixed(100 * x)}%`;
-export const range = (lo: number, hi: number, f: (x: number) => string = fixed): string => `${f(lo)} to ${f(hi)}`;

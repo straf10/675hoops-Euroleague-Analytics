@@ -6,7 +6,7 @@ import { athensDay, athensTime, signed } from "../format";
 import { INK, INK_SOFT, MUTED, RULE, canvas, footer, line, logo, pcts, split, text } from "./draw";
 import type { Side } from "./round";
 
-export interface GameCardInput {
+interface GameCardInput {
   home: Side;
   away: Side;
   tipoff_utc: string;

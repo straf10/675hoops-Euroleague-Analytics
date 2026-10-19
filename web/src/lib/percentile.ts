@@ -17,7 +17,7 @@
 // - O(n log n) per key: one sort, then a binary search per row.
 
 /** The direction of a metric: which end of its scale is good. */
-export type Better = "higher" | "lower";
+type Better = "higher" | "lower";
 
 export interface PoolRow {
   id: string;
@@ -37,7 +37,7 @@ export interface Placement {
 
 export type Placements = Map<string, Record<string, Placement | null>>;
 
-export interface RankOptions {
+interface RankOptions {
   /** Restrict the pool to rows whose group equals this (`null` means rows with no group). Left
    * undefined, the pool is every row. */
   group?: string | null;

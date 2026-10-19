@@ -5,7 +5,7 @@
 import { totalsOf } from "./player";
 import type { PlayerSeason } from "./stats";
 
-export const MIN_ANALYSIS_GAMES = 10;
+const MIN_ANALYSIS_GAMES = 10;
 
 /** `seasons` oldest first, never empty. */
 export function analysisSeason(seasons: PlayerSeason[]): PlayerSeason {

@@ -7,13 +7,13 @@
 /** Inside this distance from the basket it is "At the rim" (metres). */
 export const RIM_MAX_M = 1.5;
 /** The paint: this far either side of the centre, and up to the free-throw line (5.80 m). */
-export const PAINT_HALF_WIDTH_M = 2.45;
-export const PAINT_DEPTH_M = 5.8;
+const PAINT_HALF_WIDTH_M = 2.45;
+const PAINT_DEPTH_M = 5.8;
 /** The three-point line: 6.75 m in the arc, 6.60 m from the centre line in the corners. */
-export const THREE_ARC_M = 6.75;
-export const THREE_CORNER_X_M = 6.6;
+const THREE_ARC_M = 6.75;
+const THREE_CORNER_X_M = 6.6;
 /** Where the corner lines meet the arc: sqrt(6.75² - 6.6²), about 1.42 m from the basket. */
-export const THREE_CORNER_DEPTH_M = Math.sqrt(THREE_ARC_M ** 2 - THREE_CORNER_X_M ** 2);
+const THREE_CORNER_DEPTH_M = Math.sqrt(THREE_ARC_M ** 2 - THREE_CORNER_X_M ** 2);
 /** From this distance a three is "Deep 3". */
 export const DEEP_MIN_M = 8.0;
 
@@ -68,7 +68,7 @@ export interface RawShots {
   bits: { made: number; three: number };
 }
 
-export const emptyTotals = (): Totals => Object.fromEntries(ZONES.map(([z]) => [z, [0, 0, 0]])) as Totals;
+const emptyTotals = (): Totals => Object.fromEntries(ZONES.map(([z]) => [z, [0, 0, 0]])) as Totals;
 
 /** Adds the attempt at stride-4 index `i` of `dots` to a zone's totals. */
 function add(t: Totals, dots: number[], i: number): void {

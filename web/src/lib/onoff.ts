@@ -2,7 +2,7 @@
 
 import type { OnOffSide, OnOffSeason } from "./stats";
 
-export const per100 = (x: number, poss: number): number | null => (poss > 0 ? (100 * x) / poss : null);
+const per100 = (x: number, poss: number): number | null => (poss > 0 ? (100 * x) / poss : null);
 
 export interface Rates {
   minutes: number;
@@ -11,7 +11,7 @@ export interface Rates {
   net: number | null;
 }
 
-export function rates(s: OnOffSide): Rates {
+function rates(s: OnOffSide): Rates {
   const off = per100(s.pf, s.poss);
   const def = per100(s.pa, s.poss);
   return { minutes: s.sec / 60, off, def, net: off !== null && def !== null ? off - def : null };

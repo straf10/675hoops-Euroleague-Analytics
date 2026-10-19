@@ -9,7 +9,7 @@ export interface ClubCoach {
 }
 
 /** How many coaches the team page names before "+N more". */
-export const COACHES_SHOWN = 4;
+const COACHES_SHOWN = 4;
 
 /**
  * The coaches to name: the current one first (when there is one), then by last season, newest first.

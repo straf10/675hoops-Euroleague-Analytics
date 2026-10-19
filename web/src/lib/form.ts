@@ -5,7 +5,7 @@ import { esc } from "./format";
 import { dataTip, tip } from "./tip";
 import type { PlayerSeason } from "./stats";
 
-export interface FormGame {
+interface FormGame {
   date: string;
   opp: string;
   home: boolean;
@@ -48,7 +48,6 @@ export function recentGames(s: PlayerSeason, n = 5): FormGame[] {
   });
 }
 
-export const mean = (xs: number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 /** One bar per game: height by points, the figure above it, a tip with the game, a dashed line at the season average. */
 export function trendHtml(games: FormGame[], seasonAvg: number): string {

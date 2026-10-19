@@ -55,7 +55,7 @@ export const POLYGON_KEYS = ["ortg", "drtg", "efg", "tov", "oreb", "oefg", "otov
 
 const ALL_KEYS = TEAM_GROUPS.flatMap((g) => g.keys);
 
-export const metricFor = (key: string): Metric | undefined => metricOf(key) ?? SHOT_METRICS.find((m) => m.key === key);
+const metricFor = (key: string): Metric | undefined => metricOf(key) ?? SHOT_METRICS.find((m) => m.key === key);
 
 export const POLYGON_AXES: Axis[] = POLYGON_KEYS.map((key) => {
   const m = metricFor(key);
@@ -85,7 +85,7 @@ export function placeAll(rows: IndexRow[], keys: string[]): Placements {
 }
 
 /** A column: the club in its season, with the season's places and its size. */
-export interface TeamColumn {
+interface TeamColumn {
   code: string;
   season: number;
   label: string;

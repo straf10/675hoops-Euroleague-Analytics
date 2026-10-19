@@ -8,7 +8,7 @@ export interface Team {
   short?: string;
 }
 
-export interface Game {
+interface Game {
   game_id: string;
   round: number;
   tipoff_utc: string;
@@ -36,7 +36,7 @@ export interface Result extends Game {
 }
 
 /** One equal-width bin of predicted P(home): its games, mean prediction and home win rate. */
-export interface Bin {
+interface Bin {
   low: number;
   high: number;
   n: number;
@@ -148,9 +148,3 @@ export const signed = (x: number, digits = 1) =>
 
 const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
 
-/** "2025-26", or "2019-20 to 2025-26" for a run of seasons (the first and last are used). */
-export function seasonSpan(seasons: number[]): string {
-  const first = seasons[0];
-  const last = seasons[seasons.length - 1];
-  return first === last ? seasonLabel(first) : `${seasonLabel(first)} to ${seasonLabel(last)}`;
-}

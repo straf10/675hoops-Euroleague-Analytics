@@ -6,7 +6,7 @@
 import { court, DEPTH, num, toY, type HexCell } from "./court";
 import { colours, luminance } from "./jersey";
 
-export const SQUARE = 0.5; // metres
+const SQUARE = 0.5; // metres
 const SIGMA = 0.45; // smoothing width, metres
 const REACH = 3 * SIGMA; // cells further than this add nothing
 const PRIOR = 3; // attempts of shrinkage: a thin spot fades toward zero
@@ -25,7 +25,7 @@ interface Spot {
 
 /** One square of the floor: its box in court metres (x across, y from the basket), and the
  * smoothed frequency and quality at its centre. */
-export interface Square {
+interface Square {
   x: number;
   y: number;
   w: number;
@@ -59,7 +59,7 @@ function floor(): { x: number; y: number; w: number; h: number }[] {
 }
 
 /** Smooth the cells onto the floor's squares. Points beyond the reach of a square do not count. */
-export function bin(hex: HexCell[], radius: number): Square[] {
+function bin(hex: HexCell[], radius: number): Square[] {
   const pts = spots(hex, radius);
   return floor().map(({ x, y, w, h }) => {
     const cx = x + w / 2;

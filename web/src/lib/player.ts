@@ -44,7 +44,7 @@ export const totalsOf = (fields: string[], values: number[]): Totals =>
   Object.fromEntries(fields.map((f, i) => [f, values[i]]));
 
 const one = (x: number) => x.toFixed(1);
-export const pct = (num: number, den: number) => (den > 0 ? `${((100 * num) / den).toFixed(1)}` : "–");
+const pct = (num: number, den: number) => (den > 0 ? `${((100 * num) / den).toFixed(1)}` : "–");
 export const perGame = (t: Totals, x: number) => (t.gp ? one(x / t.gp) : "–");
 export const ts = (t: Totals) => pct(t.pts, 2 * (t.fg2a + t.fg3a + 0.44 * t.fta));
 
