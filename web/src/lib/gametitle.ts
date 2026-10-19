@@ -8,7 +8,7 @@ export function dayLabel(date: string): string {
   return DAY.format(new Date(`${date}T12:00:00Z`));
 }
 
-export interface GameTitleInput {
+interface GameTitleInput {
   /** Club names as shown on the site (home side first). */
   home: string;
   away: string;

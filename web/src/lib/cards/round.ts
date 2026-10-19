@@ -69,12 +69,12 @@ const W = 1080;
 const H = 1350;
 
 /** Brier score: the mean squared gap between the home-win chance and the result. */
-export function brier(games: { p: number; home_won: boolean }[]): number {
+function brier(games: { p: number; home_won: boolean }[]): number {
   return games.reduce((s, g) => s + (g.p - (g.home_won ? 1 : 0)) ** 2, 0) / games.length;
 }
 
 /** Log loss: the mean negative log of the probability given to what happened. */
-export function logLoss(games: { p: number; home_won: boolean }[]): number {
+function logLoss(games: { p: number; home_won: boolean }[]): number {
   return -games.reduce((s, g) => s + Math.log(g.home_won ? g.p : 1 - g.p), 0) / games.length;
 }
 

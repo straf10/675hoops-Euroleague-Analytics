@@ -39,7 +39,7 @@ export interface Metric {
   about: string;
 }
 
-export const METRICS: Metric[] = [
+const METRICS: Metric[] = [
   { key: "net", name: "Net rating", head: "Net", about: "Offensive rating minus defensive rating, points per 100 possessions" },
   { key: "ortg", name: "Offensive rating", head: "ORtg", about: "Points scored per 100 possessions" },
   { key: "drtg", name: "Defensive rating", head: "DRtg", about: "Points allowed per 100 opponent possessions" },
@@ -71,7 +71,7 @@ export const METRIC_GROUPS: { label: string; keys: string[] }[] = [
 export const DEFAULT_METRIC = "net";
 
 /** The columns every table shows (the sortable ones); a metric outside them gets a column after Pace. */
-export const BASE_KEYS = ["ortg", "drtg", "net", "pace", "sos_played", "sos_ahead"];
+const BASE_KEYS = ["ortg", "drtg", "net", "pace", "sos_played", "sos_ahead"];
 
 export const metricOf = (key: string): Metric | undefined => METRICS.find((m) => m.key === key);
 

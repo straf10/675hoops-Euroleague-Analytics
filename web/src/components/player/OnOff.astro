@@ -7,7 +7,7 @@ import { deltaHtml, signClass } from "../../lib/delta";
 import type { OnOffView } from "../../lib/onoff";
 import { tip } from "../../lib/tip";
 
-export interface OnOffPanel {
+interface OnOffPanel {
   season: number;
   label: string;
   /** null when he has no possessions on court or off it that season. */

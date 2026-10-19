@@ -24,7 +24,7 @@ export interface PositionPool {
   of: number;
 }
 
-export interface KeyRanks {
+interface KeyRanks {
   /** His value; null when he is not counted in this key. */
   mine: number | null;
   league: {

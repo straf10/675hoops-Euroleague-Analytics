@@ -9,7 +9,7 @@ import latin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff
 import latinExt from "@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2?inline";
 
 // Colours: the page tokens of src/styles/global.css (light theme). Cards are always light.
-export const PAPER = "#f9f9f7";
+const PAPER = "#f9f9f7";
 export const SURFACE = "#fcfcfb";
 export const INK = "#111110";
 export const INK_SOFT = "#52514e";
@@ -21,7 +21,7 @@ export const ORANGE = "#d9590b";
 export const GRAY = "#8f8d86";
 export const BLUE = "#2a78d6";
 
-export const FOOTER = "675hoops.com · Every forecast logged before tip-off";
+const FOOTER = "675hoops.com · Every forecast logged before tip-off";
 
 const decode = (dataUrl: string) => Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
 const FONTS: Font[] = [create(decode(latin)), create(decode(latinExt))];
@@ -66,7 +66,7 @@ function outline(cmds: Glyph["cmds"], ox: number, oy: number, k: number): string
   return d;
 }
 
-export interface TextStyle {
+interface TextStyle {
   size: number;
   weight?: number;
   fill?: string;

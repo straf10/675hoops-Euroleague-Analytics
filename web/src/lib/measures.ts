@@ -263,7 +263,7 @@ export const TOV_PCT: Measure = {
 
 export const BY_KEY = Object.fromEntries(MEASURES.map((m) => [m.key, m]));
 
-export const SETS: Record<ColumnSet, string[]> = {
+const SETS: Record<ColumnSet, string[]> = {
   box: ["gp", "min", "pts", "reb", "ast", "stl", "blk", "tov", "pir", "pm"],
   shooting: ["fga", "fg_pct", "fg2_pct", "fg3a", "fg3_pct", "fta", "ft_pct", "efg", "ts", "usg"],
   advanced: ["net", "ast_tov", "ast_pct", "reb_pct", "rapm"],
@@ -283,7 +283,7 @@ export const PHONE_GROUPS: { set: ColumnSet; keys: string[] }[] = [
  *  floor; 251 average 10+, 190 15+, 107 20+ and 32 25+. */
 export const MIN_PRESETS = [0, 10, 15, 20, 25];
 /** The preset at or below n, so a free value from an old link lands on a preset (12 -> 10). */
-export const presetAtOrBelow = (n: number): number => {
+const presetAtOrBelow = (n: number): number => {
   let best = MIN_PRESETS[0];
   for (const p of MIN_PRESETS) if (p <= n && p > best) best = p;
   return best;

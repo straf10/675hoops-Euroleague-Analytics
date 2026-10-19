@@ -38,7 +38,7 @@ export interface Pick {
   season: number; // 0 = career, or when the scope is career
 }
 
-export interface Col {
+interface Col {
   card: Card;
   season: number; // 0: career
   team: string;
@@ -75,7 +75,7 @@ const EXTRA: Record<string, Measure> = {
 };
 const measure = (key: string) => EXTRA[key] ?? BY_KEY[key];
 
-export const GROUPS: { name: string; keys: string[] }[] = [
+const GROUPS: { name: string; keys: string[] }[] = [
   { name: "Playing time", keys: ["gp", "gs", "min"] },
   { name: "Scoring", keys: ["pts", "ts", "efg", "fg2_pct", "fg3_pct", "fg3a", "ft_pct", "fta"] },
   { name: "Playmaking", keys: ["ast", "tov", "ast_tov", "usg"] },
@@ -99,14 +99,14 @@ function text(m: Measure, v: number | null, rate: CRate): string {
 
 const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
-export interface Cell {
+interface Cell {
   text: string;
   place: number; // 0: not placed (no value, under the floor, or a single player)
   lead: boolean;
   floor: boolean;
 }
 
-export interface Row {
+interface Row {
   key: string;
   head: string;
   name: string;
@@ -114,7 +114,7 @@ export interface Row {
   cells: Cell[];
 }
 
-export interface Grid {
+interface Grid {
   groups: { name: string; rows: Row[] }[];
   led: number[]; // rows each column leads
   rows: number; // rows with a leader

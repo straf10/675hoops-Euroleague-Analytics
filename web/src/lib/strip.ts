@@ -6,13 +6,13 @@
  *  dots' y is a px offset from its top. */
 export const STRIP_HEIGHT = 432;
 /** Dots whose centres fall in the same band of this many px share one jitter row. */
-export const BIN = 6;
+const BIN = 6;
 /** Each step a dot takes out from the centre in its band, to the right then the left. */
 export const STEP = 6;
 /** Half the width a tie group may spread to when the plot's width is not known (server render, tests). */
 export const DEFAULT_HALF_WIDTH = 120;
 
-export interface StripItem {
+interface StripItem {
   key: string;
   value: number;
   top: boolean;
@@ -27,7 +27,7 @@ export interface StripDot {
   top: boolean;
 }
 
-export interface StripTick {
+interface StripTick {
   value: number;
   y: number;
 }

@@ -39,27 +39,27 @@ export const LIST_SIZE = 10;
 /** The pairing target: the share of box-score assists that should be linked to a basket. */
 export const TARGET = 0.98;
 
-export interface Connection {
+interface Connection {
   passer: string;
   scorer: string;
   assists: number;
   points: number;
 }
 
-export interface MatrixCell {
+interface MatrixCell {
   assists: number;
   points: number;
   /** 0 to 1: the cell's share of the largest cell, for the ink shade */
   shade: number;
 }
 
-export interface Matrix {
+interface Matrix {
   players: Person[];
   /** cells[row][col]: row = passer, col = scorer; null on the diagonal and below the threshold */
   cells: (MatrixCell | null)[][];
 }
 
-export interface PassingView {
+interface PassingView {
   season: number;
   matched: number | null;
   linked: number;
@@ -172,20 +172,20 @@ export function passingView(
 // ---- The network: players at the vertices of a polygon, a line for each pair that assisted ----
 
 /** The polygon draws this many players: the top by assists given and received. */
-export const NETWORK_SIZE = 8;
+const NETWORK_SIZE = 8;
 /** The thinnest and thickest line, in viewBox units (the SVG scales with its column). A pair with
  *  one assist is EDGE_MIN; the team's largest pair is EDGE_MAX; the widths between are linear. */
 export const EDGE_MIN = 1;
 export const EDGE_MAX = 9;
 /** Opacity: the weakest pair is OPACITY_MIN, the strongest OPACITY_MAX, linear in between. */
-export const OPACITY_MIN = 0.25;
-export const OPACITY_MAX = 1;
+const OPACITY_MIN = 0.25;
+const OPACITY_MAX = 1;
 /** Above this many drawn pairs, the pairs with one assist are not drawn: the picture would be a tangle. */
-export const MAX_DRAWN_PAIRS = 20;
+const MAX_DRAWN_PAIRS = 20;
 /** The viewBox: the polygon's centre and radius, and the gap between a vertex and its label. */
 export const VIEW = { w: 560, h: 440, cx: 280, cy: 220, r: 150, gap: 18 } as const;
 
-export interface NetPlayer {
+interface NetPlayer {
   id: string;
   name: string;
   /** the label on the vertex: the surname, with the initial when two drawn players share it */
@@ -201,7 +201,7 @@ export interface NetPlayer {
   ly: number;
 }
 
-export interface NetEdge {
+interface NetEdge {
   /** indices into Network.players, a < b */
   a: number;
   b: number;
@@ -216,7 +216,7 @@ export interface NetEdge {
   opacity: number;
 }
 
-export interface Network {
+interface Network {
   /** in vertex order, clockwise from the top */
   players: NetPlayer[];
   /** thinnest first, so the thick lines paint on top */
@@ -271,7 +271,7 @@ const round2 = (x: number) => Math.round(x * 100) / 100;
 
 /** Where a pair's cooperation sits from the weakest (one assist, 0) to the team's largest (1), linear
  *  in the count. With no spread (every pair one assist, or no pairs) it is 0. */
-export function edgeShare(total: number, largest: number): number {
+function edgeShare(total: number, largest: number): number {
   if (largest <= 1 || total <= 1) return 0;
   return Math.min(1, (Math.min(total, largest) - 1) / (largest - 1));
 }
@@ -287,7 +287,7 @@ export function edgeOpacity(total: number, largest: number): number {
 }
 
 /** The players drawn: the top `n` by assists involvement (given plus received). */
-export function networkPlayers(
+function networkPlayers(
   club: AssistClub,
   names: Map<string, string>,
   n = NETWORK_SIZE,

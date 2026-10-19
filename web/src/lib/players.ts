@@ -13,7 +13,7 @@ import { BY_KEY, columnsOf, format, MEASURES, measureTitle, rated, type RapmData
 
 export * from "./measures";
 
-export interface Line {
+interface Line {
   row: PlayerRow;
   totals: Totals;
   values: Record<string, number | null>;

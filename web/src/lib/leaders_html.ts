@@ -10,7 +10,7 @@ const rankRow = (r: BoardRank, rank: number, base: string) =>
   `<li><span class="rk">${rank}</span><span class="nm"><a href="${playerHref(base, r.e.slug)}">${esc(r.e.name)}</a><small>${esc(r.e.team)}</small></span><span class="val">${r.text}</span></li>`;
 
 /** One board card. `season` is the season on show (0 for a career); the Players link needs it. */
-export function boardHtml(b: Board, base: string, season: number, career: boolean): string {
+function boardHtml(b: Board, base: string, season: number, career: boolean): string {
   const { leader, next, qualified, spec } = b;
   const href = fullListHref(base, spec, season, career);
   const top = leader

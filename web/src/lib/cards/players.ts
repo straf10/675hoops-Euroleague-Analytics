@@ -8,7 +8,7 @@ import { meta, playerData, playerIndex, type PlayerIndexRow, type PlayerData } f
 import { playerSvg, type CardRate, type CardTwin, type PlayerCardInput } from "./player";
 
 /** The live season, as the site's metadata marks it. */
-export async function liveSeason(): Promise<number | null> {
+async function liveSeason(): Promise<number | null> {
   const m = await meta();
   return m?.seasons.find((s) => s.live)?.season ?? null;
 }
@@ -21,7 +21,7 @@ export async function currentPlayers(): Promise<PlayerIndexRow[]> {
 }
 
 /** The card's input for one player, from the page's data. Sections with no data come back empty. */
-export async function playerCardInput(p: PlayerIndexRow): Promise<PlayerCardInput | null> {
+async function playerCardInput(p: PlayerIndexRow): Promise<PlayerCardInput | null> {
   const m = (await meta())!;
   const live = m.seasons.find((s) => s.live);
   if (!live) return null;

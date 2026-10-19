@@ -6,7 +6,7 @@ import { sosOf } from "./strength";
 import { clubRows, leagueRates } from "./team";
 import { season } from "./stats";
 
-export interface SeasonRef {
+interface SeasonRef {
   season: number;
   label: string;
   live: boolean;

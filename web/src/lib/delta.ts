@@ -11,7 +11,7 @@ import type { BetterIs } from "./better";
 
 export type { BetterIs };
 
-export interface DeltaOptions {
+interface DeltaOptions {
   better?: BetterIs;
   /** Decimal places of the figure (default 1). */
   digits?: number;
@@ -31,10 +31,10 @@ export function signClass(v: number | null | undefined, digits = 1): string {
   return shown > 0 ? "sign-pos" : shown < 0 ? "sign-neg" : "";
 }
 
-export type Verdict = "better" | "worse" | "even" | "neutral";
+type Verdict = "better" | "worse" | "even" | "neutral";
 
 /** The reading of a difference (subject − comparison) for the subject. */
-export function deltaVerdict(diff: number, better: BetterIs = "higher"): Verdict {
+function deltaVerdict(diff: number, better: BetterIs = "higher"): Verdict {
   if (!Number.isFinite(diff) || diff === 0) return "even";
   if (better === "neither") return "neutral";
   return (diff > 0) === (better === "higher") ? "better" : "worse";

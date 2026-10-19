@@ -9,11 +9,11 @@ import { rankPool, type PoolRow } from "./percentile.ts";
 
 export const MIN_AXES = 3;
 export const MAX_AXES = 8;
-export const RINGS = [25, 50, 75, 100];
+const RINGS = [25, 50, 75, 100];
 /** The season pool's game floor, as in the player page's league board: a quarter of the most games anyone played, and at least this many. */
-export const MIN_FLOOR_GAMES = 5;
+const MIN_FLOOR_GAMES = 5;
 /** Minutes a game for a season line to be pooled (the Players page default). */
-export const FLOOR_MINUTES = 10;
+const FLOOR_MINUTES = 10;
 
 export interface Axis {
   key: string;
@@ -45,7 +45,7 @@ export const AXIS_KEYS = [
   "ast_tov",
 ];
 
-export function axisOf(key: string): Axis {
+function axisOf(key: string): Axis {
   const m = measureOf(key);
   if (!m) throw new Error(`polygon: no measure for axis ${key}`);
   return { key, head: m.head, name: m.name, about: m.about };
@@ -56,7 +56,7 @@ export const AXES: Axis[] = AXIS_KEYS.map(axisOf);
 /** The seven default axes: the All-round preset. */
 export const DEFAULT_AXES = ["pts", "ts", "usg", "ast_pct", "reb_pct", "tov_pct", "net"];
 
-export interface Preset {
+interface Preset {
   key: string;
   label: string;
   axes: string[];
@@ -79,7 +79,7 @@ export function toggleAxis(current: string[], key: string): string[] {
   return AXIS_KEYS.filter((k) => k === key || current.includes(k));
 }
 
-export interface Point {
+interface Point {
   x: number;
   y: number;
 }
@@ -112,7 +112,7 @@ export function shapePoints(pct: (number | null)[], cx: number, cy: number, radi
 }
 
 /** A metric's value for the pool or the player, per game for counts, or null when he does not qualify. */
-export function axisValue(key: string, t: Record<string, number>): number | null {
+function axisValue(key: string, t: Record<string, number>): number | null {
   const m = measureOf(key);
   if (!m) return null;
   if (m.qualifies && !m.qualifies(t)) return null;
@@ -120,7 +120,7 @@ export function axisValue(key: string, t: Record<string, number>): number | null
 }
 
 /** Totals by field name from a row's values, as the Players page builds them. */
-export function totalsOf(fields: string[], values: number[]): Record<string, number> {
+function totalsOf(fields: string[], values: number[]): Record<string, number> {
   return Object.fromEntries(fields.map((f, i) => [f, values[i]]));
 }
 
@@ -152,7 +152,7 @@ export interface Profile {
   axes: AxisPlace[];
 }
 
-export interface PoolOptions {
+interface PoolOptions {
   /** Career pool: whole careers with at least `careerGames` games (CAREER_GAMES in leaders.ts). */
   career: boolean;
   careerGames: number;
@@ -161,7 +161,7 @@ export interface PoolOptions {
 }
 
 /** The lines that make up the pool. Season: a games floor and a minutes floor. Career: a games floor. */
-export function poolOf(players: RawPlayer[], fields: string[], career: boolean, careerGames: number): { p: RawPlayer; t: Record<string, number> }[] {
+function poolOf(players: RawPlayer[], fields: string[], career: boolean, careerGames: number): { p: RawPlayer; t: Record<string, number> }[] {
   const lines = players.map((p) => ({ p, t: totalsOf(fields, p.totals) }));
   if (career) return lines.filter((l) => (l.t.gp ?? 0) >= careerGames);
   const most = Math.max(0, ...lines.map((l) => l.t.gp ?? 0));

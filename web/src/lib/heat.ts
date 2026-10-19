@@ -3,10 +3,10 @@
 // one at a time: frequency (how many shots from each spot, in the team's colour, more is stronger)
 // and shot making (points per attempt above the league's expectation: teal above, red-orange below).
 
-import { court, DEPTH, toY, type HexCell } from "./court";
+import { court, DEPTH, num, toY, type HexCell } from "./court";
 import { colours, luminance } from "./jersey";
 
-export const SQUARE = 0.5; // metres
+const SQUARE = 0.5; // metres
 const SIGMA = 0.45; // smoothing width, metres
 const REACH = 3 * SIGMA; // cells further than this add nothing
 const PRIOR = 3; // attempts of shrinkage: a thin spot fades toward zero
@@ -25,7 +25,7 @@ interface Spot {
 
 /** One square of the floor: its box in court metres (x across, y from the basket), and the
  * smoothed frequency and quality at its centre. */
-export interface Square {
+interface Square {
   x: number;
   y: number;
   w: number;
@@ -59,7 +59,7 @@ function floor(): { x: number; y: number; w: number; h: number }[] {
 }
 
 /** Smooth the cells onto the floor's squares. Points beyond the reach of a square do not count. */
-export function bin(hex: HexCell[], radius: number): Square[] {
+function bin(hex: HexCell[], radius: number): Square[] {
   const pts = spots(hex, radius);
   return floor().map(({ x, y, w, h }) => {
     const cx = x + w / 2;
@@ -88,9 +88,23 @@ export type Lit = (x: number, y: number) => boolean;
 /** A square outside the lit zones is faded to a fifth of its opacity, so the picked zones still read in place. */
 const dimming = (s: Square, lit?: Lit): number => (!lit || lit(s.x + s.w / 2, s.y + s.h / 2) ? 1 : 0.2);
 
-/** One square as a rect in layer coordinates (y carries the baseline offset, as lib/court.ts). */
-const rect = (s: Square, cls: string, opacity: number) =>
-  `<rect class="${cls}" x="${s.x.toFixed(3)}" y="${toY(s.y).toFixed(3)}" width="${s.w}" height="${s.h.toFixed(3)}" fill-opacity="${opacity.toFixed(2)}"/>`;
+/** Squares of one class and one opacity step become a single path: about a fifth of the bytes of one
+ * rect per square, which is most of a shot map. Opacity is rounded to steps of 0.05, too fine to see.
+ * Each square sits in layer coordinates (y carries the baseline offset, as lib/court.ts). */
+function squares(items: { s: Square; cls: string; opacity: number }[]): string {
+  const groups = new Map<string, { cls: string; opacity: number; d: string[] }>();
+  for (const { s, cls, opacity } of items) {
+    const step = Math.round(opacity * 20) / 20;
+    const key = `${cls}|${step}`;
+    const g = groups.get(key) ?? { cls, opacity: step, d: [] };
+    const y = toY(s.y);
+    g.d.push(`M${num(s.x)} ${num(y)}h${num(s.w)}v${num(s.h)}h${num(-s.w)}z`);
+    groups.set(key, g);
+  }
+  return [...groups.values()]
+    .map((g) => `<path class="${g.cls}" fill-opacity="${num(g.opacity)}" d="${g.d.join("")}"/>`)
+    .join("");
+}
 
 /** The busiest square's smoothed attempts, rounded: the frequency key's "up to x per area". */
 export function peakShots(hex: HexCell[], radius: number): number {
@@ -101,13 +115,12 @@ export function peakShots(hex: HexCell[], radius: number): number {
 export function freqHeat(hex: HexCell[], radius: number, label: string, lit?: Lit): string {
   const sq = bin(hex, radius);
   const top = Math.max(0, ...sq.map((s) => s.freq));
-  const rects = top
+  const items = top
     ? sq
         .filter((s) => s.freq / top >= FADE)
-        .map((s) => rect(s, "hf", Math.min(0.92, (s.freq / top) ** 0.6) * dimming(s, lit)))
-        .join("")
-    : "";
-  return court(`<g class="heat">${rects}</g>`, label);
+        .map((s) => ({ s, cls: "hf", opacity: Math.min(0.92, (s.freq / top) ** 0.6) * dimming(s, lit) }))
+    : [];
+  return court(`<g class="heat">${squares(items)}</g>`, label);
 }
 
 /** Black and grey: no hue and too dark (black) or too neutral (grey) to carry a make. White is not one. */
@@ -166,12 +179,11 @@ function achromatic(hex: string): boolean {
 
 /** Shot making: teal where the spot scores more than the league's shots from it, red-orange where less. */
 export function qualityHeat(hex: HexCell[], radius: number, label: string, lit?: Lit): string {
-  const rects = bin(hex, radius)
+  const items = bin(hex, radius)
     .filter((s) => Math.abs(s.quality) / FULL >= FADE)
     .map((s) => {
       const strength = Math.min(1, Math.abs(s.quality) / FULL);
-      return rect(s, s.quality > 0 ? "hq pos" : "hq neg", Math.min(0.92, strength ** 0.8) * dimming(s, lit));
-    })
-    .join("");
-  return court(`<g class="heat">${rects}</g>`, label);
+      return { s, cls: s.quality > 0 ? "hq pos" : "hq neg", opacity: Math.min(0.92, strength ** 0.8) * dimming(s, lit) };
+    });
+  return court(`<g class="heat">${squares(items)}</g>`, label);
 }

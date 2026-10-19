@@ -19,7 +19,7 @@ const league = () => ({
   url: "https://www.euroleaguebasketball.net",
 });
 
-export interface ClubInput extends Ref {
+interface ClubInput extends Ref {
   /** The players in the club's roster that have a page; omitted when empty. */
   athletes?: Ref[];
   /**
@@ -43,7 +43,7 @@ export function sportsTeam(club: ClubInput): JsonLdObject {
   };
 }
 
-export interface PlayerInput extends Ref {
+interface PlayerInput extends Ref {
   /** The clubs the player belongs to now. */
   affiliation?: Ref[];
   /** Only when the page has them; never estimated. */
@@ -67,7 +67,7 @@ export function person(p: PlayerInput): JsonLdObject {
   };
 }
 
-export interface CoachInput extends Ref {
+interface CoachInput extends Ref {
   /** The club the coach is with now, when the coach is in the latest season and the club has a page. */
   currentClub?: Ref;
 }
@@ -153,7 +153,7 @@ export function sportsEvent(g: GameInput): JsonLdObject {
   };
 }
 
-export interface DownloadFile {
+interface DownloadFile {
   name: string;
   /** Absolute URL of the file. */
   contentUrl: string;
@@ -161,7 +161,7 @@ export interface DownloadFile {
   compressionFormat?: string;
 }
 
-export interface DatasetInput {
+interface DatasetInput {
   name: string;
   description: string;
   /** Absolute URL of the page that describes the dataset. */

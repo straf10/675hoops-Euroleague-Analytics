@@ -23,7 +23,7 @@ export const REACHED_LABEL: Record<Reached, string> = {
   W: "Champion",
 };
 
-export const TITLE_LABEL: Record<TitleStat, string> = {
+const TITLE_LABEL: Record<TitleStat, string> = {
   pts: "Points",
   reb: "Rebounds",
   ast: "Assists",
@@ -33,7 +33,7 @@ export const TITLE_LABEL: Record<TitleStat, string> = {
 };
 
 /** The furthest stage in one season over all his clubs that season, with the club it came from. */
-export interface SeasonAch {
+interface SeasonAch {
   reached: Reached;
   club: string;
   clubs: number; // how many clubs he played for that season
@@ -53,7 +53,7 @@ export function seasonTitles(titles: StatTitle[], season: number): string[] {
   return titles.filter((t) => t[0] === season).map((t) => TITLE_LABEL[t[1]]);
 }
 
-export interface CareerAch {
+interface CareerAch {
   seasons: number; // seasons with an entry, since 2007-08
   clubs: number; // distinct clubs he played for, since 2007-08
   titles: number; // seasons his club won the EuroLeague (he played for it)

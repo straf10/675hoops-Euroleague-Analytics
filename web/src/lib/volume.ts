@@ -1,7 +1,7 @@
 // The home page's headline numbers, rounded down so they never overstate what is in the data.
 const count = (n: number): string => n.toLocaleString("en-GB");
 
-export interface Volume {
+interface Volume {
   games: number;
   seasons: number;
   actions?: number;

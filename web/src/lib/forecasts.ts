@@ -75,7 +75,7 @@ export interface RoundHeadline {
 }
 
 /** One bin of the reliability plot: predicted home-win chance against the observed rate. */
-export interface CalibrationBin {
+interface CalibrationBin {
   lo: number;
   hi: number;
   n: number;
@@ -98,7 +98,7 @@ const PHASES: Record<string, string> = {
   FF: "Final Four",
 };
 
-export const phaseName = (phase: string) => PHASES[phase] ?? phase;
+const phaseName = (phase: string) => PHASES[phase] ?? phase;
 
 /** "Round 3" for the regular season, the phase's name for a postseason group. */
 export const groupLabel = (phase: string, round: number | null) =>
@@ -130,7 +130,7 @@ export interface ChartSpec {
   b: number;
 }
 
-export interface BrierChart {
+interface BrierChart {
   spec: ChartSpec;
   ticks: { y: number; label: string }[];
   xs: { x: number; label: string }[];
@@ -203,7 +203,7 @@ export function headlineText(h: RoundHeadline, groupName: string): string {
   return `${groupName}: ${h.called} of ${h.games} called, Brier ${brier} vs home-win baseline ${base}; biggest miss: ${winner.code} beat ${loser.code} at ${share(p_winner)}.`;
 }
 
-export interface CalibrationPoint extends CalibrationBin {
+interface CalibrationPoint extends CalibrationBin {
   x: number;
   y: number;
   yLow: number;

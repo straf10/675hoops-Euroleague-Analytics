@@ -1,10 +1,10 @@
 // Pure helpers for the game page: one team's box score from the player game logs, the clock labels
 // and the phase names. Logs and runs come from stats/seasons/{y}/games.json and runs.json.
 
-export type Pair = [made: number, att: number];
+type Pair = [made: number, att: number];
 
 /** The box score's columns, as totals (one player's line, or a team's sum of lines). */
-export interface BoxStats {
+interface BoxStats {
   sec: number;
   pts: number;
   reb: number;
@@ -19,7 +19,7 @@ export interface BoxStats {
   ft: Pair;
 }
 
-export interface BoxLine extends BoxStats {
+interface BoxLine extends BoxStats {
   id: string;
   name: string;
   slug: string;

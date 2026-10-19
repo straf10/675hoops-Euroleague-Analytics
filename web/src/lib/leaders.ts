@@ -6,8 +6,8 @@
 import { betterOf } from "./better.ts";
 import { BY_KEY, format, rated, type Measure } from "./measures.ts";
 
-export type Scope = "season" | "career" | "best";
-export type Mode = "game" | "total";
+type Scope = "season" | "career" | "best";
+type Mode = "game" | "total";
 export type Totals = Record<string, number>;
 
 /** One line as the JSON endpoints ship it. ``season`` is 0 on a career line. */
@@ -32,7 +32,7 @@ export interface Entry {
   t: Totals;
 }
 
-export interface View {
+interface View {
   scope: Scope;
   season: number;
   stat: string;
@@ -48,11 +48,11 @@ export const SCOPES: { key: Scope; label: string }[] = [
   ...(SHOW_ALL_TIME ? [{ key: "best" as Scope, label: "Best seasons" }] : []),
 ];
 export const CAREER_GAMES = 60;
-export const SEASON_MINUTES = 15;
+const SEASON_MINUTES = 15;
 /** The Players page's floors (its defaults): a quarter of the most games anyone played that season,
  *  and ten minutes a game. A board ranks only players the Players page lists by default. */
-export const PLAYERS_GAMES_SHARE = 4;
-export const PLAYERS_MINUTES = 10;
+const PLAYERS_GAMES_SHARE = 4;
+const PLAYERS_MINUTES = 10;
 /** The first season the overview offers (2022-23); older seasons stay out of the select. */
 export const FIRST_OVERVIEW_SEASON = 2022;
 
@@ -98,7 +98,7 @@ export function valueOf(key: string, t: Totals, mode: Mode): number | null {
   return t.gp ? raw / t.gp : null;
 }
 
-export function text(key: string, v: number | null, mode: Mode): string {
+function text(key: string, v: number | null, mode: Mode): string {
   const m = measure(key);
   if (v === null || !Number.isFinite(v)) return "–";
   const digits = m.kind === "count" && mode === "total" ? 0 : m.digits;
@@ -118,7 +118,7 @@ export function failsFloor(e: Entry, view: View, most: Record<string, number>): 
   return e.t.gp < seasonFloor(most, e.season) || e.t.sec / e.t.gp < SEASON_MINUTES * 60;
 }
 
-export interface Ranked {
+interface Ranked {
   e: Entry;
   value: number | null;
   text: string;
@@ -126,7 +126,7 @@ export interface Ranked {
   floor: boolean;
 }
 
-export function rank(list: Entry[], view: View, most: Record<string, number>): Ranked[] {
+function rank(list: Entry[], view: View, most: Record<string, number>): Ranked[] {
   const rows = list.map((e) => {
     const value = valueOf(view.stat, e.t, view.mode);
     return { e, value, text: text(view.stat, value, view.mode), rank: 0, floor: value === null || failsFloor(e, view, most) };

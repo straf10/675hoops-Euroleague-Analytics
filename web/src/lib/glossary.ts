@@ -2,7 +2,7 @@
 // renders from this list, and `shownOn` names the pages where each term appears so a later check
 // can confirm none has been left behind when a page changes.
 
-export type GlossaryGroup =
+type GlossaryGroup =
   | "Box score"
   | "Shooting"
   | "Rates and samples"
@@ -12,7 +12,7 @@ export type GlossaryGroup =
   | "Player ratings"
   | "Accolades";
 
-export interface GlossaryTerm {
+interface GlossaryTerm {
   /** Stable anchor: /glossary/#ts-pct. Never rename one; other pages may link to it. */
   id: string;
   /** The label as the pages print it. */
