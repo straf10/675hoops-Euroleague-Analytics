@@ -29,6 +29,13 @@ import {
 
 const REPO = "https://github.com/straf10/675hoops-Euroleague-Analytics";
 import { sportsEvent, type JsonLdObject } from "../../../lib/jsonld";
+import { gameTitle, percent as chancePercent, preGameHomeChance, type PreGameRow } from "../../../lib/gametitle";
+import site from "../../../data/site.json";
+
+// The headline model's calls for every EuroLeague game, logged before tip-off (read-only).
+const forecasts = (
+  site as unknown as { competitions: { key: string; forecasts?: { published: string; games: PreGameRow[] } }[] }
+).competitions.find((c) => c.key === "euroleague")?.forecasts ?? { published: "", games: [] };
 
 // games.json tuple: date (Athens), round, phase, home, away, scores, tip-off (UTC, Z), venue, address.
 type Game = [
@@ -121,14 +128,19 @@ const boxes = [
   { code: away, side: "away", ...gameBox(fields, entries, away, people), margin: awayScore - homeScore },
 ];
 const finalLine = `${name(away)} ${awayScore}, ${name(home)} ${homeScore}`;
-const description = `${finalLine}, ${label} EuroLeague. Box score per team and the top scoring runs.`;
+const title = gameTitle({ home: name(home), away: name(away), date, homeScore, awayScore });
+// The pre-game call is for the page text only: forecast values never go into the markup.
+const chance = preGameHomeChance(forecasts.games, forecasts.published, gameId);
+const callLine = chance === null ? "" : ` Before tip-off we gave ${name(home)} a ${chancePercent(chance)} chance.`;
+const description = `${finalLine}, ${label} EuroLeague.${callLine} Box score per team and the top scoring runs.`;
+const markupDescription = `${finalLine}, ${label} EuroLeague. Box score per team and the top scoring runs.`;
 // Markup needs an arena (location is required); a game without one gets no Event block.
 const origin = Astro.site ?? "https://675hoops.com";
 const jsonLd: JsonLdObject | null = venue
   ? sportsEvent({
-      name: `${name(away)} at ${name(home)}`,
+      name: title,
       url: new URL(Astro.url.pathname, origin).href,
-      description,
+      description: markupDescription,
       image: new URL(`${base}/og.png`, origin).href,
       startDate: tipoff,
       eventStatus: "completed",
@@ -161,7 +173,7 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
 };
 ---
 
-<Base title={`${name(away)} at ${name(home)}, ${day}`} description={description}>
+<Base title={title} description={description}>
   {
     jsonLd && <JsonLd data={jsonLd} />
   }

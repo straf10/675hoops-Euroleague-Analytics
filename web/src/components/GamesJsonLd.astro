@@ -9,6 +9,7 @@ import raw from "../data/site.json";
 import type { SiteData } from "../lib/format";
 import { sourceCode } from "../lib/live";
 import { sportsEvent, type JsonLdObject } from "../lib/jsonld";
+import { gameTitle } from "../lib/gametitle";
 
 const origin = Astro.site ?? "https://675hoops.com";
 const abs = (path: string) => new URL(path, origin).href;
@@ -22,7 +23,11 @@ const events: JsonLdObject[] = (comp?.upcoming ?? []).flatMap((g) =>
   g.venue
     ? [
         sportsEvent({
-          name: `${g.home.name} vs ${g.away.name}`,
+          name: gameTitle({
+            home: g.home.name,
+            away: g.away.name,
+            date: athensDate.format(new Date(g.tipoff_utc)),
+          }),
           url: abs(`${root}/#${g.game_id}`),
           description: `EuroLeague ${comp?.season} game: ${g.home.name} vs ${g.away.name}.`,
           image: abs(`${root}/og.png`),
