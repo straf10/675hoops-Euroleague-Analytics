@@ -274,3 +274,8 @@ displayed_wp
 tipoff_gap
 game_parts
 team_view
+
+# Data audit (scripts/data_audit.py, a read-only CLI over the marts)
+from eurohoops.audit import run_audit  # noqa: E402
+
+run_audit
