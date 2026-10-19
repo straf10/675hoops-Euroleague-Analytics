@@ -12,8 +12,10 @@ with ``source = "pbp"``; they never count toward an official-box claim:
 Every short game gets a row in the fill log: what was filled, or why not.
 """
 
+import csv
 from collections import Counter
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +23,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.ingest.cache import read_cached
-from eurohoops.parse.esake import BoxLine, parse_box_score
+from eurohoops.parse.esake import BoxLine, TeamBox, parse_box_score
 from eurohoops.parse.gbl_pbp import PbpScoreError, parse_export, player_lines
 from eurohoops.parse.schemas import validated
 
@@ -29,6 +31,10 @@ COUNTS = ("points", "fg2m", "fg2a", "fg3m", "fg3a", "ftm", "fta", "seconds")
 SIGNATURE = COUNTS[:-1]  # every counting stat except minutes, which ESAKE and PBP round alike
 SOURCES = ("esake", "pbp")
 FILL_SEASONS = (2018, 2019)
+# Owner decision (2026-10-19): these two 2022 games are repaired from PBP too, and no other 2022
+# game is. Each must end with filled points equal to its result (tests/test_gbl_box_fix.py).
+OWNER_FILL_GAMES = frozenset({"GBL2022_4180233B", "GBL2022_AF0B05AA"})
+BOX_CORRECTIONS = Path("corrections/gbl_box.csv")
 FILLS = ("team_totals_from_pbp", "missing_player_from_pbp", "not_filled")
 
 PLAYER_BOX_SCHEMA = pa.DataFrameSchema(
@@ -72,6 +78,63 @@ class BoxTables:
     player_box: pd.DataFrame
     team_box: pd.DataFrame
     fill: pd.DataFrame  # one row per team of a short game
+
+
+@dataclass(frozen=True)
+class BoxCorrection:
+    """One documented per-player correction of an ESAKE line (``corrections/gbl_box.csv``)."""
+
+    raw_value: int  # the value ESAKE printed; a stale row (no longer matching) raises
+    value: int
+    reason: str
+
+
+def load_box_corrections(path: Path) -> dict[tuple[str, str, str], BoxCorrection]:
+    """The corrections file keyed by (game_id, team, player_id); missing file means none."""
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8", newline="") as handle:
+        return {
+            (row["game_id"], row["team"], row["player_id"]): BoxCorrection(
+                int(row["raw_seconds"]), int(row["seconds"]), row["reason"]
+            )
+            for row in csv.DictReader(handle)
+        }
+
+
+def _apply_corrections(
+    game_id: str,
+    team: str,
+    lines: tuple[BoxLine, ...],
+    corrections: Mapping[tuple[str, str, str], BoxCorrection],
+) -> tuple[BoxLine, ...]:
+    """Lines with their documented seconds; raises if a correction no longer matches ESAKE."""
+    out: list[BoxLine] = []
+    for line in lines:
+        fix = corrections.get((game_id, team, line.player_id))
+        if fix is None:
+            out.append(line)
+            continue
+        if fix.raw_value != line.seconds:
+            raise ValueError(
+                f"stale correction for {game_id} {line.player_id}: ESAKE says {line.seconds} s, "
+                f"the file says {fix.raw_value} s"
+            )
+        out.append(replace(line, seconds=fix.value))
+    return tuple(out)
+
+
+def _corrected(
+    game_id: str,
+    teams: tuple[str, str],
+    parsed: tuple[TeamBox, TeamBox],
+    corrections: Mapping[tuple[str, str, str], BoxCorrection],
+) -> tuple[TeamBox, TeamBox]:
+    home, away = (
+        replace(side, players=_apply_corrections(game_id, team, side.players, corrections))
+        for team, side in zip(teams, parsed, strict=True)
+    )
+    return home, away
 
 
 def _player_row(game_id: str, team: str, line: BoxLine) -> dict[str, object]:
@@ -139,7 +202,7 @@ def _fill(
     log = [
         {"game_id": game.game_id, "season": game.season, "team": game.teams[side]} for side in short
     ]
-    if game.season not in FILL_SEASONS:
+    if game.season not in FILL_SEASONS and game.game_id not in OWNER_FILL_GAMES:
         reason = "outside the 2018-19/2019-20 fill scope (user decision 2026-09-25)"
         return [], [], [{**row, "fill": "not_filled", "detail": reason} for row in log]
     pbp = _pbp(root, game)
@@ -180,7 +243,11 @@ def _fill(
     return players, teams, log
 
 
-def build_box_tables(root: Path, games: pd.DataFrame) -> BoxTables:
+def build_box_tables(
+    root: Path,
+    games: pd.DataFrame,
+    corrections: Mapping[tuple[str, str, str], BoxCorrection] | None = None,
+) -> BoxTables:
     """Parse every cached box score of a played, non-forfeit game in ``games``, then fill.
 
     Games without a cached or published box score get no ESAKE rows; the invariant report
@@ -190,6 +257,8 @@ def build_box_tables(root: Path, games: pd.DataFrame) -> BoxTables:
     teams: list[dict[str, object]] = []
     fills: list[dict[str, object]] = []
     rated = games[games["played"] & ~games["forfeit"]]
+    if corrections is None:
+        corrections = load_box_corrections(BOX_CORRECTIONS)
     for game_id, season, code, home, away, home_score, away_score in zip(
         rated["game_id"],
         rated["season"],
@@ -205,6 +274,8 @@ def build_box_tables(root: Path, games: pd.DataFrame) -> BoxTables:
         )
         path = root / "boxscore" / str(season) / f"{game.idgame}.html.gz"
         parsed = parse_box_score(read_cached(path).decode()) if path.exists() else None
+        if parsed is not None:
+            parsed = _corrected(game_id, game.teams, parsed, corrections)
         boxes = None if parsed is None else (parsed[0].players, parsed[1].players)
         for team, box in zip(game.teams, parsed or (), strict=False):
             teams.append(

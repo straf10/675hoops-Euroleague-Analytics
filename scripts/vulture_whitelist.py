@@ -279,3 +279,10 @@ team_view
 from eurohoops.audit import run_audit  # noqa: E402
 
 run_audit
+
+# Data audit: the coach and standings checks (scripts/data_audit.py)
+from eurohoops.audit_coaches import coach_findings  # noqa: E402
+from eurohoops.audit_standings import standings_findings  # noqa: E402
+
+coach_findings
+standings_findings

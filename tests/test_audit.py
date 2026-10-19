@@ -33,6 +33,10 @@ MISSING_DDL = (
     "(competition VARCHAR, season INTEGER, game_id VARCHAR, reason VARCHAR)"
 )
 XWALK_DDL = "CREATE TABLE player_xwalk (person_id VARCHAR, competition VARCHAR, source_id VARCHAR)"
+BOX_FILL_DDL = (
+    "CREATE TABLE box_fill (game_id VARCHAR, season INTEGER, team VARCHAR, fill VARCHAR, "
+    "detail VARCHAR)"
+)
 
 GOOD_GAME = (
     "G1",
@@ -53,7 +57,15 @@ GOOD_GAME = (
 @pytest.fixture
 def mart() -> Iterator[duckdb.DuckDBPyConnection]:
     con = duckdb.connect(":memory:")
-    for ddl in (GAMES_DDL, TEAM_GAMES_DDL, PLAYER_BOX_DDL, TEAM_BOX_DDL, MISSING_DDL, XWALK_DDL):
+    for ddl in (
+        GAMES_DDL,
+        TEAM_GAMES_DDL,
+        PLAYER_BOX_DDL,
+        TEAM_BOX_DDL,
+        MISSING_DDL,
+        XWALK_DDL,
+        BOX_FILL_DDL,
+    ):
         con.execute(ddl)
     con.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", list(GOOD_GAME))
     con.execute("INSERT INTO team_games VALUES ('G1','gbl',2024,'AAA',true,80,'esake')")
@@ -91,7 +103,7 @@ def test_team_total_and_score_mismatches_are_flagged(mart: duckdb.DuckDBPyConnec
     mart.execute("UPDATE team_box SET total_points = 79 WHERE team = 'AAA'")
     mart.execute("UPDATE team_games SET points = 71 WHERE team = 'BBB'")
     counts = _counts(mart)
-    assert counts["team_total_not_sum_of_players"] == 1
+    assert counts["official_box_total_not_score"] == 1
     assert counts["team_points_not_score"] == 1
 
 
@@ -132,7 +144,7 @@ def test_unlogged_missing_box_and_season_gaps(mart: duckdb.DuckDBPyConnection) -
     )
     findings = {f.name: f for f in audit(mart)}
     assert findings["played_without_team_rows"].count == 2
-    assert findings["played_game_unlisted_in_missing_log"].count == 2
+    assert findings["played_without_team_rows"].unexplained == 2  # nothing logged for them
     assert findings["season_gap"].count == 1
     assert "missing 2025" in findings["season_gap"].examples[0]
 
