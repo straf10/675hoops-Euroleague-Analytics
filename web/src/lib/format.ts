@@ -16,6 +16,13 @@ export interface Game {
   exp_margin: number;
 }
 
+/** Upcoming games only: the arena (null when the schedule has none) and whether the time is set. */
+export interface UpcomingGame extends Game {
+  venue: string | null;
+  venue_address: string | null;
+  tipoff_time_confirmed: boolean;
+}
+
 export interface Result extends Game {
   home_score: number;
   away_score: number;
@@ -67,7 +74,7 @@ export interface Competition {
   next_tipoff_utc: string | null;
   /** No game ahead has a confirmed time: show the date only. */
   next_tipoff_time_tbc: boolean;
-  upcoming: Game[];
+  upcoming: UpcomingGame[];
   results: Result[];
   scorecard: {
     elo: Metrics;
