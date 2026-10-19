@@ -44,6 +44,19 @@ PBP_EXPORT_URL = (
 EXPORT_ID = re.compile(r'&game_id=\\?"\s*\+\s*(\d+)')  # the JS may be escaped inside a string
 MIN_INTERVAL_S = 2.0
 SEASON_IDS = {
+    # ESAKE's championship dropdown (checked 2026-10-19): the 2006-07 to 2017-18 seasons
+    2006: "00000007",
+    2007: "00000006",
+    2008: "00000005",
+    2009: "00000004",
+    2010: "00000003",
+    2011: "00000002",
+    2012: "00000001",
+    2013: "46F7BA21",
+    2014: "3E05D578",
+    2015: "38100B0B",
+    2016: "44323D2A",
+    2017: "42C43378",
     2018: "A12E05CD",
     2019: "49EEB365",
     2020: "03FFA3AC",
