@@ -402,10 +402,11 @@ def _backtest_blend() -> None:
     Writes reports/backtest_blend.json: the scored folds and the same protocol on the warm-up
     seasons. Read-only for the live log: nothing in predict or publish reads this report."""
     games = read_games(MART_PATH, "euroleague")
-    _, report = run_blend(games, BLEND_FOLDS)
-    _, warmup = run_blend(games, BLEND_WARMUP_FOLDS)
-    payload = {"folds": report, "warmup": warmup}
-    write_json(BLEND_REPORT, payload)
+    minutes = build_box_games(EUROLEAGUE.raw_dir, games).players
+    roster = read_rosters(EUROLEAGUE.raw_dir, range(2007, max(BLEND_FOLDS) + 1))
+    _, report = run_blend(games, BLEND_FOLDS, minutes, roster)
+    _, warmup = run_blend(games, BLEND_WARMUP_FOLDS, minutes, roster)
+    write_json(BLEND_REPORT, {"folds": report, "warmup": warmup})
     log.info("wrote %s", BLEND_REPORT)
 
 

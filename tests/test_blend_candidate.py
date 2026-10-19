@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from eurohoops.eval.blend_backtest import run_blend
+from eurohoops.eval.blend_backtest import WEIGHT_GRID, run_blend
 from eurohoops.models.ridge_margin import RidgeParams, ridge_margin_forecast
 from tests.conftest import make_games
 
@@ -92,10 +92,26 @@ def test_run_blend_scores_every_rated_game_of_the_folds() -> None:
     games = make_games({2009: True, 2010: True, 2011: True, 2012: True})
     scored, report = run_blend(games, folds=(2011, 2012))
     expected = games[games["played"] & ~games["forfeit"] & games["season"].isin([2011, 2012])]
-    assert report["games"] == len(expected) == len(scored.won)
+    assert report["all"]["games"] == len(expected) == len(scored.won)
     assert set(report["per_season"]) == {"2011", "2012"}
-    assert report["pooled"]["blend"]["n"] == len(expected)
-    for p in (scored.p_live, scored.p_blend, scored.p_elo_normal, scored.p_b0):
+    assert report["all"]["pooled"]["blend"]["n"] == len(expected)
+    for p in (scored.p_live, scored.p_blend, scored.p_roster, scored.p_b0):
         assert np.all((p > 0.0) & (p < 1.0))
-    # The candidate's margin is the blend of Elo's margin and the ridge margin (a convex mix).
-    assert np.all(np.isfinite(scored.mu_blend))
+
+
+def test_chosen_weight_ignores_later_seasons() -> None:
+    games = make_games({2009: True, 2010: True, 2011: True, 2012: True}, seed=3)
+    _, before = run_blend(games, folds=(2011,))
+    altered = games.copy()
+    later = (altered["season"] == 2012).to_numpy()
+    altered.loc[later, "home_score"] = altered.loc[later, "away_score"] + 1
+    _, after = run_blend(altered, folds=(2011,))
+    assert before["chosen_by_season"] == after["chosen_by_season"]
+    assert before["chosen_by_season"]["2011"]["weight"] in WEIGHT_GRID
+
+
+def test_without_roster_inputs_the_roster_term_is_zero() -> None:
+    games = make_games({2009: True, 2010: True, 2011: True}, seed=5)
+    scored, _ = run_blend(games, folds=(2011,))
+    assert np.array_equal(scored.mu_roster, scored.mu_blend)
+    assert np.array_equal(scored.p_roster, scored.p_blend)
