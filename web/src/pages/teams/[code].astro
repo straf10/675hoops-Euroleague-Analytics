@@ -231,6 +231,9 @@ const bandHead = [
   </div>
 
   <div class="wrap tabpanel" role="tabpanel" id="panel-shots" aria-labelledby="tab-shots">
+  <!-- Heavy markup (two courts of heat squares per side). With JavaScript, a noscript is raw text: no elements are built
+       until the tab is first needed. Without it, the markup shows as usual. -->
+  <noscript id="tpl-shots">
   <section class="band" id="attempts" aria-labelledby="attempts-title">
     <header class="sec-head split">
       <div>
@@ -366,6 +369,7 @@ const bandHead = [
       An orange caret on Allowed means opponents shot worse than the league from that distance.
     </p>
   </section>
+  </noscript>
   </div>
 
   <div class="wrap tabpanel" role="tabpanel" id="panel-lineups" aria-labelledby="tab-lineups">
@@ -470,6 +474,7 @@ const bandHead = [
       const tab = shown.find((t) => t.dataset.tab === name) ?? shown[0];
       if (!tab) return;
       selected = tab.dataset.tab!;
+      if (selected === "shots") ensureShots();
       for (const t of tabs) {
         const on = t === tab;
         t.setAttribute("aria-selected", String(on));
@@ -500,7 +505,6 @@ const bandHead = [
     });
     tabs.forEach((t) => t.addEventListener("click", () => pick(t.dataset.tab!, true)));
     window.addEventListener("hashchange", () => pick(location.hash.slice(1), false));
-    pick(location.hash.slice(1), false);
 
     // The Schedule tab exists for the live season only, as its panel did.
     function syncSchedule(s: string) {
@@ -522,7 +526,6 @@ const bandHead = [
     };
     let shown: ClubShots | null = null;
     let current = Number(year);
-    const note = document.getElementById("attempts-note")!;
     const side = (): ClubSide => (document.querySelector<HTMLInputElement>('input[name="attempts-side"]:checked')?.value ?? "taken") as ClubSide;
 
     // The line under each chart: the picked zones' share and FG% of that side's attempts.
@@ -550,6 +553,7 @@ const bandHead = [
 
     async function loadAttempts(s: number) {
       current = s;
+      const note = document.getElementById("attempts-note")!;
       note.textContent = "";
       try {
         const file = await chartFile(s);
@@ -565,27 +569,42 @@ const bandHead = [
       }
     }
 
-    document.querySelectorAll<HTMLButtonElement>(".chip").forEach((chip) =>
-      chip.addEventListener("click", () => {
-        const z = chip.dataset.zone as Zone | "";
-        if (!z) picked.clear();
-        else if (picked.has(z)) picked.delete(z);
-        else picked.add(z);
-        document.querySelectorAll<HTMLButtonElement>(".chip").forEach((c) =>
-          c.setAttribute("aria-pressed", String(c.dataset.zone ? picked.has(c.dataset.zone as Zone) : picked.size === 0)),
-        );
-        drawAttempts();
-        redrawHeat();
-      }),
-    );
-    document.querySelectorAll<HTMLInputElement>('input[name="attempts-side"]').forEach((r) =>
-      r.addEventListener("change", drawAttempts),
-    );
+    // The shots tab's markup is stamped into its panel, and its controls bound, the first time it is needed:
+    // when the tab opens or the season changes. Its data loads then too, once.
+    let shotsStamped = false;
+    function ensureShots(season = current) {
+      if (shotsStamped) return;
+      shotsStamped = true;
+      const panel = document.getElementById("panel-shots")!;
+      const holder = document.createElement("template");
+      const markup = document.getElementById("tpl-shots");
+      holder.innerHTML = markup?.textContent ?? "";
+      markup?.remove();
+      panel.append(holder.content);
+      document.querySelectorAll<HTMLButtonElement>(".chip").forEach((chip) =>
+        chip.addEventListener("click", () => {
+          const z = chip.dataset.zone as Zone | "";
+          if (!z) picked.clear();
+          else if (picked.has(z)) picked.delete(z);
+          else picked.add(z);
+          document.querySelectorAll<HTMLButtonElement>(".chip").forEach((c) =>
+            c.setAttribute("aria-pressed", String(c.dataset.zone ? picked.has(c.dataset.zone as Zone) : picked.size === 0)),
+          );
+          drawAttempts();
+          redrawHeat();
+        }),
+      );
+      document.querySelectorAll<HTMLInputElement>('input[name="attempts-side"]').forEach((r) =>
+        r.addEventListener("change", drawAttempts),
+      );
+      loadAttempts(season);
+    }
 
     async function show(s: string, push: boolean) {
       root.setAttribute("aria-busy", "true");
       try {
         const t = await get(s);
+        ensureShots(Number(s));
         const c = headCells(t);
         text("t-name", t.name);
         html("c-record", c.record);
@@ -630,8 +649,8 @@ const bandHead = [
       if (select && [...select.options].some((o) => o.value === asked)) show(asked, false);
       else root.classList.remove("season-pending");
     }
-    // The page's own season: the chart is drawn from the inlined file, or fetched when it is not the live one.
-    if (!(asked && asked !== year)) loadAttempts(Number(year));
+    // The page's own tab, chosen by the hash. Last, so every function it can reach is defined.
+    pick(location.hash.slice(1), false);
   }
 </script>
 
@@ -643,6 +662,11 @@ const bandHead = [
   }
   :global(.season-pending) .seasonal {
     visibility: hidden;
+  }
+  /* Sections below the first screen skip layout and paint until they near the viewport. */
+  .band {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 520px;
   }
   .strength {
     color: var(--ink);
