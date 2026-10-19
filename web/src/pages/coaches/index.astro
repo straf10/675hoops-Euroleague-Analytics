@@ -1,0 +1,77 @@
+---
+import Base from "../../layouts/Base.astro";
+import "../../styles/stats.css";
+import { seasonRange, signed, winPct } from "../../lib/coaches";
+import { coachIndex } from "../../lib/coach_files";
+
+const index = await coachIndex();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// The first season in which most games name their coaches (2014-15 has a single named side).
+const named = index ? index.coverage.filter((c) => 2 * c.with_coach >= c.games) : [];
+const first = named.length ? Math.min(...named.map((c) => c.season)) : null;
+const firstLabel = first === null ? "" : seasonRange([first]);
+const description =
+  "EuroLeague head coaches since the box scores name them: games, record, win percentage and wins above the Elo expectation.";
+---
+
+<Base title="Coaches" description={description} current="coaches">
+  <section class="wrap head" aria-labelledby="coaches-title">
+    <h1 id="coaches-title">Coaches</h1>
+    <p>
+      Every EuroLeague coach the box scores name{firstLabel ? `, from ${firstLabel} on` : ""}. Wins
+      above expectation is wins minus the sum of each game's pre-game Elo win probability.
+    </p>
+  </section>
+
+  {
+    !index ? (
+      <section class="wrap">
+        <p class="empty-state">
+          The coach data has not been exported yet. Run <code>eurohoops export-stats</code> and
+          rebuild.
+        </p>
+      </section>
+    ) : (
+      <section class="wrap band" aria-labelledby="table-title">
+        <header class="sec-head">
+          <h2 id="table-title">All coaches</h2>
+          <p>
+            Ordered by games. A game counts when its box score names the coach of that side; games
+            without a named coach are left out. Expected wins come from the history Elo, which knows
+            nothing about the coach, so the gap is a rating signal, not proof of coaching skill.
+          </p>
+        </header>
+        <div class="scroll">
+          <table class="grid coaches">
+            <thead>
+              <tr>
+                <th scope="col">Coach</th>
+                <th scope="col">Seasons</th>
+                <th scope="col">Clubs</th>
+                <th scope="col" class="num">G</th>
+                <th scope="col" class="num">W-L</th>
+                <th scope="col" class="num">Win %</th>
+                <th scope="col" class="num">Wins above exp.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {index.coaches.map((c) => (
+                <tr>
+                  <th scope="row">
+                    <a href={`${base}/coaches/${c.slug}/`}>{c.name}</a>
+                  </th>
+                  <td>{seasonRange(c.seasons_played)}</td>
+                  <td class="team">{c.clubs.join(" · ")}</td>
+                  <td class="num">{c.games}</td>
+                  <td class="num">{c.wins}-{c.losses}</td>
+                  <td class="num">{winPct(c)}</td>
+                  <td class="num">{signed(c.wins_above_expectation)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
+</Base>
