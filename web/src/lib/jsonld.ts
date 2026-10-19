@@ -22,13 +22,20 @@ const league = () => ({
 export interface ClubInput extends Ref {
   /** The players in the club's roster that have a page; omitted when empty. */
   athletes?: Ref[];
+  /**
+   * Other names of the club: its short name and, for a Greek club, its Greek name. Omitted when none;
+   * one name is given as a string, more as a list.
+   */
+  alternateName?: string | (string | undefined)[];
 }
 
 export function sportsTeam(club: ClubInput): JsonLdObject {
+  const alt = [club.alternateName].flat().filter((n): n is string => Boolean(n));
   return {
     "@context": CONTEXT,
     "@type": "SportsTeam",
     name: club.name,
+    ...(alt.length ? { alternateName: alt.length === 1 ? alt[0] : alt } : {}),
     sport: SPORT,
     url: club.url,
     memberOf: league(),
@@ -60,6 +67,26 @@ export function person(p: PlayerInput): JsonLdObject {
   };
 }
 
+export interface CoachInput extends Ref {
+  /** The club the coach is with now, when the coach is in the latest season and the club has a page. */
+  currentClub?: Ref;
+}
+
+/**
+ * A head coach as a Person. Past clubs are not affiliations (the coach has left them); only the
+ * current club is worksFor, and only when it is known.
+ */
+export function coach(c: CoachInput): JsonLdObject {
+  return {
+    "@context": CONTEXT,
+    "@type": "Person",
+    name: c.name,
+    url: c.url,
+    jobTitle: "Head coach",
+    ...(c.currentClub ? { worksFor: ref("SportsTeam", c.currentClub) } : {}),
+  };
+}
+
 /** The arena a game is played at. The address only when the schedule gives one; never estimated. */
 export interface Venue {
   name: string;
@@ -73,6 +100,8 @@ export interface GameInput {
   description: string;
   /** Absolute URL of the social card. */
   image: string;
+  /** The short form of the name (the title), when it differs from `name`. */
+  alternateName?: string;
   /**
    * ISO 8601 with a time zone (2027-10-01T18:00:00Z) when the tip-off time is known; a bare date
    * (2027-10-01) while it is not. Never a made-up time.
@@ -109,6 +138,7 @@ export function sportsEvent(g: GameInput): JsonLdObject {
     "@context": CONTEXT,
     "@type": "SportsEvent",
     name: g.name,
+    ...(g.alternateName ? { alternateName: g.alternateName } : {}),
     url: g.url,
     description: g.description,
     image: g.image,
@@ -171,6 +201,26 @@ export function dataset(d: DatasetInput): JsonLdObject {
       contentUrl: f.contentUrl,
       encodingFormat: f.encodingFormat,
       ...(f.compressionFormat ? { compressionFormat: f.compressionFormat } : {}),
+    })),
+  };
+}
+
+/** One step of a breadcrumb trail: its label and absolute URL. */
+export interface Crumb {
+  name: string;
+  url: string;
+}
+
+/** The breadcrumb trail of a page, first step first (the home page is the first step of every trail). */
+export function breadcrumbList(trail: Crumb[]): JsonLdObject {
+  return {
+    "@context": CONTEXT,
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: c.url,
     })),
   };
 }

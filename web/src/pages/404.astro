@@ -1,0 +1,50 @@
+---
+// The page for an address the site does not have. Kept out of search results; the links below
+// are the site's main pages.
+import Base from "../layouts/Base.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const links = [
+  { href: `${base}/`, label: "Forecasts" },
+  { href: `${base}/players/`, label: "Players" },
+  { href: `${base}/teams/`, label: "Teams" },
+  { href: `${base}/standings/`, label: "Season projection" },
+  { href: `${base}/glossary/`, label: "Glossary" },
+];
+---
+
+<Base title="Page not found" description="This page is not on 6.75 Analytics. Forecasts, players, teams and the season projection are one click away." noindex>
+  <section class="wrap missing">
+    <h1>Page not found</h1>
+    <p class="lede">The address is wrong or the page has moved. These pages are still here:</p>
+    <nav aria-label="Main pages">
+      <ul>
+        {links.map((l) => <li><a href={l.href}>{l.label}</a></li>)}
+      </ul>
+    </nav>
+  </section>
+</Base>
+
+<style>
+  .missing {
+    padding-block: 96px 48px;
+  }
+  .missing h1 {
+    margin: 0 0 12px;
+  }
+  .missing .lede {
+    margin: 0 0 24px;
+    color: var(--ink-2);
+  }
+  .missing ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+  }
+  .missing a {
+    color: var(--ink);
+  }
+</style>

@@ -97,7 +97,11 @@ def test_site_is_the_publish_payload(store: rm.Store) -> None:
     # E2026_2 is logged twice and counted once; the round-2 rows tip off after now.
     assert el["logged"] == 5
     assert [g["game_id"] for g in el["upcoming"]] == ["E2026_4", "E2026_6"]
-    assert el["upcoming"][0]["away"] == {"code": "FBT", "name": "Fenerbahce Beko Istanbul"}
+    assert el["upcoming"][0]["away"] == {
+        "code": "FBT",
+        "name": "Fenerbahce Beko Istanbul",
+        "short": "Fenerbahce",
+    }
     assert len(el["ratings"]) == 6
     assert payload["data_volume"] == data_volume(
         store.path(MART_PATH), store.path(EUROLEAGUE.raw_dir / "playbyplay")
@@ -166,6 +170,7 @@ def test_upcoming_games_hold_the_pre_registered_forecast(store: rm.Store) -> Non
         "code": "ULK",
         "display_code": "FBT",
         "name": "Fenerbahce Beko Istanbul",
+        "short": "Fenerbahce",
     }
     assert (first["prediction"]["p_home"], first["prediction"]["exp_margin"]) == (0.61, 3.5)
     assert games[1]["prediction"] is None  # E2026_5 is not logged
@@ -239,7 +244,12 @@ def test_team_ratings_are_the_published_elo(store: rm.Store, root: Path) -> None
     assert out["elo"]["rating"] == round(now, 1) and out["elo"]["change"] == round(now - start, 1)
     # BAR won its three round-1 games and the other five teams won none
     assert (out["elo"]["rank"], out["elo"]["teams"]) == (1, 6)
-    assert out["team"] == {"code": "BAR", "display_code": "BAR", "name": "FC Barcelona"}
+    assert out["team"] == {
+        "code": "BAR",
+        "display_code": "BAR",
+        "name": "FC Barcelona",
+        "short": "Barcelona",
+    }
     assert out["m1"]["available"] is False
     assert rm.team_ratings(store, "euroleague", "ULK")["team"]["display_code"] == "FBT"
 

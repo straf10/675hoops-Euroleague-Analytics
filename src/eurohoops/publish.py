@@ -37,6 +37,101 @@ DISPLAY_CODES: dict[str, dict[str, str]] = {
 }
 
 
+# Short club names for page titles and search text, keyed by the source code (the same key
+# DISPLAY_CODES uses). The full name stays in the page body and in structured data. A club missing
+# here falls back to its full name; tests/test_publish.py checks every club in the data has one.
+SHORT_NAMES: dict[str, dict[str, str]] = {
+    "euroleague": {
+        "ARI": "Aris",
+        "ASV": "ASVEL",
+        "AVE": "Avellino",
+        "BAM": "Bamberg",
+        "BAR": "Barcelona",
+        "BAS": "Baskonia",
+        "BAY": "Bayern",
+        "BER": "Alba Berlin",
+        "BES": "Besiktas",
+        "BIL": "Bilbao",
+        "BUD": "Buducnost",
+        "CAN": "Gran Canaria",
+        "CED": "Cedevita",
+        "CHA": "Charleroi",
+        "CHL": "Chalon",
+        "CHO": "Cholet",
+        "CIB": "Cibona",
+        "COL": "RheinEnergie",
+        "CSK": "CSKA Moscow",
+        "DYN": "Dynamo",
+        "FOR": "Bologna",
+        "NAP": "Napoli",
+        "PAU": "Pau-Orthez",
+        "TRE": "Benetton",
+        "CTU": "Cantu",
+        "CZV": "Crvena Zvezda",
+        "DAR": "Darussafaka",
+        "DUB": "Dubai",
+        "DYR": "Zenit",
+        "EFS": "Anadolu Efes",
+        "FBT": "Fenerbahce",
+        "GAL": "Galatasaray",
+        "GSS": "Zielona Gora",
+        "HTA": "Hapoel Tel Aviv",
+        "IST": "Anadolu Efes",
+        "JOV": "Joventut",
+        "KBA": "Baskonia",
+        "KHI": "Khimki",
+        "KLA": "Klaipeda",
+        "KSK": "Karsiyaka",
+        "LEM": "Le Mans",
+        "LIE": "Rytas",
+        "LJU": "Olimpija",
+        "LMG": "Limoges",
+        "MAD": "Real Madrid",
+        "MAL": "Malaga",
+        "MAR": "Maroussi",
+        "MCO": "Monaco",
+        "MIL": "Milan",
+        "MTA": "Maccabi",
+        "MUN": "Bayern",
+        "NAN": "Nancy",
+        "NIK": "Budivelnik",
+        "NIO": "Panionios",
+        "NOV": "Nizhny Novgorod",
+        "NTR": "Nanterre",
+        "OLD": "Oldenburg",
+        "OLY": "Olympiacos",
+        "ORL": "Orleans",
+        "PAN": "Panathinaikos",
+        "PAM": "Valencia",
+        "PAR": "Partizan",
+        "PBB": "Paris",
+        "PRS": "Paris",
+        "RED": "Crvena Zvezda",
+        "RMB": "Real Madrid",
+        "ROA": "Roanne",
+        "ROM": "Roma",
+        "SAS": "Sassari",
+        "SIE": "Siena",
+        "SOP": "Gdynia",
+        "STR": "Strasbourg",
+        "TEL": "Maccabi",
+        "TIV": "Lokomotiv Kuban",
+        "UNK": "UNICS",
+        "ULK": "Fenerbahce",
+        "VBC": "Valencia",
+        "VIR": "Virtus",
+        "ZAG": "Zagreb",
+        "ZAL": "Zalgiris",
+        "ZGO": "Turow",
+    },
+}
+
+
+def short_name(competition: str, code: str, full: str) -> str:
+    """A club's short name from its source code, or its full name when it has none."""
+    return SHORT_NAMES.get(competition, {}).get(code, full)
+
+
 @dataclass(frozen=True)
 class Section:
     key: str
@@ -86,7 +181,8 @@ def _logged(section: Section) -> list[dict[Hashable, Any]]:
 
 def _team(section: Section, code: str) -> dict[str, str]:
     shown = DISPLAY_CODES.get(section.key, {}).get(code, code)
-    return {"code": shown, "name": section.names.get(code, code)}
+    name = section.names.get(code, code)
+    return {"code": shown, "name": name, "short": short_name(section.key, code, name)}
 
 
 def _game(section: Section, g: dict[Hashable, Any]) -> dict[str, Any]:

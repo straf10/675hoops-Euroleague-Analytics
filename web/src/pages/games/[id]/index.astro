@@ -29,6 +29,13 @@ import {
 
 const REPO = "https://github.com/straf10/675hoops-Euroleague-Analytics";
 import { sportsEvent, type JsonLdObject } from "../../../lib/jsonld";
+import { gameTitle, percent as chancePercent, preGameHomeChance, type PreGameRow } from "../../../lib/gametitle";
+import site from "../../../data/site.json";
+
+// The headline model's calls for every EuroLeague game, logged before tip-off (read-only).
+const forecasts = (
+  site as unknown as { competitions: { key: string; forecasts?: { published: string; games: PreGameRow[] } }[] }
+).competitions.find((c) => c.key === "euroleague")?.forecasts ?? { published: "", games: [] };
 
 // games.json tuple: date (Athens), round, phase, home, away, scores, tip-off (UTC, Z), venue, address.
 type Game = [
@@ -55,6 +62,8 @@ interface Props {
   runs: { home: RunRow[]; away: RunRow[] } | null;
   wp: WpGame | null;
   names: Record<string, string>;
+  /** Short club names, for the page title. */
+  short: Record<string, string>;
 }
 
 /** Every played game of the published seasons, one page each. */
@@ -97,6 +106,7 @@ export async function getStaticPaths() {
           runs: runs?.games[gameId] ?? null,
           wp: wp?.games[gameId] ?? null,
           names: { ...m.teams, [home]: m.teams[home] ?? home, [away]: m.teams[away] ?? away },
+          short: { ...m.short_teams, [home]: m.short_teams?.[home] ?? m.teams[home] ?? home, [away]: m.short_teams?.[away] ?? m.teams[away] ?? away },
         },
       });
     }
@@ -104,7 +114,7 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { gameId, year, label, game, fields, entries, people, runs, wp, names } = Astro.props;
+const { gameId, year, label, game, fields, entries, people, runs, wp, names, short } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const [date, round, phase, home, away, homeScore, awayScore, tipoff, venue, venueAddress] = game;
 const name = (code: string) => names[code] ?? code;
@@ -121,14 +131,23 @@ const boxes = [
   { code: away, side: "away", ...gameBox(fields, entries, away, people), margin: awayScore - homeScore },
 ];
 const finalLine = `${name(away)} ${awayScore}, ${name(home)} ${homeScore}`;
-const description = `${finalLine}, ${label} EuroLeague. Box score per team and the top scoring runs.`;
+// The page title uses short club names; the structured data name keeps the full names.
+const shortName = (code: string) => short[code] ?? name(code);
+const title = gameTitle({ home: shortName(home), away: shortName(away), date, homeScore, awayScore });
+const fullTitle = gameTitle({ home: name(home), away: name(away), date, homeScore, awayScore });
+// The pre-game call is for the page text only: forecast values never go into the markup.
+const chance = preGameHomeChance(forecasts.games, forecasts.published, gameId);
+const callLine = chance === null ? "" : ` Before tip-off we gave ${name(home)} a ${chancePercent(chance)} chance.`;
+const description = `${finalLine}, ${label} EuroLeague.${callLine} Box score per team and the top scoring runs.`;
+const markupDescription = `${finalLine}, ${label} EuroLeague. Box score per team and the top scoring runs.`;
 // Markup needs an arena (location is required); a game without one gets no Event block.
 const origin = Astro.site ?? "https://675hoops.com";
 const jsonLd: JsonLdObject | null = venue
   ? sportsEvent({
-      name: `${name(away)} at ${name(home)}`,
+      name: fullTitle,
+      alternateName: title,
       url: new URL(Astro.url.pathname, origin).href,
-      description,
+      description: markupDescription,
       image: new URL(`${base}/og.png`, origin).href,
       startDate: tipoff,
       eventStatus: "completed",
@@ -161,7 +180,7 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
 };
 ---
 
-<Base title={`${name(away)} at ${name(home)}, ${label}`} description={description}>
+<Base title={title} description={description}>
   {
     jsonLd && <JsonLd data={jsonLd} />
   }

@@ -4,7 +4,15 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sportsEvent, sportsTeam, type GameInput, type JsonLdObject } from "./jsonld.ts";
+import {
+  breadcrumbList,
+  coach,
+  person,
+  sportsEvent,
+  sportsTeam,
+  type GameInput,
+  type JsonLdObject,
+} from "./jsonld.ts";
 
 const game = (over: Partial<GameInput> = {}): GameInput => ({
   name: "Crvena Zvezda at Baskonia",
@@ -82,7 +90,91 @@ test("a date-only startDate passes through unchanged when the time is not set", 
   assert.equal(ev.startDate, "2026-10-24");
 });
 
+test("a Greek club carries its Greek name as alternateName; other clubs have none", () => {
+  const greek = sportsTeam({
+    name: "Olympiacos Piraeus",
+    url: "https://675hoops.com/teams/oly/",
+    alternateName: "Ολυμπιακός",
+  });
+  assert.equal(greek.alternateName, "Ολυμπιακός");
+  const other = sportsTeam({ name: "Baskonia", url: "https://675hoops.com/teams/kba/" });
+  assert.equal("alternateName" in other, false);
+});
+
+test("a club's short name and Greek name are both alternate names; empty entries are dropped", () => {
+  const greek = sportsTeam({
+    name: "Panathinaikos AKTOR Athens",
+    url: "https://675hoops.com/teams/pao/",
+    alternateName: ["Panathinaikos", "Παναθηναϊκός"],
+  });
+  assert.deepEqual(greek.alternateName, ["Panathinaikos", "Παναθηναϊκός"]);
+  const short = sportsTeam({
+    name: "Baskonia",
+    url: "https://675hoops.com/teams/kba/",
+    alternateName: ["Baskonia", undefined],
+  });
+  assert.equal(short.alternateName, "Baskonia");
+});
+
+test("a played game's structured data name is the full name; its short form is the alternate name", () => {
+  const ev = sportsEvent(game({ name: "Real Madrid 86–78 Virtus Bologna", alternateName: "Real Madrid 86–78 Virtus" }));
+  assert.equal(ev.name, "Real Madrid 86–78 Virtus Bologna");
+  assert.equal(ev.alternateName, "Real Madrid 86–78 Virtus");
+});
+
 test("team references stay bare: name and url only", () => {
   const team = sportsTeam({ name: "Baskonia", url: "https://675hoops.com/teams/kba/" });
   assert.deepEqual(Object.keys(team).sort(), ["@context", "@type", "memberOf", "name", "sport", "url"]);
+});
+
+test("a breadcrumb trail is a BreadcrumbList with 1-based positions in order", () => {
+  const out = breadcrumbList([
+    { name: "6.75 Analytics", url: "https://675hoops.com/" },
+    { name: "Teams", url: "https://675hoops.com/teams/" },
+    { name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
+  ]);
+  assert.equal(out["@context"], "https://schema.org");
+  assert.equal(out["@type"], "BreadcrumbList");
+  assert.deepEqual(
+    (out.itemListElement as JsonLdObject[]).map((i) => [i.position, i["@type"], i.name, i.item]),
+    [
+      [1, "ListItem", "6.75 Analytics", "https://675hoops.com/"],
+      [2, "ListItem", "Teams", "https://675hoops.com/teams/"],
+      [3, "ListItem", "Panathinaikos", "https://675hoops.com/teams/pan/"],
+    ],
+  );
+});
+
+test("a person is a Person with a name and URL, and a club affiliation only when given", () => {
+  const bare = person({ name: "Ilias Kantzouris", url: "https://675hoops.com/coaches/ilias-kantzouris/" });
+  assert.equal(bare["@type"], "Person");
+  assert.equal("affiliation" in bare, false);
+  const withClub = person({
+    name: "Ilias Kantzouris",
+    url: "https://675hoops.com/coaches/ilias-kantzouris/",
+    affiliation: [{ name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" }],
+  });
+  assert.deepEqual(withClub.affiliation, [
+    { "@type": "SportsTeam", name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
+  ]);
+});
+
+test("a coach is a head coach; worksFor is the current club only, and past clubs are not affiliations", () => {
+  const url = "https://675hoops.com/coaches/ilias-kantzouris/";
+  const current = coach({
+    name: "Ilias Kantzouris",
+    url,
+    currentClub: { name: "Panathinaikos", url: "https://675hoops.com/teams/pan/" },
+  });
+  assert.equal(current["@type"], "Person");
+  assert.equal(current.jobTitle, "Head coach");
+  assert.deepEqual(current.worksFor, {
+    "@type": "SportsTeam",
+    name: "Panathinaikos",
+    url: "https://675hoops.com/teams/pan/",
+  });
+  assert.equal("affiliation" in current, false);
+  const former = coach({ name: "Ilias Kantzouris", url });
+  assert.equal("worksFor" in former, false);
+  assert.equal("affiliation" in former, false);
 });

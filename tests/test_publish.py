@@ -1,14 +1,23 @@
 import dataclasses
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pandas as pd
+import pytest
 from pytest import MonkeyPatch
 
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.models.elo import EloParams
 from eurohoops.predict import LOG_COLUMNS
-from eurohoops.publish import DISPLAY_CODES, Section, section_data, site_data
+from eurohoops.publish import (
+    DISPLAY_CODES,
+    SHORT_NAMES,
+    Section,
+    section_data,
+    short_name,
+    site_data,
+)
 from tests.conftest import make_games
 
 NOW = datetime(2026, 10, 8, 8, 0, tzinfo=UTC)
@@ -189,3 +198,19 @@ def test_matchday_lists_every_round_of_the_live_season_with_its_window() -> None
     assert all(g["hit"] is None for g in rounds[1]["games"] if not g["played"])
     assert rounds[1]["games"][0]["p_home"] is not None  # logged before tip-off
     assert rounds[-1]["games"][0]["p_home"] is None  # not logged yet
+
+
+def test_short_name_is_the_source_code_entry_or_the_full_name() -> None:
+    assert short_name("euroleague", "PAN", "Panathinaikos AKTOR Athens") == "Panathinaikos"
+    assert short_name("euroleague", "XXX", "Some Club") == "Some Club"  # no entry: full name
+
+
+def test_every_club_in_the_data_has_a_short_name() -> None:
+    # The club list of the built stats (display codes); the short names are keyed by source code.
+    meta = Path("web/src/data/stats/meta.json")
+    if not meta.exists():
+        pytest.skip("no built stats data (run export-stats first)")
+    shown = [club["code"] for club in json.loads(meta.read_text(encoding="utf-8"))["clubs"]]
+    source = {v: k for k, v in DISPLAY_CODES["euroleague"].items()}
+    missing = [code for code in shown if source.get(code, code) not in SHORT_NAMES["euroleague"]]
+    assert missing == [], f"clubs without a short name: {missing}"

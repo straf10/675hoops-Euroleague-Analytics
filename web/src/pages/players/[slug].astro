@@ -84,7 +84,7 @@ const current = live !== undefined && latest.season === live.season;
 const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, height: 1350 } : undefined;
 ---
 
-<Base title={data.name} description={description} current="players" image={card}>
+<Base title={data.name} description={description} current="players" image={card} section={[{ name: "Players", href: `${base}/players/` }]}>
   <JsonLd
     slot="head"
     data={person({

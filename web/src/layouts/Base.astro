@@ -6,11 +6,15 @@ import "../styles/global.css";
 import sun from "@phosphor-icons/core/assets/regular/sun.svg?raw";
 import { buildDate, buildId } from "../lib/build";
 import Logo from "../components/Logo.astro";
+import JsonLd from "../components/JsonLd.astro";
+import { breadcrumbList, type Crumb } from "../lib/jsonld";
 import moon from "@phosphor-icons/core/assets/regular/moon.svg?raw";
 
 interface Props {
   title?: string;
   description: string;
+  /** The section a page sits under (e.g. Players for a player), between the home page and the page itself. */
+  section?: { name: string; href: string }[];
   /** Which top-bar page is current. */
   current?: "players" | "leaders" | "compare" | "teams" | "standings" | "forecasts" | "methodology" | "about" | "glossary" | "coaches" | "downloads";
   /** A share card under the site root (e.g. /cards/players/x.png) in place of the default social card. */
@@ -18,11 +22,21 @@ interface Props {
   /** Keeps the page out of search results (the share-card pages). */
   noindex?: boolean;
 }
-const { title, description, current, image: card, noindex } = Astro.props;
+const { title, description, current, image: card, noindex, section } = Astro.props;
 const fullTitle = title ? `${title} · 6.75 Analytics` : "6.75 Analytics";
 const url = new URL(Astro.url.pathname, Astro.site ?? "https://675hoops.com").href;
 const home = import.meta.env.BASE_URL;
 const root = home.replace(/\/$/, "");
+// Breadcrumbs for every indexable page but the home page (its WebSite markup is the trail's start).
+const origin = Astro.site ?? "https://675hoops.com";
+const homeUrl = new URL(`${root}/`, origin).href;
+const isHome = url === homeUrl;
+const trail: Crumb[] = [
+  { name: "6.75 Analytics", url: homeUrl },
+  ...(section ?? []).map((s) => ({ name: s.name, url: new URL(s.href, origin).href })),
+  ...(title ? [{ name: title, url }] : []),
+];
+const breadcrumbs = !noindex && !isHome && trail.length > 1 ? breadcrumbList(trail) : null;
 // The social card, the same on every page unless a page passes its own. The default needs public/og.png (1200x630).
 const shareCard = card ?? { path: "/og.png", width: 1200, height: 630 };
 const image = new URL(`${root}${shareCard.path}`, Astro.site ?? "https://675hoops.com").href;
@@ -66,12 +80,14 @@ const footLinks = [
     <meta name="twitter:image" content={image} />
     <link rel="canonical" href={url} />
     {noindex && <meta name="robots" content="noindex" />}
+    {breadcrumbs && <JsonLd data={breadcrumbs} />}
     <link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin />
     <slot name="head" />
     <link rel="icon" href={`${root}/favicon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${root}/favicon.ico`} sizes="32x32" />
     <link rel="apple-touch-icon" href={`${root}/apple-touch-icon.png`} />
     <link rel="manifest" href={`${root}/site.webmanifest`} />
+    <link rel="alternate" type="application/rss+xml" title="6.75 Analytics: EuroLeague predictions" href={`${root}/feed.xml`} />
     <script is:inline>
       // Theme: the visitor's saved choice wins, otherwise the system decides.
       try {

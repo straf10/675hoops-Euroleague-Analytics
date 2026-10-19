@@ -45,11 +45,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from eurohoops.config import SITE_SEASONS
+from eurohoops.config import EUROLEAGUE, SITE_SEASONS
 from eurohoops.ingest.cache import read_cached
 from eurohoops.ingest.euroleague import RawGame
 from eurohoops.models.continuity import club_share, player_continuity, season_start_roster
 from eurohoops.parse.games import ATHENS, build_games_table, build_teams_table
+from eurohoops.publish import short_name
 from eurohoops.standings import Result, rank
 from eurohoops.stats.achievements import achievements_payload
 from eurohoops.stats.assists import AssistRow, assists_payload
@@ -657,6 +658,11 @@ def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
         "player_fields": list(PLAYER_FIELDS),
         "team_fields": list(TEAM_FIELDS),
         "teams": {inputs.codes.get(c, c): inputs.names.get(c, c) for c in codes},
+        # Short club names (publish.SHORT_NAMES), keyed like "teams": the shown code.
+        "short_teams": {
+            inputs.codes.get(c, c): short_name(EUROLEAGUE.name, c, inputs.names.get(c, c))
+            for c in codes
+        },
         "clubs": clubs_payload(inputs.games, inputs.codes, inputs.names),
         "seasons": seasons,
     }
