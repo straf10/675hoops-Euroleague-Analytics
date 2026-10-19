@@ -275,6 +275,8 @@ play-1 (G3) moves to the late Play wave (D10).
 | play-2 | G4 accounts and leaderboards, then G5 Connections | D10 phase 2, W4a |
 | wp-pages | 7d, 7e, 7f | 7c |
 
+Status (2026-10-19): done except play-2 and mvp. Coaches, WP pages, SoS, the Compare teams view, the GSC event fixes and the Teams LCP fix are merged. The MVP ladder is parked on branch wave-e/mvp. play-2 waits for D10 phase 2. The coach pages' second half (after-timeout scoring, clutch record, rotation, challenges), the Coaches nav link with this season's coaches plus search, and the Forecasts home redesign (headline numbers, matchday block) were added the same day.
+
 ### Wave F (later)
 G6 38-0 Draft; #16 referees; §19.2 O-RAPM vs D-RAPM quadrant (as a view of the Players page, now that RAPM lives there); the model side track (M7 diagnosis, clinch logic, #18), whenever there is time.
 
@@ -293,11 +295,11 @@ You edit this list; the build fails if a slug or season is missing. Careers that
 |---|-------|---------|------|
 | 1 | MVP seasons | Dončić 2017-18 · Micić 2020-21 · Vezenkov 2022-23 | season |
 | 2 | Real Madrid point guards | Llull · Campazzo | career |
-| 3 | Rim protectors | Tavares 2022-23 · Lessort 2023-24 · Fall 2021-22 | season |
+| 3 | Rim protectors | Tavares 2022-23 · Lessort 2023-24 · Fall 2022-23 | season |
 | 4 | Greek playmakers | Sloukas · Calathes | career |
-| 5 | Efes title backcourt | Micić 2021-22 · Larkin 2021-22 | season |
+| 5 | Panathinaikos title backcourt | Nunn 2023-24 · Sloukas 2023-24 | season |
 | 6 | Pure scorers | Mike James · Shane Larkin | career |
-| 7 | Stretch fours | Mirotić 2021-22 · Vezenkov 2022-23 | season |
+| 7 | Stretch fours | Mirotić 2022-23 · Vezenkov 2022-23 | season |
 | 8 | Olympiacos leaders, a decade apart | Spanoulis 2012-13 · Sloukas 2021-22 | season |
 | 9 | Barcelona's go-to scorer | Navarro 2008-09 · Mirotić 2021-22 | season |
 | 10 | Winning big men | Kyle Hines · Tavares | career |

@@ -18,6 +18,7 @@ import pandas as pd
 from eurohoops.ingest.cache import read_cached
 from eurohoops.models.elo import EloParams, prepare, replay, win_probability
 from eurohoops.parse.coach_names import resolve
+from eurohoops.stats.coach_style import StyleIndex, coach_style
 
 H2H_MIN_GAMES = 4
 ROWS_COLUMNS = [
@@ -138,12 +139,16 @@ def current_coaches(
 
 
 def coach_payloads(
-    rows: pd.DataFrame, codes: Mapping[str, str], names: Mapping[str, str]
+    rows: pd.DataFrame,
+    codes: Mapping[str, str],
+    names: Mapping[str, str],
+    styles: StyleIndex | None = None,
 ) -> dict[str, dict[str, Any]]:
     """``coaches/index.json`` and one ``coaches/<slug>.json`` per named coach (see the docstring).
 
     ``codes`` maps source team codes to display codes and ``names`` to club names. Season and
-    club rows carry the display code; the game rows keep source codes upstream.
+    club rows carry the display code; the game rows keep source codes upstream. ``styles`` adds
+    each coach's ``style`` block (stats/coach_style.py) when given.
     """
     named = rows[rows["slug"].notna()]
     coverage = [
@@ -201,6 +206,7 @@ def coach_payloads(
             "seasons": seasons,
             "clubs": list(clubs.values()),
             "h2h": h2h,
+            "style": None if styles is None else coach_style(coach, styles),
         }
     index.sort(key=lambda row: (-row["games"], row["name"]))
     current_season, current = current_coaches(rows, codes)

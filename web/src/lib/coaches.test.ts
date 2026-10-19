@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normaliseName, searchCoaches, seasonRange, signed, winPct } from "./coaches.ts";
+import { normaliseName, rate, searchCoaches, seasonRange, share, signed, winPct } from "./coaches.ts";
 
 test("names normalise without accents, case or extra spaces", () => {
   assert.equal(normaliseName("Željko  Obradović"), "zeljko obradovic");
@@ -19,6 +19,15 @@ test("search matches accent-insensitive, case-insensitive parts of any word", ()
   assert.deepEqual(searchCoaches(coaches, "las").map((c) => c.href), ["/l/"]);
   assert.deepEqual(searchCoaches(coaches, "jasi laso"), []);
   assert.deepEqual(searchCoaches(coaches, "   "), []);
+});
+
+test("per-game rates and shares print with their precision, dash without a value", () => {
+  assert.equal(rate(1.0483), "1.05");
+  assert.equal(rate(10.275, 1), "10.3");
+  assert.equal(rate(null), "-");
+  assert.equal(share(0.5395), "54%");
+  assert.equal(share(0.4286), "43%");
+  assert.equal(share(null), "-");
 });
 
 test("win percentage with one decimal, dash without games", () => {

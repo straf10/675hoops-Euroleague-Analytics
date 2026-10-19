@@ -63,6 +63,34 @@ export interface CoachPage {
   seasons: CoachSeason[];
   clubs: CoachClub[];
   h2h: CoachHeadToHead[];
+  style: CoachStyle | null;
+}
+
+/** Coaching style (stats/coach_style.py): the coach's figures and the league's over the same seasons. */
+export interface CoachStyle {
+  ato: { possessions: number; points: number; ppp: number | null; league_ppp: number | null };
+  clutch: {
+    games: number;
+    team_games: number;
+    wins: number;
+    losses: number;
+    league_share: number | null;
+  };
+  rotation: {
+    games: number;
+    players_per_game: number | null;
+    top7_share: number | null;
+    league_players_per_game: number | null;
+    league_top7_share: number | null;
+  };
+  challenges: {
+    from_season: number;
+    games: number;
+    per_game: number | null;
+    late_share: number | null;
+    league_per_game: number | null;
+    league_late_share: number | null;
+  } | null;
 }
 
 /** Wins over games as a percentage with one decimal ("61.3%"); "-" with no games. */
@@ -71,6 +99,16 @@ export function winPct(c: Pick<Counts, "games" | "wins">): string {
 }
 
 /** A signed figure with one decimal: "+17.4", "-3.0", "0.0". */
+/** A per-game figure with the given decimals ("1.05"); "-" without a value. */
+export function rate(value: number | null, digits = 2): string {
+  return value === null ? "-" : value.toFixed(digits);
+}
+
+/** A share as a whole percentage ("55%"); "-" without a value. */
+export function share(value: number | null): string {
+  return value === null ? "-" : `${Math.round(100 * value)}%`;
+}
+
 export function signed(value: number): string {
   const text = value.toFixed(1);
   if (/^-?0\.0$/.test(text)) return "0.0";
