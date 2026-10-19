@@ -1,14 +1,33 @@
 ---
-// One EuroLeague game: the final score, the box score of each team and each team's three biggest
-// scoring runs. The id is the game id of games.json (E{season}_{game code}). No model output here:
-// win chances and odds never go on this page.
+// One EuroLeague game: the final score, the box score of each team, each team's three biggest
+// scoring runs and, where the play-by-play allows, the in-game win-probability line (WP v1, the
+// frozen gated model) with its biggest swings and control parts. The id is the game id of
+// games.json (E{season}_{game code}). Odds and forecasts never go on this page.
 import Base from "../../../layouts/Base.astro";
 import JsonLd from "../../../components/JsonLd.astro";
 import "../../../styles/stats.css";
-import { meta, runsData, season, type RunRow } from "../../../lib/stats";
+import { meta, runsData, season, wpData, type RunRow } from "../../../lib/stats";
 import { clockText, gameBox, phaseLabel, type LogEntry, type PersonRef } from "../../../lib/game";
 import { signClass } from "../../../lib/delta";
 import { playerHref, teamHref } from "../../../lib/players";
+import {
+  BP,
+  CONTROL_ORDER,
+  controlValue,
+  geometry,
+  gameClock,
+  linePath,
+  lineSummary,
+  percent,
+  playLabel,
+  points as ppText,
+  swingGain,
+  xAt,
+  yAt,
+  type WpGame,
+} from "../../../lib/wp";
+
+const REPO = "https://github.com/straf10/675hoops-Euroleague-Analytics";
 
 type Game = [date: string, round: number, phase: string, home: string, away: string, homeScore: number, awayScore: number];
 
@@ -21,6 +40,7 @@ interface Props {
   entries: LogEntry[];
   people: Record<string, PersonRef>;
   runs: { home: RunRow[]; away: RunRow[] } | null;
+  wp: WpGame | null;
   names: Record<string, string>;
 }
 
@@ -32,6 +52,7 @@ export async function getStaticPaths() {
   for (const info of m.seasons) {
     const games = await season(info.season, "games");
     const runs = await runsData(info.season);
+    const wp = await wpData(info.season);
     const players = new Map((await season(info.season, "players")).players.map((p) => [p.id, p]));
     const at = games.log_fields.indexOf("game_id");
     const byGame = new Map<string, LogEntry[]>();
@@ -61,6 +82,7 @@ export async function getStaticPaths() {
           entries,
           people,
           runs: runs?.games[gameId] ?? null,
+          wp: wp?.games[gameId] ?? null,
           names: { ...m.teams, [home]: m.teams[home] ?? home, [away]: m.teams[away] ?? away },
         },
       });
@@ -69,7 +91,7 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { gameId, year, label, game, fields, entries, people, runs, names } = Astro.props;
+const { gameId, year, label, game, fields, entries, people, runs, wp, names } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const [date, round, phase, home, away, homeScore, awayScore] = game;
 const name = (code: string) => names[code] ?? code;
@@ -90,6 +112,25 @@ const description = `${finalLine}, ${label} EuroLeague. Box score per team and t
 const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "");
 // Runs are [points, start period, start left, end period, end left, from home, from away, to home, to away].
 const runScore = (r: RunRow) => `${r[6]}–${r[5]} to ${r[8]}–${r[7]}`;
+// The win-probability section: the static SVG's frame, the quarter rules and the labels.
+const wpGeo = geometry(wp?.ot ?? 0);
+const plotW = wpGeo.width - wpGeo.left - wpGeo.right;
+const plotH = wpGeo.height - wpGeo.top - wpGeo.bottom;
+const wpSeps = wp ? [600, 1200, 1800, ...Array.from({ length: wp.ot }, (_, k) => 2400 + k * 300)] : [];
+const wpLabels = [
+  { at: 300, text: "Q1" },
+  { at: 900, text: "Q2" },
+  { at: 1500, text: "Q3" },
+  { at: 2100, text: "Q4" },
+  ...Array.from({ length: wp?.ot ?? 0 }, (_, k) => ({ at: 2400 + k * 300 + 150, text: `OT${k + 1}` })),
+];
+const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
+  dominance: "Dominance",
+  control: "Control",
+  drama: "Drama",
+  comeback: "Comeback",
+  crunch: "Crunch",
+};
 ---
 
 <Base title={`${name(away)} at ${name(home)}, ${label}`} description={description}>
@@ -189,6 +230,106 @@ const runScore = (r: RunRow) => `${r[6]}–${r[5]} to ${r[8]}–${r[7]}`;
     <p class="note">* Starter. The team's +/- is its final margin. Scores read away–home.</p>
   </section>
 
+  {
+    wp === null ? (
+      <section class="wp" aria-labelledby="wp-title">
+        <h2 id="wp-title">Win probability</h2>
+        <p class="note">No win-probability line: this game's play-by-play is missing or its clock is incomplete.</p>
+      </section>
+    ) : (
+      <section class="wp" aria-labelledby="wp-title">
+        <h2 id="wp-title">Win probability</h2>
+        <p class="lede">
+          The home team's chance of winning at each point of the game, from the pre-game forecast at tip-off to the
+          result at the final buzzer. Hover or tap the line to read a point.
+        </p>
+        <figure class="wp-figure" data-wp={JSON.stringify({ points: wp.line, g: wpGeo, home: name(home), away: name(away) })}>
+          <svg viewBox={`0 0 ${wpGeo.width} ${wpGeo.height}`} role="img" aria-label={lineSummary(name(home), name(away), wp)} class="wp-chart">
+            <rect class="wp-plot" x={wpGeo.left} y={wpGeo.top} width={plotW} height={plotH} />
+            {wpSeps.map((t) => (
+              <line class="wp-sep" x1={xAt(wpGeo, t)} x2={xAt(wpGeo, t)} y1={wpGeo.top} y2={wpGeo.top + plotH} />
+            ))}
+            {[BP, BP / 2, 0].map((v) => (
+              <g>
+                <line class={v === BP / 2 ? "wp-mid" : "wp-gridline"} x1={wpGeo.left} x2={wpGeo.left + plotW} y1={yAt(wpGeo, v)} y2={yAt(wpGeo, v)} />
+                <text class="wp-tick" x={wpGeo.left - 6} y={yAt(wpGeo, v) + 4} text-anchor="end">
+                  {percent(v)}
+                </text>
+              </g>
+            ))}
+            {wpLabels.map((l) => (
+              <text class="wp-tick" x={xAt(wpGeo, l.at)} y={wpGeo.height - 6} text-anchor="middle">
+                {l.text}
+              </text>
+            ))}
+            <path class="wp-series" d={linePath(wpGeo, wp.line)} />
+            <rect class="wp-hit" x={wpGeo.left} y={wpGeo.top} width={plotW} height={plotH} tabindex="0" aria-label="Win probability line. Use the arrow keys to read it." />
+            <g class="wp-probe" hidden>
+              <line class="wp-probe-line" x1="0" x2="0" y1={wpGeo.top} y2={wpGeo.top + plotH} />
+              <circle class="wp-probe-dot" cx="0" cy="0" r="4" />
+            </g>
+          </svg>
+          <div class="wp-tip" role="status" hidden></div>
+        </figure>
+        <p class="note">
+          Home at the top. Vertical rules mark the quarters and any overtime. Model: <a href={`${REPO}/blob/main/docs/models/wp_card.md`}>WP v1</a>, the in-game
+          win-probability model, with its card and results on GitHub.
+        </p>
+
+        <h3 class="wp-sub">Biggest swings</h3>
+        {wp.swings.length === 0 ? (
+          <p class="note">No scoring plays to rank.</p>
+        ) : (
+          <ol class="swings">
+            {wp.swings.map((s) => {
+              const scorer = s[3] === 1 ? home : away;
+              return (
+                <li>
+                  <span class="sw-clock">{clockText(s[1], s[2])}</span>
+                  <span class="sw-play">
+                    {playLabel(s[4])}, {name(scorer)}
+                  </span>
+                  <span class="sw-gain">{ppText(swingGain(s))} for {name(scorer)}</span>
+                  <span class="sw-score">
+                    {s[6]}–{s[5]}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+        <p class="note">Change in win chance at the scoring play, read at the same clock. Scores read away–home after the play. pp is percentage points.</p>
+
+        <h3 class="wp-sub">Game control</h3>
+        <div class="scroll">
+          <table class="grid wp-control">
+            <thead>
+              <tr>
+                <th scope="col">Part</th>
+                <th scope="col" class="num">{name(home)}</th>
+                <th scope="col" class="num">{name(away)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CONTROL_ORDER.map((part, i) => (
+                <tr>
+                  <th scope="row">{controlLabels[part]}</th>
+                  <td class="num">{controlValue(part, wp.control.home[i])}</td>
+                  <td class="num">{controlValue(part, wp.control.away[i])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          Dominance: the average lead in win chance, from −1 to +1. Control: the share of the game with a win chance
+          above 60%. Drama: the total movement of the line. Comeback: 100% minus the lowest win chance. Crunch: the total
+          movement in the last five minutes of regulation. The 60% and five-minute values are display conventions.
+        </p>
+      </section>
+    )
+  }
+
   <section class="runs" aria-labelledby="runs-title">
     <h2 id="runs-title">Scoring runs</h2>
     <p class="lede">
@@ -228,3 +369,220 @@ const runScore = (r: RunRow) => `${r[6]}–${r[5]} to ${r[8]}–${r[7]}`;
     }
   </section>
 </Base>
+
+<style>
+  .wp-figure {
+    position: relative;
+    margin: 16px 0 0;
+    min-width: 0;
+  }
+  .wp-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    user-select: none;
+  }
+  .wp-plot {
+    fill: var(--surface);
+  }
+  .wp-gridline {
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+  .wp-mid {
+    stroke: var(--axis);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+  .wp-sep {
+    stroke: var(--rule-strong);
+    stroke-width: 1;
+  }
+  .wp-tick {
+    fill: var(--muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wp-series {
+    fill: none;
+    stroke: var(--data-1);
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  .wp-hit {
+    fill: transparent;
+    cursor: crosshair;
+    touch-action: pan-y;
+  }
+  .wp-hit:focus {
+    outline: none;
+  }
+  .wp-hit:focus-visible {
+    stroke: var(--data-1);
+    stroke-width: 2;
+  }
+  .wp-probe-line {
+    stroke: var(--ink-2);
+    stroke-width: 1;
+  }
+  .wp-probe-dot {
+    fill: var(--data-1);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+  .wp-tip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    max-width: 260px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: var(--on-ink);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .wp-tip[hidden],
+  .wp-probe[hidden] {
+    display: none;
+  }
+  .wp-tip strong {
+    font-weight: 600;
+  }
+  .wp-sub {
+    margin-top: 24px;
+    font-size: 1rem;
+  }
+  .swings {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .swings li {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 0.875rem;
+  }
+  .sw-clock {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-gain {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-score {
+    margin-left: auto;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<script>
+  import { gameClock, nearestIndex, percent, xAt, yAt, type Geometry, type WpPoint } from "../../../lib/wp";
+
+  interface WpData {
+    points: WpPoint[];
+    g: Geometry;
+    home: string;
+    away: string;
+  }
+
+  /** Hover, tap, or arrow keys read one point of the line: its clock, score and home win chance. */
+  function setup(figure: HTMLElement): void {
+    const data = JSON.parse(figure.dataset.wp ?? "null") as WpData | null;
+    const svg = figure.querySelector<SVGSVGElement>("svg");
+    const hit = figure.querySelector<SVGRectElement>("rect.wp-hit");
+    const probe = figure.querySelector<SVGGElement>("g.wp-probe");
+    const tip = figure.querySelector<HTMLElement>(".wp-tip");
+    if (!data || !svg || !hit || !probe || !tip || data.points.length === 0) return;
+    const { points, g } = data;
+    const span = g.width - g.left - g.right;
+    const cursor = probe.querySelector<SVGLineElement>(".wp-probe-line");
+    const dot = probe.querySelector<SVGCircleElement>(".wp-probe-dot");
+    let current = -1;
+    let touchOpen = false;
+
+    const hide = (): void => {
+      tip.hidden = true;
+      probe.setAttribute("hidden", "");
+      current = -1;
+    };
+    const indexAt = (clientX: number): number => {
+      const r = svg.getBoundingClientRect();
+      const u = ((clientX - r.left) / r.width) * g.width;
+      const frac = Math.min(Math.max((u - g.left) / span, 0), 1);
+      return nearestIndex(points, frac * g.end);
+    };
+    const show = (i: number): void => {
+      const [elapsed, homeScore, awayScore, wp] = points[i];
+      const x = xAt(g, elapsed);
+      const y = yAt(g, wp);
+      cursor?.setAttribute("x1", String(x));
+      cursor?.setAttribute("x2", String(x));
+      dot?.setAttribute("cx", String(x));
+      dot?.setAttribute("cy", String(y));
+      probe.removeAttribute("hidden");
+      const head = document.createElement("strong");
+      head.textContent = gameClock(elapsed);
+      const score = document.createElement("div");
+      score.textContent = `${data.away} ${awayScore}, ${data.home} ${homeScore}`;
+      const chance = document.createElement("div");
+      chance.textContent = `${data.home} win chance ${percent(wp)}`;
+      tip.replaceChildren(head, score, chance);
+      const figRect = figure.getBoundingClientRect();
+      const svgRect = svg.getBoundingClientRect();
+      const px = svgRect.left - figRect.left + (x / g.width) * svgRect.width;
+      tip.hidden = false;
+      const width = tip.offsetWidth;
+      tip.style.left = `${Math.min(Math.max(px - width / 2, 0), figure.clientWidth - width)}px`;
+      current = i;
+    };
+
+    hit.addEventListener("pointerdown", (e) => {
+      touchOpen = e.pointerType === "touch";
+      if (touchOpen && !tip.hidden) {
+        hide();
+        touchOpen = false;
+        return;
+      }
+      show(indexAt(e.clientX));
+    });
+    hit.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "touch" && !touchOpen) return;
+      show(indexAt(e.clientX));
+    });
+    hit.addEventListener("pointerleave", (e) => {
+      if (e.pointerType !== "touch") hide();
+    });
+    hit.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        hide();
+        return;
+      }
+      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (step === 0) return;
+      e.preventDefault();
+      show(Math.min(Math.max((current < 0 ? 0 : current) + step, 0), points.length - 1));
+    });
+    hit.addEventListener("blur", hide);
+    document.addEventListener("pointerdown", (e) => {
+      if (!figure.contains(e.target as Node)) {
+        hide();
+        touchOpen = false;
+      }
+    });
+    window.addEventListener("scroll", hide, { passive: true });
+  }
+
+  for (const figure of document.querySelectorAll<HTMLElement>("figure.wp-figure")) setup(figure);
+</script>

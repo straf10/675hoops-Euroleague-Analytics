@@ -20,6 +20,8 @@ Layout (every number a raw total; the site derives per-game, per-36 and per-100 
   make, value, fastbreak, second chance, band and period, player and team indices) for the
   Shots explorer's filters.
 - ``seasons/{season}/runs.json``: each game's top scoring runs per team (``stats/runs.py``).
+- ``seasons/{season}/wp.json``: each game's in-game win-probability line, top swings and control
+  parts (``stats/wp.py``, the frozen WP v1 model).
 - ``seasons/{season}/units.json``: each club's best duos and five-man units, only in the seasons
   that pass the stint checks (``stats/units.py``).
 - ``seasons/{season}/assists.json``: per club, AS rows linked to their made basket, passer-to-scorer
@@ -54,6 +56,7 @@ from eurohoops.stats.assists import AssistRow, assists_payload
 from eurohoops.stats.box import STATS, BoxGames
 from eurohoops.stats.runs import runs_payload
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
+from eurohoops.stats.wp import WpLines, wp_payload
 
 STATS_DIR = Path("web/src/data/stats")  # read by the Astro build in web/
 WINDOWS = (5, 10, 20)
@@ -88,6 +91,8 @@ class Inputs:
     units: Mapping[int, Mapping[str, Any]] = field(default_factory=dict)
     # game id -> the assist rows of its play-by-play (stats/assists.py); no entry without one
     assists: Mapping[str, Sequence[AssistRow]] = field(default_factory=dict)
+    # in-game WP lines of the frozen v1 model (stats/wp.py); None: no seasons.wp files
+    wp: WpLines | None = None
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -569,6 +574,10 @@ def build_payloads(
         files[f"{base}/runs.json"] = runs_payload(
             season, games.loc[games["played"], "game_id"].astype(str), inputs.runs
         )
+        if inputs.wp is not None:
+            files[f"{base}/wp.json"] = wp_payload(
+                season, games.loc[games["played"], "game_id"].astype(str), inputs.wp
+            )
         if season in inputs.units:
             files[f"{base}/units.json"] = dict(inputs.units[season])
         team_season = inputs.box.teams[inputs.box.teams["season"] == season]
