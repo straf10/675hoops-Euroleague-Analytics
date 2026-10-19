@@ -38,6 +38,10 @@ DTYPES: dict[str, Any] = {
 }
 
 
+# Columns that may be absent from a frame handed to conform(); they are added as nulls.
+OPTIONAL_COLUMNS = ("venue", "venue_address")
+
+
 def _scores_match_played(df: pd.DataFrame) -> pd.Series:
     played = df["played"]
     return (df["home_score"].notna() == played) & (df["away_score"].notna() == played)
@@ -122,7 +126,19 @@ def build_gbl_team_seasons(rounds: list[RoundPage]) -> pd.DataFrame:
 
 
 def conform(df: pd.DataFrame) -> pd.DataFrame:
-    """Cast to the schema dtypes, sort chronologically and validate."""
+    """Cast to the schema dtypes, sort chronologically and validate.
+
+    The venue columns are optional: a frame without them (GBL, staging written before they
+    existed, test builders) gets them as nulls.
+    """
+    df = df.assign(**{c: None for c in OPTIONAL_COLUMNS if c not in df.columns})
+    # An all-null column comes back from DuckDB as an integer type: cast to text, keeping nulls.
+    df = df.assign(
+        **{
+            c: df[c].astype(object).where(df[c].notna(), None).astype("str")
+            for c in OPTIONAL_COLUMNS
+        }
+    )
     typed = df.astype(DTYPES).assign(
         tipoff_utc=pd.to_datetime(df["tipoff_utc"], utc=True).astype("datetime64[ns, UTC]")
     )

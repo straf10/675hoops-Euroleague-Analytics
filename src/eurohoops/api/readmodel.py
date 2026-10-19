@@ -451,9 +451,6 @@ def stats_inputs(store: Store) -> Inputs:
         window = site_window(box.players["season"].unique())
         played = games[games["played"] & games["season"].isin(window)]
         raw = store.path(EUROLEAGUE.raw_dir)
-        # the walk-forward history Elo: its tuned parameters, replayed from the first warm-up season
-        history = EUROLEAGUE.history_backtests[0]
-        history_params = load_tuned_model(store.path(history.report)).params
         seasons = (int(s) for s in box.players["season"].unique())
         cached = [s for s in seasons if el_people_path(raw, s).exists()]
         return Inputs(
@@ -470,10 +467,20 @@ def stats_inputs(store: Store) -> Inputs:
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
             assists=game_assists(raw, played),
             wp=_wp_lines(store, games),
-            coaches=coach_games(raw, with_elo(games, history_params, history.warmup[0])),
+            coaches=_coach_games(store, games),
         )
 
     return store.memo("stats_inputs", make)
+
+
+def _coach_games(store: Store, games: pd.DataFrame) -> pd.DataFrame | None:
+    """Team-game coach rows with the walk-forward history Elo's pre-game probabilities (its tuned
+    parameters, replayed from the first warm-up season); None without the history report."""
+    history = EUROLEAGUE.history_backtests[0]
+    if not store.path(history.report).exists():
+        return None
+    params = load_tuned_model(store.path(history.report)).params
+    return coach_games(store.path(EUROLEAGUE.raw_dir), with_elo(games, params, history.warmup[0]))
 
 
 def _wp_lines(store: Store, games: pd.DataFrame) -> WpLines | None:
