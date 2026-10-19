@@ -12,7 +12,7 @@ interface Props {
   title?: string;
   description: string;
   /** Which top-bar page is current. */
-  current?: "players" | "leaders" | "compare" | "teams" | "standings" | "forecasts" | "methodology" | "about" | "glossary" | "downloads";
+  current?: "players" | "leaders" | "compare" | "teams" | "standings" | "forecasts" | "methodology" | "about" | "glossary" | "coaches" | "downloads";
   /** A share card under the site root (e.g. /cards/players/x.png) in place of the default social card. */
   image?: { path: string; width: number; height: number };
   /** Keeps the page out of search results (the share-card pages). */
@@ -38,6 +38,7 @@ const footLinks = [
   { key: "about", href: `${root}/about/`, label: "About" },
   { key: "methodology", href: `${root}/methodology/`, label: "Methodology" },
   { key: "glossary", href: `${root}/glossary/`, label: "Glossary" },
+  { key: "coaches", href: `${root}/coaches/`, label: "Coaches" },
   { key: "downloads", href: `${root}/downloads/`, label: "Downloads" },
 ] as const;
 ---

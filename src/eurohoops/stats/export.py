@@ -54,6 +54,7 @@ from eurohoops.standings import Result, rank
 from eurohoops.stats.achievements import achievements_payload
 from eurohoops.stats.assists import AssistRow, assists_payload
 from eurohoops.stats.box import STATS, BoxGames
+from eurohoops.stats.coaches import coach_payloads
 from eurohoops.stats.runs import runs_payload
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
 from eurohoops.stats.wp import WpLines, wp_payload
@@ -104,6 +105,8 @@ class Inputs:
     assists: Mapping[str, Sequence[AssistRow]] = field(default_factory=dict)
     # in-game WP lines of the frozen v1 model (stats/wp.py); None: no seasons.wp files
     wp: WpLines | None = None
+    # team-game coach rows (stats/coaches.py); None: no coach pages
+    coaches: pd.DataFrame | None = None
 
 
 def load_cached_games(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -645,6 +648,8 @@ def build_payloads(
         )
     }
     files["splits.json"] = _splits_payload(career[career["player_id"].isin(names)], inputs)
+    if inputs.coaches is not None:
+        files.update(coach_payloads(inputs.coaches, inputs.codes, inputs.names))
     files["achievements.json"] = achievements_payload(
         inputs.games, inputs.box.players, inputs.live_season
     )

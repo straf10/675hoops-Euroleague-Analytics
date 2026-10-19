@@ -1,0 +1,135 @@
+---
+import Base from "../../layouts/Base.astro";
+import "../../styles/stats.css";
+import { seasonRange, signed, winPct } from "../../lib/coaches";
+import { coachIndex, coachPage } from "../../lib/coach_files";
+import { teamHref } from "../../lib/players";
+
+export async function getStaticPaths() {
+  const index = await coachIndex();
+  return (index?.coaches ?? []).map((c) => ({ params: { slug: c.slug } }));
+}
+
+const { slug } = Astro.params;
+const page = await coachPage(slug!);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const career = page.career;
+const firstSeason = Math.min(...page.seasons.map((s) => s.season));
+const lede = `${career.games} games since ${seasonRange([firstSeason])}: ${career.wins}-${career.losses} (${winPct(career)}), ${career.expected_wins.toFixed(1)} expected wins, ${signed(career.wins_above_expectation)} above expectation.`;
+const description = `${page.name}: EuroLeague record by season and club, wins above the Elo expectation, and head-to-head results against other coaches.`;
+---
+
+<Base title={page.name} description={description} current="coaches">
+  <header class="wrap head">
+    <h1>{page.name}</h1>
+    <p class="facts">
+      <span>{seasonRange(page.seasons.map((s) => s.season))}</span>
+      <span>
+        {page.clubs.map((c, i) => (
+          <>
+            {i > 0 && ", "}
+            <a href={teamHref(base, c.team)}>{c.team_name}</a>
+          </>
+        ))}
+      </span>
+      <a href={`${base}/coaches/`}>All coaches</a>
+    </p>
+    <p class="lede">{lede}</p>
+  </header>
+
+  <section class="wrap band" id="seasons" aria-labelledby="seasons-title">
+    <header class="sec-head">
+      <h2 id="seasons-title">Season by season</h2>
+      <p>
+        One line per season and club. Expected wins sum each game's pre-game Elo win probability;
+        wins above expectation is wins minus that sum.
+      </p>
+    </header>
+    <div class="scroll">
+      <table class="grid coach-seasons">
+        <thead>
+          <tr>
+            <th scope="col">Season</th>
+            <th scope="col">Team</th>
+            <th scope="col" class="num">G</th>
+            <th scope="col" class="num">W-L</th>
+            <th scope="col" class="num">Win %</th>
+            <th scope="col" class="num">Expected W</th>
+            <th scope="col" class="num">Wins above exp.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            page.seasons.map((s) => (
+              <tr>
+                <th scope="row">{seasonRange([s.season])}</th>
+                <td class="team">
+                  <a href={teamHref(base, s.team, s.season)}>{s.team_name}</a>
+                </td>
+                <td class="num">{s.games}</td>
+                <td class="num">{s.wins}-{s.losses}</td>
+                <td class="num">{winPct(s)}</td>
+                <td class="num">{s.expected_wins.toFixed(1)}</td>
+                <td class="num">{signed(s.wins_above_expectation)}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+        {
+          page.seasons.length > 1 && (
+            <tfoot>
+              <tr>
+                <th scope="row">Career</th>
+                <td class="team" />
+                <td class="num">{career.games}</td>
+                <td class="num">{career.wins}-{career.losses}</td>
+                <td class="num">{winPct(career)}</td>
+                <td class="num">{career.expected_wins.toFixed(1)}</td>
+                <td class="num">{signed(career.wins_above_expectation)}</td>
+              </tr>
+            </tfoot>
+          )
+        }
+      </table>
+    </div>
+  </section>
+
+  <section class="wrap band" id="h2h" aria-labelledby="h2h-title">
+    <header class="sec-head">
+      <h2 id="h2h-title">Head to head</h2>
+      <p>
+        Against other named coaches, in games they both coached: pairs with at least four games together.
+      </p>
+    </header>
+    {
+      page.h2h.length === 0 ? (
+        <p>No other coach has shared four or more games with this coach.</p>
+      ) : (
+        <div class="scroll">
+          <table class="grid coach-h2h">
+            <thead>
+              <tr>
+                <th scope="col">Coach</th>
+                <th scope="col" class="num">G</th>
+                <th scope="col" class="num">W-L</th>
+                <th scope="col" class="num">Win %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {page.h2h.map((o) => (
+                <tr>
+                  <th scope="row">
+                    <a href={`${base}/coaches/${o.slug}/`}>{o.name}</a>
+                  </th>
+                  <td class="num">{o.games}</td>
+                  <td class="num">{o.wins}-{o.losses}</td>
+                  <td class="num">{winPct(o)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </section>
+</Base>

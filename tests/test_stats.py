@@ -25,11 +25,13 @@ from typer.testing import CliRunner
 from eurohoops import cli
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import MART_PATH
+from eurohoops.eval.backtest import load_tuned_model
 from eurohoops.marts import write_tables
 from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games, game_lines, seconds
+from eurohoops.stats.coaches import coach_games, with_elo
 from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
 from eurohoops.stats.export import (
     OTHER_RESULTS,
@@ -69,6 +71,7 @@ from tests.conftest import FIXTURES
 
 RAW = FIXTURES / "stats_raw"
 OUT = FIXTURES / "stats"
+HISTORY_REPORT = FIXTURES / "api" / "reports" / "backtest_elo_history.json"
 NOW = datetime(2026, 9, 26, 8, tzinfo=UTC)
 runner = CliRunner()
 
@@ -94,6 +97,10 @@ def inputs() -> Inputs:
             DISPLAY_CODES["euroleague"],
         ),
         assists=game_assists(RAW, games[games["played"]]),
+        coaches=coach_games(
+            RAW,
+            with_elo(games, load_tuned_model(HISTORY_REPORT).params, 2007),
+        ),
     )
 
 
@@ -396,6 +403,8 @@ def _repo_layout(tmp: Path) -> Path:
         target = raw / path.relative_to(RAW)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(path.read_bytes())
+    (tmp / "reports").mkdir(exist_ok=True)  # the coach expectation's history Elo parameters
+    (tmp / "reports" / "backtest_elo_history.json").write_bytes(HISTORY_REPORT.read_bytes())
     return raw
 
 
