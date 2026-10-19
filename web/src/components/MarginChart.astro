@@ -13,19 +13,21 @@ export interface MarginGame {
 interface Props {
   id: string;
   title: string;
-  caption: string;
+  /** What the chart shows, in plain words (first help line). */
+  what: string;
+  /** How to read it, with a concrete example (second help line). */
+  how: string;
   games: MarginGame[];
-  /** The model's average miss in points over these games. */
-  miss: number | null;
   /** The corner label: which way is better, e.g. "Closer = better". */
   better: string;
 }
-const { id, title, caption, games, miss, better } = Astro.props;
+const { id, title, what, how, games, better } = Astro.props;
 const capId = `${id}-cap`;
 
-const S = 640;
-const H = 300;
-const PAD = { left: 52, right: 16, top: 14, bottom: 40 };
+// Same viewBox as the other scoring charts, so the three cards share one size.
+const S = 320;
+const H = 240;
+const PAD = { left: 44, right: 12, top: 14, bottom: 36 };
 const innerW = S - PAD.left - PAD.right;
 const innerH = H - PAD.top - PAD.bottom;
 const n = games.length;
@@ -46,66 +48,64 @@ const sign = (v: number) => (v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`.re
 const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
 ---
 
-<figure class="panel">
-  <figcaption class="cap">
+<figure class="chart-card">
+  <figcaption class="chart-head">
     <div class="cap-row">
       <h3 id={id}>{title}</h3>
       <span class="dir">{better}</span>
     </div>
-    <p id={capId}>{caption}</p>
+    <div class="help" id={capId}>
+      <p>{what}</p>
+      <p>{how}</p>
+    </div>
   </figcaption>
-  <ul class="legend" aria-hidden="true">
-    <li><i class="sw actual" />Final margin</li>
-    <li><i class="sw predicted" />Predicted margin</li>
-  </ul>
-  {
-    n === 0 ? (
-      <p class="empty">No finished games yet.</p>
-    ) : (
-      <svg viewBox={`0 0 ${S} ${H}`} role="img" aria-labelledby={`${id} ${capId}`} class="chart">
-        <rect class="plot" x={PAD.left} y={PAD.top} width={innerW} height={innerH} />
-        {ticks.map((v) => (
-          <g class="grid">
-            <line x1={PAD.left} x2={PAD.left + innerW} y1={y(v)} y2={y(v)} class={v === 0 ? "zero" : ""} />
-            <text class="tick" x={PAD.left - 8} y={y(v) + 4} text-anchor="end">
-              {sign(v)}
+  <div class="plot-area">
+    <ul class="legend" aria-hidden="true">
+      <li><i class="sw actual" />Final margin</li>
+      <li><i class="sw predicted" />Predicted margin</li>
+    </ul>
+    {
+      n === 0 ? (
+        <p class="empty">No finished games yet.</p>
+      ) : (
+        <svg viewBox={`0 0 ${S} ${H}`} role="img" aria-labelledby={`${id} ${capId}`} class="chart">
+          <rect class="plot" x={PAD.left} y={PAD.top} width={innerW} height={innerH} />
+          {ticks.map((v) => (
+            <g class="grid">
+              <line x1={PAD.left} x2={PAD.left + innerW} y1={y(v)} y2={y(v)} class={v === 0 ? "zero" : ""} />
+              <text class="tick" x={PAD.left - 8} y={y(v) + 4} text-anchor="end">
+                {sign(v)}
+              </text>
+            </g>
+          ))}
+          {games.map((g, i) => (
+            <rect
+              class={`bar ${g.actual >= 0 ? "up" : "down"}`}
+              x={x(i) - barW / 2}
+              y={Math.min(y(0), y(g.actual))}
+              width={barW}
+              height={Math.max(1, Math.abs(y(g.actual) - y(0)))}
+            />
+          ))}
+          <path class="series" d={line} />
+          {games.map((g, i) => (
+            <g class="hit" tabindex="0" data-tip={tip`<b>Game ${g.n}</b><br>${g.label}<br>Predicted ${sign(g.predicted)}, final ${sign(g.actual)}`}>
+              <circle class="target" cx={x(i)} cy={y(g.predicted)} r="7" />
+              <circle class="dot" cx={x(i)} cy={y(g.predicted)} r="2.5" />
+            </g>
+          ))}
+          {xTicks.map((t) => (
+            <text class="tick" x={x(t - 1)} y={PAD.top + innerH + 18} text-anchor="middle">
+              {t}
             </text>
-          </g>
-        ))}
-        {games.map((g, i) => (
-          <rect
-            class={`bar ${g.actual >= 0 ? "up" : "down"}`}
-            x={x(i) - barW / 2}
-            y={Math.min(y(0), y(g.actual))}
-            width={barW}
-            height={Math.max(1, Math.abs(y(g.actual) - y(0)))}
-          />
-        ))}
-        <path class="series" d={line} />
-        {games.map((g, i) => (
-          <g class="hit" tabindex="0" data-tip={tip`<b>Game ${g.n}</b><br>${g.label}<br>Predicted ${sign(g.predicted)}, final ${sign(g.actual)}`}>
-            <circle class="target" cx={x(i)} cy={y(g.predicted)} r="7" />
-            <circle class="dot" cx={x(i)} cy={y(g.predicted)} r="2.5" />
-          </g>
-        ))}
-        {xTicks.map((t) => (
-          <text class="tick" x={x(t - 1)} y={PAD.top + innerH + 18} text-anchor="middle">
-            {t}
+          ))}
+          <text class="axis-label" x={PAD.left + innerW / 2} y={H - 4} text-anchor="middle">
+            Games played, in tip-off order · points, home side
           </text>
-        ))}
-        <text class="axis-label" x={PAD.left + innerW / 2} y={H - 4} text-anchor="middle">
-          Games played, in tip-off order · points, home side
-        </text>
-      </svg>
-    )
-  }
-  {
-    miss !== null && n > 0 && (
-      <p class="note">
-        Off by <b>{miss.toFixed(1)} points</b> on average over these {n} games.
-      </p>
-    )
-  }
+        </svg>
+      )
+    }
+  </div>
   <table class="sr-only">
     <caption>{title}</caption>
     <thead>
@@ -130,10 +130,6 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
 </figure>
 
 <style>
-  .panel {
-    margin: 0;
-    min-width: 0;
-  }
   .cap-row {
     display: flex;
     align-items: baseline;
@@ -148,19 +144,10 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
     font-weight: 500;
     white-space: nowrap;
   }
-  .cap {
-    padding-bottom: 12px;
-    margin-bottom: 14px;
-    border-bottom: 1px solid var(--rule-strong);
-  }
-  .cap h3 {
-    font-size: 1.0625rem;
-  }
-  .cap p {
+  .help p {
     margin-top: 4px;
     color: var(--muted);
     font-size: 0.8125rem;
-    max-width: 70ch;
   }
   .legend {
     display: flex;
@@ -248,23 +235,8 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
     stroke: var(--data-1);
     stroke-width: 1.5;
   }
-  .note {
-    margin-top: 10px;
-    color: var(--muted);
-    font-size: 0.8125rem;
-  }
-  .note b {
-    color: var(--ink);
-    font-weight: 600;
-  }
   .empty {
     color: var(--muted);
     font-size: 0.875rem;
-  }
-  @media (max-width: 520px) {
-    .tick,
-    .axis-label {
-      font-size: 13px;
-    }
   }
 </style>
