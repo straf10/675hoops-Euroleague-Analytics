@@ -25,7 +25,7 @@ export interface CoachIndexRow extends Counts {
   name: string;
   seasons_played: number[];
   clubs: string[];
-  playoffs: CoachPlayoffs;
+  playoffs?: CoachPlayoffs; // missing in coach data exported before playoffs were added
 }
 
 export interface Coverage {
@@ -184,7 +184,7 @@ export interface CoachRow {
   seasons: number;
   /** The display code of the club the coach holds now, or null. */
   now: string | null;
-  playoffs: CoachPlayoffs;
+  playoffs?: CoachPlayoffs;
   style: CoachStyle | null;
 }
 
@@ -254,21 +254,21 @@ export const COACH_METRICS: CoachMetric[] = [
     head: "Playoffs",
     about: "Seasons with a playoff game (the play-in does not count). The box scores name coaches from 2015-16 on; earlier seasons are not counted.",
     kind: "int",
-    read: (r) => plain(r.playoffs.seasons),
+    read: (r) => plain(r.playoffs?.seasons ?? null),
   },
   {
     key: "final_four",
     head: "Final Four",
     about: "Seasons with a Final Four game. Counted from 2015-16 on, as for playoffs.",
     kind: "int",
-    read: (r) => plain(r.playoffs.final_four),
+    read: (r) => plain(r.playoffs?.final_four ?? null),
   },
   {
     key: "titles",
     head: "Titles",
     about: "Seasons he coached the Final Four champion in the final. Counted from 2015-16 on, as for playoffs.",
     kind: "int",
-    read: (r) => plain(r.playoffs.titles),
+    read: (r) => plain(r.playoffs?.titles ?? null),
   },
   {
     key: "ato",

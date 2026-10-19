@@ -398,6 +398,8 @@ def test_coach_payloads_carry_the_style_block_per_coach() -> None:
                 "home": True,
                 "won": True,
                 "p_win": 0.5,
+                "phase": "RS",
+                "champion": False,
                 "slug": "john-smith",
                 "name": "John Smith",
             }
