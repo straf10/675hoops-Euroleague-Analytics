@@ -12,120 +12,120 @@ const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
 const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
 const acc = fc?.accuracy ?? [];
 
-const wide: ChartSpec = { w: 720, h: 280, l: 46, r: 64, t: 16, b: 34 };
-const narrow: ChartSpec = { w: 340, h: 250, l: 40, r: 52, t: 16, b: 34 };
-const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [];
+// One size for every chart in the scoring row (see index.astro): a card a third of the page wide.
+const spec: ChartSpec = { w: 320, h: 240, l: 40, r: 48, t: 14, b: 32 };
+const chart = acc.length ? brierChart(acc, spec) : null;
+const c = chart;
 ---
 
-<div class="brier">
-        {charts.length > 0 && (
-          <section aria-labelledby={`fc-chart-${comp.key}`}>
-            <div class="cap-row">
-              <h3 id={`fc-chart-${comp.key}`}>Brier score by round</h3>
-              <span class="dir">Better ↓</span>
-            </div>
-            <p class="sub">
-              Season to date, after each round. Lower is better: 0 is a perfect forecast, 0.25 is a coin flip.
-            </p>
-            <ul class="legend">
-              <li>
-                <span class="key model" aria-hidden="true" />
-                {label}
-              </li>
-            </ul>
-            {charts.map((c, k) => (
-              <svg
-                class:list={["chart", k === 0 ? "wide" : "narrow"]}
-                viewBox={`0 0 ${c.spec.w} ${c.spec.h}`}
-                role="img"
-                aria-label={`Brier score by round, ${label}. The table below has the figures.`}
-              >
-                <rect
-                  class="plot"
-                  x={c.spec.l}
-                  y={c.spec.t}
-                  width={c.spec.w - c.spec.l - c.spec.r}
-                  height={c.spec.h - c.spec.t - c.spec.b}
-                />
-                {c.ticks.map((t) => (
-                  <>
-                    <line class="grid" x1={c.spec.l} x2={c.spec.w - c.spec.r} y1={t.y} y2={t.y} />
-                    <text class="tick" x={c.spec.l - 8} y={t.y + 4} text-anchor="end">
-                      {t.label}
-                    </text>
-                  </>
-                ))}
-                {c.coin !== null && (
-                  <>
-                    <line class="ref" x1={c.spec.l} x2={c.spec.w - c.spec.r} y1={c.coin} y2={c.coin} />
-                    <text class="tick" x={c.spec.w - c.spec.r - 4} y={c.coin - 5} text-anchor="end">
-                      coin flip
-                    </text>
-                  </>
-                )}
-                {c.xs.map((x) => (
-                  <text class="tick" x={x.x} y={c.spec.h - c.spec.b + 20} text-anchor="middle">
-                    {x.label}
-                  </text>
-                ))}
-                {c.model.d && <path class="ln model" d={c.model.d} />}
-                {c.model.pts.map((p) => (
-                  <circle class="dot model" cx={p.x} cy={p.y} r="4" />
-                ))}
-                {c.ends.map((e) => (
-                  <text class="end" x={c.spec.w - c.spec.r + 10} y={e.y + 4}>
-                    {e.text}
-                  </text>
-                ))}
-                {acc.map((a, i) => {
-                  const x = c.xs[i].x;
-                  const half = acc.length > 1 ? (c.spec.w - c.spec.l - c.spec.r) / (acc.length - 1) / 2 : 40;
-                  return (
-                    <rect
-                      class="hit"
-                      x={x - half}
-                      y={c.spec.t}
-                      width={half * 2}
-                      height={c.spec.h - c.spec.t - c.spec.b}
-                      tabindex="0"
-                      data-tip={tip`<b>${groupLabel(a.phase, a.round)}</b>, after ${a.to_date.games} games<br>${label}: ${score3(a.to_date.model.brier)}`}
-                      aria-label={`${groupLabel(a.phase, a.round)}, after ${a.to_date.games} games. ${label} ${score3(a.to_date.model.brier)}.`}
-                    />
-                  );
-                })}
-              </svg>
-            ))}
-            <p class="note">
-              A few rounds is a small sample, so early lines move a lot.
-            </p>
-            <table class="sr-only">
-              <caption>
-                {comp.title}: Brier score to date after each round
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Round</th>
-                  <th scope="col">Games to date</th>
-                  <th scope="col">{label}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {acc.map((a) => (
-                  <tr>
-                    <th scope="row">{groupLabel(a.phase, a.round)}</th>
-                    <td>{a.to_date.games}</td>
-                    <td>{score3(a.to_date.model.brier)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
-
-</div>
+{
+  c && (
+    <section class="chart-card" aria-labelledby={`fc-chart-${comp.key}`}>
+      <div class="chart-head">
+        <div class="cap-row">
+          <h3 id={`fc-chart-${comp.key}`}>Brier score by round</h3>
+          <span class="dir">Better ↓</span>
+        </div>
+        <div class="help" id={`fc-chart-${comp.key}-help`}>
+          <p>How close our win chances were to the results, season to date after each round.</p>
+          <p>
+            Lower is better: 0 is perfect, 0.25 is a coin flip. A point at 0.20 after round 5 means our
+            chances have been closer than a coin flip so far.
+          </p>
+        </div>
+      </div>
+      <div class="plot-area">
+        <ul class="legend">
+          <li>
+            <span class="key model" aria-hidden="true" />
+            {label}
+          </li>
+        </ul>
+        <svg
+          class="chart"
+          viewBox={`0 0 ${c.spec.w} ${c.spec.h}`}
+          role="img"
+          aria-labelledby={`fc-chart-${comp.key} fc-chart-${comp.key}-help`}
+        >
+          <rect
+            class="plot"
+            x={c.spec.l}
+            y={c.spec.t}
+            width={c.spec.w - c.spec.l - c.spec.r}
+            height={c.spec.h - c.spec.t - c.spec.b}
+          />
+          {c.ticks.map((t) => (
+            <>
+              <line class="grid" x1={c.spec.l} x2={c.spec.w - c.spec.r} y1={t.y} y2={t.y} />
+              <text class="tick" x={c.spec.l - 8} y={t.y + 4} text-anchor="end">
+                {t.label}
+              </text>
+            </>
+          ))}
+          {c.coin !== null && (
+            <>
+              <line class="ref" x1={c.spec.l} x2={c.spec.w - c.spec.r} y1={c.coin} y2={c.coin} />
+              <text class="tick" x={c.spec.w - c.spec.r - 4} y={c.coin - 5} text-anchor="end">
+                coin flip
+              </text>
+            </>
+          )}
+          {c.xs.map((x) => (
+            <text class="tick" x={x.x} y={c.spec.h - c.spec.b + 20} text-anchor="middle">
+              {x.label}
+            </text>
+          ))}
+          {c.model.d && <path class="ln model" d={c.model.d} />}
+          {c.model.pts.map((p) => (
+            <circle class="dot model" cx={p.x} cy={p.y} r="4" />
+          ))}
+          {c.ends.map((e) => (
+            <text class="end" x={c.spec.w - c.spec.r + 10} y={e.y + 4}>
+              {e.text}
+            </text>
+          ))}
+          {acc.map((a, i) => {
+            const x = c.xs[i].x;
+            const half = acc.length > 1 ? (c.spec.w - c.spec.l - c.spec.r) / (acc.length - 1) / 2 : 40;
+            return (
+              <rect
+                class="hit"
+                x={x - half}
+                y={c.spec.t}
+                width={half * 2}
+                height={c.spec.h - c.spec.t - c.spec.b}
+                tabindex="0"
+                data-tip={tip`<b>${groupLabel(a.phase, a.round)}</b>, after ${a.to_date.games} games<br>${label}: ${score3(a.to_date.model.brier)}`}
+                aria-label={`${groupLabel(a.phase, a.round)}, after ${a.to_date.games} games. ${label} ${score3(a.to_date.model.brier)}.`}
+              />
+            );
+          })}
+        </svg>
+      </div>
+      <table class="sr-only">
+        <caption>{comp.title}: Brier score to date after each round</caption>
+        <thead>
+          <tr>
+            <th scope="col">Round</th>
+            <th scope="col">Games to date</th>
+            <th scope="col">{label}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {acc.map((a) => (
+            <tr>
+              <th scope="row">{groupLabel(a.phase, a.round)}</th>
+              <td>{a.to_date.games}</td>
+              <td>{score3(a.to_date.model.brier)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
+}
 
 <style>
-  /* Chart */
   .cap-row {
     display: flex;
     align-items: baseline;
@@ -140,8 +140,13 @@ const charts = acc.length ? [brierChart(acc, wide), brierChart(acc, narrow)] : [
     font-weight: 500;
     white-space: nowrap;
   }
+  .help p {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
   .legend {
-display: flex;
+    display: flex;
     gap: 20px;
     list-style: none;
     margin: 0 0 8px;
@@ -163,13 +168,8 @@ display: flex;
   .chart {
     display: block;
     width: 100%;
-    max-width: 720px;
     height: auto;
     overflow: visible;
-  }
-  .chart.narrow {
-    display: none;
-    max-width: 380px;
   }
   .plot {
     fill: var(--surface);
@@ -221,13 +221,5 @@ display: flex;
   }
   .hit:focus-visible {
     fill: var(--data-1-wash);
-  }
-  @media (max-width: 560px) {
-    .chart.wide {
-      display: none;
-    }
-    .chart.narrow {
-      display: block;
-    }
   }
 </style>
