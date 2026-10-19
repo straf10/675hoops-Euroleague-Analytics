@@ -305,6 +305,92 @@ falls from 87% (2007) to 32–41% (2014–2022). Box totals are used only for th
 Rule D gives 3,376 makes that are linked by more than one AS row. The first AS row is kept as the
 passer, and the rest are dropped.
 
+**Linkage, production rule (revised).** The 94.9% above is over the pre-study's included games
+(2007–2022, with unreadable-clock, score-mismatch and ND games removed). The production code in
+`src/eurohoops/stats/assists.py` ran the same rule over every played game and measured 91.6%
+(152,164 of 166,195 AS rows linked in the 5,025 games it checked; 2,706 AS rows of 75 ND-clock
+games of 2016 were skipped entirely). Causes of the unlinked rows (old rule, all played games):
+
+| Cause | AS rows |
+|---|---|
+| Whole game skipped (ND clock, 2016) | 2,706 |
+| Make already credited to an earlier AS row | 3,832 |
+| Nearest same-team make more than 30 s away | 2,893 |
+| Nearest same-team make 6–30 s away | 1,055 |
+| Only an opposing make nearby | 2,773 |
+| No make of the team within 10 events | 1,462 |
+| Nearest same-team make is the passer's own | 1,318 |
+| Team code mismatch near the row | 822 |
+| Other (1–5 s same-team make beyond 2 events, same-clock self-scorer, no clock) | 103 |
+
+Box totals equal the play-by-play AS counts (168,899 vs 168,901), and FGM totals equal the
+play-by-play makes (one team-game differs by 9). So every assist has a make in the feed. The
+losses are linking errors, not missing rows.
+
+The new rule is a one-to-one maximum matching per game. An edge needs the passer's team's make,
+not the passer's own; no opposing make between the two rows; the clocks at most 60 s apart and
+the rows at most 30 events apart (3 events when a clock is missing). It is in `assists.py`.
+Measured over all played EuroLeague games 2007–2026, **92.9% of AS rows link (156,837 of
+168,901), and 92.9% of box-score assists (156,837 of 168,899).** Per season: 97.6% (2007),
+97.9% (2008), 92–94% (2009–2015), 92–94% (2016–2022), 91–93% (2023–2026). The 98% target
+is **not met**.
+
+*Why not 98%.* About 7% of AS rows have no plausible make left. Looser rules do reach 98%
+(index-only matching with a 30-event window reaches 98.1%), but a hand-check shows they are
+wrong. Hand-check (25 links per stratum, read from the play-by-play windows; a reading, not an
+independent label): links with an opposing make between the rows, 25 of 25 read as wrong or
+doubtful. Links more than 60 s apart, 25 of 25 read as doubtful or wrong. Links with no
+opposing make between and within 60 s, 25 of 25 read as plausible, with the make adjacent to
+the AS row in most cases. The first two strata come from the ungated and index-only matchings;
+the last from the ungated 60 s / 30-event matching restricted to unopposed pairs. The rule
+uses only the last kind of pair. Precision of the final matching itself was not hand-checked
+beyond this.
+
+*Clock.* The clock gap between an AS row and its make is 0 s for about 90–98% of linked rows
+in 2007–2010 but 16–27% from 2011 on. From 2011 most links are 1–2 s apart (about 55%), and
+3–5 s for 14–18%. So the feed clock of AS rows lags the make by 1–2 s, and rule timing must
+allow a few seconds of offset.
+
+**Linkage, two tiers (current rule).** The unlinked rows were mostly AS rows inside a
+teammate's free-throw trip. In 2009 and later, 80–95% of unlinked AS rows sit in a foul trip
+(a foul received by a teammate who made a free throw, within 2 s), against 50–62% in 2007–2008 and
+about 5% of linked rows. The rule therefore has two tiers, applied in order:
+
+- `fg` (strict): one-to-one maximum matching to made field goals (the rule above).
+- `ft` (strict): the assist credits a made free throw of a teammate (not the passer) whose foul
+  received is within 6 events before it; one foul credits one assist. The payload's `pairs` and
+  `passers` count both tiers; `fg_pairs` and `ft_pairs` keep them apart.
+
+A min-cost loose tier was tried: 0/30 plausible, removed.
+
+Measured over all played EuroLeague games 2007–2026 (168,901 AS rows; box-score assists 168,899):
+
+| Measure | Share of AS rows |
+|---|---|
+| FG only (`fg`) | 92.9% |
+| FG + FT (strict) | **99.2%** (167,561 rows) |
+| unlinked | 0.8% (1,340 rows) |
+
+Per season (FG / FT / unlinked, as shares of AS rows; unlinked is 100 minus FG minus FT, so it
+can differ from a direct count by 0.1 through rounding): 2007 97.6 / 1.5 / 0.9; 2008 97.9 / 1.1 / 1.0;
+2009 93.9 / 4.9 / 1.2; 2010 94.4 / 4.9 / 0.7; 2011 92.6 / 6.0 / 1.4; 2012 92.5 / 6.0 / 1.4;
+2013 92.6 / 6.0 / 1.4; 2014 91.7 / 6.8 / 1.5; 2015 92.0 / 6.5 / 1.5; 2016 93.0 / 6.5 / 0.5;
+2017 92.3 / 7.3 / 0.4; 2018 92.8 / 6.6 / 0.6; 2019 93.0 / 6.6 / 0.4; 2020 93.1 / 6.4 / 0.5;
+2021 93.6 / 6.1 / 0.3; 2022 92.7 / 6.8 / 0.5; 2023 92.7 / 6.8 / 0.5; 2024 91.5 / 7.9 / 0.6;
+2025 91.2 / 8.0 / 0.8; 2026 91.5 / 7.6 / 0.9.
+
+The 98% target is met on the strict tiers (FG + FT) from every season from 2009, and on FG alone
+it is not met in any season from 2009.
+
+**Precision (hand-checks, read from the PBP windows).** 15 random `ft` links: all 15 read as plausible
+(the credited AS row sits inside the teammate's free-throw trip, at the same second, with no
+opposing make between). 50 random `fg` links from the previous check: 50 of 50 plausible (see the
+iteration-2 note).
+
+The FT tier explains most of the old gap, but its windows (4 events around the row, a 6-event
+look-back for the foul, 2 s on the clock) check a trip's shape, not the scorer's credit rule. Whether EuroLeague scorers credit an assist on a
+foul trip is not confirmed by the feed; the data are consistent with it.
+
 **Other caveats.**
 
 - The WPA credit follows the section 8 definition (every play, with `ΔWP` including time passage
