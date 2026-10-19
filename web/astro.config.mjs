@@ -1,17 +1,13 @@
-import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
+import { lastmodFor, readDates } from "./scripts/sitemap-lastmod.mjs";
 
-// The day the stats were last built (site.json's generated_at_utc, YYYY-MM-DD): every page's
-// <lastmod>, since the pages change when the data does. Absent before the first data build.
-const dataDate = (() => {
-  try {
-    const at = JSON.parse(readFileSync(new URL("./src/data/site.json", import.meta.url), "utf8")).generated_at_utc;
-    return typeof at === "string" ? at.slice(0, 10) : undefined;
-  } catch {
-    return undefined;
-  }
-})();
+// Each page's <lastmod> is the date its data last changed (scripts/sitemap-lastmod.mjs); static
+// pages have none. Without the stats data (before the first data build) there are no dates.
+const statsDir = fileURLToPath(new URL("./src/data/stats/", import.meta.url));
+const dates = existsSync(statsDir) ? readDates(statsDir) : null;
 
 // Built into ../site, which the daily workflow uploads to Cloudflare.
 export default defineConfig({
@@ -22,7 +18,10 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: (page) => !new URL(page).pathname.startsWith("/cards/"),
-      serialize: (item) => (dataDate ? { ...item, lastmod: dataDate } : item),
+      serialize: (item) => {
+        const day = dates ? lastmodFor(item.url, dates) : undefined;
+        return day ? { ...item, lastmod: day } : item;
+      },
     }),
   ],
   // The removed Scouting and Shots pages redirect with real 301s in public/_redirects.
