@@ -6,18 +6,21 @@ import { lineupRowsHtml, type PlayerName } from "../../lib/lineups_html";
 import { tip } from "../../lib/tip";
 
 interface Props {
+  /** The club's code (source-independent URL key for the per-season data file). */
+  code: string;
   /** The page's season: the one shown first, and the one the page's season select starts on. */
   season: number;
+  /** This season's lineups only; other seasons are fetched when the visitor switches to them. */
   seasons: ClubUnits;
   names: Record<string, PlayerName>;
 }
 
-const { season, seasons, names } = Astro.props;
+const { code, season, seasons, names } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const current = seasons[String(season)];
 const duos = current ? sortLines(lines(current.pairs, PAIR_SIZE), "net") : [];
 const units = current ? sortLines(lines(current.units, UNIT_SIZE), "net") : [];
-const payload = JSON.stringify({ seasons, names, base, initial: season });
+const payload = JSON.stringify({ code, seasons, names, base, initial: season });
 ---
 
 <section class="band lineups" id="lineups" aria-labelledby="lineups-title">
@@ -73,6 +76,7 @@ const payload = JSON.stringify({ seasons, names, base, initial: season });
   import { lineupRowsHtml, type PlayerName } from "../../lib/lineups_html";
 
   interface Data {
+    code: string;
     seasons: ClubUnits;
     names: Record<string, PlayerName>;
     base: string;
@@ -84,6 +88,27 @@ const payload = JSON.stringify({ seasons, names, base, initial: season });
   let season = data.initial;
   const select = document.getElementById("season") as HTMLSelectElement | null;
   if (select) season = Number(select.value) || season;
+
+  // Other seasons come from data/lineups/{code}/{season}.json when the team page switches season.
+  async function load(s: number): Promise<void> {
+    if (data.seasons[String(s)] !== undefined) return;
+    const r = await fetch(`${data.base}/data/lineups/${data.code.toLowerCase()}/${s}.json`);
+    if (!r.ok) {
+      data.seasons[String(s)] = undefined as never;
+      return;
+    }
+    const part = (await r.json()) as { seasons: ClubUnits; names: Record<string, PlayerName> };
+    Object.assign(data.seasons, part.seasons);
+    Object.assign(data.names, part.names);
+  }
+
+  document.addEventListener("season:change", (e) => {
+    const s = Number((e as CustomEvent<string>).detail);
+    load(s).then(() => {
+      season = s;
+      render();
+    });
+  });
 
   function render(): void {
     const current = data.seasons[String(season)];

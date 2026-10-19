@@ -33,13 +33,11 @@ const m = (await meta())!;
 const open = defaultSeason(m).season;
 const year = [...club.seasons].reverse().find((s) => s <= open) ?? club.seasons[club.seasons.length - 1];
 const t = (await teamSeason(club.code, year))!;
-// The Passing tab renders every season the club has, so the season picker can show each one.
-const passingSeasons = [];
-for (const season of club.seasons) {
-  const own = season === year ? t : await teamOwn(club.code, season);
-  if (own) passingSeasons.push({ season, roster: own.roster, fields: own.rosterFields });
-}
-const lineups = await clubLineups(club.code);
+// Passing and Lineups render only the season the page opens on. Other seasons load on the season
+// switch (data/passing/{code}/{season}.json, data/lineups/{code}/{season}.json), so the page does not
+// grow with every season the club has.
+const passingSeasons = [{ season: year, roster: t.roster, fields: t.rosterFields }];
+const lineups = await clubLineups(club.code, year);
 // The club's orange details take its make colour, the same as the players' shot charts.
 const pair = shotPair(club.code);
 const accentStyle = `--data-1: ${pair.make}; --data-1-wash: color-mix(in srgb, ${pair.make} 12%, transparent); --make: ${pair.make}; --miss: ${pair.miss}`;
@@ -379,7 +377,7 @@ const bandHead = [
   </div>
 
   <div class="wrap tabpanel" role="tabpanel" id="panel-lineups" aria-labelledby="tab-lineups">
-    <Lineups season={t.season} seasons={lineups.seasons} names={lineups.names} />
+    <Lineups code={club.code} season={t.season} seasons={lineups.seasons} names={lineups.names} />
   </div>
 
   <Passing code={club.code} current={t.season} seasons={passingSeasons} />
@@ -630,7 +628,17 @@ const bandHead = [
         document.getElementById("roster-body")!.innerHTML = rosterHtml(t, base!);
         syncSchedule(s);
         if (select) select.value = s;
-        for (const panel of document.querySelectorAll<HTMLElement>("[data-passing-season]")) panel.hidden = panel.dataset.passingSeason !== s;
+        const passing = document.querySelector<HTMLElement>(".season-passing");
+        if (passing && passing.dataset.passingSeason !== s) {
+          const { html } = await fetchJson<{ html: string }>(`${base}/data/passing/${code.toLowerCase()}/${s}.json`);
+          const fragment = new DOMParser().parseFromString(html, "text/html").querySelector<HTMLElement>(".season-passing");
+          if (fragment) {
+            passing.innerHTML = fragment.innerHTML;
+            passing.dataset.passingSeason = s;
+            document.dispatchEvent(new CustomEvent("passing:rendered", { detail: passing }));
+          }
+        }
+        document.dispatchEvent(new CustomEvent("season:change", { detail: s }));
         document.title = `${t.name} · 6.75 Analytics`;
         if (push) {
           const url = new URL(location.href);
