@@ -72,6 +72,8 @@ def test_presets_exist_in_real_data() -> None:
     for pid, season, *_ in splits["rows"]:
         if pid in id_to_slug:
             seasons[id_to_slug[pid]].add(int(season))
+    meta = json.loads((data / "meta.json").read_text(encoding="utf-8"))
+    pools = {int(s["season"]) for s in meta["seasons"]}  # data/players/{season}.json on the site
     problems = []
     for label, _, picks in presets():
         for slug, season in picks:
@@ -79,4 +81,6 @@ def test_presets_exist_in_real_data() -> None:
                 problems.append(f"{label}: no player {slug}")
             elif season is not None and season not in seasons[slug]:
                 problems.append(f"{label}: {slug} has no {season} season")
+            elif season is not None and season not in pools:
+                problems.append(f"{label}: {slug} {season}: no percentile pool for that season")
     assert not problems, "\n".join(problems)
