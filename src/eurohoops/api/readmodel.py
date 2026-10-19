@@ -59,6 +59,7 @@ from eurohoops.config import (
     PLAYER_XWALK_FILE,
     SIM_UNGATED,
     SITE_FORECAST_MODEL,
+    WP_REPORT,
     Competition,
 )
 from eurohoops.eval.backtest import TunedModel, load_tuned_model
@@ -96,6 +97,7 @@ from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
 from eurohoops.stats.units import load_units
+from eurohoops.stats.wp import WpLines, logged_pre, wp_lines
 
 T = TypeVar("T")
 
@@ -463,9 +465,23 @@ def stats_inputs(store: Store) -> Inputs:
             roster=read_rosters(raw, sorted(cached)),
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
             assists=game_assists(raw, played),
+            wp=_wp_lines(store, games),
         )
 
     return store.memo("stats_inputs", make)
+
+
+def _wp_lines(store: Store, games: pd.DataFrame) -> WpLines | None:
+    """The frozen WP v1 lines (stats/wp.py), once per Store; None without its gate report."""
+
+    def make() -> WpLines | None:
+        if not store.path(WP_REPORT).exists():
+            return None
+        report = json.loads(store.path(WP_REPORT).read_text(encoding="utf-8"))
+        logged = logged_pre(store.path(EUROLEAGUE.prediction_log))
+        return wp_lines(games, store.path(EUROLEAGUE.raw_dir), report, logged)
+
+    return store.memo("wp_lines", make)
 
 
 def stats_payloads(store: Store, now: datetime) -> dict[str, dict[str, Any]]:

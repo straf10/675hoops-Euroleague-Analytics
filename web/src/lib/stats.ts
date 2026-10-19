@@ -8,6 +8,7 @@ import { clubShotsOf, type ClubShots } from "./zones";
 import { careers, failsFloor, type Entry, type Pool, type Wire } from "./leaders";
 import type { ClubUnits, UnitsFile } from "./lineups";
 import type { PlayerName } from "./lineups_html";
+import type { WpGame } from "./wp";
 
 export type Cell = [q: number, r: number, att: number, made: number, pts: number];
 export type Bands = Record<string, [att: number, made: number]>;
@@ -711,6 +712,22 @@ export interface RunsFile {
 /** One season's scoring runs; null when the season has no runs file. */
 export async function runsData(year: number): Promise<RunsFile | null> {
   return (await load<RunsFile>(`seasons/${year}/runs.json`)) ?? null;
+}
+
+// ---- In-game win probability (seasons/{season}/wp.json, stats/wp.py) -----------------------
+
+export interface WpFile {
+  season: number;
+  version: string;
+  model: string;
+  grid_seconds: number;
+  /** game id -> the line, swings and control parts of each game with a play-by-play */
+  games: Record<string, WpGame>;
+}
+
+/** One season's win-probability lines (see lib/wp.ts for the shapes); null without the file. */
+export async function wpData(year: number): Promise<WpFile | null> {
+  return (await load<WpFile>(`seasons/${year}/wp.json`)) ?? null;
 }
 
 // ---- Best duos and units (seasons/{season}/units.json, stats/units.py) ----------------------
