@@ -220,6 +220,7 @@ const description =
 </Base>
 
 <script>
+  import { DEFAULT_HALF_WIDTH } from "../../lib/strip";
   import {
     bodyHtml,
     countText,
@@ -357,10 +358,16 @@ const description =
     });
     $("tbody").addEventListener("pointerleave", () => hot(null));
 
+    // How far a tie may spread: half the plot's real width less a dot's radius (the default before it is laid out).
+    const halfWidth = () => (plot.clientWidth ? Math.max(0, plot.clientWidth / 2 - 5) : DEFAULT_HALF_WIDTH);
+    let lastData: SeasonPlayers | null = null;
+    let lastHalf = -1;
     const paint = (data: SeasonPlayers) => {
+      lastData = data;
+      lastHalf = halfWidth();
       const ls = lines(data, view, cfg.rapm);
       const top = shown(ls, view);
-      const s = strip(ls, view);
+      const s = strip(ls, view, lastHalf);
       const rapm = hasRapm();
       $("rank-title").textContent = s.title;
       $("top-text").textContent = view.top ? `Top ${view.top}` : "All ranked";
@@ -399,6 +406,11 @@ const description =
     const atEnd = () => box.classList.toggle("end", box.scrollTop + box.clientHeight >= box.scrollHeight - 2);
     box.addEventListener("scroll", atEnd, { passive: true });
     new ResizeObserver(atEnd).observe(box);
+
+    // A resize changes how far a tie may spread: repaint the dots once the width moves by a pixel.
+    window.addEventListener("resize", () => {
+      if (lastData && Math.abs(halfWidth() - lastHalf) >= 1) paint(lastData);
+    });
 
     let pending = 0;
     const update = async () => {
@@ -655,7 +667,7 @@ const description =
      placed by lib/strip.ts (px from the top, and an offset from the centre line). */
   .strip {
     position: relative;
-    height: 360px;
+    height: 432px; /* STRIP_HEIGHT in lib/strip.ts */
     margin: 12px 0 0 3.25rem;
     font-size: 0.8125rem;
   }

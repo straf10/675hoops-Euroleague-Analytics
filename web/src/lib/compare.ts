@@ -4,6 +4,7 @@
 
 import { careerAchievements, formatRate, REACHED_LABEL, seasonAchievement, seasonTitles, type AchEntry, type StatTitle } from "./achievement";
 import { betterOf } from "./better";
+import { uniquePlayers } from "./compare_picks";
 import { esc } from "./format";
 import { dataTip, tip } from "./tip";
 import { jerseySvg } from "./jersey";
@@ -277,14 +278,15 @@ export function fromQuery(search: string): { picks: Pick[]; scope: Scope; rate: 
   const q = new URLSearchParams(search);
   const scope: Scope = q.get("scope") === "career" ? "career" : "season";
   const rate = (RATES.some((r) => r.key === q.get("rate")) ? q.get("rate") : "game") as CRate;
-  const seen = new Set<string>();
-  const picks = (q.get("p") ?? "")
-    .split(",")
-    .map((part) => {
-      const [slug, season] = part.trim().toLowerCase().split(":");
-      return { slug, season: Number(season) || 0 };
-    })
-    .filter((p) => /^[a-z0-9-]+$/.test(p.slug) && !seen.has(`${p.slug}:${p.season}`) && seen.add(`${p.slug}:${p.season}`))
-    .slice(0, MAX);
+  // A player is picked once, whatever his season: a repeat in the link is dropped.
+  const picks = uniquePlayers(
+    (q.get("p") ?? "")
+      .split(",")
+      .map((part) => {
+        const [slug, season] = part.trim().toLowerCase().split(":");
+        return { slug, season: Number(season) || 0 };
+      })
+      .filter((p) => /^[a-z0-9-]+$/.test(p.slug)),
+  ).slice(0, MAX);
   return { picks, scope, rate };
 }

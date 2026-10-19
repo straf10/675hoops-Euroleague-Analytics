@@ -5,6 +5,57 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { domainOf, isTop, niceTicks, stripLayout, valueY, STEP, STRIP_HEIGHT } from "./strip.ts";
 
+// Games played is a whole number, so many players tie on one value. A tie stays on its exact row,
+// centred on the axis, and its spacing compresses so no dot is further than maxHalfWidth from it.
+const tieOf = (n: number, value = 34) =>
+  Array.from({ length: n }, (_, i) => ({ key: `p${String(i).padStart(2, "0")}`, value, top: false }));
+
+test("a 40-player tie never spreads beyond maxHalfWidth from the axis", () => {
+  for (const maxHalfWidth of [18, 60, 150]) {
+    const { dots } = stripLayout(tieOf(40), 0, 40, STRIP_HEIGHT, maxHalfWidth);
+    assert.ok(
+      dots.every((d) => Math.abs(d.dx) <= maxHalfWidth + 1e-9),
+      `max |dx| ${Math.max(...dots.map((d) => Math.abs(d.dx)))} exceeds ${maxHalfWidth}`,
+    );
+  }
+});
+
+test("a tie keeps the exact y of its value, on one row", () => {
+  const items = [...tieOf(40), { key: "lo", value: 10, top: false }];
+  const { dots } = stripLayout(items, 0, 40, STRIP_HEIGHT, 60);
+  for (const d of dots) {
+    const value = d.key === "lo" ? 10 : 34;
+    assert.ok(Math.abs(d.y - valueY(value, 0, 40)) <= 0.005, `${d.key} at ${d.y}`);
+  }
+  assert.equal(new Set(dots.filter((d) => d.key !== "lo").map((d) => d.y)).size, 1);
+});
+
+test("a tie is centred and spaced at STEP when it fits, and compressed when it does not", () => {
+  const fits = stripLayout(tieOf(3), 0, 40, STRIP_HEIGHT, 60).dots.map((d) => d.dx);
+  assert.deepEqual(fits, [0, STEP, -STEP]);
+  const tight = stripLayout(tieOf(5), 0, 40, STRIP_HEIGHT, 6).dots.map((d) => d.dx);
+  assert.ok(tight.every((dx) => Math.abs(dx) <= 6 + 1e-9), "five dots fit within ±6");
+  assert.equal(Math.max(...tight), 6);
+});
+
+test("a small set without ties places dots exactly as the band rule always has", () => {
+  // Three distinct values inside one 6 px band (y about 213 to 214): highest first, centre, right, left.
+  const items = [
+    { key: "z", value: 10.1, top: false },
+    { key: "x", value: 10.14, top: false },
+    { key: "y", value: 10.12, top: false },
+  ];
+  const { dots } = stripLayout(items, 0, 20, STRIP_HEIGHT, 5);
+  assert.deepEqual(
+    dots.map((d) => [d.key, d.dx]),
+    [
+      ["x", 0],
+      ["y", STEP],
+      ["z", -STEP],
+    ],
+  );
+});
+
 test("nice ticks use a 1, 2, 2.5, 5 or 10 step and cover the domain", () => {
   assert.deepEqual(niceTicks(0, 30), [0, 5, 10, 15, 20, 25, 30]);
   assert.deepEqual(niceTicks(0, 100), [0, 20, 40, 60, 80, 100]);
