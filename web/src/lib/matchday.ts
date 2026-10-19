@@ -54,3 +54,40 @@ export function scorecard(round: MatchdayRound): { right: number; scored: number
   const scored = round.games.filter((g) => g.hit !== null);
   return { right: scored.filter((g) => g.hit === true).length, scored: scored.length };
 }
+
+/**
+ * A finished game against the model's expected home margin, both in whole points as the page
+ * shows them. `predicted` and `actual` are home-side margins (negative: the away side won by that
+ * much); `off` is their gap.
+ */
+export interface MarginCheck {
+  predicted: number;
+  actual: number;
+  off: number;
+}
+
+/** The margin check for a game with a final score and a logged expected margin; null otherwise. */
+export function marginCheck(g: MatchdayGame, expMargin: number | null | undefined): MarginCheck | null {
+  if (!g.played || g.home_score === null || g.away_score === null || expMargin == null) return null;
+  const predicted = Math.round(expMargin) + 0; // + 0 turns a rounded -0 into 0
+  const actual = g.home_score - g.away_score;
+  return { predicted, actual, off: Math.abs(predicted - actual) };
+}
+
+/** Mean absolute margin error over the games that have a check; null when none does. */
+export function averageMiss(checks: (MarginCheck | null)[]): number | null {
+  const known = checks.filter((c): c is MarginCheck => c !== null);
+  if (known.length === 0) return null;
+  return known.reduce((sum, c) => sum + c.off, 0) / known.length;
+}
+
+/**
+ * "Predicted PAN by 4 · Final PAN by 9 · off by 5". The predicted side follows the sign of the
+ * rounded margin ("Predicted even" at 0); the final side is the winner.
+ */
+export function marginText(g: MatchdayGame, c: MarginCheck): string {
+  const side = (margin: number) => (margin > 0 ? g.home.code : g.away.code);
+  const predicted = c.predicted === 0 ? "Predicted even" : `Predicted ${side(c.predicted)} by ${Math.abs(c.predicted)}`;
+  const final = c.actual === 0 ? "Final even" : `Final ${side(c.actual)} by ${Math.abs(c.actual)}`;
+  return `${predicted} · ${final} · off by ${c.off}`;
+}

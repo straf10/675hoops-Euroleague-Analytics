@@ -67,6 +67,10 @@ const scoreRows = [
   })} />
   <GamesJsonLd slot="head" />
 
+  <header class="page-head wrap">
+    <h1>Forecasts</h1>
+  </header>
+
   <section class="numbers wrap" aria-label="How much data is behind the forecasts">
     <p class="figures">
       <span><b>{nums.seasons}</b> seasons</span>
@@ -81,17 +85,12 @@ const scoreRows = [
         )
       }
     </p>
-    <p class="scope">EuroLeague only. An action is one play-by-play entry.</p>
-  </section>
-
-  <header class="page-head wrap">
-    <h1>Forecasts</h1>
-    <p class="links">
-      <a href={`${base}/methodology/`}>How it works</a>
+    <p class="scope">
+      EuroLeague games and play-by-play actions analyzed · <a href={`${base}/methodology/`}>How it works</a>
       {" · "}
       <a href={`${base}/forecasts/`}>Full forecast record</a>
     </p>
-  </header>
+  </section>
 
   <section class="band wrap" id="matchday" aria-labelledby="matchday-title">
     <header class="sec-head">
@@ -139,31 +138,35 @@ const scoreRows = [
         }
       </tbody>
     </table>
-    {comps.map((c) => <BrierByRound comp={c} />)}
-
-    {
-      games > 0 && (
-        <div class="trend-wrap">
+    <div class="charts">
+      {comps.map((c) => <BrierByRound comp={c} />)}
+      {
+        games > 0 && (
           <TrendChart
             id="trend-logloss"
             title="Win chances"
-            caption="How much better each forecast's chance was than the baseline's (a home-win pick), summed game by game. Log loss: lower loss per game is better."
+            what="How far ahead of a simple 'home team wins' guess our chances are, added up game by game."
+            how="Above 0 means our chances have beaten the home-team guess so far; the higher the line, the bigger our lead. A dip means the guess did better over those games."
             unit="log loss, summed"
             digits={2}
             points={logloss}
             better="Above 0 = model ahead"
           />
+        )
+      }
+      {
+        games > 0 && (
           <MarginChart
             id="margin-points"
             title="Points"
-            caption="Each game's predicted home margin (orange line) against the final home margin (grey bars), in tip-off order. Where the line meets the top of a bar, the model called the margin exactly."
+            what="Our predicted home margin for each game (orange line) against the final margin (grey bars)."
+            how="The closer the line is to the top of each bar, the better the call. A bar at +8 with the line at +3 means the home team won by 8 and we said 3."
             games={margins}
-            miss={fc?.season.find((r) => r.model === model)?.margin_mae ?? null}
             better="Closer = better"
           />
-        </div>
-      )
-    }
+        )
+      }
+    </div>
   </section>
 
   <p class="wrap more"><a href={`${base}/forecasts/#every-game`}>Read the log</a></p>
@@ -171,7 +174,7 @@ const scoreRows = [
 
 <style>
   .numbers {
-    padding-top: 56px;
+    padding-top: 20px;
   }
   .figures {
     display: flex;
@@ -198,21 +201,7 @@ const scoreRows = [
     font-size: 0.8125rem;
     color: var(--muted);
   }
-  .page-head {
-    padding-top: 64px;
-  }
-  h1 {
-    font-size: 2.75rem;
-    line-height: 1.04;
-    letter-spacing: -0.035em;
-    font-weight: 620;
-  }
-  .links {
-    margin-top: 12px;
-    font-size: 0.875rem;
-    color: var(--muted);
-  }
-  .links a {
+  .scope a {
     color: var(--ink-2);
     text-decoration: underline;
     text-decoration-color: var(--rule-strong);
@@ -261,10 +250,40 @@ const scoreRows = [
     color: var(--ink);
     font-weight: 600;
   }
-  .trend-wrap {
+  .page-head {
+    padding-top: 64px;
+  }
+  h1 {
+    font-size: 2.75rem;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    font-weight: 620;
+  }
+  /* The three scoring charts: equal columns with a hairline above each head, one row on
+     desktop. The rows are shared (subgrid), so the heads and the plots line up across cards. */
+  .charts {
     display: grid;
-    gap: 56px;
-    margin-top: 56px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    column-gap: 32px;
+  }
+  .charts :global(.chart-card) {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    min-width: 0;
+    margin: 0;
+  }
+  .charts :global(.chart-head) {
+    margin: 0 0 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .charts :global(.chart-head h3) {
+    font-size: 1.0625rem;
+  }
+  .charts :global(.plot-area) {
+    min-width: 0;
   }
   .more {
     padding-top: 48px;
@@ -272,6 +291,19 @@ const scoreRows = [
     color: var(--muted);
   }
 
+  /* One column below 1024px, each card capped so a chart never scales past its 320-unit design. */
+  @media (max-width: 1023px) {
+    .charts {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      row-gap: 56px;
+    }
+    .charts :global(.chart-card) {
+      display: block;
+      grid-row: auto;
+      max-width: 420px;
+    }
+  }
   @media (max-width: 980px) {
     .band {
       padding-top: 64px;

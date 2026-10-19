@@ -7,7 +7,10 @@ import type { TrendPoint } from "../lib/forecasts";
 interface Props {
   id: string;
   title: string;
-  caption: string;
+  /** What the chart shows, in plain words (first help line). */
+  what: string;
+  /** How to read it, with a concrete example (second help line). */
+  how: string;
   /** Unit word for the axis, e.g. "log loss, summed". */
   unit: string;
   /** Decimal places for the values. */
@@ -17,7 +20,7 @@ interface Props {
   /** The corner label: which way is better, e.g. "Above 0 = model ahead". */
   better: string;
 }
-const { id, title, caption, unit, digits, points, better } = Astro.props;
+const { id, title, what, how, unit, digits, points, better } = Astro.props;
 const capId = `${id}-cap`;
 
 const games = points.at(-1)?.n ?? 0;
@@ -32,9 +35,10 @@ const step = niceStep((yMax - yMin) / 4);
 const ticks: number[] = [];
 for (let v = Math.ceil(yMin / step) * step; v <= yMax + 1e-9; v += step) ticks.push(round(v));
 
-const S = 640;
-const H = 300;
-const PAD = { left: 52, right: 84, top: 14, bottom: 40 };
+// Same viewBox as the other scoring charts, so the three cards share one size.
+const S = 320;
+const H = 240;
+const PAD = { left: 44, right: 48, top: 14, bottom: 36 };
 const innerW = S - PAD.left - PAD.right;
 const innerH = H - PAD.top - PAD.bottom;
 const px = (n: number) => PAD.left + (games ? n / games : 0) * innerW;
@@ -55,14 +59,24 @@ function round(v: number): number {
 }
 ---
 
-<figure class="panel">
-  <figcaption class="cap">
+<figure class="chart-card">
+  <figcaption class="chart-head">
     <div class="cap-row">
       <h3 id={id}>{title}</h3>
       <span class="dir">{better}</span>
     </div>
-    <p id={capId}>{caption}</p>
+    <div class="help" id={capId}>
+      <p>{what}</p>
+      <p>{how}</p>
+    </div>
   </figcaption>
+  <div class="legend-row">
+    <ul class="legend" aria-hidden="true">
+      <li><i class="sw series" />Our forecast vs the guess</li>
+      <li><i class="sw level" />0 = level with the guess</li>
+    </ul>
+  </div>
+  <div class="plot-area">
   {
     games === 0 ? (
       <p class="empty">No finished games yet.</p>
@@ -100,6 +114,7 @@ function round(v: number): number {
       </svg>
     )
   }
+  </div>
   <table class="sr-only">
     <caption>{title}</caption>
     <thead>
@@ -122,10 +137,6 @@ function round(v: number): number {
 </figure>
 
 <style>
-  .panel {
-    margin: 0;
-    min-width: 0;
-  }
   .cap-row {
     display: flex;
     align-items: baseline;
@@ -140,19 +151,44 @@ function round(v: number): number {
     font-weight: 500;
     white-space: nowrap;
   }
-  .cap {
-    padding-bottom: 12px;
-    margin-bottom: 14px;
-    border-bottom: 1px solid var(--rule-strong);
-  }
-  .cap h3 {
-    font-size: 1.0625rem;
-  }
-  .cap p {
+  .help p {
     margin-top: 4px;
     color: var(--muted);
     font-size: 0.8125rem;
-    max-width: 70ch;
+  }
+  /* Same height in every card, so the plots start on one line. */
+  .legend-row {
+    min-height: 24px;
+    margin-bottom: 8px;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    color: var(--ink-2);
+    font-size: 0.8125rem;
+  }
+  .legend li {
+    display: inline-flex;
+    align-items: center;
+  }
+  .sw {
+    display: inline-block;
+    width: 14px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .sw.series {
+    height: 0;
+    border-top: 2.25px solid var(--data-1);
+    border-radius: 2px;
+  }
+  .sw.level {
+    height: 0;
+    border-top: 1px dashed var(--ink-2);
   }
   .chart {
     display: block;
@@ -218,12 +254,5 @@ function round(v: number): number {
   .empty {
     color: var(--muted);
     font-size: 0.875rem;
-  }
-  @media (max-width: 520px) {
-    .tick,
-    .axis-label,
-    .end {
-      font-size: 13px;
-    }
   }
 </style>
