@@ -4,15 +4,18 @@
 // data/career-players.json in Career scope. Pure logic: lib/polygon.ts.
 import { CAREER_GAMES } from "../../lib/leaders";
 import { AXES, DEFAULT_AXES, PRESETS } from "../../lib/polygon";
+import { meta } from "../../lib/stats";
 
 interface Props {
   base: string;
 }
 const { base } = Astro.props;
 const root = base.replace(/\/$/, "");
+// The seasons that have a pool file (data/players/{season}.json): the export's seasons.
+const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
 ---
 
-<section class="profile" id="profile" aria-labelledby="profile-heading" data-base={root} data-career={CAREER_GAMES} hidden>
+<section class="profile" id="profile" aria-labelledby="profile-heading" data-base={root} data-career={CAREER_GAMES} data-pools={JSON.stringify(pools)} hidden>
   <h2 id="profile-heading">Percentile profile</h2>
   <p class="profile-note">
     Each player against the qualified players of his season, or of the career pool in Career scope. 100 is the best on each
@@ -71,7 +74,7 @@ const root = base.replace(/\/$/, "");
 </section>
 
 <script>
-  import { AXES, PRESETS, describeProfile, profile, profileSvg, toggleAxis, MIN_AXES, MAX_AXES, type Profile, type RawPlayer } from "../../lib/polygon";
+  import { AXES, PRESETS, describeProfile, poolUrl, profile, profileSvg, toggleAxis, MIN_AXES, MAX_AXES, type Profile, type RawPlayer } from "../../lib/polygon";
 
   type Raw = {
     fields: string[];
@@ -95,6 +98,8 @@ const root = base.replace(/\/$/, "");
     let picks: Pick[] = [];
     let scope: "season" | "career" = "season";
     let ticket = 0;
+    const seasonName = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
+    const poolSeasons: number[] = JSON.parse(section.dataset.pools ?? "[]");
     const cache = new Map<string, Promise<Raw>>();
     const load = (url: string) => {
       if (!cache.has(url)) cache.set(url, fetch(url).then((r) => (r.ok ? (r.json() as Promise<Raw>) : Promise.reject(new Error(url)))));
@@ -124,15 +129,23 @@ const root = base.replace(/\/$/, "");
       }
       section.hidden = false;
       const career = scope === "career";
-      const urlOf = (p: Pick) => (career ? `${root}/data/career-players.json` : `${root}/data/players/${p.season}.json`);
-      const urls = [...new Set(picks.map(urlOf))];
+      // A season with no pool in the site's data (2021-22 has player totals but no season pool) is
+      // not fetched: its players are left out of the drawing, and the status says why.
+      const urlOf = (p: Pick) => poolUrl(p.season, career, root, poolSeasons);
+      const urls = [...new Set(picks.map(urlOf).filter((u): u is string => u !== null))];
       try {
-        const files = new Map(await Promise.all(urls.map(async (u) => [u, await load(u)] as const)));
+        const files = new Map(await Promise.all(urls.map(async (u) => [u, await load(u).catch(() => null)] as const)));
         if (mine !== ticket) return;
         const pool = position();
         const axisObjs = axes.map((k) => names.get(k)!);
-        const shapes = picks.map((p, i) => {
-          const file = files.get(urlOf(p))!;
+        const fileOf = (p: Pick) => {
+          const u = urlOf(p);
+          return u === null ? undefined : files.get(u) ?? undefined;
+        };
+        const missing = picks.filter((p) => !fileOf(p));
+        const drawn = picks.map((p, i) => ({ p, i })).filter(({ p }) => fileOf(p));
+        const shapes = drawn.map(({ p, i }) => {
+          const file = fileOf(p)!;
           const prof: Profile = profile(rows(file), file.fields, p.slug, axes, { career, careerGames, position: pool });
           return { name: p.name, slot: (i % 5) + 1, profile: prof, text: describeProfile(p.name, prof, axisObjs) };
         });
@@ -145,6 +158,9 @@ const root = base.replace(/\/$/, "");
           `Percentile profile${where}`,
           desc,
         );
+        status.textContent = missing.length
+          ? `No percentile pool for ${[...new Set(missing.map((p) => (career ? "the career pool" : seasonName(p.season))))].join(", ")}, so ${missing.map((p) => p.name).join(", ")} ${missing.length === 1 ? "is" : "are"} not drawn.`
+          : "";
         list.replaceChildren(
           ...shapes.map((s) => {
             const li = document.createElement("li");
@@ -162,7 +178,6 @@ const root = base.replace(/\/$/, "");
             return li;
           }),
         );
-        status.textContent = "";
       } catch {
         status.textContent = "Could not load the percentile pools. Reload the page to try again.";
       }

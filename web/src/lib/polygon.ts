@@ -261,3 +261,11 @@ export function profileSvg(axes: Axis[], series: SeriesShape[], title: string, d
     `<g>${shapes}</g><g class="axis-labels">${labels}</g></svg>`
   );
 }
+
+/** The pool file a pick is ranked against: the career pool in Career scope, else its season's file.
+ *  Null when the site has no pool for that season (2021-22 has player totals but no pool file), so
+ *  the page never requests a file that does not exist. */
+export function poolUrl(season: number, career: boolean, root: string, poolSeasons: readonly number[]): string | null {
+  if (career) return `${root}/data/career-players.json`;
+  return poolSeasons.includes(season) ? `${root}/data/players/${season}.json` : null;
+}

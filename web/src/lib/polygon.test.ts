@@ -7,6 +7,7 @@ import {
   MAX_AXES,
   MIN_AXES,
   PRESETS,
+  poolUrl,
   profile,
   profileSvg,
   ringPoints,
@@ -151,4 +152,11 @@ test("profileSvg: a series with no values draws no shape", () => {
   const empty = { slug: "x", note: "Not in this season's data.", pool: 0, axes: axes.map((a) => ({ key: a.key, pct: null, rank: null, of: 0 })) };
   const svg = profileSvg(axes, [{ name: "X", slot: 2, profile: empty }], "t", "d");
   assert.equal((svg.match(/class="shape"/g) ?? []).length, 0);
+});
+
+test("poolUrl: a season with no pool file gives no URL (no request for a missing file)", () => {
+  const seasons = [2022, 2023, 2024];
+  assert.equal(poolUrl(2023, false, "/base", seasons), "/base/data/players/2023.json");
+  assert.equal(poolUrl(2021, false, "/base", seasons), null);
+  assert.equal(poolUrl(2021, true, "/base", seasons), "/base/data/career-players.json");
 });
