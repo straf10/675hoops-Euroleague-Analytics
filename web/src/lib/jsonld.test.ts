@@ -90,6 +90,17 @@ test("a date-only startDate passes through unchanged when the time is not set", 
   assert.equal(ev.startDate, "2026-10-24");
 });
 
+test("a Greek club carries its Greek name as alternateName; other clubs have none", () => {
+  const greek = sportsTeam({
+    name: "Olympiacos Piraeus",
+    url: "https://675hoops.com/teams/oly/",
+    alternateName: "Ολυμπιακός",
+  });
+  assert.equal(greek.alternateName, "Ολυμπιακός");
+  const other = sportsTeam({ name: "Baskonia", url: "https://675hoops.com/teams/kba/" });
+  assert.equal("alternateName" in other, false);
+});
+
 test("team references stay bare: name and url only", () => {
   const team = sportsTeam({ name: "Baskonia", url: "https://675hoops.com/teams/kba/" });
   assert.deepEqual(Object.keys(team).sort(), ["@context", "@type", "memberOf", "name", "sport", "url"]);

@@ -22,6 +22,8 @@ const league = () => ({
 export interface ClubInput extends Ref {
   /** The players in the club's roster that have a page; omitted when empty. */
   athletes?: Ref[];
+  /** The club's name in its own language, when the site has one (e.g. the Greek name of a Greek club). */
+  alternateName?: string;
 }
 
 export function sportsTeam(club: ClubInput): JsonLdObject {
@@ -29,6 +31,7 @@ export function sportsTeam(club: ClubInput): JsonLdObject {
     "@context": CONTEXT,
     "@type": "SportsTeam",
     name: club.name,
+    ...(club.alternateName ? { alternateName: club.alternateName } : {}),
     sport: SPORT,
     url: club.url,
     memberOf: league(),

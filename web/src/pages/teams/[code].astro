@@ -20,6 +20,8 @@ import JsonLd from "../../components/JsonLd.astro";
 import ScheduleStrength from "../../components/team/ScheduleStrength.astro";
 import { hasSchedule } from "../../lib/strength";
 import { sportsTeam } from "../../lib/jsonld";
+import { GREEK_CLUB_NAMES } from "../../lib/greek_names";
+import { coachIndex } from "../../lib/coach_files";
 import { clubLineups } from "../../lib/stats";
 import Lineups from "../../components/team/Lineups.astro";
 
@@ -29,6 +31,8 @@ export async function getStaticPaths() {
 }
 
 const { club } = Astro.props as { club: TeamIndexRow };
+// The head coaches who have coached this club, linked to their pages (the club's own page links them).
+const coachRows = ((await coachIndex())?.coaches ?? []).filter((c) => c.clubs.includes(club.code));
 const m = (await meta())!;
 const open = defaultSeason(m).season;
 const year = [...club.seasons].reverse().find((s) => s <= open) ?? club.seasons[club.seasons.length - 1];
@@ -76,6 +80,7 @@ const bandHead = [
     data={sportsTeam({
       name: t.name,
       url: abs(`${base}/teams/${club.code.toLowerCase()}/`),
+      alternateName: GREEK_CLUB_NAMES[club.code],
       athletes: t.roster
         .filter((p) => p.slug)
         .map((p) => ({ name: p.name, url: abs(`${base}/players/${p.slug}/`) })),
@@ -100,6 +105,19 @@ const bandHead = [
     <div>
       <h1 id="t-name">{t.name}</h1>
     </div>
+    {
+      coachRows.length > 0 && (
+        <p class="facts coaches">
+          <span>Coaches</span>
+          {coachRows.map((c, i) => (
+            <>
+              {i > 0 && ", "}
+              <a href={`${base}/coaches/${c.slug}/`}>{c.name}</a>
+            </>
+          ))}
+        </p>
+      )
+    }
     {
       club.seasons.length > 1 && (
         <label class="field">
