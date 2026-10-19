@@ -124,8 +124,8 @@ const clutchShare = style && style.clutch.team_games > 0 ? style.clutch.games / 
                 <th scope="row">
                   After timeout
                   <small>
-                    Points per possession right after his own timeouts ({style.ato.possessions}
-                    possessions{style.ato.possessions < MIN_ATO ? `; shown from ${MIN_ATO}` : ""})
+                    Points per possession right after his own timeouts
+                    {`(${style.ato.possessions} possessions${style.ato.possessions < MIN_ATO ? `; shown from ${MIN_ATO}` : ""})`}
                   </small>
                 </th>
                 <td class="num">{style.ato.possessions < MIN_ATO ? "-" : rate(style.ato.ppp)}</td>

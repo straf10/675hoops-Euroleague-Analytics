@@ -249,6 +249,10 @@ svg text {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* A table ignores a width smaller than its content, so a hidden one would widen the page. */
+table.sr-only {
+  display: block;
+}
 
 /* Icons from Phosphor, inlined as raw SVG. */
 .icon svg,

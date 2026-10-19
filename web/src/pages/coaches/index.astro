@@ -58,16 +58,36 @@ const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
       </section>
     ) : (
       <>
+        <section class="wrap band" aria-labelledby="find-title">
+          <header class="sec-head">
+            <h2 id="find-title">Find a coach</h2>
+            <p>Every coach since {firstLabel || "the box scores name them"}, current or not.</p>
+          </header>
+          <div class="find" role="search">
+            <label class="find-label" for="coach-q">Coach name</label>
+            <input
+              type="search"
+              id="coach-q"
+              placeholder="Type part of a name"
+              autocomplete="off"
+              spellcheck="false"
+              aria-controls="coach-results"
+            />
+          </div>
+          <p class="find-count" id="coach-count" aria-live="polite"></p>
+          <ul class="find-results" id="coach-results"></ul>
+          <noscript>
+            <p class="find-count">Search needs JavaScript. The current coaches below link to their pages.</p>
+          </noscript>
+          <script type="application/json" id="coach-search" set:html={embedded} />
+        </section>
+
         {season !== null && (
           <section class="wrap band" aria-labelledby="current-title">
             <header class="sec-head">
               <h2 id="current-title">{seasonRange([season])} EuroLeague coaches</h2>
               <p>
-                One coach per club: whoever coached the club's most recent game this season, from
-                the box scores up to {through}. A coach replaced mid-season drops off, and a club
-                whose latest box score names no coach is left out. G, W-L, Win % and wins above exp.
-                are career totals. Expected wins come from the history Elo, which knows nothing about
-                the coach, so the gap is a rating signal, not proof of coaching skill.
+                Who coached each club's latest game (through {through}). Career EuroLeague totals.
               </p>
             </header>
             <div class="scroll">
@@ -100,30 +120,6 @@ const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
             </div>
           </section>
         )}
-
-        <section class="wrap band" aria-labelledby="find-title">
-          <header class="sec-head">
-            <h2 id="find-title">Find a coach</h2>
-            <p>Any coach in the box scores, from any season. Accents and capitals do not matter.</p>
-          </header>
-          <div class="find" role="search">
-            <label class="find-label" for="coach-q">Coach name</label>
-            <input
-              type="search"
-              id="coach-q"
-              placeholder="Type part of a name"
-              autocomplete="off"
-              spellcheck="false"
-              aria-controls="coach-results"
-            />
-          </div>
-          <p class="find-count" id="coach-count" aria-live="polite"></p>
-          <ul class="find-results" id="coach-results"></ul>
-          <noscript>
-            <p class="find-count">Search needs JavaScript. The current coaches above link to their pages.</p>
-          </noscript>
-          <script type="application/json" id="coach-search" set:html={embedded} />
-        </section>
       </>
     )
   }
