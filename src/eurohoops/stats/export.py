@@ -35,7 +35,7 @@ import re
 import shutil
 import unicodedata
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import pairwise
@@ -404,17 +404,8 @@ def _continuity_by_club(season: int, inputs: Inputs) -> dict[str, dict[str, Any]
     return out
 
 
-# A team's strength-of-schedule figures in a season (source code, season -> figures), from the same
-# computation as the team page (api/readmodel.py); the export holds no second definition of it.
-SosOf = Callable[[str, int], Mapping[str, float | None]]
-
-
 def _teams_payload(
-    season: int,
-    teams: pd.DataFrame,
-    shots: pd.DataFrame,
-    inputs: Inputs,
-    sos: SosOf | None = None,
+    season: int, teams: pd.DataFrame, shots: pd.DataFrame, inputs: Inputs
 ) -> dict[str, Any]:
     continuity = _continuity_by_club(season, inputs)
     table = teams.assign(gp=1)
@@ -454,8 +445,6 @@ def _teams_payload(
                 "continuity": continuity.get(code),
             }
         )
-        if sos is not None:
-            rows[-1]["sos"] = dict(sos(code, season))
     rows.sort(key=lambda r: (-r["w"], r["l"], r["code"]))
     league = _row(table[list(TEAM_FIELDS)].to_numpy(dtype=float).sum(axis=0))
     return {
@@ -562,9 +551,7 @@ def _attempts_payload(season: int, shots: pd.DataFrame, inputs: Inputs) -> dict[
     }
 
 
-def build_payloads(
-    inputs: Inputs, now: datetime, sos: SosOf | None = None
-) -> dict[str, dict[str, Any]]:
+def build_payloads(inputs: Inputs, now: datetime) -> dict[str, dict[str, Any]]:
     """Relative path -> JSON payload of every file in the stats directory.
 
     Only the latest ``SITE_SEASONS`` seasons are published: the season files, the player and
@@ -588,7 +575,7 @@ def build_payloads(
         base = f"seasons/{season}"
         files[f"{base}/players.json"] = _players_payload(season, lines, shots, inputs, slugs)
         files[f"{base}/teams.json"] = _teams_payload(
-            season, inputs.box.teams[inputs.box.teams["season"] == season], shots, inputs, sos
+            season, inputs.box.teams[inputs.box.teams["season"] == season], shots, inputs
         )
         files[f"{base}/games.json"] = _games_payload(season, lines, games, inputs)
         files[f"{base}/shots.json"] = _shots_payload(season, shots, inputs)
