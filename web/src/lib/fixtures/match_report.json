@@ -1,0 +1,68 @@
+{
+  "game_id": "E2026_061", "competition": "euroleague", "season": 2026, "round": 7, "phase": "RS",
+  "tipoff_utc": "2026-10-22T17:45:00Z",
+  "home": {"code": "PAO", "name": "Panathinaikos AKTOR Athens"},
+  "away": {"code": "FBT", "name": "Fenerbahce Beko Istanbul"},
+  "result": {"home": 88, "away": 80},
+  "model": {
+    "available": true, "reason": null,
+    "home_rating": 1612.4, "away_rating": 1588.0, "hca": 90.0, "neutral": false, "diff": 114.4,
+    "margin_scale": 28.1234, "p_home": 0.6573, "exp_margin": 4.07,
+    "model_version": "0.2.0+425e6393", "predicted_at_utc": "2026-10-20T08:12:00Z", "source": "logged"
+  },
+  "other_models": [
+    {"key": "m1", "label": "Possession model", "p_home": 0.61, "exp_margin": 3.2},
+    {"key": "m5", "label": "Player model", "p_home": 0.58, "exp_margin": 2.4},
+    {"key": "elor", "label": "Elo + roster", "p_home": 0.64, "exp_margin": 3.9}
+  ],
+  "form": {
+    "home": [
+      {"date": "2026-10-16", "opp": "BAR", "venue": "A", "for": 81, "against": 77, "won": true},
+      {"date": "2026-10-13", "opp": "MAD", "venue": "H", "for": 90, "against": 85, "won": true},
+      {"date": "2026-10-09", "opp": "OLY", "venue": "A", "for": 72, "against": 78, "won": false}
+    ],
+    "away": []
+  },
+  "h2h": {
+    "since": 2007, "games": 31, "home_wins": 17, "away_wins": 14,
+    "last": [
+      {"date": "2026-04-10", "season": 2025, "home": "PAO", "away": "FBT", "home_score": 79, "away_score": 84},
+      {"date": "2025-12-19", "season": 2025, "home": "FBT", "away": "PAO", "home_score": 91, "away_score": 86}
+    ]
+  },
+  "team_stats": {
+    "games": {"home": 6, "away": 6},
+    "rows": [
+      {"key": "net_rtg", "label": "Net rating", "home": 6.1, "away": 3.4, "better": "high", "format": "signed1"},
+      {"key": "off_rtg", "label": "Offensive rating", "home": 118.2, "away": 115.0, "better": "high", "format": "num1"},
+      {"key": "def_rtg", "label": "Defensive rating", "home": 112.1, "away": 111.6, "better": "low", "format": "num1"},
+      {"key": "pace", "label": "Pace", "home": 71.2, "away": 69.8, "better": null, "format": "num1"},
+      {"key": "efg_pct", "label": "Effective FG%", "home": 0.552, "away": 0.531, "better": "high", "format": "pct1"},
+      {"key": "rest_days", "label": "Days of rest", "home": 3.0, "away": 2.0, "better": "high", "format": "num0"}
+    ]
+  },
+  "players": {
+    "home": [
+      {"name": "Kendrick Nunn", "slug": "kendrick-nunn", "gp": 6, "min": 28.4, "pts": 18.2, "reb": 3.1, "ast": 4.0, "pir": 17.5},
+      {"name": "Tomas Satoransky", "slug": null, "gp": 6, "min": 24.0, "pts": 9.5, "reb": 2.2, "ast": 5.1, "pir": 11.0}
+    ],
+    "away": [
+      {"name": "Nick Calathes", "slug": "nick-calathes", "gp": 6, "min": 26.9, "pts": 10.4, "reb": 3.0, "ast": 6.2, "pir": 13.8}
+    ]
+  },
+  "injuries": {
+    "snapshot_utc": "2026-10-20T09:30:00Z",
+    "home": [{"player": "Juancho Hernangomez", "status": "Out", "return": "Round 9", "comment": "Ankle"}],
+    "away": []
+  },
+  "coaches": {
+    "home": {"name": "Ergin Ataman", "slug": "ergin-ataman", "season": {"wins": 4, "losses": 2}, "career": {"wins": 310, "losses": 190}},
+    "away": {"name": "Sarunas Jasikevicius", "slug": "sarunas-jasikevicius", "season": {"wins": 5, "losses": 1}, "career": {"wins": 250, "losses": 120}},
+    "h2h": {"games": 14, "home_wins": 6, "away_wins": 8},
+    "style": [
+      {"key": "timeouts", "label": "Timeouts per game", "home": 4.1, "away": 3.6, "format": "num1"},
+      {"key": "ato_ppp", "label": "Points per possession after timeout", "home": 1.05, "away": 0.98, "format": "num2"},
+      {"key": "clutch_win", "label": "Clutch win %", "home": 0.67, "away": 0.5, "format": "pct0"}
+    ]
+  }
+}

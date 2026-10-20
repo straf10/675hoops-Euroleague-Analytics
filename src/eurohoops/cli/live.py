@@ -1,5 +1,6 @@
 """Live-season commands: project, sim-ungated, predict, odds, injuries, simulate, score."""
 
+import csv
 import hashlib
 import json
 import os
@@ -66,6 +67,7 @@ from eurohoops.eval.m6_backtest import M6Inputs, TargetInputs, World, prepare
 from eurohoops.eval.scorecard import build_scorecard
 from eurohoops.ingest.http import make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
+from eurohoops.inputs import INPUT_COLUMNS, backfill_rows
 from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
 from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
@@ -91,7 +93,7 @@ from eurohoops.live_sim import (
     run_live_sim,
     write_live_sim,
 )
-from eurohoops.logs import write_json
+from eurohoops.logs import append_rows, write_json
 from eurohoops.marts import read_games, read_table, read_teams
 from eurohoops.models.box_impact import STAT_COLUMNS
 from eurohoops.models.elor import WalkForwardRatings
@@ -99,7 +101,7 @@ from eurohoops.models.player_part import ElPlayerRatings, el_player_part
 from eurohoops.models.projection import Translation
 from eurohoops.models.roster import RosterCacheError, read_rosters
 from eurohoops.odds import OddsApiError, OddsPaths, api_key, record_odds
-from eurohoops.predict import LatePredictionError, predict_upcoming
+from eurohoops.predict import LatePredictionError, logged_keys, predict_upcoming
 from eurohoops.sim.formats import season_format
 from eurohoops.tipoff import first_tipoff_on
 
@@ -379,6 +381,7 @@ def predict(
             replay_from=live.replay_from,
             round_lead=timedelta(hours=round_lead_hours),
             clock=utc_now,
+            inputs_log=comp.inputs_log,
         )
         typer.echo(f"{added} predictions appended to {comp.prediction_log}")
         m1 = None if comp.m1 is None else load_m1(comp.m1.report)
@@ -438,6 +441,42 @@ def predict(
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc
+
+
+def backfill_inputs(
+    competition: Annotated[
+        CompetitionName | None,
+        typer.Option("--competition", help="Only this competition (default: all)"),
+    ] = None,
+) -> None:
+    """Backfill the model-input snapshots (docs/match_report.md, section 1) for Elo rows logged
+    before they existed: Elo is replayed over the games known at each row's predicted_at_utc, and
+    a snapshot is appended only where the recomputed p_home and exp_margin equal the logged ones.
+    Rows already in the inputs log are left alone; nothing else is written."""
+    names = [competition] if competition is not None else list(CompetitionName)
+    for name in names:
+        comp = COMPETITIONS[name]
+        if comp.inputs_log is None or comp.prediction_log is None:
+            continue
+        if not comp.prediction_log.exists():
+            typer.echo(f"{comp.name}: no Elo log at {comp.prediction_log}; nothing to backfill")
+            continue
+        live = _live(comp)
+        with comp.prediction_log.open(newline="", encoding="utf-8") as fh:
+            elo_rows = list(csv.DictReader(fh))
+        rows, report = backfill_rows(
+            live.games,
+            elo_rows,
+            logged_keys(comp.inputs_log),
+            live.model,
+            live.replay_from,
+        )
+        append_rows(comp.inputs_log, INPUT_COLUMNS, rows)
+        typer.echo(
+            f"{comp.name}: {report.matched} matched and appended to {comp.inputs_log}, "
+            f"{report.already} already present, {len(report.skipped)} skipped "
+            f"(see warnings above)"
+        )
 
 
 def odds() -> None:

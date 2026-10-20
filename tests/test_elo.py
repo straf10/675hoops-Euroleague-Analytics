@@ -8,6 +8,7 @@ from eurohoops.models.elo import (
     mov_multiplier,
     prepare,
     replay,
+    replay_with_ratings,
     win_probability,
 )
 from tests.conftest import make_games
@@ -115,3 +116,17 @@ def test_forfeits_do_not_update_ratings() -> None:
     without = games[~games["forfeit"]].reset_index(drop=True)
     diffs_all = replay(prepare(games), PARAMS)[~games["forfeit"].to_numpy()]
     assert np.array_equal(diffs_all, replay(prepare(without), PARAMS))
+
+
+def test_replay_with_ratings_gives_pre_game_ratings_and_the_same_diffs() -> None:
+    rows = (
+        (2024, "A", "B", False, True, 10),
+        (2024, "A", "C", True, False, 0),
+        (2024, "C", "B", True, False, 0),
+    )
+    diffs, home, away = replay_with_ratings(games(*rows), PARAMS)
+    assert np.array_equal(diffs, replay(games(*rows), PARAMS))
+    assert home[0] == 1500.0 and away[0] == 1500.0
+    assert home[1] == pytest.approx(1500.0 + SHIFT, abs=1e-5)  # A after the first game
+    assert away[1] == 1500.0  # C is fresh
+    assert home[1] - away[1] == pytest.approx(diffs[1], abs=1e-9)  # neutral: no HCA

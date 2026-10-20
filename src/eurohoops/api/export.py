@@ -26,7 +26,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from httpx import Response
 
-from eurohoops.api.readmodel import Store
+from eurohoops.api.readmodel import Store, report_game_ids
 from eurohoops.config import (
     EUROLEAGUE,
     LIVE_SEASON,
@@ -57,6 +57,7 @@ FIXED_ROUTES = {file: route for route, file in FIXED.items()}
 PLAYER_FILES = {"projection": "projection.json", "similar": "similar.json", None: "index.json"}
 SIMULATION = re.compile(r"^/simulations/latest\?competition=(?P<c>\w+)$")
 PLAYER = re.compile(r"^/players/(?P<id>[^/]+)(?:/(?P<what>projection|similar))?$")
+REPORT = re.compile(r"^/reports/(?P<c>\w+)/(?P<game>[^/]+)$")
 TEAM = re.compile(
     rf"^/teams/(?P<c>\w+)/(?P<team>[^/]+)/(?:factors\?season={LIVE_SEASON}|(?P<r>ratings))$"
 )
@@ -106,13 +107,15 @@ def file_for(route: str) -> PurePosixPath:
         return API_PREFIX / "simulations" / f"{match['c']}.json"
     if match := PLAYER.match(route):
         return API_PREFIX / "players" / file_key(match["id"]) / PLAYER_FILES[match["what"]]
+    if match := REPORT.match(route):
+        return API_PREFIX / "reports" / match["c"] / f"{match['game']}.json"
     if match := TEAM.match(route):
         name = "ratings.json" if match["r"] else "factors.json"
         return API_PREFIX / "teams" / match["c"] / match["team"] / name
     raise ValueError(f"no file for route {route!r}")
 
 
-def route_for(file: PurePosixPath) -> str:
+def route_for(file: PurePosixPath) -> str:  # noqa: PLR0911
     """The route a file (relative to ``web/``) is the response of; inverse of ``file_for``."""
     if file in FIXED_ROUTES:
         return FIXED_ROUTES[file]
@@ -125,6 +128,8 @@ def route_for(file: PurePosixPath) -> str:
             case ("players", key, name) if name in PLAYER_FILES.values():
                 what = next(k for k, v in PLAYER_FILES.items() if v == name)
                 return f"/players/{person_of(key)}" + ("" if what is None else f"/{what}")
+            case ("reports", competition, name) if name.endswith(".json"):
+                return f"/reports/{competition}/{name.removesuffix('.json')}"
             case ("teams", competition, team, "ratings.json"):
                 return f"/teams/{competition}/{team}/ratings"
             case ("teams", competition, team, "factors.json"):
@@ -186,6 +191,8 @@ def api_routes(store: Store, site: Mapping[str, Any]) -> list[Route]:
         Route(f"/players/{person}/similar", optional=True) for person in similar if person in people
     ]
     routes += [Route(f"/players/{person}", optional=True) for person in people]
+    for game_id in report_game_ids(store, EUROLEAGUE.name):  # the site shows EuroLeague only
+        routes.append(Route(f"/reports/{EUROLEAGUE.name}/{game_id}", optional=True))
     for section in site["competitions"]:
         source = _source_codes(section["key"])
         for rating in section["ratings"]:

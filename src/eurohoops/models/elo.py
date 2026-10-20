@@ -65,11 +65,22 @@ def replay(games: GameArrays, params: EloParams) -> FloatArray:
     return _run(games, params)[0]
 
 
+def replay_with_ratings(
+    games: GameArrays, params: EloParams
+) -> tuple[FloatArray, FloatArray, FloatArray]:
+    """Return ``(diff, home_rating, away_rating)`` for every game, all pre-game.
+
+    ``diff`` is exactly what ``replay`` returns; the ratings exclude home-court advantage.
+    """
+    diffs, home_ratings, away_ratings, _, _ = _run(games, params)
+    return diffs, home_ratings, away_ratings
+
+
 def season_ratings(
     games: GameArrays, params: EloParams, season: int
 ) -> dict[str, tuple[float, float]]:
     """Each ``season`` team's (current rating, rating at that season's start after reversion)."""
-    _, ratings, starts = _run(games, params)
+    _, _, _, ratings, starts = _run(games, params)
     teams = {
         t
         for s, h, a in zip(games.season, games.home, games.away, strict=True)
@@ -82,11 +93,15 @@ def season_ratings(
 
 def _run(
     games: GameArrays, params: EloParams
-) -> tuple[FloatArray, dict[str, float], dict[int, dict[str, float]]]:
-    """One chronological pass: pre-game diffs, final ratings and a snapshot at each season start."""
+) -> tuple[FloatArray, FloatArray, FloatArray, dict[str, float], dict[int, dict[str, float]]]:
+    """One chronological pass: pre-game diffs and ratings, final ratings and a snapshot at each
+    season start."""
     ratings: dict[str, float] = {}
     starts: dict[int, dict[str, float]] = {}
-    diffs = np.empty(len(games.home), dtype=np.float64)
+    n = len(games.home)
+    diffs = np.empty(n, dtype=np.float64)
+    home_ratings = np.empty(n, dtype=np.float64)
+    away_ratings = np.empty(n, dtype=np.float64)
     current_season: int | None = None
     keep = 1.0 - params.reversion
     for i, (season, home, away, neutral, played, margin) in enumerate(
@@ -110,6 +125,8 @@ def _run(
         away_rating = ratings.setdefault(away, INITIAL_RATING)
         diff = home_rating - away_rating + (0.0 if neutral else params.hca)
         diffs[i] = diff
+        home_ratings[i] = home_rating
+        away_ratings[i] = away_rating
         if not played:
             continue
         home_won = margin > 0
@@ -121,7 +138,7 @@ def _run(
         )
         ratings[home] = home_rating + shift
         ratings[away] = away_rating - shift
-    return diffs, ratings, starts
+    return diffs, home_ratings, away_ratings, ratings, starts
 
 
 def fit_margin_scale(diffs: FloatArray, margins: FloatArray) -> float:

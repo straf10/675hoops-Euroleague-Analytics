@@ -11,8 +11,14 @@ import numpy.typing as npt
 import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
+from eurohoops.inputs import (
+    INPUT_COLUMNS,
+    SOURCE_LOGGED,
+    elo_strings,
+    input_row,
+)
 from eurohoops.logs import TIME_FORMAT, append_rows
-from eurohoops.models.elo import prepare, replay, win_probability
+from eurohoops.models.elo import prepare, replay_with_ratings
 
 LOG_COLUMNS = (
     "game_id",
@@ -80,6 +86,7 @@ def predict_upcoming(
     replay_from: int,
     round_lead: timedelta,
     clock: Callable[[], datetime],
+    inputs_log: Path | None = None,
 ) -> int:
     """Log confirmed, unplayed ``season`` games of the rounds starting within ``round_lead``
     (see ``upcoming_games``); return rows added.
@@ -88,42 +95,79 @@ def predict_upcoming(
     (the tuned model's first warm-up season, so extra history cannot shift live ratings).
     The selection time and the ``predicted_at_utc`` stamp are separate clock reads; if the stamp
     is not strictly before a game's tip-off, nothing is written and LatePredictionError is raised.
+
+    With ``inputs_log``, each row appended to the Elo log also gets a model-input snapshot row
+    there (same stamp, same p_home and exp_margin strings), unless that game and version are
+    already in the inputs log.
     """
     now = clock()
     games = games[games["season"] >= replay_from]
-    diffs = replay(prepare(games), model.params)
+    diffs, home_ratings, away_ratings = replay_with_ratings(prepare(games), model.params)
     upcoming = upcoming_games(games, season, now, round_lead)
     model_version = model.version()
     logged = logged_keys(log_path)
     targets = [
-        (game, float(diff))
-        for game, diff in zip(games[upcoming].to_dict("records"), diffs[upcoming], strict=True)
+        (game, float(diff), float(home), float(away))
+        for game, diff, home, away in zip(
+            games[upcoming].to_dict("records"),
+            diffs[upcoming],
+            home_ratings[upcoming],
+            away_ratings[upcoming],
+            strict=True,
+        )
         if (game["game_id"], model_version) not in logged
     ]
     predicted_at = clock()
-    refuse_late(predicted_at, [(game["game_id"], game["tipoff_utc"]) for game, _ in targets])
-    rows = [
-        {
-            "game_id": game["game_id"],
-            "season": game["season"],
-            "round": game["round"],
-            "phase": game["phase"],
-            "tipoff_utc": game["tipoff_utc"].strftime(TIME_FORMAT),
-            "home": game["home"],
-            "away": game["away"],
-            "p_home": f"{win_probability(diff):.4f}",
-            "exp_margin": f"{diff / model.margin_scale:.2f}",
-            "model": "elo",
-            "model_version": model_version,
-            "predicted_at_utc": predicted_at.strftime(TIME_FORMAT),
-        }
-        for game, diff in targets
-    ]
-    append_rows(log_path, LOG_COLUMNS, rows)
+    refuse_late(predicted_at, [(game["game_id"], game["tipoff_utc"]) for game, *_ in targets])
+    stamp = predicted_at.strftime(TIME_FORMAT)
+    elo_rows, snapshots = [], []
+    for game, diff, home_rating, away_rating in targets:
+        p_home, exp_margin = elo_strings(diff, model.margin_scale)
+        tipoff = game["tipoff_utc"].strftime(TIME_FORMAT)
+        elo_rows.append(
+            {
+                "game_id": game["game_id"],
+                "season": game["season"],
+                "round": game["round"],
+                "phase": game["phase"],
+                "tipoff_utc": tipoff,
+                "home": game["home"],
+                "away": game["away"],
+                "p_home": p_home,
+                "exp_margin": exp_margin,
+                "model": "elo",
+                "model_version": model_version,
+                "predicted_at_utc": stamp,
+            }
+        )
+        if inputs_log is not None:
+            neutral = bool(game["neutral"])
+            snapshots.append(
+                input_row(
+                    game=game,
+                    tipoff_utc=tipoff,
+                    home_rating=home_rating,
+                    away_rating=away_rating,
+                    hca=0.0 if neutral else model.params.hca,
+                    neutral=neutral,
+                    diff=diff,
+                    margin_scale=model.margin_scale,
+                    p_home=p_home,
+                    exp_margin=exp_margin,
+                    model_version=model_version,
+                    predicted_at_utc=stamp,
+                    source=SOURCE_LOGGED,
+                )
+            )
+    append_rows(log_path, LOG_COLUMNS, elo_rows)
+    if inputs_log is not None:
+        known = logged_keys(inputs_log)
+        fresh = [r for r in snapshots if (r["game_id"], r["model_version"]) not in known]
+        append_rows(inputs_log, INPUT_COLUMNS, fresh)
     log.info(
         "%d upcoming games in open rounds, %d already logged, %d rows appended",
         int(upcoming.sum()),
-        int(upcoming.sum()) - len(rows),
-        len(rows),
+        int(upcoming.sum()) - len(elo_rows),
+        len(elo_rows),
     )
-    return len(rows)
+    return len(elo_rows)

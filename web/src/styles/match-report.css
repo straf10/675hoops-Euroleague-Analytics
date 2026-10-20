@@ -1,0 +1,353 @@
+/* The match report dropdown under a Matchday row (lib/match_report.ts renders the markup into .report-body).
+   Ink for text, hairlines for separation, colour never used here. Light and dark follow the page tokens. */
+
+.report-wrap {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 2px;
+  padding-bottom: 8px;
+}
+
+.report-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 0 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.report-toggle[hidden] {
+  display: none;
+}
+.report-toggle:hover {
+  color: var(--ink);
+}
+.report-toggle:focus-visible {
+  outline: 2px solid var(--data-1);
+  outline-offset: 2px;
+}
+.report-toggle .chev {
+  display: inline-grid;
+  width: 12px;
+  height: 12px;
+  transition: transform 200ms var(--ease-out);
+}
+.report-toggle .chev svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+.report-toggle[aria-expanded="true"] .chev {
+  transform: rotate(180deg);
+}
+
+/* Collapsed by grid rows, not display, so the open can animate; hidden from the tree when closed. */
+.report {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 220ms var(--ease-out),
+    visibility 220ms;
+}
+.report.open {
+  grid-template-rows: 1fr;
+  visibility: visible;
+}
+.report-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.report-body {
+  min-width: 0;
+}
+/* The gap between the toggle and the report's first heading; inside the clipped inner, so it collapses with the panel. */
+.report.open .report-body {
+  padding-top: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report,
+  .report-toggle .chev {
+    transition: none;
+  }
+}
+
+/* ---- The report itself ---- */
+
+.mr {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 0 12px;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.mr-sec + .mr-sec {
+  margin-top: 28px;
+}
+.mr-h {
+  margin: 0 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule-strong);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.mr-block {
+  margin-top: 18px;
+}
+.mr-title {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.mr-col h6 {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.mr-sub {
+  margin: 10px 0 4px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.mr-note,
+.mr-sum {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+}
+.mr-note {
+  color: var(--muted);
+}
+.mr-sum {
+  color: var(--ink);
+}
+.mr-muted {
+  color: var(--muted);
+}
+.mr-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 40px;
+  min-width: 0;
+}
+.mr-col {
+  min-width: 0;
+}
+.mr-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Equation stack: operator, term, value, with hairlines between lines. */
+.mr-block ul,
+.mr-block ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.eq li,
+.marks li,
+.plain li {
+  display: grid;
+  grid-template-columns: 1.1em minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.eq .op {
+  color: var(--muted);
+}
+.eq .term {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.eq .v {
+  text-align: right;
+}
+.eq li.sum {
+  border-top: 1px solid var(--rule-strong);
+}
+.eq li.call {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom: 0;
+}
+.eq li.call .term {
+  grid-column: 2 / -1;
+}
+.mr-others .eq li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.mr-others .eq .op {
+  display: none;
+}
+/* The model stack and the other models read as a narrow column, not the full page width. */
+.mr-block > .eq,
+.mr-others {
+  max-width: 520px;
+}
+
+/* Injuries: one block per player (name, status line, comment underneath). No table. */
+.inj li {
+  display: block;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.inj .name {
+  display: block;
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.inj .status,
+.inj .note {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+/* Head-to-head meetings: a fixed date column, then "HOME score – score AWAY" with the winner in ink 600. */
+.meetings li {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.meetings .d {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.meetings .t {
+  min-width: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.meetings .win {
+  color: var(--ink);
+  font-weight: 600;
+}
+.meetings .lose {
+  color: var(--ink-2);
+}
+
+/* Tables for the two-sided comparisons and the player lines. */
+.mr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.mr-table th,
+.mr-table td {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: baseline;
+}
+.mr-table thead th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.mr-table th[scope="row"] {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.mr-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.mr-table .lab {
+  text-align: center;
+  color: var(--muted);
+  font-weight: 400;
+}
+.mr-compare {
+  max-width: 560px;
+}
+.mr-compare .lab {
+  min-width: 9rem;
+}
+.mr-compare td.num {
+  width: 30%;
+}
+.mr-table a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+.mr-table a:hover {
+  text-decoration-color: var(--ink);
+}
+.mr-table .best {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Form marks and recent meetings: result, opponent, score. */
+.marks li .res {
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 1ch;
+}
+.marks li.won .res {
+  color: var(--ink);
+}
+.marks li .opp {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.marks li .sc,
+.marks li .d {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.marks li .sc {
+  color: var(--ink-2);
+}
+.coach {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.coach a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+.rec {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+/* Phones: the two sides stack, the comparison table stays inside its own scroller. */
+@media (max-width: 600px) {
+  .mr-pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .mr-compare td.num {
+    width: auto;
+  }
+}

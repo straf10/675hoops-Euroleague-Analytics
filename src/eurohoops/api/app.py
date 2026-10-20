@@ -121,6 +121,17 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
         return CompactJSON(readmodel.prediction(store, game_id))
 
     @app.get(
+        "/reports/{competition}/{game_id}",
+        tags=["games"],
+        response_class=CompactJSON,
+        responses=missing,
+    )
+    def match_report(competition: str, game_id: str) -> Response:
+        """One game's match report: the model's inputs, the other models and the context
+        known before tip-off (a finished game keeps its report)."""
+        return CompactJSON(readmodel.match_report(store, competition, game_id))
+
+    @app.get(
         "/teams/{competition}/{team}/ratings",
         tags=["teams"],
         response_class=CompactJSON,

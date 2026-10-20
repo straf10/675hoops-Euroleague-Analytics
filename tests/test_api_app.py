@@ -386,6 +386,7 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "/stats/{path}": "stats",
         "/games/upcoming": "games",
         "/predictions/{game_id}": "games",
+        "/reports/{competition}/{game_id}": "games",
         "/teams/{competition}/{team}/ratings": "teams",
         "/teams/{competition}/{team}/factors": "teams",
         "/players/{person_id}": "players",
