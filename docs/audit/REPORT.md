@@ -83,3 +83,10 @@ Lessons for delegation: Haiku followed tight scope + exact acceptance commands w
 3. `ci.yml` now runs on `push` to `main` only (pull requests still run).
 4. Deleted the three unreferenced prompts (`ci-m5-history`, `perf-site-2`, `phase-c-redesigns`).
 5. This report is kept; BASELINE, FINDINGS and PLAN were deleted (recoverable from this session's commit history only if committed, which they were not).
+
+## Spike result: F-10, shared score-events rows (branch `spike/shared-pbp`, **not merged**)
+`onoff.score_events` rows cached per game and reused by `runs.game_runs`, cleared after `load_onoff`. Same stage sequence on a fresh copy:
+* Output: identical to the baseline run (only the same four `generated_at` files differ).
+* `export-stats`: 279.1 s vs 338.0 s / 293.6 s in the two earlier runs (±10 % noise, no reliable gain).
+* Peak RSS **1,373 MiB vs 1,260 / 1,252 MiB (+~115 MiB)**: fails the "peak memory no higher" condition.
+Verdict: rejected as written. Sharing the other consumers (WP parse twice, `events()` ≈ 3.7× per game) would cost far more memory (est. 400 MB+ for parsed WP rows); a real fix needs a one-pass design that streams each game once to all consumers, not a cache. Branch kept for reference.
