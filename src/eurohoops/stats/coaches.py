@@ -5,6 +5,9 @@ Expectation: the pre-game Elo win probability of each side (the history Elo, ``a
 passes ``p_home``), so ``wins_above_expectation`` = actual wins - sum of those probabilities.
 Games whose box score names no coach are left out (``coverage`` says how many per season).
 Head-to-head: games between two named coaches, listed for pairs with ``H2H_MIN_GAMES`` or more.
+Seasons: ``coaches/seasons.json`` has one row per coach and season, with the clubs of that season
+merged (in order of first game), the season's figures, playoff flags for that season (0 or 1 each)
+and the season's style block (stats/coach_style.py) when styles are given.
 Playoffs: a season counts as a playoff season for a coach with a PO or FF game in it, a Final Four
 season with an FF game, and a title for the coach of the Final Four champion (``final_winners``).
 """
@@ -22,7 +25,7 @@ from eurohoops.models.elo import EloParams, prepare, replay, win_probability
 from eurohoops.parse.coach_names import resolve
 from eurohoops.stats.coach_style import StyleIndex, coach_style
 
-H2H_MIN_GAMES = 4
+H2H_MIN_GAMES = 1  # every pair is listed: the coach page searches them all
 ROWS_COLUMNS = [
     "season",
     "game_id",
@@ -225,6 +228,7 @@ def coach_payloads(
     pairs = pairs[pairs["slug"] != pairs["slug_opp"]]
     files: dict[str, dict[str, Any]] = {}
     index: list[dict[str, Any]] = []
+    season_rows: list[dict[str, Any]] = []
     for (slug, name), coach in named.groupby(["slug", "name"]):
         seasons = []
         for (season, team), part in coach.groupby(["season", "team"]):
@@ -262,6 +266,19 @@ def coach_payloads(
             "playoffs": _playoffs(coach),
         }
         index.append(row)
+        for season, part in coach.groupby("season"):
+            ordered = part.sort_values("tipoff_utc", kind="stable")
+            season_rows.append(
+                {
+                    "slug": slug,
+                    "name": name,
+                    "season": int(str(season)),
+                    "clubs": [codes.get(str(t), str(t)) for t in dict.fromkeys(ordered["team"])],
+                    **_count(part),
+                    "playoffs": _playoffs(part),
+                    "style": None if styles is None else coach_style(part, styles),
+                }
+            )
         files[f"coaches/{slug}.json"] = {
             "slug": slug,
             "name": name,
@@ -272,6 +289,8 @@ def coach_payloads(
             "style": None if styles is None else coach_style(coach, styles),
         }
     index.sort(key=lambda row: (-row["games"], row["name"]))
+    season_rows.sort(key=lambda row: (-row["season"], row["name"]))
+    files["coaches/seasons.json"] = {"rows": season_rows}
     current_season, current = current_coaches(rows, codes)
     # The day of the latest box score behind ``current``: games played after it have no coach yet.
     through = None

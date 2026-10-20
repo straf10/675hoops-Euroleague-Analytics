@@ -2,25 +2,34 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   COACH_METRICS,
-  MIN_SAMPLE,
+  CORE_KEYS,
+  SEASON_MIN_SAMPLE,
+  SECTIONS,
+  coachCaption,
   coachHeadHtml,
-  coachRows,
   coachRowsHtml,
   coachViewFromQuery,
   coachViewToQuery,
+  columnKeys,
+  finishOf,
   formatMeasure,
+  metricOf,
+  namedSeasons,
   normaliseName,
   rate,
-  scopeRows,
   searchCoaches,
+  seasonLabel,
   seasonRange,
+  seasonRows,
   share,
   signed,
   sortCoaches,
+  switchSection,
   winPct,
-  type CoachIndex,
   type CoachRow,
+  type CoachSeasonRow,
   type CoachStyle,
+  type CoachView,
 } from "./coaches.ts";
 
 const style = (over: {
@@ -62,32 +71,74 @@ const style = (over: {
         },
 });
 
-const row = (over: Partial<CoachRow> & { name: string }): CoachRow => ({
+const row = (over: Partial<CoachSeasonRow> & { name: string }): CoachSeasonRow => ({
   slug: over.name.toLowerCase().replace(/\W+/g, "-"),
-  href: `/coaches/${over.name.toLowerCase().replace(/\W+/g, "-")}/`,
+  season: 2026,
+  clubs: ["FBT"],
   games: 0,
   wins: 0,
   losses: 0,
-  seasons: 1,
-  now: null,
+  expected_wins: 0,
+  wins_above_expectation: 0,
   playoffs: { seasons: 0, final_four: 0, titles: 0 },
   style: null,
   ...over,
 });
 
-test("sorting puts a missing or thin figure last whichever way the sort runs", () => {
+const view = (over: Partial<CoachView>): CoachView => ({
+  season: 2026,
+  section: "expected",
+  metric: "games",
+  dir: "desc",
+  ...over,
+});
+
+const metric = (key: string) => metricOf(key)!;
+
+test("the sections name every non-core column exactly once", () => {
+  const own = SECTIONS.flatMap((s) => s.keys);
+  assert.equal(new Set(own).size, own.length);
+  const all = COACH_METRICS.map((m) => m.key).filter((k) => !CORE_KEYS.includes(k));
+  assert.deepEqual([...own].sort(), [...all].sort());
+  assert.deepEqual(columnKeys("expected"), [...CORE_KEYS, "expected_wins", "wins_above_expectation"]);
+});
+
+test("season minimums: win % from 5 games, after timeout from 25 possessions, clutch from 5 games", () => {
+  assert.equal(SEASON_MIN_SAMPLE.games, 5);
+  assert.equal(SEASON_MIN_SAMPLE.possessions, 25);
+  assert.equal(SEASON_MIN_SAMPLE.clutch, 5);
+  const winRow = (games: number) => row({ name: "W", games, wins: 1 });
+  assert.equal(metric("win_pct").read(winRow(4)).thin, true);
+  assert.equal(metric("win_pct").read(winRow(5)).thin, false);
+  const atoRow = (possessions: number) => row({ name: "A", style: style({ ppp: 1, possessions }) });
+  assert.equal(metric("ato").read(atoRow(24)).thin, true);
+  assert.equal(metric("ato").read(atoRow(25)).thin, false);
+  const clutchRow = (games: number) => row({ name: "C", style: style({ clutchWins: games, clutchLosses: 0 }) });
+  assert.equal(metric("clutch_pct").read(clutchRow(4)).thin, true);
+  assert.equal(metric("clutch_pct").read(clutchRow(5)).thin, false);
+});
+
+test("rotation and challenges need 5 games in the season", () => {
+  const rot = (games: number) => row({ name: "R", style: style({ rotationGames: games }) });
+  assert.equal(metric("players").read(rot(4)).thin, true);
+  assert.equal(metric("top7").read(rot(5)).thin, false);
+  const ch = (games: number) => row({ name: "H", style: style({ challengeGames: games }) });
+  assert.equal(metric("challenges").read(ch(4)).thin, true);
+  assert.equal(metric("late").read(ch(5)).thin, false);
+});
+
+test("a thin figure goes last whichever way the sort runs", () => {
   const rows = [
-    row({ name: "Empty" }), // no games: no win %
-    row({ name: "Thin", games: 10, wins: 9, losses: 1 }), // 90%, but under 20 games: not ranked
-    row({ name: "Best", games: 40, wins: 30, losses: 10 }), // 75%
-    row({ name: "Worst", games: 40, wins: 10, losses: 30 }), // 25%
+    row({ name: "Empty" }),
+    row({ name: "Thin", games: 4, wins: 4 }),
+    row({ name: "Best", games: 30, wins: 20, losses: 10 }),
+    row({ name: "Worst", games: 30, wins: 10, losses: 20 }),
   ];
-  // The missing ones keep the order they came in, after every ranked figure.
   assert.deepEqual(sortCoaches(rows, "win_pct", "desc").map((r) => r.name), ["Best", "Worst", "Empty", "Thin"]);
   assert.deepEqual(sortCoaches(rows, "win_pct", "asc").map((r) => r.name), ["Worst", "Best", "Empty", "Thin"]);
 });
 
-test("ties keep the order the rows came in, and games sorts most first", () => {
+test("ties keep the order the rows came in", () => {
   const rows = [
     row({ name: "B", games: 30, wins: 15, losses: 15 }),
     row({ name: "A", games: 30, wins: 15, losses: 15 }),
@@ -97,90 +148,114 @@ test("ties keep the order the rows came in, and games sorts most first", () => {
   assert.deepEqual(sortCoaches(rows, "games", "desc").map((r) => r.name), ["C", "B", "A"]);
 });
 
-test("after-timeout points per possession needs 50 possessions to be ranked", () => {
+test("the finish is the furthest stage, and sorts champion first", () => {
+  assert.equal(finishOf({ seasons: 0, final_four: 0, titles: 0 }), "regular");
+  assert.equal(finishOf({ seasons: 1, final_four: 0, titles: 0 }), "playoffs");
+  assert.equal(finishOf({ seasons: 1, final_four: 1, titles: 0 }), "final_four");
+  assert.equal(finishOf({ seasons: 1, final_four: 1, titles: 1 }), "champion");
   const rows = [
-    row({ name: "Few", style: style({ ppp: 1.6, possessions: 49 }) }),
-    row({ name: "Enough low", style: style({ ppp: 0.9, possessions: MIN_SAMPLE.possessions }) }),
-    row({ name: "Enough high", style: style({ ppp: 1.2, possessions: 120 }) }),
-    row({ name: "Null", style: style({ ppp: null, possessions: 200 }) }),
+    row({ name: "Regular" }),
+    row({ name: "Champion", playoffs: { seasons: 1, final_four: 1, titles: 1 } }),
+    row({ name: "Playoffs", playoffs: { seasons: 1, final_four: 0, titles: 0 } }),
+    row({ name: "Final Four", playoffs: { seasons: 1, final_four: 1, titles: 0 } }),
   ];
-  assert.deepEqual(sortCoaches(rows, "ato", "desc").map((r) => r.name), ["Enough high", "Enough low", "Few", "Null"]);
-  assert.deepEqual(sortCoaches(rows, "ato", "asc").map((r) => r.name), ["Enough low", "Enough high", "Few", "Null"]);
+  const order = ["Champion", "Final Four", "Playoffs", "Regular"];
+  assert.deepEqual(sortCoaches(rows, "finish", "desc").map((r) => r.name), order);
+  assert.deepEqual(
+    sortCoaches(rows, "finish", "desc").map((r) => formatMeasure(metric("finish").read(r), "finish")),
+    ["Champion", "Final Four", "Playoffs", "Regular season"],
+  );
 });
 
-test("clutch win % needs 10 clutch games; the clutch count sorts on its own", () => {
-  const rows = [
-    row({ name: "Nine", style: style({ clutchWins: 9, clutchLosses: 0 }) }),
-    row({ name: "Ten", style: style({ clutchWins: 5, clutchLosses: 5 }) }),
-    row({ name: "Twelve", style: style({ clutchWins: 4, clutchLosses: 8 }) }),
-  ];
-  assert.deepEqual(sortCoaches(rows, "clutch_pct", "desc").map((r) => r.name), ["Ten", "Twelve", "Nine"]);
-  assert.deepEqual(sortCoaches(rows, "clutch_games", "desc").map((r) => r.name), ["Twelve", "Ten", "Nine"]);
-});
-
-test("challenges start in 2021-22: a coach without a record sorts last and shows a dash", () => {
+test("challenges show a dash in a season without a record", () => {
   const rows = [
     row({ name: "None", style: style({}) }),
     row({ name: "Some", style: style({ challengeGames: 30, perGame: 0.2, late: 0.7 }) }),
   ];
   assert.deepEqual(sortCoaches(rows, "challenges", "desc").map((r) => r.name), ["Some", "None"]);
-  const metric = COACH_METRICS.find((m) => m.key === "challenges")!;
-  assert.equal(formatMeasure(metric.read(rows[0]), metric.kind), "-");
-  assert.equal(formatMeasure(metric.read(rows[1]), metric.kind), "0.20");
+  assert.equal(formatMeasure(metric("challenges").read(rows[0]), "dec2"), "-");
+  assert.equal(formatMeasure(metric("challenges").read(rows[1]), "dec2"), "0.20");
 });
 
-test("the index rows take the scope, the club now, and each coach's style", () => {
-  const index = {
-    h2h_min_games: 4,
-    coverage: [],
-    current_season: 2026,
-    current_through: "2026-10-16",
-    current: [{ team: "FBT", slug: "a-coach" }],
-    coaches: [
-      { slug: "a-coach", name: "A Coach", games: 30, wins: 20, losses: 10, expected_wins: 15, wins_above_expectation: 5, seasons_played: [2025, 2026], clubs: ["FBT"], playoffs: { seasons: 2, final_four: 1, titles: 0 } },
-      { slug: "b-coach", name: "B Coach", games: 10, wins: 4, losses: 6, expected_wins: 5, wins_above_expectation: -1, seasons_played: [2019], clubs: ["BAR"], playoffs: { seasons: 0, final_four: 0, titles: 0 } },
-    ],
-  } as unknown as CoachIndex;
-  const rows = coachRows(index, { "a-coach": style({}), "b-coach": null }, "/base/");
-  assert.equal(rows[0].href, "/base/coaches/a-coach/");
-  assert.equal(rows[0].now, "FBT");
-  assert.equal(rows[1].now, null);
-  assert.equal(rows[1].style, null);
-  assert.deepEqual(scopeRows(rows, "current").map((r) => r.slug), ["a-coach"]);
-  assert.deepEqual(scopeRows(rows, "all").map((r) => r.slug), ["a-coach", "b-coach"]);
+test("the season's rows are that season's coaches, with links", () => {
+  const rows: CoachSeasonRow[] = [
+    row({ name: "A Coach", season: 2026, clubs: ["FBT", "PAO"] }),
+    row({ name: "B Coach", season: 2025, clubs: ["BAR"] }),
+  ];
+  const shown = seasonRows(rows, 2026, "/base/");
+  assert.deepEqual(shown.map((r) => r.slug), ["a-coach"]);
+  assert.equal(shown[0].href, "/base/coaches/a-coach/");
 });
 
-test("the view reads and writes the query string, with the page's scope as the default", () => {
-  assert.deepEqual(coachViewFromQuery("", "current"), { scope: "current", metric: "games", dir: "desc" });
-  assert.deepEqual(coachViewFromQuery("?scope=all&metric=ato&sort=asc", "current"), { scope: "all", metric: "ato", dir: "asc" });
-  assert.deepEqual(coachViewFromQuery("?metric=nope&sort=up", "all"), { scope: "all", metric: "games", dir: "desc" });
-  assert.equal(coachViewToQuery({ scope: "current", metric: "games", dir: "desc" }, "current"), "");
-  assert.equal(coachViewToQuery({ scope: "all", metric: "win_pct", dir: "asc" }, "current"), "?scope=all&metric=win_pct&sort=asc");
-  const view = { scope: "all" as const, metric: "titles", dir: "desc" as const };
-  assert.deepEqual(coachViewFromQuery(coachViewToQuery(view, "current"), "current"), view);
+test("the season options are the seasons the box scores name coaches for, newest first", () => {
+  const coverage = [
+    { season: 2014, games: 100, with_coach: 0 },
+    { season: 2015, games: 100, with_coach: 40 }, // a single named side: under half, not listed
+    { season: 2016, games: 100, with_coach: 90 },
+    { season: 2026, games: 60, with_coach: 60 },
+  ];
+  assert.deepEqual(namedSeasons(coverage), [2026, 2016]);
 });
 
-test("the head has one sortable button per metric, the chosen one marked, and each has a tip", () => {
-  const html = coachHeadHtml({ scope: "all", metric: "win_pct", dir: "asc" });
-  for (const m of COACH_METRICS) assert.ok(html.includes(`data-sort="${m.key}"`), m.key);
+test("the view reads and writes the query string, with the page's season as the default", () => {
+  const seasons = [2026, 2025];
+  assert.deepEqual(coachViewFromQuery("", seasons, 2026), view({}));
+  assert.deepEqual(coachViewFromQuery("?season=2025&section=advanced&metric=ato&sort=asc", seasons, 2026), {
+    season: 2025,
+    section: "advanced",
+    metric: "ato",
+    dir: "asc",
+  });
+  // An unknown season, section or a column of another section falls back to the defaults.
+  assert.deepEqual(coachViewFromQuery("?season=1999&section=nope&metric=ato&sort=up", seasons, 2026), view({ metric: "games" }));
+  assert.deepEqual(coachViewFromQuery("?section=expected&metric=ato", seasons, 2026), view({ metric: "games" }));
+  assert.equal(coachViewToQuery(view({}), 2026), "");
+  const other = view({ season: 2025, section: "rotation", metric: "top7", dir: "asc" });
+  assert.equal(coachViewToQuery(other, 2026), "?season=2025&section=rotation&metric=top7&sort=asc");
+  assert.deepEqual(coachViewFromQuery(coachViewToQuery(other, 2026), seasons, 2026), other);
+});
+
+test("switching section keeps the sort column when the new section shows it, else resets it", () => {
+  const start = view({ metric: "games", dir: "asc" });
+  assert.deepEqual(switchSection(start, "expected").metric, "games");
+  assert.equal(switchSection(start, "expected").dir, "asc");
+  const moved = switchSection(view({ section: "expected", metric: "wins_above_expectation", dir: "asc" }), "advanced");
+  assert.deepEqual(moved, view({ section: "advanced", metric: "ato", dir: "desc" }));
+});
+
+test("the head has a sortable button for each shown column, the chosen one marked, and a tip each", () => {
+  const html = coachHeadHtml(view({ section: "advanced", metric: "win_pct", dir: "asc" }));
+  const shown = columnKeys("advanced");
+  for (const key of shown) assert.ok(html.includes(`data-sort="${key}"`), key);
+  assert.equal((html.match(/data-sort=/g) ?? []).length, shown.length);
+  assert.ok(!html.includes('data-sort="finish"'));
   assert.ok(html.includes('aria-sort="ascending"'));
-  assert.equal((html.match(/class="info-tip"/g) ?? []).length, COACH_METRICS.length);
+  assert.equal((html.match(/class="info-tip"/g) ?? []).length, shown.length);
 });
 
-test("the body escapes names, greys a thin rate, and prints a dash for a missing one", () => {
-  const rows = [row({ name: "Ann <b>Smith</b>", games: 5, wins: 3, losses: 2, now: "BAR" })];
-  const html = coachRowsHtml(rows, "win_pct");
+test("the body escapes names, shows the clubs, greys a thin rate and prints a dash for a missing one", () => {
+  const rows: CoachRow[] = [
+    { ...row({ name: "Ann <b>Smith</b>", games: 4, wins: 3, losses: 1, clubs: ["FBT", "PAO"] }), href: "/x/" },
+  ];
+  const html = coachRowsHtml(rows, view({ metric: "win_pct" }));
   assert.ok(html.includes("Ann &lt;b&gt;Smith&lt;/b&gt;"));
   assert.ok(html.includes('class="num strong thin"'));
-  assert.ok(html.includes('<td class="now">BAR</td>'));
-  assert.ok(html.includes(">-</td>"));
+  assert.ok(html.includes('<td class="club">FBT, PAO</td>'));
+  const rotation = coachRowsHtml(rows, view({ section: "rotation" }));
+  assert.ok(rotation.includes(">-</td>"));
 });
 
-test("formatting: integers, win %, share and rates, dash without a value", () => {
-  const win = COACH_METRICS.find((m) => m.key === "win_pct")!;
+test("the caption names the season's section and metric", () => {
+  assert.equal(coachCaption(view({ metric: "win_pct" }), "2026-27 EuroLeague coaches"), "2026-27 EuroLeague coaches, by win %");
+});
+
+test("formatting: integers, win %, shares, rates, signed figures, dash without a value", () => {
+  const win = metric("win_pct");
   assert.equal(formatMeasure({ value: 0.6129, thin: false }, win.kind), "61.3%");
   assert.equal(formatMeasure({ value: null, thin: false }, win.kind), "-");
   assert.equal(formatMeasure({ value: 3.4, thin: false }, "int"), "3");
+  assert.equal(formatMeasure({ value: 2.5, thin: false }, metric("wins_above_expectation").kind), "+2.5");
+  assert.equal(formatMeasure({ value: 0.4, thin: false }, metric("late").kind), "40%");
 });
 
 test("names normalise without accents, case or extra spaces", () => {
@@ -223,7 +298,8 @@ test("signed figures always print their sign", () => {
   assert.equal(signed(-0.04), "0.0");
 });
 
-test("season range runs from the first to the last season", () => {
+test("season labels and ranges", () => {
+  assert.equal(seasonLabel(2026), "2026-27");
   assert.equal(seasonRange([2026, 2015, 2019]), "2015-16 to 2026-27");
   assert.equal(seasonRange([2021]), "2021-22");
   assert.equal(seasonRange([]), "-");

@@ -1,6 +1,6 @@
 // Coach pages: the files `eurohoops export-stats` writes to src/data/stats/coaches (stats/coaches.py).
 // Every number is a raw total or a rounded expectation; the pages derive win percentages here.
-// The index page's sortable table (the metrics, the sort, the query string and the markup) is at the end.
+// The coaches list shows one season at a time (coaches/seasons.json); its table is at the end.
 
 import { esc } from "./format.ts";
 import { dataTip, tip } from "./tip.ts";
@@ -49,6 +49,17 @@ export interface CoachIndex {
   current_through: string | null;
   current: CoachCurrent[];
   coaches: CoachIndexRow[];
+}
+
+/** One coach in one season (coaches/seasons.json): the season's record with its clubs merged (in
+ *  order of first game), the season's playoff flags (0 or 1 each) and its style block. */
+export interface CoachSeasonRow extends Counts {
+  slug: string;
+  name: string;
+  season: number;
+  clubs: string[];
+  playoffs: CoachPlayoffs;
+  style: CoachStyle | null;
 }
 
 export interface CoachSeason extends Counts {
@@ -110,7 +121,6 @@ export function winPct(c: Pick<Counts, "games" | "wins">): string {
   return c.games === 0 ? "-" : `${((100 * c.wins) / c.games).toFixed(1)}%`;
 }
 
-/** A signed figure with one decimal: "+17.4", "-3.0", "0.0". */
 /** A per-game figure with the given decimals ("1.05"); "-" without a value. */
 export function rate(value: number | null, digits = 2): string {
   return value === null ? "-" : value.toFixed(digits);
@@ -121,19 +131,32 @@ export function share(value: number | null): string {
   return value === null ? "-" : `${Math.round(100 * value)}%`;
 }
 
+/** A signed figure with one decimal: "+17.4", "-3.0", "0.0". */
 export function signed(value: number): string {
   const text = value.toFixed(1);
   if (/^-?0\.0$/.test(text)) return "0.0";
   return text.startsWith("-") ? text : `+${text}`;
 }
 
+/** A season as its label: 2026 is "2026-27". */
+export function seasonLabel(year: number): string {
+  return `${year}-${String((year + 1) % 100).padStart(2, "0")}`;
+}
+
 /** The first and last season of a list, as "2015-16" and "2026-27" (or one season). */
 export function seasonRange(seasons: number[]): string {
   if (seasons.length === 0) return "-";
-  const label = (y: number) => `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
   const first = Math.min(...seasons);
   const last = Math.max(...seasons);
-  return first === last ? label(first) : `${label(first)} to ${label(last)}`;
+  return first === last ? seasonLabel(first) : `${seasonLabel(first)} to ${seasonLabel(last)}`;
+}
+
+/** The seasons whose box scores name a coach for most games, newest first (the list's season options). */
+export function namedSeasons(coverage: Coverage[]): number[] {
+  return coverage
+    .filter((c) => 2 * c.with_coach >= c.games)
+    .map((c) => c.season)
+    .sort((a, b) => b - a);
 }
 
 /** One entry of the coach search list the coaches page embeds (every coach, any season). */
@@ -159,42 +182,57 @@ export function searchCoaches<T extends { name: string }>(entries: T[], query: s
   });
 }
 
-/* ---- The index table: metrics, sort, scope, markup ---------------------------------------- */
+/* ---- The season table: sections, metrics, thresholds, sort, view, markup ----------------- */
 
-/** Minimum samples for a rate to be ranked (below them the figure shows greyed and sorts last). */
-export const MIN_SAMPLE = {
-  /** Games, for win %, and for the players used and top-7 share (rotation games). */
-  games: 20,
+/** Minimum samples within one season (about 34 regular-season games a club): a figure below its
+ *  sample shows greyed and sorts last, as a dash does. */
+export const SEASON_MIN_SAMPLE = {
+  /** Games: win %, players used, top 7 minutes and challenges per game. */
+  games: 5,
   /** After-timeout possessions. */
-  possessions: 50,
+  possessions: 25,
   /** Clutch games, for clutch win %. */
-  clutch: 10,
+  clutch: 5,
 } as const;
 
 export type Dir = "asc" | "desc";
 
-/** One coach on the index table: career record and playoffs, and the style figures (null without a coach page). */
-export interface CoachRow {
-  slug: string;
-  name: string;
-  href: string;
-  games: number;
-  wins: number;
-  losses: number;
-  seasons: number;
-  /** The display code of the club the coach holds now, or null. */
-  now: string | null;
-  playoffs?: CoachPlayoffs;
-  style: CoachStyle | null;
-}
-
-/** A metric's figure. `thin` marks a rate below its minimum sample: shown greyed, never ranked. */
-interface Measure {
+/** A figure with its sample: `thin` marks a rate below its minimum, shown greyed and never ranked. */
+export interface Measure {
   value: number | null;
   thin: boolean;
 }
 
-type Kind = "int" | "pct1" | "pct0" | "dec1" | "dec2";
+export const sampled = (value: number | null, n: number, min: number): Measure => ({
+  value,
+  thin: n < min,
+});
+const plain = (value: number | null): Measure => ({ value, thin: false });
+
+export type Kind = "int" | "pct1" | "pct0" | "dec1" | "dec2" | "signed1" | "finish";
+
+/** How far a coach's season went: the furthest stage the season's playoff flags show. */
+export type Finish = "champion" | "final_four" | "playoffs" | "regular";
+
+export const FINISH_LABEL: Record<Finish, string> = {
+  champion: "Champion",
+  final_four: "Final Four",
+  playoffs: "Playoffs",
+  regular: "Regular season",
+};
+
+/** Rank of a finish, higher is further: the sort order of the Finish column. */
+const FINISH_RANK: Record<Finish, number> = { regular: 0, playoffs: 1, final_four: 2, champion: 3 };
+const FINISH_BY_RANK = Object.fromEntries(
+  Object.entries(FINISH_RANK).map(([finish, rank]) => [rank, finish as Finish]),
+) as Record<number, Finish>;
+
+export function finishOf(p: CoachPlayoffs): Finish {
+  if (p.titles > 0) return "champion";
+  if (p.final_four > 0) return "final_four";
+  if (p.seasons > 0) return "playoffs";
+  return "regular";
+}
 
 interface CoachMetric {
   key: string;
@@ -203,16 +241,23 @@ interface CoachMetric {
   /** The tooltip: what the column counts and any minimum sample. */
   about: string;
   kind: Kind;
-  read: (r: CoachRow) => Measure;
+  read: (r: CoachSeasonRow) => Measure;
 }
 
-const plain = (value: number | null): Measure => ({ value, thin: false });
-const sampled = (value: number | null, n: number, min: number): Measure => ({
-  value,
-  thin: n < min,
-});
+export type SectionKey = "expected" | "finish" | "advanced" | "challenges" | "rotation";
 
-/** Every sortable column, in table order. */
+/** The metric sections: the core columns are always shown; a section adds its own after them. */
+export const SECTIONS: { key: SectionKey; label: string; keys: string[] }[] = [
+  { key: "expected", label: "Expected", keys: ["expected_wins", "wins_above_expectation"] },
+  { key: "finish", label: "Finish", keys: ["finish"] },
+  { key: "advanced", label: "Advanced", keys: ["ato", "clutch_pct", "clutch_games"] },
+  { key: "challenges", label: "Challenges", keys: ["challenges", "late"] },
+  { key: "rotation", label: "Rotation", keys: ["players", "top7"] },
+];
+
+export const CORE_KEYS = ["games", "wins", "losses", "win_pct"];
+
+/** Every sortable column. */
 export const COACH_METRICS: CoachMetric[] = [
   {
     key: "games",
@@ -238,58 +283,51 @@ export const COACH_METRICS: CoachMetric[] = [
   {
     key: "win_pct",
     head: "Win %",
-    about: `Wins as a share of games. Needs ${MIN_SAMPLE.games} games to be ranked.`,
+    about: `Wins as a share of games. Needs ${SEASON_MIN_SAMPLE.games} games to be ranked.`,
     kind: "pct1",
-    read: (r) => sampled(r.games ? r.wins / r.games : null, r.games, MIN_SAMPLE.games),
+    read: (r) => sampled(r.games ? r.wins / r.games : null, r.games, SEASON_MIN_SAMPLE.games),
   },
   {
-    key: "seasons",
-    head: "Seasons",
-    about: "Seasons with at least one game the box scores credit to him.",
-    kind: "int",
-    read: (r) => plain(r.seasons),
+    key: "expected_wins",
+    head: "Expected wins",
+    about: "The sum of each game's pre-game Elo win probability for his side.",
+    kind: "dec1",
+    read: (r) => plain(r.expected_wins),
   },
   {
-    key: "playoffs",
-    head: "Playoffs",
-    about: "Seasons with a playoff game (the play-in does not count). The box scores name coaches from 2015-16 on; earlier seasons are not counted.",
-    kind: "int",
-    read: (r) => plain(r.playoffs?.seasons ?? null),
+    key: "wins_above_expectation",
+    head: "Above expectation",
+    about: "Wins minus expected wins: positive when the coach won more than the Elo ratings expected.",
+    kind: "signed1",
+    read: (r) => plain(r.wins_above_expectation),
   },
   {
-    key: "final_four",
-    head: "Final Four",
-    about: "Seasons with a Final Four game. Counted from 2015-16 on, as for playoffs.",
-    kind: "int",
-    read: (r) => plain(r.playoffs?.final_four ?? null),
-  },
-  {
-    key: "titles",
-    head: "Titles",
-    about: "Seasons he coached the Final Four champion in the final. Counted from 2015-16 on, as for playoffs.",
-    kind: "int",
-    read: (r) => plain(r.playoffs?.titles ?? null),
+    key: "finish",
+    head: "Finish",
+    about: "The furthest stage the season reached: champion, Final Four, playoffs or regular season. Counted from 2015-16 on, when the box scores name coaches.",
+    kind: "finish",
+    read: (r) => plain(FINISH_RANK[finishOf(r.playoffs)]),
   },
   {
     key: "ato",
     head: "After timeout",
-    about: `Points per possession on the first possession after his own timeouts. Needs ${MIN_SAMPLE.possessions} possessions.`,
+    about: `Points per possession on the first possession after his own timeouts. Needs ${SEASON_MIN_SAMPLE.possessions} possessions.`,
     kind: "dec2",
     read: (r) =>
       r.style
-        ? sampled(r.style.ato.ppp, r.style.ato.possessions, MIN_SAMPLE.possessions)
+        ? sampled(r.style.ato.ppp, r.style.ato.possessions, SEASON_MIN_SAMPLE.possessions)
         : plain(null),
   },
   {
     key: "clutch_pct",
     head: "Clutch win %",
-    about: `Wins in clutch games: within 5 points with 5:00 or less left in the 4th or in overtime. Needs ${MIN_SAMPLE.clutch} clutch games.`,
+    about: `Wins in clutch games: within 5 points with 5:00 or less left in the 4th or in overtime. Needs ${SEASON_MIN_SAMPLE.clutch} clutch games.`,
     kind: "pct0",
     read: (r) => {
       if (!r.style) return plain(null);
       const { wins, losses, games } = r.style.clutch;
       const decided = wins + losses;
-      return sampled(decided ? wins / decided : null, games, MIN_SAMPLE.clutch);
+      return sampled(decided ? wins / decided : null, games, SEASON_MIN_SAMPLE.clutch);
     },
   },
   {
@@ -300,80 +338,78 @@ export const COACH_METRICS: CoachMetric[] = [
     read: (r) => plain(r.style ? r.style.clutch.games : null),
   },
   {
-    key: "players",
-    head: "Players used",
-    about: `Players who played a minute, per game. Needs ${MIN_SAMPLE.games} games.`,
-    kind: "dec1",
-    read: (r) =>
-      r.style
-        ? sampled(r.style.rotation.players_per_game, r.style.rotation.games, MIN_SAMPLE.games)
-        : plain(null),
-  },
-  {
-    key: "top7",
-    head: "Top 7 minutes",
-    about: `Share of minutes played by the top seven players by minutes. Needs ${MIN_SAMPLE.games} games.`,
-    kind: "pct0",
-    read: (r) =>
-      r.style
-        ? sampled(r.style.rotation.top7_share, r.style.rotation.games, MIN_SAMPLE.games)
-        : plain(null),
-  },
-  {
     key: "challenges",
     head: "Challenges per game",
-    about: `Coach challenges per game, from 2021-22. The data does not show whether they were upheld. Needs ${MIN_SAMPLE.games} games.`,
+    about: `Coach challenges per game, from 2021-22. The data does not show whether they were upheld. Needs ${SEASON_MIN_SAMPLE.games} games.`,
     kind: "dec2",
     read: (r) => {
       const c = r.style?.challenges;
-      return c ? sampled(c.per_game, c.games, MIN_SAMPLE.games) : plain(null);
+      return c ? sampled(c.per_game, c.games, SEASON_MIN_SAMPLE.games) : plain(null);
     },
   },
   {
     key: "late",
     head: "Late challenges",
-    about: `Share of challenges used in the 4th quarter or overtime. Needs ${MIN_SAMPLE.games} games.`,
+    about: `Share of challenges used in the 4th quarter or overtime. Needs ${SEASON_MIN_SAMPLE.games} games.`,
     kind: "pct0",
     read: (r) => {
       const c = r.style?.challenges;
-      return c ? sampled(c.late_share, c.games, MIN_SAMPLE.games) : plain(null);
+      return c ? sampled(c.late_share, c.games, SEASON_MIN_SAMPLE.games) : plain(null);
     },
+  },
+  {
+    key: "players",
+    head: "Players used",
+    about: `Players who played a minute, per game. Needs ${SEASON_MIN_SAMPLE.games} games.`,
+    kind: "dec1",
+    read: (r) =>
+      r.style
+        ? sampled(r.style.rotation.players_per_game, r.style.rotation.games, SEASON_MIN_SAMPLE.games)
+        : plain(null),
+  },
+  {
+    key: "top7",
+    head: "Top 7 minutes",
+    about: `Share of minutes played by the top seven players by minutes. Needs ${SEASON_MIN_SAMPLE.games} games.`,
+    kind: "pct0",
+    read: (r) =>
+      r.style
+        ? sampled(r.style.rotation.top7_share, r.style.rotation.games, SEASON_MIN_SAMPLE.games)
+        : plain(null),
   },
 ];
 
+export const DEFAULT_SECTION: SectionKey = "expected";
 export const DEFAULT_METRIC = "games";
 
-const metricOf = (key: string): CoachMetric | undefined =>
+export const metricOf = (key: string): CoachMetric | undefined =>
   COACH_METRICS.find((m) => m.key === key);
 
-/** The rows of the index, with each coach's figures; `styles` is keyed by slug (null: no coach page). */
-export function coachRows(
-  index: CoachIndex,
-  styles: Record<string, CoachStyle | null>,
-  base: string,
-): CoachRow[] {
-  const now = new Map(index.current.map((c) => [c.slug, c.team]));
-  const href = base.replace(/\/$/, "");
-  return index.coaches.map((c) => ({
-    slug: c.slug,
-    name: c.name,
-    href: `${href}/coaches/${c.slug}/`,
-    games: c.games,
-    wins: c.wins,
-    losses: c.losses,
-    seasons: c.seasons_played.length,
-    now: now.get(c.slug) ?? null,
-    playoffs: c.playoffs,
-    style: styles[c.slug] ?? null,
-  }));
+/** The sortable columns a section shows, in table order: the core columns, then its own. */
+export function columnKeys(section: SectionKey): string[] {
+  const own = SECTIONS.find((s) => s.key === section)?.keys ?? [];
+  return [...CORE_KEYS, ...own];
+}
+
+/** A season row on the list, with its link. */
+export interface CoachRow extends CoachSeasonRow {
+  href: string;
+}
+
+/** The coaches of one season, with links (the list is one season at a time). */
+export function seasonRows(rows: CoachSeasonRow[], season: number, base: string): CoachRow[] {
+  const root = base.replace(/\/$/, "");
+  return rows
+    .filter((r) => r.season === season)
+    .map((r) => ({ ...r, href: `${root}/coaches/${r.slug}/` }));
 }
 
 /** The rows in the order of a metric. A tie keeps the order the rows came in; a missing or thin
  * figure goes last whichever way the sort runs. */
-export function sortCoaches(rows: CoachRow[], key: string, dir: Dir): CoachRow[] {
+export function sortCoaches<T extends CoachSeasonRow>(rows: T[], key: string, dir: Dir): T[] {
   const read = (metricOf(key) ?? COACH_METRICS[0]).read;
   const sign = dir === "desc" ? -1 : 1;
-  const value = (r: CoachRow) => {
+  const value = (r: T) => {
     const m = read(r);
     return m.thin ? null : m.value;
   };
@@ -386,36 +422,45 @@ export function sortCoaches(rows: CoachRow[], key: string, dir: Dir): CoachRow[]
     .map(({ row }) => row);
 }
 
-export type Scope = "current" | "all";
-
-/** The coaches a scope lists: "current" the holders of a club now, "all" every coach. */
-export function scopeRows(rows: CoachRow[], scope: Scope): CoachRow[] {
-  return scope === "current" ? rows.filter((r) => r.now !== null) : rows;
-}
-
 export interface CoachView {
-  scope: Scope;
+  season: number;
+  section: SectionKey;
   metric: string;
   dir: Dir;
 }
 
-/** Unknown or missing values fall back to the defaults: the page's scope, then games, most first. */
-export function coachViewFromQuery(search: string, fallback: Scope): CoachView {
+/** Changing section keeps the sort column when the new section shows it, else the section's first. */
+export function switchSection(view: CoachView, section: SectionKey): CoachView {
+  const keys = columnKeys(section);
+  if (keys.includes(view.metric)) return { ...view, section };
+  const first = SECTIONS.find((s) => s.key === section)?.keys[0] ?? DEFAULT_METRIC;
+  return { ...view, section, metric: first, dir: "desc" };
+}
+
+/** Unknown or missing values fall back to the defaults: the fallback season, the first section,
+ *  games, most first. A season must be one of `seasons`. */
+export function coachViewFromQuery(search: string, seasons: number[], fallbackSeason: number): CoachView {
   const p = new URLSearchParams(search);
-  const asked = p.get("metric") ?? "";
+  const asked = Number(p.get("season"));
+  const sectionAsked = p.get("section");
+  const section = SECTIONS.some((s) => s.key === sectionAsked)
+    ? (sectionAsked as SectionKey)
+    : DEFAULT_SECTION;
+  const metric = p.get("metric") ?? "";
   const sort = p.get("sort");
-  const scope = p.get("scope");
   return {
-    scope: scope === "all" || scope === "current" ? scope : fallback,
-    metric: metricOf(asked) ? asked : DEFAULT_METRIC,
-    dir: sort === "asc" || sort === "desc" ? sort : "desc",
+    season: seasons.includes(asked) ? asked : fallbackSeason,
+    section,
+    metric: columnKeys(section).includes(metric) ? metric : DEFAULT_METRIC,
+    dir: sort === "asc" ? "asc" : "desc",
   };
 }
 
-/** The view as a query string; defaults (the page's scope, games, most first) are left out. */
-export function coachViewToQuery(view: CoachView, fallback: Scope): string {
+/** The view as a query string; defaults are left out. */
+export function coachViewToQuery(view: CoachView, fallbackSeason: number): string {
   const p = new URLSearchParams();
-  if (view.scope !== fallback) p.set("scope", view.scope);
+  if (view.season !== fallbackSeason) p.set("season", String(view.season));
+  if (view.section !== DEFAULT_SECTION) p.set("section", view.section);
   if (view.metric !== DEFAULT_METRIC) p.set("metric", view.metric);
   if (view.dir === "asc") p.set("sort", "asc");
   const s = p.toString();
@@ -437,12 +482,17 @@ export function formatMeasure(m: Measure, kind: Kind): string {
       return rate(v, 1);
     case "dec2":
       return rate(v, 2);
+    case "signed1":
+      return signed(v);
+    case "finish":
+      return FINISH_LABEL[FINISH_BY_RANK[Math.round(v)] ?? "regular"];
   }
 }
 
-/** The head row: the plain columns (coach, club now), then one sortable column per metric. */
+/** The head row: Coach and Club(s), then one sortable column per shown metric. */
 export function coachHeadHtml(view: CoachView): string {
-  const cols = COACH_METRICS.map((m) => {
+  const cols = columnKeys(view.section).map((k) => metricOf(k)!);
+  const heads = cols.map((m) => {
     const on = m.key === view.metric;
     const sort = on ? (view.dir === "desc" ? "descending" : "ascending") : "none";
     const info = dataTip(tip`<b>${m.head}</b><br>${m.about}`);
@@ -453,31 +503,32 @@ export function coachHeadHtml(view: CoachView): string {
       `</span></th>`
     );
   });
-  return (
-    `<tr><th scope="col">Coach</th><th scope="col">Club now</th>${cols.join("")}</tr>`
-  );
+  return `<tr><th scope="col">Coach</th><th scope="col">Club</th>${heads.join("")}</tr>`;
 }
 
 /** The body rows for the rows given (the caller filters and sorts); a thin rate is greyed. */
-export function coachRowsHtml(rows: CoachRow[], metric: string): string {
+export function coachRowsHtml(rows: CoachRow[], view: CoachView): string {
+  const cols = columnKeys(view.section).map((k) => metricOf(k)!);
   return rows
     .map((r) => {
-      const cells = COACH_METRICS.map((m) => {
-        const measure = m.read(r);
-        const classes = ["num"];
-        if (m.key === metric) classes.push("strong");
-        if (measure.thin) classes.push("thin");
-        return `<td class="${classes.join(" ")}">${formatMeasure(measure, m.kind)}</td>`;
-      }).join("");
+      const cells = cols
+        .map((m) => {
+          const measure = m.read(r);
+          const classes = ["num"];
+          if (m.key === view.metric) classes.push("strong");
+          if (measure.thin) classes.push("thin");
+          return `<td class="${classes.join(" ")}">${formatMeasure(measure, m.kind)}</td>`;
+        })
+        .join("");
       return (
         `<tr><th scope="row"><a href="${esc(r.href)}">${esc(r.name)}</a></th>` +
-        `<td class="now">${esc(r.now ?? "–")}</td>${cells}</tr>`
+        `<td class="club">${esc(r.clubs.join(", ") || "–")}</td>${cells}</tr>`
       );
     })
     .join("");
 }
 
-/** The table's caption for screen readers: "Coaches this season, by win %". */
+/** The table's caption for screen readers: "Coaches in 2026-27, by win %". */
 export function coachCaption(view: CoachView, title: string): string {
   const name = metricOf(view.metric)?.head ?? "Games";
   return `${title}, by ${name.toLowerCase()}`;
