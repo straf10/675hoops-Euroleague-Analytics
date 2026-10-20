@@ -9,7 +9,7 @@ interface Props {
 const { comp } = Astro.props;
 const fc = comp.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
-const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
+const label = fc?.models.find((m) => m.key === model)?.label ?? "Our model";
 const cal = fc?.calibration;
 const spec: ChartSpec = { w: 360, h: 360, l: 44, r: 16, t: 16, b: 40 };
 const points = cal && cal.bins.length ? calibrationPlot(cal, spec) : [];

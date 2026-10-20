@@ -1,8 +1,10 @@
 ---
-// The Schedule tab's strength blocks: opponents played so far, the games left, and the next few.
-// Figures come from the API's schedule_strength (lib/strength.ts); each block is built at build time.
-import { days, elo, venueLine, winPct, type Strength, type StrengthBlock } from "../../lib/strength";
-import { plural } from "../../lib/live";
+// The Schedule tab's strength table: opponents played so far, the games left, and the next few.
+// One table, a column per set of games and a row per measure, styled by the shared .grid rules in
+// stats.css (numbers right-aligned, tabular). Each explanation sits in an InfoTip beside its label.
+// Figures come from the API's schedule_strength (lib/strength.ts); the table is built at build time.
+import InfoTip from "../InfoTip.astro";
+import { days, elo, winPct, type Strength, type StrengthBlock } from "../../lib/strength";
 import { tip } from "../../lib/tip";
 
 interface Props {
@@ -11,72 +13,132 @@ interface Props {
 
 const { strength } = Astro.props;
 const next = strength.next ?? 5;
-const blocks: { title: string; about: string; block: StrengthBlock }[] = [
+
+const cols: { title: string; info: string; block: StrengthBlock }[] = [
   {
     title: "Opponents played so far",
-    about: "The games already played this season.",
+    info: tip`<b>Opponents played so far</b><br>The games already played this season.`,
     block: strength.played,
   },
   {
     title: "Upcoming schedule",
-    about: "All the games still to play this season.",
+    info: tip`<b>Upcoming schedule</b><br>All the games still to play this season.`,
     block: strength.remaining,
   },
   {
     title: `Next ${next}`,
-    about: `The next ${next} games still to play, in tip-off order.`,
+    info: tip`<b>Next ${next}</b><br>The next ${next} games still to play, in tip-off order.`,
     block: strength.next5,
   },
 ];
+
+// Each row: a label, its explanation, and the figure for one block. `always` rows show even for an
+// empty block (the game count); the others show a dash there, and the reason is listed below.
+const rows: { label: string; info: string; always?: boolean; value: (b: StrengthBlock) => string }[] = [
+  {
+    label: "Games",
+    info: tip`<b>Games</b><br>The number of games in this set.`,
+    always: true,
+    value: (b) => String(b.games),
+  },
+  {
+    label: "Home / away",
+    info: tip`<b>Home / away</b><br>Of these games, how many are at home and how many away.`,
+    value: (b) => `${b.home ?? 0} / ${b.away ?? 0}`,
+  },
+  {
+    label: "Average team win share",
+    info: tip`<b>Average team win share</b><br>The expected win share of an average team in the same games and venues. Below 50% means the opponents were stronger than average; above 50%, weaker.`,
+    value: (b) => winPct(b.average_team_win_pct ?? 0),
+  },
+  {
+    label: "Mean opponent Elo",
+    info: tip`<b>Mean opponent Elo</b><br>The average Elo rating of the opponents, as rated.`,
+    value: (b) => elo(b.mean_opponent_elo ?? 0),
+  },
+  {
+    label: "Venue-adjusted Elo",
+    info: tip`<b>Venue-adjusted Elo</b><br>The mean opponent Elo less the home-court advantage for games at home, plus it for games away. It takes out the venue, so harder and easier schedules compare fairly.`,
+    value: (b) => elo(b.mean_opponent_elo_adjusted ?? 0),
+  },
+  {
+    label: "Rest, team",
+    info: tip`<b>Rest, team</b><br>The mean days of rest of the team before these games.`,
+    value: (b) => `${days(b.rest_days ?? 0)} days`,
+  },
+  {
+    label: "Rest, opponents",
+    info: tip`<b>Rest, opponents</b><br>The mean days of rest of the opponents before these games.`,
+    value: (b) => `${days(b.opponent_rest_days ?? 0)} days`,
+  },
+];
+
+const empty = cols.filter((c) => c.block.games === 0);
 ---
 
-<div class="strength-grid">
-  {
-    blocks.map(({ title, about, block }) => (
-      <section class="strength-block" aria-labelledby={`strength-${title.replace(/\W+/g, "-").toLowerCase()}`}>
-        <h3 id={`strength-${title.replace(/\W+/g, "-").toLowerCase()}`} data-tip={tip`<b>${title}</b><br>${about}`} tabindex="0">
-          {title}
-        </h3>
-        {block.games === 0 ? (
-          <p class="muted">{block.reason ?? "No games."}</p>
-        ) : (
-          <>
-            <p class="strength-main">
-              An average team would win <b>{winPct(block.average_team_win_pct ?? 0)}</b> of these{" "}
-              {plural(block.games, "game")}.
-            </p>
-            <p class="strength-secondary">
-              Mean opponent Elo <b>{elo(block.mean_opponent_elo ?? 0)}</b>, venue-adjusted{" "}
-              <b>{elo(block.mean_opponent_elo_adjusted ?? 0)}</b>.
-            </p>
-            <p class="muted">
-              {venueLine(block)}. Rest {days(block.rest_days ?? 0)} days, opponents{" "}
-              {days(block.opponent_rest_days ?? 0)} days.
-            </p>
-          </>
-        )}
-      </section>
-    ))
-  }
+<div class="scroll">
+  <table class="grid strength-table">
+    <caption>Opponents in three sets of games: those already played, those still to play, and the next few.</caption>
+    <thead>
+      <tr>
+        <th scope="col"><span class="sr-only">Measure</span></th>
+        {
+          cols.map((c) => (
+            <th scope="col" class="num">
+              {c.title}
+              <InfoTip text={c.info} />
+            </th>
+          ))
+        }
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((r) => (
+          <tr>
+            <th scope="row">
+              {r.label}
+              <InfoTip text={r.info} />
+            </th>
+            {cols.map((c) => (
+              <td class="num">{c.block.games === 0 && !r.always ? "–" : r.value(c.block)}</td>
+            ))}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
 </div>
+{
+  empty.map((c) => (
+    <p class="muted strength-note">
+      {c.title}: {c.block.reason ?? "No games."}
+    </p>
+  ))
+}
 
 <style>
-  .strength-grid {
-    display: grid;
-    gap: 1.25rem;
-    grid-template-columns: 1fr;
+  .strength-table caption {
+    caption-side: top;
+    padding: 0 0 10px;
+    text-align: left;
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: normal;
   }
-  @media (min-width: 760px) {
-    .strength-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
+  .strength-table th {
+    white-space: normal;
+    vertical-align: bottom;
   }
-  .strength-block h3 {
-    font-size: 1rem;
-    margin: 0 0 0.4rem;
+  .strength-table tbody th {
+    vertical-align: middle;
+    min-width: 9.5rem;
   }
-  .strength-main,
-  .strength-secondary {
-    margin: 0.25rem 0;
+  .strength-table td {
+    vertical-align: middle;
+  }
+  .strength-note {
+    margin: 10px 0 0;
+    font-size: 0.8125rem;
   }
 </style>

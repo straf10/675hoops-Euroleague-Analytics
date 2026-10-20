@@ -9,6 +9,7 @@ import { seasonLabel } from "../../lib/leaders";
 import { cardData, meta } from "../../lib/stats";
 import { TEAM_MAX, type TeamSeasonRows } from "../../lib/compare_teams";
 import "../../styles/stats.css";
+import "../../styles/compare-key.css";
 import Polygon from "../../components/compare/Polygon.astro";
 import TeamProfile from "../../components/compare/TeamProfile.astro";
 
@@ -426,18 +427,20 @@ const description = "Up to five EuroLeague players side by side, a season each o
       table.style.setProperty("--cols", String(cols.length));
       const series = teamSeries(cols);
       $("team-figure").innerHTML = profileSvg(POLYGON_AXES, series, "Percentile profile, club-seasons", teamDescription(cols), "team-profile-svg");
-      // The key: the same series token as the chart's shape, so the colour matches exactly.
+      // The key: a dot in the same series token as the chart's shape, then the club code and season.
+      // The full name is the entry's tooltip, so it stays available on hover.
       $("team-legend").replaceChildren(
         ...series.map((s) => {
           const li = document.createElement("li");
+          li.title = s.name;
           const sw = document.createElement("i");
           sw.className = "swatch";
           sw.style.background = `var(--series-${s.slot})`;
           sw.setAttribute("aria-hidden", "true");
-          const name = document.createElement("span");
-          name.className = "series-name";
-          name.textContent = s.name;
-          li.append(sw, name);
+          const label = document.createElement("span");
+          label.className = "series-name";
+          label.textContent = s.label ?? s.name;
+          li.append(sw, label);
           return li;
         }),
       );

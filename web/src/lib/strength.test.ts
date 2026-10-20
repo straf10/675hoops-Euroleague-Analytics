@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { days, elo, hasSchedule, sosOf, venueLine, winPct, type Strength } from "./strength.ts";
+import { days, elo, hasSchedule, sosOf, winPct, type Strength } from "./strength.ts";
 
 const none = { games: 0, reason: "no games left to play" };
 const full: Strength = {
@@ -30,10 +30,6 @@ test("Elo has one decimal and a thousands separator; days have one decimal", () 
   assert.equal(days(5.1875), "5.2");
 });
 
-test("the venue line counts home and away games", () => {
-  assert.equal(venueLine({ games: 33, home: 16, away: 17 }), "16 at home, 17 away");
-  assert.equal(venueLine({ games: 0 }), "0 at home, 0 away");
-});
 
 test("the Teams index SoS figures are the team page's venue-adjusted Elo, NaN (a dash) with no games", () => {
   const left = sosOf(full);

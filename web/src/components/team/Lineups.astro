@@ -1,7 +1,7 @@
 ---
 // The Lineups tab: the club's best duos and five-man units, by net rating per 100 possessions.
 // Data: seasons/{season}/units.json (stats/units.py), this club's rows for every published season.
-import { lines, PAIR_SIZE, sortLines, UNIT_SIZE, type ClubUnits } from "../../lib/lineups";
+import { lines, minimumNote, PAIR_SIZE, sortLines, UNIT_SIZE, type ClubUnits } from "../../lib/lineups";
 import { lineupRowsHtml, type PlayerName } from "../../lib/lineups_html";
 import { tip } from "../../lib/tip";
 
@@ -21,6 +21,8 @@ const current = seasons[String(season)];
 const duos = current ? sortLines(lines(current.pairs, PAIR_SIZE), "net") : [];
 const units = current ? sortLines(lines(current.units, UNIT_SIZE), "net") : [];
 const payload = JSON.stringify({ code, seasons, names, base, initial: season });
+const pairNote = current ? minimumNote("duos", current.minimums) : "";
+const unitNote = current ? minimumNote("units", current.minimums) : "";
 ---
 
 <section class="band lineups" id="lineups" aria-labelledby="lineups-title">
@@ -34,6 +36,7 @@ const payload = JSON.stringify({ code, seasons, names, base, initial: season });
 
   <div id="duos-wrap" hidden={!current}>
     <h3 class="lineups-title">Best duos</h3>
+    <p class="note table-note" data-min="duos">{pairNote}</p>
     <div class="scroll">
       <table class="grid lineups-table" data-table="duos">
         <caption class="sr-only">Best duos, two players on court together: minutes, possessions and net rating per 100 possessions</caption>
@@ -53,6 +56,7 @@ const payload = JSON.stringify({ code, seasons, names, base, initial: season });
 
   <div id="units-wrap" hidden={!current}>
     <h3 class="lineups-title">Best units</h3>
+    <p class="note table-note" data-min="units">{unitNote}</p>
     <div class="scroll">
       <table class="grid lineups-table" data-table="units">
         <caption class="sr-only">Best five-man units: minutes, possessions and net rating per 100 possessions</caption>
@@ -72,7 +76,7 @@ const payload = JSON.stringify({ code, seasons, names, base, initial: season });
 </section>
 
 <script>
-  import { lines, PAIR_SIZE, sortLines, UNIT_SIZE, type ClubUnits, type LineupSort } from "../../lib/lineups";
+  import { lines, minimumNote, PAIR_SIZE, sortLines, UNIT_SIZE, type ClubUnits, type LineupSort } from "../../lib/lineups";
   import { lineupRowsHtml, type PlayerName } from "../../lib/lineups_html";
 
   interface Data {
@@ -119,6 +123,9 @@ const payload = JSON.stringify({ code, seasons, names, base, initial: season });
       const rows = current
         ? lines(table === "duos" ? current.pairs : current.units, table === "duos" ? PAIR_SIZE : UNIT_SIZE)
         : [];
+      document.querySelector<HTMLElement>(`p.table-note[data-min="${table}"]`)!.textContent = current
+        ? minimumNote(table, current.minimums)
+        : "";
       document.getElementById(`${table}-body`)!.innerHTML = lineupRowsHtml(sortLines(rows, sortBy[table]), data.names, data.base);
       for (const button of document.querySelectorAll<HTMLButtonElement>(`button.sort[data-table="${table}"]`)) {
         button.setAttribute("aria-pressed", String(button.dataset.by === sortBy[table]));
@@ -144,6 +151,9 @@ const payload = JSON.stringify({ code, seasons, names, base, initial: season });
     margin: 1.25rem 0 0.5rem;
     font-size: inherit;
     font-weight: 600;
+  }
+  .table-note {
+    margin: 0 0 0.5rem;
   }
   .sort {
     font: inherit;

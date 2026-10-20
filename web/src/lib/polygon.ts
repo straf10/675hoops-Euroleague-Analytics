@@ -208,7 +208,10 @@ export function describeProfile(name: string, prof: Profile, axes: Axis[]): stri
 }
 
 export interface SeriesShape {
+  /** The full name, used for the shape's title and the text fallback. */
   name: string;
+  /** Short text for the colour key (such as a club code and season). Defaults to `name`. */
+  label?: string;
   /** 1 to 5: the series token (--series-1 to --series-5). */
   slot: number;
   profile: Profile;

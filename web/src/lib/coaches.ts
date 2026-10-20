@@ -18,6 +18,10 @@ export interface CoachPlayoffs {
   seasons: number;
   final_four: number;
   titles: number;
+  /** Seasons that lost the Final Four final. Missing in coach data exported before it was added. */
+  runner_ups?: number;
+  /** Seasons with a play-in game. Missing in coach data exported before it was added. */
+  play_ins?: number;
 }
 
 export interface CoachIndexRow extends Counts {
@@ -110,9 +114,11 @@ export interface CoachStyle {
     from_season: number;
     games: number;
     per_game: number | null;
-    late_share: number | null;
     league_per_game: number | null;
-    league_late_share: number | null;
+    /** Challenges in the clutch window (last 5:00 of the 4th quarter, or overtime) of clutch games. */
+    clutch: number;
+    clutch_per_clutch_game: number | null;
+    league_clutch_per_clutch_game: number | null;
   } | null;
 }
 
@@ -209,30 +215,46 @@ export const sampled = (value: number | null, n: number, min: number): Measure =
 });
 const plain = (value: number | null): Measure => ({ value, thin: false });
 
-export type Kind = "int" | "pct1" | "pct0" | "dec1" | "dec2" | "signed1" | "finish";
+export type Kind = "int" | "pct1" | "pct0" | "dec1" | "dec2" | "signed1" | "placement";
 
 /** How far a coach's season went: the furthest stage the season's playoff flags show. */
-export type Finish = "champion" | "final_four" | "playoffs" | "regular";
+export type Placement = "champion" | "runner_up" | "final_four" | "playoffs" | "play_in" | "regular";
 
-export const FINISH_LABEL: Record<Finish, string> = {
+export const PLACEMENT_LABEL: Record<Placement, string> = {
   champion: "Champion",
+  runner_up: "Runner-up",
   final_four: "Final Four",
   playoffs: "Playoffs",
+  play_in: "Play-in",
   regular: "Regular season",
 };
 
-/** Rank of a finish, higher is further: the sort order of the Finish column. */
-const FINISH_RANK: Record<Finish, number> = { regular: 0, playoffs: 1, final_four: 2, champion: 3 };
-const FINISH_BY_RANK = Object.fromEntries(
-  Object.entries(FINISH_RANK).map(([finish, rank]) => [rank, finish as Finish]),
-) as Record<number, Finish>;
+/** Rank of a placement, higher is further: the sort order of the Placement column. */
+const PLACEMENT_RANK: Record<Placement, number> = {
+  regular: 0,
+  play_in: 1,
+  playoffs: 2,
+  final_four: 3,
+  runner_up: 4,
+  champion: 5,
+};
+const PLACEMENT_BY_RANK = Object.fromEntries(
+  Object.entries(PLACEMENT_RANK).map(([placement, rank]) => [rank, placement as Placement]),
+) as Record<number, Placement>;
 
-export function finishOf(p: CoachPlayoffs): Finish {
+/** The placement of a season: the furthest stage its playoff flags show. A play-in game with no
+ *  playoff game is a loss in the play-in. */
+export function placementOf(p: CoachPlayoffs): Placement {
   if (p.titles > 0) return "champion";
+  if ((p.runner_ups ?? 0) > 0) return "runner_up";
   if (p.final_four > 0) return "final_four";
   if (p.seasons > 0) return "playoffs";
+  if ((p.play_ins ?? 0) > 0) return "play_in";
   return "regular";
 }
+
+/** Placement is shown for a completed season only: the season in progress has none yet. */
+export const placementShown = (season: number, openSeason: number): boolean => season !== openSeason;
 
 interface CoachMetric {
   key: string;
@@ -244,14 +266,16 @@ interface CoachMetric {
   read: (r: CoachSeasonRow) => Measure;
 }
 
-export type SectionKey = "expected" | "finish" | "advanced" | "challenges" | "rotation";
+export type SectionKey = "expected" | "advanced" | "rotation";
 
 /** The metric sections: the core columns are always shown; a section adds its own after them. */
 export const SECTIONS: { key: SectionKey; label: string; keys: string[] }[] = [
-  { key: "expected", label: "Expected", keys: ["expected_wins", "wins_above_expectation"] },
-  { key: "finish", label: "Finish", keys: ["finish"] },
-  { key: "advanced", label: "Advanced", keys: ["ato", "clutch_pct", "clutch_games"] },
-  { key: "challenges", label: "Challenges", keys: ["challenges", "late"] },
+  { key: "expected", label: "Expected", keys: ["expected_wins", "wins_above_expectation", "placement"] },
+  {
+    key: "advanced",
+    label: "Advanced",
+    keys: ["ato", "clutch_pct", "clutch_games", "challenges", "clutch_challenges"],
+  },
   { key: "rotation", label: "Rotation", keys: ["players", "top7"] },
 ];
 
@@ -302,11 +326,11 @@ export const COACH_METRICS: CoachMetric[] = [
     read: (r) => plain(r.wins_above_expectation),
   },
   {
-    key: "finish",
-    head: "Finish",
-    about: "The furthest stage the season reached: champion, Final Four, playoffs or regular season. Counted from 2015-16 on, when the box scores name coaches.",
-    kind: "finish",
-    read: (r) => plain(FINISH_RANK[finishOf(r.playoffs)]),
+    key: "placement",
+    head: "Placement",
+    about: "The furthest stage the season reached: champion, runner-up (lost the final), Final Four, playoffs, play-in (lost there) or regular season. Counted from 2015-16 on, when the box scores name coaches. Not shown for the season in progress.",
+    kind: "placement",
+    read: (r) => plain(PLACEMENT_RANK[placementOf(r.playoffs)]),
   },
   {
     key: "ato",
@@ -348,14 +372,11 @@ export const COACH_METRICS: CoachMetric[] = [
     },
   },
   {
-    key: "late",
-    head: "Late challenges",
-    about: `Share of challenges used in the 4th quarter or overtime. Needs ${SEASON_MIN_SAMPLE.games} games.`,
-    kind: "pct0",
-    read: (r) => {
-      const c = r.style?.challenges;
-      return c ? sampled(c.late_share, c.games, SEASON_MIN_SAMPLE.games) : plain(null);
-    },
+    key: "clutch_challenges",
+    head: "Clutch challenges",
+    about: "Coach challenges in the last 5:00 of the 4th quarter or overtime, in clutch games (see Clutch win %). The data does not show whether they were upheld.",
+    kind: "int",
+    read: (r) => plain(r.style?.challenges ? r.style.challenges.clutch : null),
   },
   {
     key: "players",
@@ -386,8 +407,10 @@ export const metricOf = (key: string): CoachMetric | undefined =>
   COACH_METRICS.find((m) => m.key === key);
 
 /** The sortable columns a section shows, in table order: the core columns, then its own. */
-export function columnKeys(section: SectionKey): string[] {
-  const own = SECTIONS.find((s) => s.key === section)?.keys ?? [];
+export function columnKeys(section: SectionKey, placement = true): string[] {
+  const own = (SECTIONS.find((s) => s.key === section)?.keys ?? []).filter(
+    (key) => placement || key !== "placement",
+  );
   return [...CORE_KEYS, ...own];
 }
 
@@ -434,11 +457,19 @@ export interface CoachView {
 }
 
 /** Changing section keeps the sort column when the new section shows it, else the section's first. */
-export function switchSection(view: CoachView, section: SectionKey): CoachView {
-  const keys = columnKeys(section);
+export function switchSection(view: CoachView, section: SectionKey, placement = true): CoachView {
+  const keys = columnKeys(section, placement);
   if (keys.includes(view.metric)) return { ...view, section };
   const first = SECTIONS.find((s) => s.key === section)?.keys[0] ?? DEFAULT_METRIC;
   return { ...view, section, metric: first, dir: "desc" };
+}
+
+/** Changing season keeps the sort column when the new season shows it, else the section's first. */
+export function switchSeason(view: CoachView, season: number, openSeason: number): CoachView {
+  const next = { ...view, season };
+  if (columnKeys(view.section, placementShown(season, openSeason)).includes(view.metric)) return next;
+  const first = SECTIONS.find((s) => s.key === view.section)?.keys[0] ?? DEFAULT_METRIC;
+  return { ...next, metric: first, dir: "desc" };
 }
 
 /** Unknown or missing values fall back to the defaults: the fallback season, the first section,
@@ -452,10 +483,13 @@ export function coachViewFromQuery(search: string, seasons: number[], fallbackSe
     : DEFAULT_SECTION;
   const metric = p.get("metric") ?? "";
   const sort = p.get("sort");
+  const season = seasons.includes(asked) ? asked : fallbackSeason;
   return {
-    season: seasons.includes(asked) ? asked : fallbackSeason,
+    season,
     section,
-    metric: columnKeys(section).includes(metric) ? metric : DEFAULT_METRIC,
+    metric: columnKeys(section, placementShown(season, fallbackSeason)).includes(metric)
+      ? metric
+      : DEFAULT_METRIC,
     dir: sort === "asc" ? "asc" : "desc",
   };
 }
@@ -488,14 +522,14 @@ export function formatMeasure(m: Measure, kind: Kind): string {
       return rate(v, 2);
     case "signed1":
       return signed(v);
-    case "finish":
-      return FINISH_LABEL[FINISH_BY_RANK[Math.round(v)] ?? "regular"];
+    case "placement":
+      return PLACEMENT_LABEL[PLACEMENT_BY_RANK[Math.round(v)] ?? "regular"];
   }
 }
 
 /** The head row: Coach and Club(s), then one sortable column per shown metric. */
-export function coachHeadHtml(view: CoachView): string {
-  const cols = columnKeys(view.section).map((k) => metricOf(k)!);
+export function coachHeadHtml(view: CoachView, placement = true): string {
+  const cols = columnKeys(view.section, placement).map((k) => metricOf(k)!);
   const heads = cols.map((m) => {
     const on = m.key === view.metric;
     const sort = on ? (view.dir === "desc" ? "descending" : "ascending") : "none";
@@ -511,8 +545,8 @@ export function coachHeadHtml(view: CoachView): string {
 }
 
 /** The body rows for the rows given (the caller filters and sorts); a thin rate is greyed. */
-export function coachRowsHtml(rows: CoachRow[], view: CoachView): string {
-  const cols = columnKeys(view.section).map((k) => metricOf(k)!);
+export function coachRowsHtml(rows: CoachRow[], view: CoachView, placement = true): string {
+  const cols = columnKeys(view.section, placement).map((k) => metricOf(k)!);
   return rows
     .map((r) => {
       const cells = cols

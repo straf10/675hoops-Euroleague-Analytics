@@ -34,6 +34,13 @@ export type LineupSort = "minutes" | "net";
 export const PAIR_SIZE = 2;
 export const UNIT_SIZE = 5;
 
+/** The note under a table: the minutes a duo or unit needs on court together to be listed. */
+export function minimumNote(table: "duos" | "units", minimums: { pair: number; unit: number }): string {
+  return table === "duos"
+    ? `Duos with at least ${minimums.pair} minutes on court together.`
+    : `Units with at least ${minimums.unit} minutes on court together.`;
+}
+
 /** The rows of a file as lines: `size` player ids, then the six numbers. */
 export function lines(rows: LineupRow[], size: number): Line[] {
   return rows.map((r) => ({

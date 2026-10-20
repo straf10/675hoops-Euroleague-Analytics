@@ -1,0 +1,30 @@
+/* Compare's colour key under a percentile profile, shared by the Players and Teams sections: one row per
+   shape, a filled dot in its series token (the same as the shape), then a short label. The rows are built by
+   each section's script, so the rules are global (imported by the Compare page), keyed on the list class. */
+.profile-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.profile-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+.profile-list .swatch {
+  flex: none;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.profile-list .series-name {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}

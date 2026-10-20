@@ -15,8 +15,9 @@ Definitions (plain words for the page):
 - Clutch: the score margin was within 5 points at some moment with 5:00 or less left in the
   fourth quarter, or in any overtime.
 - Rotation: players with minutes in the game, and the share of minutes taken by the top 7 players.
-- Challenges: coach challenges (``CCH``) from the 2021-22 season on, and the share in the 4th
-  quarter or overtime. The data does not say whether a challenge succeeded.
+- Challenges: coach challenges (``CCH``) from the 2021-22 season on. Clutch challenges: those in
+  the clutch window (the last 5:00 of the 4th quarter and any overtime) of a clutch game. The data
+  does not say whether a challenge succeeded (the CCH rows carry only the team and the count).
 """
 
 from __future__ import annotations
@@ -67,7 +68,7 @@ class TeamGame:
     ato_possessions: int
     ato_points: int
     challenges: int
-    challenges_late: int
+    challenges_clutch: int  # in the clutch window, counted only when the game is a clutch game
     players_used: int | None  # None without a box score
     top7_share: float | None
 
@@ -92,7 +93,8 @@ class Totals:
     top7_share_sum: float = 0.0
     challenge_team_games: int = 0
     challenges: int = 0
-    challenges_late: int = 0
+    challenges_clutch: int = 0
+    challenge_clutch_team_games: int = 0
 
     def add_team(self, season: int, clutch: bool, team: TeamGame) -> None:
         self.team_games += 1
@@ -106,7 +108,8 @@ class Totals:
         if season >= CHALLENGE_FROM:
             self.challenge_team_games += 1
             self.challenges += team.challenges
-            self.challenges_late += team.challenges_late
+            self.challenges_clutch += team.challenges_clutch
+            self.challenge_clutch_team_games += int(clutch)
 
 
 @dataclass(frozen=True)
@@ -281,13 +284,14 @@ def after_timeout(acts: Sequence[Action], teams: tuple[str, str]) -> dict[str, t
 
 
 def challenges(acts: Sequence[Action]) -> dict[str, tuple[int, int]]:
-    """Team -> (coach challenges, those in the 4th quarter or overtime)."""
+    """Team -> (coach challenges, those in the clutch window: the last 5:00 of the 4th quarter or
+    any overtime). Whether the game is a clutch game is decided by the caller."""
     counts: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     for act in acts:
         if act.kind == CHALLENGE and act.team:
             counts[act.team][0] += 1
-            counts[act.team][1] += int(act.period >= 4)
-    return {team: (total, late) for team, (total, late) in counts.items()}
+            counts[act.team][1] += int(_in_clutch_window(act))
+    return {team: (total, window) for team, (total, window) in counts.items()}
 
 
 def rotation(box: dict[str, Any]) -> dict[str, tuple[int, float | None]]:
@@ -314,6 +318,7 @@ def game_style(raw_dir: Path, season: int, game_code: str) -> GameStyle | None:
         return None
     acts, teams = actions(json.loads(read_cached(path)))
     ato = after_timeout(acts, teams)
+    clutch = is_clutch(acts)
     counted = challenges(acts)
     box_path = raw_dir / "boxscore" / f"E{season}" / f"{game_code}.json.gz"
     rot = rotation(json.loads(read_cached(box_path))) if box_path.exists() else {}
@@ -322,10 +327,10 @@ def game_style(raw_dir: Path, season: int, game_code: str) -> GameStyle | None:
         if not team:
             continue
         poss, points = ato.get(team, (0, 0))
-        total, late = counted.get(team, (0, 0))
+        total, window = counted.get(team, (0, 0))
         used, top7 = rot.get(team, (None, None))
-        team_games[team] = TeamGame(poss, points, total, late, used, top7)
-    return GameStyle(season=season, clutch=is_clutch(acts), teams=team_games)
+        team_games[team] = TeamGame(poss, points, total, window if clutch else 0, used, top7)
+    return GameStyle(season=season, clutch=clutch, teams=team_games)
 
 
 def game_styles(raw_dir: Path, games: pd.DataFrame) -> StyleIndex:
@@ -379,9 +384,14 @@ def coach_style(rows: pd.DataFrame, index: StyleIndex) -> dict[str, Any]:
             "from_season": CHALLENGE_FROM,
             "games": mine.challenge_team_games,
             "per_game": _rate(mine.challenges, mine.challenge_team_games, 2),
-            "late_share": _rate(mine.challenges_late, mine.challenges),
             "league_per_game": _rate(league.challenges, league.challenge_team_games, 2),
-            "league_late_share": _rate(league.challenges_late, league.challenges),
+            "clutch": mine.challenges_clutch,
+            "clutch_per_clutch_game": _rate(
+                mine.challenges_clutch, mine.challenge_clutch_team_games, 2
+            ),
+            "league_clutch_per_clutch_game": _rate(
+                league.challenges_clutch, league.challenge_clutch_team_games, 2
+            ),
         }
     return {
         "ato": {

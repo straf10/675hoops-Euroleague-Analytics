@@ -155,6 +155,9 @@ test("teamSeries: one shape per column, percentiles on every axis, slots 1 to 5"
   const tov = series[0].profile.axes.find((a) => a.key === "tov")!;
   assert.equal(tov.pct, 100);
   assert.match(teamDescription(cols), /Beta 2025-26/);
+  // The key shows the short display code and season; the full name stays the title.
+  assert.deepEqual(series.map((s) => s.label), ["BBB 2025-26", "CCC 2025-26"]);
+  assert.deepEqual(series.map((s) => s.name), ["Beta 2025-26", "Gamma 2025-26"]);
 });
 
 test("teamSeries: a club outside the season's data gets a note and no shape", () => {

@@ -3,12 +3,11 @@
 // Each season is rendered up front and the team page's season picker shows one of them
 // (data-passing-season), so the tab follows the picker with or without JavaScript.
 // The network is the picture: players at the vertices of a polygon, a line for each pair that
-// assisted. The pair table and the list of top connections hold the same numbers as text.
+// assisted. The list of top connections holds the same numbers as text.
 import { assistsData } from "../../lib/stats";
 import { sourceCode } from "../../lib/live";
 import {
   LIST_SIZE,
-  MATRIX_SIZE,
   MIN_ASSISTS,
   TARGET,
   VIEW,
@@ -66,7 +65,7 @@ const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
               {view.network.edges.length === 0 ? (
                 <p class="note">No pair has assisted yet.</p>
               ) : view.network.players.length < 3 ? (
-                <p class="note">Only {count(view.network.players.length, "player")} assisted, so there is no network to draw. The pairs are listed below.</p>
+                <p class="note">Only {count(view.network.players.length, "player")} assisted, so there is no network to draw.</p>
               ) : (
                 <figure class="net-fig">
                   <svg
@@ -105,51 +104,13 @@ const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
                   <figcaption class="note" id={`network-note-${season}`}>
                     Each line joins two players who assisted each other at least once. Thicker and darker means more
                     assists between them. The {count(view.network.players.length, "player")} with the most assists are
-                    drawn. Hover or focus a player to see their pairs. The pair table below lists every pair.
+                    drawn. Hover or focus a player to see their pairs.
                     {view.network.hiddenPairs > 0 &&
                       ` This team has more than 20 pairs, so the ${count(view.network.hiddenPairs, "pair")} with one assist are not drawn.`}
                   </figcaption>
                 </figure>
               )}
 
-              <details class="pair-table">
-                <summary>Pair table</summary>
-                {view.matrix.players.length === 0 || view.connections.length === 0 ? (
-                  <p class="note">No pair has {MIN_ASSISTS} or more assists yet.</p>
-                ) : (
-                  <div class="passing-scroll">
-                    <table class="grid passing-matrix">
-                      <caption class="sr-only">
-                        Assists from each passer (rows) to each scorer (columns), for the top {MATRIX_SIZE} players by assists plus made field goals. Only pairs with {MIN_ASSISTS} or more assists are shaded.
-                      </caption>
-                      <thead>
-                        <tr>
-                          <th scope="col"><span class="sr-only">Passer</span></th>
-                          {view.matrix.players.map((p) => (
-                            <th scope="col" class="turn">{p.name}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {view.matrix.players.map((p, r) => (
-                          <tr>
-                            <th scope="row">{p.name}</th>
-                            {view.matrix.cells[r].map((c) =>
-                              c ? (
-                                <td class="num shade" style={`--shade: ${Math.round(12 + c.shade * 20)}%`}>
-                                  {c.assists}
-                                </td>
-                              ) : (
-                                <td class="num" aria-hidden="true"></td>
-                              ),
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </details>
 
               <h3 class="passing-title" id={`connections-title-${season}`}>Top connections</h3>
               {view.connections.length === 0 ? (
@@ -229,30 +190,11 @@ const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
       transition: none;
     }
   }
-  .pair-table {
-    margin: 1.25rem 0 0;
-  }
   /* The sub-heading spacing the Lineups tab uses between a block of text and the next heading. */
   .passing-title {
     margin: 1.25rem 0 0.5rem;
     font-size: inherit;
     font-weight: 600;
-  }
-  .pair-table > summary {
-    cursor: pointer;
-    font-weight: 500;
-  }
-  .passing-scroll {
-    overflow-x: auto;
-  }
-  .passing-matrix th.turn {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    white-space: nowrap;
-    font-weight: 500;
-  }
-  .passing-matrix td.shade {
-    background: color-mix(in srgb, var(--ink) var(--shade), var(--surface));
   }
   .connections {
     margin: 0.5rem 0 0;

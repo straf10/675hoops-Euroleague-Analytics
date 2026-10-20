@@ -1,8 +1,8 @@
 ---
 // Compare, Teams mode: the percentile polygon for club-seasons. The same drawing as the player
 // polygon (lib/polygon.ts profileSvg, the same series tokens), with the eight team axes fixed and
-// filled in by the page's script (lib/compare_teams.ts). Its styles repeat the player polygon's
-// figure and legend rules, since the two sections never share a page state.
+// filled in by the page's script (lib/compare_teams.ts). Its figure rules repeat the player polygon's,
+// since the two sections never share a page state; the colour key is shared (styles/compare-key.css).
 ---
 
 <section class="profile" id="team-profile" aria-labelledby="team-profile-heading" hidden>
@@ -68,33 +68,6 @@
   .profile-figure :global(.axis-label) {
     fill: var(--ink-2);
     font-size: 11px;
-  }
-  .profile-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border-top: 1px solid var(--rule);
-  }
-  /* The key: one row per club-season, its series colour in a swatch beside the name (ink, never coloured). */
-  .profile-list li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--rule);
-    color: var(--ink);
-    font-size: 0.875rem;
-  }
-  .swatch {
-    flex: none;
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-  }
-  .series-name {
-    font-weight: 600;
-    overflow-wrap: anywhere;
   }
   .profile-status {
     margin: 8px 0 0;

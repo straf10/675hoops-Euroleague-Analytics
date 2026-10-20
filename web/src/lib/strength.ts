@@ -41,13 +41,6 @@ export const elo = (x: number): string =>
 /** One decimal of days: 4.96 gives "5.0". */
 export const days = (x: number): string => x.toFixed(1);
 
-/** "16 at home, 17 away". */
-export function venueLine(b: StrengthBlock): string {
-  const home = b.home ?? 0;
-  const away = b.away ?? 0;
-  return `${home} at home, ${away} away`;
-}
-
 /** The Teams index's two SoS figures from a team's schedule strength: the venue-adjusted mean opponent
  * Elo of the games played and of the games left (higher is a harder schedule). NaN where the block has
  * no games, so the index shows a dash. The team page shows the same blocks (ScheduleStrength). */

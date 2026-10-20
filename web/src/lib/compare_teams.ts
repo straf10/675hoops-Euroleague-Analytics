@@ -194,7 +194,8 @@ export function teamSeries(cols: TeamColumn[]): SeriesShape[] {
         return { key, pct: p ? p.pct : null, rank: p ? p.rank : null, of: p ? p.of : 0 };
       }),
     };
-    return { name: `${c.name} ${c.label}`, slot: (i % 5) + 1, profile };
+    // The name is the full club for the title and the text fallback; the key shows the short display code and season.
+    return { name: `${c.name} ${c.label}`, label: `${c.code} ${c.label}`, slot: (i % 5) + 1, profile };
   });
 }
 

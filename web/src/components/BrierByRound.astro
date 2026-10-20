@@ -9,7 +9,7 @@ interface Props {
 const { comp } = Astro.props;
 const fc = comp.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
-const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
+const label = fc?.models.find((m) => m.key === model)?.label ?? "Our model";
 const acc = fc?.accuracy ?? [];
 
 // One size for every chart in the scoring row (see index.astro): a card a third of the page wide.
