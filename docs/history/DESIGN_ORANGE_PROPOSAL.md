@@ -1,6 +1,6 @@
 # Proposal: orange as the data accent (Phase B3)
 
-Status: **proposal, awaiting the owner's approval.** Nothing below is applied yet.
+Status: **applied** (owner decision 2026-10-10, Phase B; see docs/DESIGN.md). Kept as the record of the validator numbers.
 
 The Quiet Reference stays: neutral paper and night, one typeface (Geist), hairlines, colour only on data, text always in ink. What changes is *which* hue the data wears. Every number below comes from the dataviz skill's validator (`validate_palette.js`, OKLab ΔE ×100, Machado 2009 CVD simulation) and WCAG 2 contrast.
 
