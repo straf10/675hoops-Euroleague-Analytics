@@ -1,133 +1,1 @@
-import csv
-from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-
-import pandas as pd
-import pytest
-
-from eurohoops.eval.backtest import TunedModel
-from eurohoops.predict import LOG_COLUMNS, LatePredictionError, predict_upcoming
-from tests.conftest import make_games
-
-NOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)  # 10 h before round 1 (18:00, 18:15, 18:30)
-WINDOW = timedelta(hours=36)
-
-
-@pytest.fixture
-def games() -> pd.DataFrame:
-    return make_games({2024: True, 2025: True, 2026: False})
-
-
-def fixed(t: datetime) -> Callable[[], datetime]:
-    return lambda: t
-
-
-def run(games: pd.DataFrame, model: TunedModel, log: Path, clock: Callable[[], datetime]) -> int:
-    return predict_upcoming(
-        games, model, log_path=log, season=2026, replay_from=2024, window=WINDOW, clock=clock
-    )
-
-
-def read_rows(log: Path) -> list[dict[str, str]]:
-    with log.open(newline="") as fh:
-        return list(csv.DictReader(fh))
-
-
-def test_logs_upcoming_games_in_window(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    log = tmp_path / "log.csv"
-    assert run(games, tuned, log, fixed(NOW)) == 3
-    rows = read_rows(log)
-    assert tuple(rows[0]) == LOG_COLUMNS
-    assert [r["game_id"] for r in rows] == ["E2026_1", "E2026_2", "E2026_3"]
-    for row in rows:
-        assert row["predicted_at_utc"] == "2026-10-01T08:00:00Z"
-        assert row["predicted_at_utc"] < row["tipoff_utc"]
-        assert 0 < float(row["p_home"]) < 1
-        assert row["model_version"] == tuned.version()
-
-
-def test_second_run_adds_zero_rows_and_never_changes_existing_bytes(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    log = tmp_path / "log.csv"
-    run(games, tuned, log, fixed(NOW))
-    prefix = log.read_bytes()
-    assert run(games, tuned, log, fixed(NOW + timedelta(hours=1))) == 0
-    assert log.read_bytes() == prefix
-    # A later run picks up the next round and only appends.
-    assert run(games, tuned, log, fixed(NOW + timedelta(days=6))) == 3
-    assert log.read_bytes().startswith(prefix)
-
-
-def test_new_model_version_appends_without_touching_old_rows(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    log = tmp_path / "log.csv"
-    run(games, tuned, log, fixed(NOW))
-    prefix = log.read_bytes()
-    retuned = TunedModel(tuned.params, 30.0, tuned.b0_home_win_rate, tuned.b0_home_margin)
-    assert run(games, retuned, log, fixed(NOW)) == 3
-    assert log.read_bytes().startswith(prefix)
-
-
-def test_refuses_when_stamp_is_not_before_tipoff(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    log = tmp_path / "log.csv"
-    log.write_text(",".join(LOG_COLUMNS) + "\n")
-    before = log.read_bytes()
-    # Selection happens at NOW, but the stamp is taken exactly at the first tip-off.
-    ticks: Iterator[datetime] = iter([NOW, datetime(2026, 10, 1, 18, 0, tzinfo=UTC)])
-    with pytest.raises(LatePredictionError):
-        run(games, tuned, log, lambda: next(ticks))
-    assert log.read_bytes() == before
-
-
-def test_skips_played_unconfirmed_and_out_of_window_games(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    unconfirmed = games.assign(
-        confirmed_date=~((games["season"] == 2026) & (games["game_code"] == 1))
-    )
-    log = tmp_path / "log.csv"
-    assert run(unconfirmed, tuned, log, fixed(NOW)) == 2
-    assert run(games, tuned, tmp_path / "late.csv", fixed(NOW + timedelta(hours=11))) == 0
-
-
-def test_history_before_replay_start_cannot_shift_live_predictions(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    older = make_games({2021: True, 2022: True}, seed=99)
-    with_history = pd.concat([older, games], ignore_index=True)
-    run(games, tuned, tmp_path / "a.csv", fixed(NOW))
-    run(with_history, tuned, tmp_path / "b.csv", fixed(NOW))
-    assert (tmp_path / "a.csv").read_bytes() == (tmp_path / "b.csv").read_bytes()
-
-
-def test_refuses_to_append_onto_an_unterminated_last_row(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    """A run killed mid-write (or a hand edit) can leave the last row without its newline; an
-    append would glue the next row onto it. Nothing is written and the run fails loudly."""
-    log = tmp_path / "log.csv"
-    run(games, tuned, log, fixed(NOW))
-    cut = log.read_bytes()[:-20]
-    log.write_bytes(cut)
-    with pytest.raises(ValueError, match="does not end with a newline"):
-        run(games, tuned, log, fixed(NOW + timedelta(days=7)))
-    assert log.read_bytes() == cut
-
-
-def test_an_empty_log_file_gets_the_header(
-    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path
-) -> None:
-    """A run killed between creating the file and writing its header leaves 0 bytes."""
-    log = tmp_path / "log.csv"
-    log.touch()
-    assert run(games, tuned, log, fixed(NOW)) == 3
-    rows = read_rows(log)
-    assert tuple(rows[0]) == LOG_COLUMNS
-    assert len(rows) == 3
+import csvfrom collections.abc import Callable, Iteratorfrom datetime import UTC, datetime, timedeltafrom pathlib import Pathimport pandas as pdimport pytestfrom eurohoops.eval.backtest import TunedModelfrom eurohoops.predict import LOG_COLUMNS, LatePredictionError, predict_upcoming, upcoming_gamesfrom tests.conftest import make_gamesNOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)  # 10 h before round 1 (18:00, 18:15, 18:30)ROUND_LEAD = timedelta(hours=48)@pytest.fixturedef games() -> pd.DataFrame:    return make_games({2024: True, 2025: True, 2026: False})def fixed(t: datetime) -> Callable[[], datetime]:    return lambda: tdef run(games: pd.DataFrame, model: TunedModel, log: Path, clock: Callable[[], datetime]) -> int:    return predict_upcoming(        games,        model,        log_path=log,        season=2026,        replay_from=2024,        round_lead=ROUND_LEAD,        clock=clock,    )def read_rows(log: Path) -> list[dict[str, str]]:    with log.open(newline="") as fh:        return list(csv.DictReader(fh))def test_logs_the_whole_round_before_its_first_tipoff(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    log = tmp_path / "log.csv"    assert run(games, tuned, log, fixed(NOW)) == 3    rows = read_rows(log)    assert tuple(rows[0]) == LOG_COLUMNS    assert [r["game_id"] for r in rows] == ["E2026_1", "E2026_2", "E2026_3"]    for row in rows:        assert row["predicted_at_utc"] == "2026-10-01T08:00:00Z"        assert row["predicted_at_utc"] < row["tipoff_utc"]        assert 0 < float(row["p_home"]) < 1        assert row["model_version"] == tuned.version()def test_second_run_adds_zero_rows_and_never_changes_existing_bytes(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    log = tmp_path / "log.csv"    run(games, tuned, log, fixed(NOW))    prefix = log.read_bytes()    assert run(games, tuned, log, fixed(NOW + timedelta(hours=1))) == 0    assert log.read_bytes() == prefix    # A later run picks up the next round (first tip-off 22 h away) and only appends.    assert run(games, tuned, log, fixed(NOW + timedelta(days=6, hours=12))) == 3    assert log.read_bytes().startswith(prefix)def test_new_model_version_appends_without_touching_old_rows(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    log = tmp_path / "log.csv"    run(games, tuned, log, fixed(NOW))    prefix = log.read_bytes()    retuned = TunedModel(tuned.params, 30.0, tuned.b0_home_win_rate, tuned.b0_home_margin)    assert run(games, retuned, log, fixed(NOW)) == 3    assert log.read_bytes().startswith(prefix)def test_refuses_when_stamp_is_not_before_tipoff(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    log = tmp_path / "log.csv"    log.write_text(",".join(LOG_COLUMNS) + "\n")    before = log.read_bytes()    # Selection happens at NOW, but the stamp is taken exactly at the first tip-off.    ticks: Iterator[datetime] = iter([NOW, datetime(2026, 10, 1, 18, 0, tzinfo=UTC)])    with pytest.raises(LatePredictionError):        run(games, tuned, log, lambda: next(ticks))    assert log.read_bytes() == beforedef test_skips_played_unconfirmed_and_games_of_rounds_not_yet_open(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    unconfirmed = games.assign(        confirmed_date=~((games["season"] == 2026) & (games["game_code"] == 1))    )    log = tmp_path / "log.csv"    assert run(unconfirmed, tuned, log, fixed(NOW)) == 2    # Round 1 has tipped off and round 2 starts 7 days later: nothing is open.    assert run(games, tuned, tmp_path / "late.csv", fixed(NOW + timedelta(hours=11))) == 0ROUND_2_START = datetime(2026, 10, 8, 18, 0, tzinfo=UTC)def selected(games: pd.DataFrame, now: datetime) -> list[str]:    mask = upcoming_games(games, 2026, now, ROUND_LEAD)    return list(games.loc[mask, "game_id"])def test_a_round_starting_within_the_lead_logs_all_its_confirmed_games() -> None:    games = make_games({2026: False})    assert selected(games, ROUND_2_START - timedelta(hours=30)) == ["E2026_4", "E2026_5", "E2026_6"]def test_a_round_starting_beyond_the_lead_logs_nothing() -> None:    games = make_games({2026: False})    assert selected(games, ROUND_2_START - timedelta(hours=60)) == []def test_a_round_in_progress_logs_its_remaining_unplayed_games() -> None:    games = make_games({2026: False})    # Round 1 tips off at 18:00, 18:15 and 18:30 on 1 October; at 18:10 the first has gone.    assert selected(games, datetime(2026, 10, 1, 18, 10, tzinfo=UTC)) == ["E2026_2", "E2026_3"]def test_an_unconfirmed_game_is_not_logged_and_does_not_open_its_round() -> None:    games = make_games({2026: False})    games.loc[games["game_code"] == 4, "confirmed_date"] = False  # round 2's first game    assert selected(games, ROUND_2_START - timedelta(hours=30)) == ["E2026_5", "E2026_6"]    games.loc[games["game_code"].isin([4, 5, 6]), "confirmed_date"] = False    assert selected(games, ROUND_2_START - timedelta(hours=30)) == []def test_a_double_week_logs_both_rounds_within_the_lead() -> None:    games = make_games({2026: False})    # Round 3 moved to the next day: round 2 tips off at 18:00 on the 8th, round 3 on the 9th.    games.loc[games["round"] == 3, "tipoff_utc"] -= pd.Timedelta(days=6)    now = datetime(2026, 10, 7, 19, 0, tzinfo=UTC)  # round 2 in 23 h, round 3 in 47 h    assert selected(games, now) == [        "E2026_4",        "E2026_5",        "E2026_6",        "E2026_7",        "E2026_8",        "E2026_9",    ]    # Two hours earlier round 3 is 49 h away: not open yet, round 2 still is.    assert selected(games, now - timedelta(hours=2)) == ["E2026_4", "E2026_5", "E2026_6"]def test_history_before_replay_start_cannot_shift_live_predictions(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    older = make_games({2021: True, 2022: True}, seed=99)    with_history = pd.concat([older, games], ignore_index=True)    run(games, tuned, tmp_path / "a.csv", fixed(NOW))    run(with_history, tuned, tmp_path / "b.csv", fixed(NOW))    assert (tmp_path / "a.csv").read_bytes() == (tmp_path / "b.csv").read_bytes()def test_refuses_to_append_onto_an_unterminated_last_row(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    """A run killed mid-write (or a hand edit) can leave the last row without its newline; an    append would glue the next row onto it. Nothing is written and the run fails loudly."""    log = tmp_path / "log.csv"    run(games, tuned, log, fixed(NOW))    cut = log.read_bytes()[:-20]    log.write_bytes(cut)    with pytest.raises(ValueError, match="does not end with a newline"):        run(games, tuned, log, fixed(NOW + timedelta(days=7)))    assert log.read_bytes() == cutdef test_an_empty_log_file_gets_the_header(    games: pd.DataFrame, tuned: TunedModel, tmp_path: Path) -> None:    """A run killed between creating the file and writing its header leaves 0 bytes."""    log = tmp_path / "log.csv"    log.touch()    assert run(games, tuned, log, fixed(NOW)) == 3    rows = read_rows(log)    assert tuple(rows[0]) == LOG_COLUMNS    assert len(rows) == 3

@@ -5,18 +5,18 @@ import "../../styles/stats.css";
 import raw from "../../data/site.json";
 import type { SiteData } from "../../lib/format";
 
-import { previewCard, recapCards } from "../../lib/cards/site";
+import { openRoundCards, recapCards } from "../../lib/cards/site";
 
 const data = raw as SiteData;
 const description =
   "The season's forecast record, round by round and game by game.";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-// Share-card links: the next round's preview and the latest finished round's recap, each on its own
-// HTML page (/cards/round-{n}/), where the PNG is shown and downloaded.
+// Share-card links: each open round's card (earliest first) and the latest finished round's recap,
+// each on its own HTML page (/cards/round-{n}/), where the PNG is shown and downloaded.
 const shareLinks = (c: SiteData["competitions"][number]) => {
-  const preview = previewCard(c);
+  const open = openRoundCards(c);
   const recap = recapCards(c).at(-1);
-  return { preview, recap };
+  return { open, recap };
 };
 ---
 
@@ -38,12 +38,17 @@ const shareLinks = (c: SiteData["competitions"][number]) => {
         {
           (() => {
             const s = shareLinks(c);
-            if (!s.preview && !s.recap) return null;
+            if (!s.open.length && !s.recap) return null;
             return (
               <p class="note">
                 Share cards:{" "}
-                {s.preview && <a href={`${base}/cards/round-${s.preview.round}/`}>Round {s.preview.round} preview</a>}
-                {s.preview && s.recap && ", "}
+                {s.open.map((r, i) => (
+                  <>
+                    {i > 0 && ", "}
+                    <a href={`${base}/cards/round-${r.round}/`}>Round {r.round} card</a>
+                  </>
+                ))}
+                {s.open.length > 0 && s.recap && ", "}
                 {s.recap && <a href={`${base}/cards/round-${s.recap.round}/`}>Round {s.recap.round} recap</a>}
               </p>
             );

@@ -102,11 +102,12 @@ def predict_upcoming_m1(
     log_path: Path,
     season: int,
     replay_from: int,
-    window: timedelta,
+    round_lead: timedelta,
     clock: Callable[[], datetime],
 ) -> int:
-    """Like the Elo predictor: confirmed, unplayed ``season`` games within ``window`` that are
-    not logged at this model version yet; games without a forecast (no box lines) are skipped.
+    """Like the Elo predictor: confirmed, unplayed ``season`` games of rounds starting within
+    ``round_lead`` that are not logged at this model version yet; games without a forecast (no box
+    lines) are skipped.
     """
     if not model.gate_passed:
         log.info("M1 did not pass its validation gate: not logged")
@@ -114,7 +115,7 @@ def predict_upcoming_m1(
     now = clock()
     fc = m1_forecasts(games, team_games, model, replay_from)
     g = fc.games
-    upcoming = upcoming_games(g, season, now, window)
+    upcoming = upcoming_games(g, season, now, round_lead)
     missing = upcoming & np.isnan(fc.margin)
     if missing.any():
         log.warning("M1: %d upcoming games have no forecast (no box lines)", int(missing.sum()))

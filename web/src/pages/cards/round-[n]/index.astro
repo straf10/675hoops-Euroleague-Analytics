@@ -1,6 +1,7 @@
 ---
 // A round's share cards as a page (so their use can be counted): /cards/round-{n}/ shows the PNGs
-// from /cards/round-{n}.png (the preview) and /cards/round-{n}-recap.png (the recap), where they exist.
+// from /cards/round-{n}.png (the open round's card, while it is open) and /cards/round-{n}-recap.png
+// (the recap, once it is finished), where they exist.
 import Base from "../../../layouts/Base.astro";
 import CardFigure from "../../../components/CardFigure.astro";
 import { euroleague, roundCardNames } from "../../../lib/cards/site";
@@ -19,13 +20,13 @@ export function getStaticPaths() {
 
 const { round, cards } = Astro.props as {
   round: number;
-  cards: { name: string; kind: "preview" | "recap" }[];
+  cards: { name: string; kind: "open" | "recap" }[];
 };
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const title = `Round ${round} share card`;
-const description = `Share cards for round ${round} of the EuroLeague season: the preview and the recap.`;
+const description = `Share cards for round ${round} of the EuroLeague season: the forecasts and the recap.`;
 const alt = {
-  preview: `EuroLeague round ${round} preview: home win chance and expected margin for each game.`,
+  open: `EuroLeague round ${round}: forecasts for each game, with the results so far.`,
   recap: `EuroLeague round ${round} recap: results and scoring, game by game.`,
 };
 ---

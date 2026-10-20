@@ -64,6 +64,28 @@ export interface RollingPoint {
   b0: number;
 }
 
+/** One game of an open round: its latest forecast before tip-off, and its result once played. */
+export interface OpenRoundGame {
+  game_id: string;
+  tipoff_utc: string;
+  predicted_at_utc: string;
+  home: Team;
+  away: Team;
+  p_home: number;
+  exp_margin: number;
+  played: boolean;
+  forfeit: boolean;
+  home_score: number | null;
+  away_score: number | null;
+  /** Whether the favourite won; null until the game is played. */
+  hit: boolean | null;
+}
+
+export interface OpenRound {
+  round: number;
+  games: OpenRoundGame[];
+}
+
 export interface Rating extends Team {
   rating: number;
   change: number;
@@ -78,6 +100,8 @@ export interface Competition {
   /** No game ahead has a confirmed time: show the date only. */
   next_tipoff_time_tbc: boolean;
   upcoming: UpcomingGame[];
+  /** Regular-season rounds with a logged forecast and a game still to finish, in round order. */
+  open_rounds: OpenRound[];
   results: Result[];
   /** Every round of the live season, in round order (the home page's matchday). */
   matchday: { rounds: MatchdayRound[] };

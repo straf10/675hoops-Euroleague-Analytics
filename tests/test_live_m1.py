@@ -24,7 +24,7 @@ from tests.conftest import make_games, make_team_games
 from tests.test_m1_backtest import SPEC
 
 NOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)  # 10 h before the 2026 opener
-WINDOW = timedelta(hours=36)
+ROUND_LEAD = timedelta(hours=48)
 
 
 @pytest.fixture(scope="module")
@@ -53,7 +53,7 @@ def run(history: tuple[pd.DataFrame, pd.DataFrame], model: LiveM1, log: Path, at
         log_path=log,
         season=2026,
         replay_from=2016,
-        window=WINDOW,
+        round_lead=ROUND_LEAD,
         clock=lambda: at,
     )
 
@@ -120,7 +120,7 @@ def test_late_stamps_are_refused(
             log_path=tmp_path / "m1.csv",
             season=2026,
             replay_from=2016,
-            window=WINDOW,
+            round_lead=ROUND_LEAD,
             clock=lambda: next(stamps),
         )
 
@@ -140,7 +140,7 @@ def test_games_without_box_lines_have_no_forecast(
             log_path=tmp_path / "m1.csv",
             season=2026,
             replay_from=2016,
-            window=WINDOW,
+            round_lead=ROUND_LEAD,
             clock=lambda: NOW,
         )
     assert added == 0

@@ -41,7 +41,7 @@ EuroLeague test-season baseline (log loss): home team 0.6600; re-tuned Elo 0.624
 - **EuroLeague.** Official public API (`live.euroleague.net`, `api-live.euroleague.net`): play-by-play, shot coordinates, box scores, schedules and rosters from 2007-08. Undocumented and may change, so every raw response is cached.
 - **Greek Basket League.** HTML from [esake.gr](https://www.esake.gr/): results, box scores and play-by-play. Throttled to at least 2 s between requests; raw pages are cached and never re-fetched. Coverage 2018-19 onward; box scores before 2020-21 are less reliable.
 - **Betting odds.** The Odds API, EuroLeague only. No verified free historical source exists, so odds are recorded forward in `odds/` from 2026-09-25 (round 1). A market benchmark, not a betting product.
-- **Injury reports.** BasketNews EuroLeague injury report, snapshotted on each run (`eurohoops injuries`).
+- **Injury reports.** BasketNews EuroLeague injury report, snapshotted on each run (`eurohoops injuries`). The owner's PC records it from a separate clone: fixed runs at 07:30 and 11:00 UTC, plus a match-day run every 30 minutes from 10:00 to 21:00 UTC that records only 120 to 60 minutes before today's first EuroLeague tip-off (`scripts/record_injuries.ps1 -MatchDay`; `eurohoops first-tipoff --today` prints that tip-off). Registered by `scripts/register_injury_task.ps1`.
 - **Player identity.** A crosswalk links players across leagues, since GBL names mix Greek and Latin script ([`docs/data/entity.md`](docs/data/entity.md)).
 - **Shots.** About 612,000 field-goal attempts, 2007-08 to 2025-26; M2 is fitted from 2011-12. Exclusions are listed with reasons ([`docs/data/shots.md`](docs/data/shots.md)).
 

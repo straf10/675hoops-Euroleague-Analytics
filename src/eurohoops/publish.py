@@ -12,6 +12,7 @@ from typing import Any, cast
 import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
+from eurohoops.eval.forecasts import REGULAR_SEASON
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.models.elo import prepare, season_ratings
 from eurohoops.titles import titles_payload
@@ -154,16 +155,19 @@ def _stamp(ts: pd.Timestamp) -> str:
 def _logged(section: Section) -> list[dict[Hashable, Any]]:
     """The pre-registered row per game, joined with the game's current state.
 
-    That is the earliest row stamped before its tip-off, as the scorecard counts it; a game with
-    only rows stamped at or after tip-off keeps its earliest one, marked ``late``.
+    That is the latest row stamped before its tip-off, so a game re-logged before tip-off shows
+    its newest pick. A game with only rows stamped at or after tip-off keeps its earliest one,
+    marked ``late``, and is never scored.
     """
     if section.log.empty:
         return []
-    log = section.log.assign(
-        late=pd.to_datetime(section.log["predicted_at_utc"], utc=True)
-        >= pd.to_datetime(section.log["tipoff_utc"], utc=True)
-    )
-    first = log.sort_values(["late", "predicted_at_utc"]).drop_duplicates("game_id", keep="first")
+    stamps = pd.to_datetime(section.log["predicted_at_utc"], utc=True)
+    tips = pd.to_datetime(section.log["tipoff_utc"], utc=True)
+    log = section.log.assign(late=stamps >= tips, _stamp=stamps)
+    on_time = log[~log["late"]].sort_values("_stamp").drop_duplicates("game_id", keep="last")
+    after = log[log["late"]].sort_values("_stamp").drop_duplicates("game_id", keep="first")
+    after = after[~after["game_id"].isin(on_time["game_id"])]
+    first = pd.concat([on_time, after]).drop(columns="_stamp")
     cols = [
         "game_id",
         "tipoff_utc",
@@ -317,6 +321,54 @@ def _matchday(section: Section, logged: list[dict[Hashable, Any]]) -> dict[str, 
     return {"rounds": rounds}
 
 
+def _open_rounds(section: Section, logged: list[dict[Hashable, Any]]) -> list[dict[str, Any]]:
+    """The regular-season rounds with a logged forecast and a game still to finish, in round order.
+
+    Each lists its games that have an on-time forecast: the forecast, and the final score and
+    whether the favourite won once played. A round leaves this list when none of its games is
+    left to play; it is then a recap. Two rounds can be open at once (a double week).
+    """
+    picks = {g["game_id"]: g for g in logged if not g["late"]}
+    games = section.games[
+        (section.games["season"] == section.season) & (section.games["phase"] == REGULAR_SEASON)
+    ]
+    rounds = []
+    for number, frame in games.groupby("round"):
+        played = frame["played"].fillna(False).astype(bool)
+        forfeit = frame["forfeit"].fillna(False).astype(bool)
+        if (played | forfeit).all():
+            continue
+        rows = []
+        for _, g in frame.sort_values("tipoff_utc").iterrows():
+            pick = picks.get(g["game_id"])
+            if pick is None:
+                continue
+            done = bool(g["played"]) and not bool(g["forfeit"])
+            rows.append(
+                {
+                    "game_id": g["game_id"],
+                    "tipoff_utc": _stamp(g["tipoff_utc"]),
+                    "predicted_at_utc": pick["predicted_at_utc"],
+                    "home": _team(section, g["home"]),
+                    "away": _team(section, g["away"]),
+                    "p_home": float(pick["p_home"]),
+                    "exp_margin": float(pick["exp_margin"]),
+                    "played": done,
+                    "forfeit": bool(g["forfeit"]),
+                    "home_score": int(g["home_score"]) if done else None,
+                    "away_score": int(g["away_score"]) if done else None,
+                    "hit": (
+                        bool((pick["p_home"] >= 0.5) == (g["home_score"] > g["away_score"]))
+                        if done
+                        else None
+                    ),
+                }
+            )
+        if rows:
+            rounds.append({"round": int(cast(Any, number)), "games": rows})
+    return rounds
+
+
 def section_data(section: Section, now: datetime) -> dict[str, Any]:
     logged = _logged(section)
     hidden = set(section.scorecard.get("games_not_provable", []))
@@ -352,6 +404,7 @@ def section_data(section: Section, now: datetime) -> dict[str, Any]:
         "next_tipoff_utc": next_tipoff,
         "next_tipoff_time_tbc": time_tbc,
         "upcoming": upcoming,
+        "open_rounds": _open_rounds(section, logged),
         "results": results,
         "scorecard": {
             "elo": card["elo"],

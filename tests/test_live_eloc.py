@@ -1,5 +1,5 @@
 """Live ELOC shadow log (``live_eloc.py``): off by default, the frozen report's fit, forecasts that
-match the calibrated Elo replay, the pre-tip-off window, and append-only rows logged once."""
+match the calibrated Elo replay, the pre-tip-off rounds, and append-only rows logged once."""
 
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ def test_a_failed_shadow_logs_nothing(tmp_path: Path) -> None:
         _model(passed=False),
         log_path=log,
         season=SEASON,
-        window=timedelta(hours=36),
+        round_lead=timedelta(hours=48),
         clock=lambda: now.replace(tzinfo=UTC),
     )
     assert added == 0 and not log.exists()
@@ -134,10 +134,10 @@ def test_upcoming_games_are_logged_once(tmp_path: Path) -> None:
         return now.replace(tzinfo=UTC)
 
     first = predict_upcoming_eloc(
-        games, _model(), log_path=log, season=SEASON, window=timedelta(hours=36), clock=clock
+        games, _model(), log_path=log, season=SEASON, round_lead=timedelta(hours=48), clock=clock
     )
     again = predict_upcoming_eloc(
-        games, _model(), log_path=log, season=SEASON, window=timedelta(hours=36), clock=clock
+        games, _model(), log_path=log, season=SEASON, round_lead=timedelta(hours=48), clock=clock
     )
     rows = pd.read_csv(log)
     assert first == 4 and again == 0
@@ -146,7 +146,7 @@ def test_upcoming_games_are_logged_once(tmp_path: Path) -> None:
     assert (rows["p_home"].between(0.0, 1.0)).all()
 
 
-def test_a_game_outside_the_window_is_not_logged(tmp_path: Path) -> None:
+def test_a_game_outside_the_round_lead_is_not_logged(tmp_path: Path) -> None:
     games, now = _league_with_open_round()
     log = tmp_path / "eloc.csv"
     added = predict_upcoming_eloc(
@@ -154,7 +154,7 @@ def test_a_game_outside_the_window_is_not_logged(tmp_path: Path) -> None:
         _model(),
         log_path=log,
         season=SEASON,
-        window=timedelta(hours=1),  # the round tips off 10 h after this clock reads
+        round_lead=timedelta(hours=1),  # the round tips off 10 h after this clock reads
         clock=lambda: now.replace(tzinfo=UTC),
     )
     assert added == 0 and not log.exists()

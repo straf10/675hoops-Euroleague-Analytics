@@ -201,8 +201,9 @@ def test_prediction_lists_the_pre_registered_row_and_the_later_ones(store: rm.St
     )
     assert out["result"] == {"home_score": 90, "away_score": 80, "forfeit": False}
     elo = out["models"]["elo"]
-    assert elo["pre_registered"]["p_home"] == 0.5 and elo["pre_registered"]["late"] is False
-    assert [r["p_home"] for r in elo["later"]] == [0.58]
+    # The counted row is the latest one before tip-off (0.58); the earlier on-time row follows it.
+    assert elo["pre_registered"]["p_home"] == 0.58 and elo["pre_registered"]["late"] is False
+    assert [r["p_home"] for r in elo["later"]] == [0.5]
     assert set(out["models"]) == {"elo"}
 
 

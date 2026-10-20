@@ -83,10 +83,11 @@ totals. The audit computed no live paired comparison; that belongs to the R1 loo
 ## Live
 The daily workflow (`.github/workflows/daily.yml`, 08:00 UTC) runs `eurohoops predict`. For each
 competition it replays Elo from the live backtest's first warm-up season with the parameters in the
-live backtest report, and appends one row per upcoming game before tip-off.
+live backtest report, and appends one row per upcoming game before tip-off. The games it logs are
+those of every round whose first tip-off is within 48 h of the run (PLAN §8.1).
 - **Logs:** `predictions/euroleague_2026-27.csv` and `predictions/gbl_2026-27.csv`, with
   `p_home` (four decimals), `exp_margin`, `model` (`elo`), `model_version` and `predicted_at_utc`.
-  A row is never edited.
+  A row is never edited. The scored row of a game is its latest one stamped before tip-off (PLAN §8.1).
 - **`model_version`:** the package version plus an 8-character hash of the tuned parameters and the
   margin scale (`TunedModel.version`). The EuroLeague log holds `0.1.0+4356d891` (first round) and
   `0.2.0+425e6393`; the GBL log holds `0.2.0+df05260c`. The latter two match the backtest reports'

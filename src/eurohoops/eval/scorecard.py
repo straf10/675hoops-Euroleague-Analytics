@@ -42,9 +42,31 @@ def not_provable(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.Ser
     return (predicted_at < tipoff) & (public_at(predicted_at, manual_pushes) >= tipoff)
 
 
+def latest_per_model_game(rows: pd.DataFrame) -> pd.DataFrame:
+    """One row per (model_version, game): the latest stamped one.
+
+    ``rows`` must already be stamped before tip-off. A game forecast again before its tip-off
+    counts at its latest such row; a game logged by several model versions keeps one row per
+    version, and the caller picks among versions.
+    """
+    stamped = pd.to_datetime(rows["predicted_at_utc"], utc=True)
+    latest = rows.assign(_stamped=stamped).sort_values("_stamped", kind="stable")
+    return latest.drop_duplicates(["model_version", "game_id"], keep="last").drop(
+        columns="_stamped"
+    )
+
+
 def _scored(rows: pd.DataFrame, games: pd.DataFrame, model: TunedModel) -> pd.DataFrame:
-    """Each game's earliest row joined with its result, in tip-off order, with B0 alongside."""
-    first = rows.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
+    """Each game's row joined with its result, in tip-off order, with B0 alongside.
+
+    The row is the latest one before tip-off of the game's earliest model version (see
+    ``latest_per_model_game``).
+    """
+    first = (
+        latest_per_model_game(rows)
+        .sort_values("predicted_at_utc")
+        .drop_duplicates("game_id", keep="first")
+    )
     scored = first[["game_id", "p_home", "exp_margin"]].merge(
         games.loc[
             games["played"] & ~games["forfeit"],
@@ -335,8 +357,9 @@ def build_scorecard(
 ) -> dict[str, Any]:
     """Score logged games that have finished; a missing log or no finished games gives n=0.
 
-    Only rows stamped strictly before tip-off count; if a game was logged by several model
-    versions, its earliest valid row is the pre-registered one. The headline (``elo``/``b0``)
+    Only rows stamped strictly before tip-off count. A game forecast again before tip-off counts
+    at its latest valid row of its model version; if several model versions logged it, the
+    earliest version's row is the pre-registered one. The headline (``elo``/``b0``)
     also drops rows that became public only after tip-off; ``all_rows`` keeps them. The rolling
     window, the warnings and the market column (only with ``odds_path``) use the headline rows.
     """

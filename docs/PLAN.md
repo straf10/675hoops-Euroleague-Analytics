@@ -296,6 +296,11 @@ Flagship model: **M5 for the EuroLeague, M1 for the GBL** (M5 failed its GBL gat
 **Later / to think about:**
 - **R7 rule v3** (owner, 2026-10-09): under v2 nobody is "likely real". Consider a v3 that can name real over-performers (e.g. pool several seasons per player, a lower bar on the lasting part, or a different stability estimate). Must be declared as v3, stating that it follows v2's empty result; never edit v2 in place. **Dropped** (owner, 2026-10-11): v2 and its empty "likely real" result stand; M6's per-player shrinkage (`persist = n/(n+k)`) stays. Reason: the board feeds no game model, its useful part (shrinkage) is already in M6, and Scouting is hidden on the site.
 
+**Protocol change (2026-10-20, owner-approved; effective from the first daily run after 2026-10-20, which logs the rest of EuroLeague 2026-27 round 7 (game 1 of round 7, HTA-VIR, was logged under the 36 h window); GBL the same, using the `round` field of its games):**
+- **Whole rounds are logged early.** On each daily run every model logs each confirmed, unplayed game of any round whose first tip-off is at most 48 h after the run (`round_lead_hours`, default 48), including the remaining unplayed games of a round already in progress. A round is therefore logged in full 24–48 h before its first game, and double weeks are covered because each run picks up whichever rounds are within 48 h. A game whose time is unconfirmed is logged on the first run after it is confirmed, still only before its tip-off. The selection is one shared function, `predict.upcoming_games`; it replaces the 36 h window.
+- **The latest forecast before tip-off is the scored one.** Per (model_version, game), the row with the latest `predicted_at_utc` before tip-off counts (scorecard, season forecasts, readmodel). Rows stamped at or after tip-off never count. Today there is never a second row for a game (logged games are skipped), so nothing changes until a tip-off update is logged. A game logged by several model versions still takes its earliest version's row, as before.
+- Logged rows are never edited: the change decides which logged row counts, not what the log holds.
+
 ---
 
 ## 9. Risks & mitigations

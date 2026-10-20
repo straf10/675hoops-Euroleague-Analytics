@@ -59,7 +59,7 @@ def test_base_layout_takes_an_optional_share_card() -> None:
 def test_forecasts_page_links_the_round_share_pages() -> None:
     # The links go to the HTML share pages (countable by Web Analytics), not to the PNGs.
     text = FORECASTS_PAGE.read_text(encoding="utf-8")
-    assert "/cards/round-${s.preview.round}/" in text
+    assert "/cards/round-${r.round}/" in text  # each open round
     assert "/cards/round-${s.recap.round}/" in text
     assert ".png" not in text
 

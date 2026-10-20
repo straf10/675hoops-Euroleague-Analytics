@@ -44,16 +44,24 @@ def logged_keys(log_path: Path) -> set[tuple[str, str]]:
 
 
 def upcoming_games(
-    games: pd.DataFrame, season: int, now: datetime, window: timedelta
+    games: pd.DataFrame, season: int, now: datetime, round_lead: timedelta
 ) -> npt.NDArray[np.bool_]:
-    """Confirmed, unplayed ``season`` games tipping off after ``now`` and within ``window``."""
-    return (
-        (games["season"] == season)
-        & ~games["played"]
-        & games["confirmed_date"]
-        & (games["tipoff_utc"] > now)
-        & (games["tipoff_utc"] <= now + window)
-    ).to_numpy()
+    """Confirmed, unplayed ``season`` games of every round whose first tip-off is within
+    ``round_lead`` after ``now``, and that tip off after ``now``.
+
+    A round is a ``(phase, round)`` pair of the season. Its first tip-off is the earliest
+    confirmed tip-off among its games (played or not), so a round already in progress keeps
+    selecting its remaining unplayed games, and a game with an unconfirmed time is never
+    selected (nor does it set its round's start).
+    """
+    in_season = games["season"] == season
+    confirmed = games["confirmed_date"].astype(bool)
+    starts = games.loc[in_season & confirmed].groupby(["phase", "round"])["tipoff_utc"].min()
+    keys = pd.MultiIndex.from_arrays([games["phase"], games["round"]])
+    round_start = pd.Series(pd.to_datetime(starts.reindex(keys).to_numpy(), utc=True))
+    open_round = (round_start <= pd.Timestamp(now + round_lead)).to_numpy()
+    selected = in_season & ~games["played"] & confirmed & (games["tipoff_utc"] > now) & open_round
+    return np.asarray(selected, dtype=np.bool_)
 
 
 def refuse_late(predicted_at: datetime, targets: list[tuple[str, pd.Timestamp]]) -> None:
@@ -70,10 +78,11 @@ def predict_upcoming(
     log_path: Path,
     season: int,
     replay_from: int,
-    window: timedelta,
+    round_lead: timedelta,
     clock: Callable[[], datetime],
 ) -> int:
-    """Log confirmed, unplayed ``season`` games tipping off within ``window``; return rows added.
+    """Log confirmed, unplayed ``season`` games of the rounds starting within ``round_lead``
+    (see ``upcoming_games``); return rows added.
 
     Ratings come from replaying Elo over every completed game from season ``replay_from`` on
     (the tuned model's first warm-up season, so extra history cannot shift live ratings).
@@ -83,7 +92,7 @@ def predict_upcoming(
     now = clock()
     games = games[games["season"] >= replay_from]
     diffs = replay(prepare(games), model.params)
-    upcoming = upcoming_games(games, season, now, window)
+    upcoming = upcoming_games(games, season, now, round_lead)
     model_version = model.version()
     logged = logged_keys(log_path)
     targets = [
@@ -112,7 +121,7 @@ def predict_upcoming(
     ]
     append_rows(log_path, LOG_COLUMNS, rows)
     log.info(
-        "%d upcoming games in window, %d already logged, %d rows appended",
+        "%d upcoming games in open rounds, %d already logged, %d rows appended",
         int(upcoming.sum()),
         int(upcoming.sum()) - len(rows),
         len(rows),

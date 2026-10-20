@@ -1,3 +1,4 @@
+import inspect
 import os
 import re
 import shutil
@@ -7,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from eurohoops.cli.live import predict as live_predict
 from tests.conftest import REPO
 
 DAILY = (REPO / ".github/workflows/daily.yml").read_text(encoding="utf-8")
@@ -55,11 +57,15 @@ def test_daily_keeps_the_committed_stints_report() -> None:
     assert start < DAILY.index("git add predictions/ reports/")
 
 
-def test_daily_runs_are_closer_together_than_the_prediction_window() -> None:
-    """With one run a day and a 36 h window, every game is inside at least one run's window."""
+def test_daily_runs_are_closer_together_than_the_round_lead() -> None:
+    """Rounds are logged once their first tip-off is within the round lead (48 h). With one run
+    a day, a round is logged on the first run inside that lead: 24 to 48 h before it tips off."""
     (cron,) = re.findall(r'cron: "([^"]+)"', DAILY)
     assert cron.split()[2:] == ["*", "*", "*"]
-    assert "--window-hours" not in DAILY  # predict keeps its 36 h default
+    assert cron.split()[:2] == ["0", "8"]
+    assert "--round-lead-hours" not in DAILY  # predict keeps its 48 h default
+    assert "--window-hours" not in DAILY
+    assert inspect.signature(live_predict).parameters["round_lead_hours"].default == 48.0
 
 
 def test_daily_builds_the_site_from_fresh_data() -> None:

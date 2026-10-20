@@ -334,12 +334,17 @@ def _read_log(store: Store, relative: Path | None) -> pd.DataFrame:
 
 
 def _ordered(log: pd.DataFrame) -> pd.DataFrame:
-    """Rows with ``late`` (stamped at or after tip-off); the pre-registered row of a game is its
-    first on-time row, else its first row (the scorecard's rule)."""
+    """Rows with ``late`` (stamped at or after tip-off), latest stamp first. A game's counted row
+    is its first on-time row (the latest before tip-off), else its first row (the scorecard's
+    rule, ``eval.scorecard.latest_per_model_game``)."""
     late = pd.to_datetime(log["predicted_at_utc"], utc=True) >= pd.to_datetime(
         log["tipoff_utc"], utc=True
     )
-    return log.assign(late=late).sort_values(["late", "predicted_at_utc"], kind="stable")
+    stamped = pd.to_datetime(log["predicted_at_utc"], utc=True)
+    ordered = log.assign(late=late, _stamped=stamped).sort_values(
+        ["late", "_stamped"], ascending=[True, False], kind="stable"
+    )
+    return ordered.drop(columns="_stamped")
 
 
 def _forecast(row: Mapping[Any, Any]) -> dict[str, Any]:

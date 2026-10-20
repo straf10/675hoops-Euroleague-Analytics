@@ -1,8 +1,16 @@
 # Record the BasketNews injury report from a dedicated clone and push when the log changes.
-# Run via Task Scheduler (see register_injury_task.ps1). Use -WhatIf to print steps only.
+# Schedules (Task Scheduler, registered by register_injury_task.ps1; all times UTC):
+#   675hoops-injury-recorder: fixed runs at 07:30 and 11:00, no -MatchDay.
+#   675hoops match-day injuries: -MatchDay every 30 minutes, 10:00 to 21:00.
+#     -MatchDay records only when today has a confirmed, unplayed EuroLeague tip-off and now is
+#     120 to 60 minutes before the first one, and only once per window (no appended or unchanged
+#     attempt logged inside it yet). Every other poll exits 0 without touching git or the log.
+#     It uses the existing mart: no stale-mart ingest or build.
+# Use -WhatIf to print steps only.
 param(
     [string]$RepoRoot = "C:\Python\675hoops-recorder",
-    [switch]$WhatIf
+    [switch]$WhatIf,
+    [switch]$MatchDay
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +21,7 @@ $logged = $false
 $rows = 0
 $stage = "recover"
 $refreshTag = ""
+if ($MatchDay) { $refreshTag = "+match_day" }  # marks match-day records in the attempt log
 
 function Write-Attempt([string]$Status, [int]$Rows, [string]$Sha) {
     $script:logged = $true
@@ -42,6 +51,35 @@ if (-not (Test-Path $RepoRoot)) {
 
 Push-Location $RepoRoot
 try {
+    if ($MatchDay) {
+        if ($WhatIf) {
+            Write-Host "[WhatIf] match-day: uv run --no-dev eurohoops first-tipoff --today; record only 120-60 min before the tip-off, once per window"
+        } else {
+            $prev = $ErrorActionPreference
+            $ErrorActionPreference = "Continue"
+            $tipLines = @(uv run --no-dev eurohoops first-tipoff --today 2>&1 | ForEach-Object { "$_" })
+            $tipExit = $LASTEXITCODE
+            $ErrorActionPreference = $prev
+            if ($tipExit -ne 0) { throw "first-tipoff failed (exit $tipExit): $($tipLines -join ' ')" }
+            $tipText = @($tipLines | Where-Object { $_ -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$' })
+            if ($tipText.Count -eq 0) { exit 0 }  # no confirmed, unplayed EuroLeague game today
+            $styles = [Globalization.DateTimeStyles]::AssumeUniversal -bor [Globalization.DateTimeStyles]::AdjustToUniversal
+            $tipoff = [DateTime]::ParseExact($tipText[0].Trim(), "yyyy-MM-dd'T'HH:mm:ss'Z'", [Globalization.CultureInfo]::InvariantCulture, $styles)
+            $windowOpen = $tipoff.AddMinutes(-120)
+            $windowShut = $tipoff.AddMinutes(-60)
+            if ([DateTime]::UtcNow -lt $windowOpen -or [DateTime]::UtcNow -gt $windowShut) { exit 0 }
+            # Log timestamps share one fixed-width UTC format, so ordinal string order is time order.
+            $openTag = $windowOpen.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            if (Test-Path $AttemptLog) {
+                $recorded = @(Get-Content -Path $AttemptLog -Encoding utf8 | Where-Object {
+                    $f = $_ -split "`t"
+                    $f.Count -ge 2 -and [string]::CompareOrdinal($f[0], $openTag) -ge 0 -and $f[1] -match '^(appended|unchanged)'
+                })
+                if ($recorded.Count -gt 0) { exit 0 }  # this window already has a snapshot
+            }
+        }
+    }
+
     # Recover an injury commit left unpushed by an earlier failed run, so pull --ff-only can work again.
     if ($WhatIf) {
         Write-Host "[WhatIf] git fetch origin main"
@@ -73,9 +111,10 @@ try {
     $stage = "pull"
     Invoke-Step "git pull --ff-only" { git pull --ff-only origin main }
 
-    $martStale = -not (Test-Path $Mart) -or (
+    # The match-day path never refreshes the mart: it is too slow for a 30-minute poll.
+    $martStale = (-not $MatchDay) -and ((-not (Test-Path $Mart)) -or (
         (Get-Item $Mart).LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7)
-    )
+    ))
     if ($martStale) {
         # A failed refresh is not fatal when a mart exists: record the injuries from the old one.
         try {

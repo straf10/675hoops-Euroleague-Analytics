@@ -77,19 +77,20 @@ def predict_upcoming_m5(
     *,
     log_path: Path,
     season: int,
-    window: timedelta,
+    round_lead: timedelta,
     clock: Callable[[], datetime],
     spec: M5Backtest = M5,
 ) -> int:
-    """Like the M1 predictor: confirmed, unplayed ``season`` games within ``window`` that are not
-    logged at this model version yet. ``games`` is the competition's games mart; ``build`` makes
-    the harness inputs and the player part, and is called only when there is something to log.
+    """Like the M1 predictor: confirmed, unplayed ``season`` games of rounds starting within
+    ``round_lead`` that are not logged at this model version yet. ``games`` is the competition's
+    games mart; ``build`` makes the harness inputs and the player part, and is called only when
+    there is something to log.
     Games without a finite forecast are skipped with a warning."""
     if not model.gate_passed:
         log.info("M5 did not pass its validation gate: not logged")
         return 0
     now = clock()
-    upcoming = upcoming_games(games, season, now, window)
+    upcoming = upcoming_games(games, season, now, round_lead)
     logged = logged_keys(log_path)
     fresh = np.array([(str(g), model.version) not in logged for g in games["game_id"]], dtype=bool)
     wanted = games[upcoming & fresh]

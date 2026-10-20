@@ -88,8 +88,10 @@ these margins is reported and not required. Failing the criteria means ELOC is n
   and it is not the published forecast. A display would need a separate owner decision.
 - **Switch:** `ELOC_LIVE_ENABLED = False` in `config.py`. `predict` writes nothing for ELOC until the
   flag is flipped (a separate, owner-approved commit). The flag is off on this branch.
-- **Logging rule:** pre-tip-off, confirmed, unplayed games within the predict window only, the same
-  guard as the Elo log (`refuse_late`). No backfill, so logging starts when the flag is flipped.
+- **Logging rule:** pre-tip-off, confirmed, unplayed games of every round whose first tip-off is within
+  48 h of the run (PLAN §8.1; the selection is `predict.upcoming_games`, shared with the Elo log), with the
+  same guard (`refuse_late`). The scored row of a game is its latest one before tip-off. No backfill, so
+  logging starts when the flag is flipped.
 - **Judgement:** no promotion rule is declared here. Any use of ELOC beyond the shadow needs a new
   protocol, written and approved before the season it judges.
 - **Disclosed:** the live Elo parameters were tuned on 2024 (2025 was Elo's test season), so the live

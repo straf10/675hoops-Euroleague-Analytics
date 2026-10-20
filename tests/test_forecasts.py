@@ -57,7 +57,7 @@ def elo_rows() -> list[list[object]]:
     calls = [
         ("G1", 0.8, 5.0, None),
         ("G2", 0.4, -3.0, None),
-        ("G2", 0.1, -9.0, "2026-10-01T09:00:00Z"),  # a re-log: the earlier row counts
+        ("G2", 0.1, -9.0, "2026-10-01T09:00:00Z"),  # a re-log before tip-off: the latest row counts
         ("G3", 0.5, 0.0, None),  # exactly 50%: no pick
         ("G4", 0.7, 4.0, None),
         ("G5", 0.6, 2.0, None),
@@ -105,10 +105,10 @@ def test_season_metrics_by_hand(logs: dict[str, Path | None]) -> None:
     assert elo["n"] == 5
     assert (elo["picks"], elo["right"]) == (4, 3)  # G3 at exactly 50% is no pick; G2 wrong
     assert elo["right_pct"] == 0.75
-    assert elo["log_loss"] == pytest.approx(ll(0.8, 0.4, 0.5, 0.7, 0.6), abs=1e-6)
-    assert elo["brier"] == pytest.approx((0.04 + 0.36 + 0.25 + 0.09 + 0.16) / 5, abs=1e-6)
-    assert elo["margin_mae"] == pytest.approx((5 + 5 + 5 + 6 + 8) / 5)
-    assert elo["within"] == {"5": 0.6, "10": 1.0}
+    assert elo["log_loss"] == pytest.approx(ll(0.8, 0.1, 0.5, 0.7, 0.6), abs=1e-6)
+    assert elo["brier"] == pytest.approx((0.04 + 0.81 + 0.25 + 0.09 + 0.16) / 5, abs=1e-6)
+    assert elo["margin_mae"] == pytest.approx((5 + 11 + 5 + 6 + 8) / 5)
+    assert elo["within"] == {"5": 0.4, "10": 0.8}
     assert elo["totals_mae"] is None
     # M1: G3 (away won), G4, G5.
     assert m1["n"] == 3
@@ -160,7 +160,7 @@ def test_rounds_group_regular_season_by_round_and_postseason_by_phase(
     ]
     assert list(rounds[0]["models"]) == ["elo"]  # M1 has no entries before its first round
     assert rounds[0]["models"]["elo"]["right"] == 1  # G1 right, G2 wrong
-    assert rounds[0]["models"]["elo"]["log_loss"] == pytest.approx(ll(0.8, 0.4), abs=1e-6)
+    assert rounds[0]["models"]["elo"]["log_loss"] == pytest.approx(ll(0.8, 0.1), abs=1e-6)
     r2 = rounds[1]["models"]
     assert (r2["elo"]["n"], r2["elo"]["picks"], r2["elo"]["right"]) == (2, 1, 1)
     assert (r2["m1"]["n"], r2["m1"]["right"]) == (2, 2)
@@ -282,9 +282,9 @@ def test_round_headline_skips_a_round_still_to_play(logs: dict[str, Path | None]
     unplayed.loc[unplayed["game_id"] == "G4", "away_score"] = None
     head = build_forecasts(logs, LABELS, unplayed, 2026, baseline=baseline())["headline"]
     assert (head["round"], head["games"]) == (1, 2)
-    assert head["called"] == 1  # G1 right; G2 (40%) called away and was wrong
-    assert head["brier"] == pytest.approx((0.04 + 0.36) / 2, abs=1e-6)
-    assert head["biggest_miss"] == {"winner": "HG2", "loser": "AG2", "p_winner": 0.4}
+    assert head["called"] == 1  # G1 right; G2 (10%) called away and was wrong
+    assert head["brier"] == pytest.approx((0.04 + 0.81) / 2, abs=1e-6)
+    assert head["biggest_miss"] == {"winner": "HG2", "loser": "AG2", "p_winner": 0.1}
 
 
 def test_round_headline_needs_the_baseline_and_a_finished_round(
@@ -305,21 +305,24 @@ def test_calibration_bins_are_equal_width_and_empty_bins_are_dropped(
 ) -> None:
     cal = build_forecasts(logs, LABELS, games(), 2026)["calibration"]
     assert cal["games"] == 5  # Elo's scored games
-    # Predicted 0.4 and 0.5 share [0.4, 0.6); 0.6 and 0.7 share [0.6, 0.8); 0.8 is [0.8, 1.0].
+    # Predicted 0.1 (G2, won) and 0.5 (G3, lost) get their own bins; 0.6 and 0.7 share [0.6, 0.8);
+    # 0.8 is [0.8, 1.0].
     assert [(b["lo"], b["hi"], b["n"]) for b in cal["bins"]] == [
-        (0.4, 0.6, 2),
+        (0.0, 0.2, 1),
+        (0.4, 0.6, 1),
         (0.6, 0.8, 2),
         (0.8, 1.0, 1),
     ]
-    low, mid, top = cal["bins"]
-    assert low["predicted"] == pytest.approx(0.45) and low["observed"] == pytest.approx(0.5)
+    low, half, mid, top = cal["bins"]
+    assert low["predicted"] == pytest.approx(0.1) and low["observed"] == pytest.approx(1.0)
+    assert half["predicted"] == pytest.approx(0.5) and half["observed"] == pytest.approx(0.0)
     assert mid["predicted"] == pytest.approx(0.65) and mid["observed"] == pytest.approx(1.0)
     assert top["predicted"] == pytest.approx(0.8) and top["observed"] == pytest.approx(1.0)
-    # Wilson 95%: 2 of 2 wins gives [0.342, 1.0]; 1 of 1 gives [0.207, 1.0].
+    # Wilson 95%: 2 of 2 wins gives [0.342, 1.0]; 1 of 1 gives [0.207, 1.0]; 0 of 1 [0.0, 0.793].
     assert mid["low"] == pytest.approx(0.3423, abs=1e-3) and mid["high"] == 1.0
     assert top["low"] == pytest.approx(0.2065, abs=1e-3) and top["high"] == 1.0
-    assert low["low"] == pytest.approx(0.0945, abs=1e-3)  # 1 of 2
-    assert low["high"] == pytest.approx(0.9055, abs=1e-3)
+    assert low["low"] == pytest.approx(0.2065, abs=1e-3) and low["high"] == 1.0
+    assert half["low"] == 0.0 and half["high"] == pytest.approx(0.7935, abs=1e-3)
 
 
 def test_calibration_without_games(tmp_path: Path) -> None:
