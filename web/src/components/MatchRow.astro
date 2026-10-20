@@ -175,6 +175,10 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
     border-bottom: 1px solid var(--rule);
     list-style: none;
   }
+  /* The stronger hairline closes a row whose match report is open. */
+  .row:has(.report.open) {
+    border-bottom: 2px solid var(--rule-strong);
+  }
   .when {
     font-size: 0.875rem;
     font-weight: 500;
