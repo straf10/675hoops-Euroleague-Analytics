@@ -92,7 +92,7 @@
   overflow-wrap: anywhere;
 }
 .mr-sec + .mr-sec {
-  margin-top: 28px;
+  margin-top: 20px;
 }
 .mr-h {
   margin: 0 0 4px;
@@ -104,7 +104,7 @@
   letter-spacing: -0.01em;
 }
 .mr-block {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 .mr-title {
   margin: 0 0 6px;
@@ -196,8 +196,22 @@
 .mr-others .eq .op {
   display: none;
 }
-/* The model stack and the other models read as a narrow column, not the full page width. */
+/* The model stack and the other models sit side by side; each column stays narrow. */
+.mr-model-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 40px;
+  align-items: start;
+  min-width: 0;
+}
+.mr-model-main {
+  min-width: 0;
+}
+.mr-model-grid .mr-others .mr-sub {
+  margin-top: 0;
+}
 .mr-block > .eq,
+.mr-model-main > .eq,
 .mr-others {
   max-width: 520px;
 }
@@ -221,6 +235,49 @@
   color: var(--muted);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+/* More than three injuries: the list scrolls inside its column (about three entries tall). */
+.inj-scroll {
+  max-height: 13.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+.inj-scroll:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Team stats, form and head to head share one row on wide screens (.mr-row3). */
+.mr-row3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 32px;
+  align-items: start;
+  min-width: 0;
+}
+.mr-row3 > .mr-block {
+  min-width: 0;
+}
+.mr-row3 .mr-pair {
+  gap: 12px 16px;
+}
+.mr-row3 .mr-compare {
+  max-width: none;
+}
+.mr-row3 .marks li {
+  grid-template-columns: 1.1em minmax(0, 1fr) auto;
+  gap: 6px;
+}
+.mr-row3 .marks li .opp {
+  white-space: normal;
+}
+.mr-row3 .meetings li {
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+}
+.mr-row3 .meetings .t {
+  white-space: normal;
 }
 
 /* Head-to-head meetings: a fixed date column, then "HOME score – score AWAY" with the winner in ink 600. */
@@ -324,25 +381,52 @@
 .marks li .sc {
   color: var(--ink-2);
 }
-.coach {
-  margin: 0 0 4px;
+/* Coaches: one full-width mirrored table (away | label | home), with a group row for the style stats. */
+.mr-coach-table {
+  max-width: none;
+}
+.mr-coach-table td.num {
+  width: 40%;
+}
+.mr-coach-table td.home,
+.mr-coach-table th.home {
+  text-align: left;
+}
+.mr-coach-table td.who {
   color: var(--ink);
   font-weight: 600;
   overflow-wrap: anywhere;
+  white-space: normal;
 }
-.coach a {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-color: var(--rule-strong);
-  text-underline-offset: 3px;
+.mr-group th {
+  text-align: center;
+  color: var(--muted);
+  font-weight: 500;
+  padding-top: 12px;
+  border-bottom: 1px solid var(--rule-strong);
 }
-.rec {
-  margin: 0;
-  font-size: 0.8125rem;
+
+/* Narrow: the three context blocks step down to two columns, then one. */
+@media (max-width: 1100px) {
+  .mr-row3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .mr-row3 > .mr-block:nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Phones: the two sides stack, the comparison table stays inside its own scroller. */
 @media (max-width: 600px) {
+  .mr-model-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mr-row3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mr-row3 > .mr-block:nth-child(3) {
+    grid-column: auto;
+  }
   .mr-pair {
     grid-template-columns: minmax(0, 1fr);
     gap: 18px;

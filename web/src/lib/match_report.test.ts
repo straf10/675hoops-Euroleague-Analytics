@@ -28,7 +28,7 @@ const TITLES = ["Why this pick", "Team stats", "Form, last five games", "Head to
 test("every block renders from the fixture, with both sections", () => {
   const html = renderReport(load(), "");
   assert.match(html, /What the model used/);
-  assert.match(html, /Context the model does not use/);
+  assert.match(html, />Context<\/h4>/);
   for (const t of TITLES) assert.ok(html.includes(t), `missing block: ${t}`);
 });
 
@@ -46,7 +46,7 @@ test("null blocks are omitted, and the context section goes with the last of the
   const html = renderReport(stripped, "");
   for (const t of TITLES.slice(1)) assert.ok(!html.includes(t), `block should be hidden: ${t}`);
   assert.ok(html.includes("Why this pick"));
-  assert.ok(!html.includes("Context the model does not use"));
+  assert.ok(!html.includes(">Context</h4>"));
   assert.equal(renderTeamStats(stripped), "");
   assert.equal(renderForm(stripped), "");
   assert.equal(renderInjuries(stripped), "");
@@ -195,8 +195,29 @@ test("a coaches' head to head of zero hides the meeting line", () => {
 test("a null home coach shows Not recorded on the home side", () => {
   const r = load();
   const html = renderCoaches({ ...r, coaches: { ...r.coaches!, home: null } }, "");
-  assert.match(html, /<p class="mr-note">Not recorded\.<\/p>/);
+  assert.match(html, /<td class="num home who"><span class="mr-muted">Not recorded<\/span><\/td>/);
   assert.ok(html.includes("Sarunas Jasikevicius"));
+});
+
+test("injuries scroll inside their column only when a side has more than three", () => {
+  const r = load();
+  const one = r.injuries!.home[0];
+  const many = [1, 2, 3, 4].map((n) => ({ ...one, player: `Player ${n}` }));
+  const four = renderInjuries({ ...r, injuries: { ...r.injuries!, home: many } });
+  assert.match(four, /<ul class="inj inj-scroll" tabindex="0" aria-label="[A-Z]+ injuries, scroll for more">/);
+  assert.equal(four.split("inj-scroll").length - 1, 1, "only the side with four scrolls");
+  const three = renderInjuries({ ...r, injuries: { ...r.injuries!, home: many.slice(0, 3) } });
+  assert.ok(!three.includes("inj-scroll"));
+  assert.ok(!three.includes("tabindex"));
+  assert.match(three, /<ul class="inj">/);
+});
+
+test("coaches render as one full-width table with the season and career rows", () => {
+  const html = renderCoaches(load(), "");
+  assert.equal(html.split("<table").length - 1, 1, "a single table");
+  assert.match(html, /<th scope="row" class="lab">This season<\/th>/);
+  assert.match(html, /<th scope="row" class="lab">Career<\/th>/);
+  assert.match(html, /<div class="mr-scroll"><table class="mr-table mr-compare mr-coach-table">/);
 });
 
 // ---- A real report from the pipeline (copied as a fixture) ----

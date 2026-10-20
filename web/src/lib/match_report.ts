@@ -288,10 +288,10 @@ export function renderModel(r: MatchReport): string {
           .join("")}</ul></div>`
       : "";
 
-  return block("Why this pick", body + others);
+  return block("Why this pick", `<div class="mr-model-grid"><div class="mr-model-main">${body}</div>${others}</div>`);
 }
 
-// ---- Blocks: section 2 ("Context the model does not use") ----
+// ---- Blocks: section 2 ("Context") ----
 
 /** Two sides of one stat per row, away first (left) and home last (right); the better side in ink 600. */
 export function renderTeamStats(r: MatchReport): string {
@@ -390,56 +390,65 @@ export function renderInjuries(r: MatchReport): string {
       })
       .join("");
     return `<div class="mr-col"><h6>${esc(team.code)}</h6>${
-      list.length > 0 ? `<ul class="inj">${items}</ul>` : `<p class="mr-note">No injuries recorded.</p>`
+      list.length > 0
+        ? list.length > 3
+          ? `<ul class="inj inj-scroll" tabindex="0" aria-label="${esc(team.code)} injuries, scroll for more">${items}</ul>`
+          : `<ul class="inj">${items}</ul>`
+        : `<p class="mr-note">No injuries recorded.</p>`
     }</div>`;
   };
   const note = `<p class="mr-note">Injury report as of ${esc(stampText(inj.snapshot_utc))}.</p>`;
   return block("Injuries", `${note}<div class="mr-pair">${col(r.away, inj.away)}${col(r.home, inj.home)}</div>`);
 }
 
-/** Each side's coach with season and career records, the coaches' head to head (when they have met), and style rows. Away first. */
+/** Each side's coach in one mirrored table: name, season and career records, the coaches' head to head (when they have met), and style rows. Away first. */
 export function renderCoaches(r: MatchReport, base = ""): string {
   const c = r.coaches;
   if (!c) return "";
-  const record = (label: string, rec: Rec | null): string =>
-    rec ? `<p class="rec"><span class="mr-muted">${esc(label)}</span> <span class="num">${rec.wins}–${rec.losses}</span></p>` : "";
-  const col = (team: ReportTeam, coach: Coach | null): string => {
-    if (!coach) return `<div class="mr-col"><h6>${esc(team.code)}</h6><p class="mr-note">Not recorded.</p></div>`;
-    const name = coach.slug ? `<a href="${esc(base)}/coaches/${esc(coach.slug)}/">${esc(coach.name)}</a>` : esc(coach.name);
-    return `<div class="mr-col"><h6>${esc(team.code)}</h6><p class="coach">${name}</p>${record("This season", coach.season)}${record("Career", coach.career)}</div>`;
+  // Away value on the left of the label, home value on the right; the home cells carry class "home".
+  const cell = (side: "away" | "home", text: string, cls = ""): string =>
+    `<td class="num${side === "home" ? " home" : ""}${cls ? ` ${cls}` : ""}">${text}</td>`;
+  const row = (label: string, away: string, home: string, cls = ""): string =>
+    `<tr>${cell("away", away, cls)}<th scope="row" class="lab">${esc(label)}</th>${cell("home", home, cls)}</tr>`;
+  const coachText = (coach: Coach | null): string => {
+    if (!coach) return `<span class="mr-muted">Not recorded</span>`;
+    return coach.slug ? `<a href="${esc(base)}/coaches/${esc(coach.slug)}/">${esc(coach.name)}</a>` : esc(coach.name);
   };
+  const recText = (rec: Rec | null): string => (rec ? `${rec.wins}–${rec.losses}` : "–");
+  const rows = [
+    row("Coach", coachText(c.away), coachText(c.home), "who"),
+    row("This season", recText(c.away?.season ?? null), recText(c.home?.season ?? null)),
+    row("Career", recText(c.away?.career ?? null), recText(c.home?.career ?? null)),
+  ].join("");
   const meet =
     c.h2h && c.h2h.games > 0
       ? `<p class="mr-sum">Coaches met ${c.h2h.games} times: ${esc(c.away?.name ?? r.away.code)} ${c.h2h.away_wins} wins, ${esc(c.home?.name ?? r.home.code)} ${c.h2h.home_wins} wins.</p>`
       : "";
   const style =
     c.style && c.style.length > 0
-      ? `<div class="mr-scroll"><table class="mr-table mr-compare">
-        <thead><tr><th scope="col" class="num">${esc(r.away.code)}</th><th scope="col" class="lab">Style, this season</th><th scope="col" class="num">${esc(r.home.code)}</th></tr></thead>
-        <tbody>${c.style
-          .map(
-            (s) =>
-              `<tr><td class="num">${esc(formatValue(s.away, s.format))}</td><th scope="row" class="lab">${esc(s.label)}</th><td class="num">${esc(formatValue(s.home, s.format))}</td></tr>`,
-          )
-          .join("")}</tbody>
-      </table></div>`
+      ? `<tr class="mr-group"><th colspan="3" scope="colgroup">Style, this season</th></tr>${c.style
+          .map((s) => row(s.label, esc(formatValue(s.away, s.format)), esc(formatValue(s.home, s.format))))
+          .join("")}`
       : "";
-  return block("Coaches", `<div class="mr-pair">${col(r.away, c.away)}${col(r.home, c.home)}</div>${meet}${style}`);
+  const table = `<div class="mr-scroll"><table class="mr-table mr-compare mr-coach-table">
+      <thead><tr><th scope="col" class="num">${esc(r.away.code)}</th><th scope="col" class="lab"></th><th scope="col" class="num home">${esc(r.home.code)}</th></tr></thead>
+      <tbody>${rows}${style}</tbody>
+    </table></div>`;
+  return block("Coaches", `${table}${meet}`);
 }
 
 /** The whole report: the model section, then the context section (only blocks with data). */
 export function renderReport(r: MatchReport, base = ""): string {
+  const row3 = [renderTeamStats(r), renderForm(r), renderH2h(r)].filter((s) => s !== "");
   const context = [
-    renderTeamStats(r),
-    renderForm(r),
-    renderH2h(r),
+    row3.length > 0 ? `<div class="mr-row3">${row3.join("")}</div>` : "",
     renderPlayers(r, base),
     renderInjuries(r),
     renderCoaches(r, base),
   ].filter((s) => s !== "");
   return `<div class="mr">
     <section class="mr-sec"><h4 class="mr-h">What the model used</h4>${renderModel(r)}</section>
-    ${context.length > 0 ? `<section class="mr-sec"><h4 class="mr-h">Context the model does not use</h4>${context.join("")}</section>` : ""}
+    ${context.length > 0 ? `<section class="mr-sec"><h4 class="mr-h">Context</h4>${context.join("")}</section>` : ""}
   </div>`;
 }
 
