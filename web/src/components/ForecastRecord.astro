@@ -457,7 +457,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
     const body = table?.tBodies[0];
     if (!select || !heading || !table || !body) continue;
     const param = roundParam(compKey);
-    const options = [...select.options].map((o) => ({ id: o.value, label: o.textContent ?? "" }));
+    const options = [...select.options].map((o) => ({ id: o.value, label: (o.textContent ?? "").trim() }));
     const icons = { hit: check, miss: cross };
     const cache = new Map<string, FcGame[]>();
     let wanted = "";

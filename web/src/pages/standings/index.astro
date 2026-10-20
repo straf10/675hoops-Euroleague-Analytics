@@ -83,6 +83,13 @@ const description = "Simulated season projection for the EuroLeague: each club's
       });
       th.classList.add("on");
       th.setAttribute("aria-sort", next);
+      // Zones only mean something in the default (expected wins, high to low) order.
+      if ("zones" in table.dataset) {
+        const on = key === "wins" && next === "descending";
+        table.classList.toggle("zoned", on);
+        const note = table.closest("figure")?.querySelector<HTMLElement>(".zone-note");
+        if (note) note.hidden = !on;
+      }
       button.focus();
     });
   });

@@ -31,6 +31,10 @@ const rows = sim.teams
     return { t, code, name, href: href(code), values: cols.map(([, , , v]) => v(t)) };
   })
   .sort((a, b) => b.values[0] - a.values[0] || a.name.localeCompare(b.name));
+// EuroLeague only: place labels (by rank) and hairlines after the last row of each zone.
+const zones = key === "euroleague";
+const zoneStart = new Map([[1, "Home court"], [5, "Playoffs"], [7, "Play-in"]]);
+const zoneEnd = new Set([4, 6, 10]);
 const cell = (key: string, v: number) => (Number.isNaN(v) ? "n/a" : key === "wins" ? v.toFixed(1) : share(v));
 ---
 
@@ -39,7 +43,7 @@ const cell = (key: string, v: number) => (Number.isNaN(v) ? "n/a" : key === "win
     <h3>{title}</h3>
   </figcaption>
   <div class="scroll">
-    <table class="grid standings" id={`standings-${key}`}>
+    <table class:list={["grid standings", { zoned: zones }]} data-zones={zones ? "" : undefined} id={`standings-${key}`}>
       <caption class="sr-only">{title}</caption>
       <thead>
         <tr>
@@ -54,10 +58,11 @@ const cell = (key: string, v: number) => (Number.isNaN(v) ? "n/a" : key === "win
       </thead>
       <tbody>
         {rows.map((r, n) => (
-          <tr data-name={r.name}>
+          <tr data-name={r.name} class:list={{ "z-end": zones && zoneEnd.has(n + 1) }}>
             <td class="num muted rk">{n + 1}</td>
             <th scope="row">
               {r.href ? <a href={r.href}><span class="code">{r.code}</span>{r.name !== r.code ? r.name : ""}</a> : <><span class="code">{r.code}</span>{r.name !== r.code ? r.name : ""}</>}
+              {zones && zoneStart.has(n + 1) && <span class="zone">{zoneStart.get(n + 1)}</span>}
             </th>
             {r.values.map((v, i) => (
               <td class:list={["num", { strong: i === 0 }]} data-num data-k={cols[i][0]} data-v={Number.isNaN(v) ? "" : v}>
@@ -69,4 +74,30 @@ const cell = (key: string, v: number) => (Number.isNaN(v) ? "n/a" : key === "win
       </tbody>
     </table>
   </div>
+  {zones && <p class="note zone-note">Lines mark the home-court (1-4), playoff (5-6) and play-in (7-10) places.</p>}
 </figure>
+
+<style>
+  .zone {
+    display: none;
+  }
+  /* On the club's line, at the cell's right, so the row keeps its height. */
+  .standings.zoned .zone {
+    display: inline;
+    float: right;
+    margin-left: 12px;
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    line-height: inherit;
+  }
+  .standings.zoned tbody tr.z-end > * {
+    border-bottom-color: var(--muted);
+  }
+  /* Phones: no room beside the name; the note under the table explains the lines. */
+  @media (max-width: 560px) {
+    .standings.zoned .zone {
+      display: none;
+    }
+  }
+</style>

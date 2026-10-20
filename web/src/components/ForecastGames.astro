@@ -49,9 +49,9 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
           <th scope="col" class="w-round">Round</th>
           <th scope="col" class="w-date">Date</th>
           <th scope="col" class="r">Home</th>
-          <th scope="col" class="c">Score</th>
+          <th scope="col" class="c w-score">Score</th>
           <th scope="col">Away</th>
-          <th scope="col">
+          <th scope="col" class="w-call">
             Our model
             <span class="sub-h">home win chance, expected margin</span>
           </th>
@@ -111,9 +111,11 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
   .scroll {
     overflow-x: auto;
   }
+  /* Fixed layout and column widths, so every round lays out the same; the header row sets them. */
   table {
-    width: auto;
+    width: 100%;
     min-width: 640px;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.875rem;
     font-variant-numeric: tabular-nums;
@@ -125,13 +127,28 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
     color: var(--muted);
     padding: 0 14px 10px 0;
     border-bottom: 1px solid var(--rule-strong);
-    white-space: nowrap;
+    white-space: normal;
     vertical-align: bottom;
   }
   td {
     padding: 10px 14px 10px 0;
+    height: 2.75rem;
+    vertical-align: middle;
     border-bottom: 1px solid var(--rule);
     white-space: nowrap;
+    overflow: hidden;
+  }
+  .w-round {
+    width: 3.5rem;
+  }
+  .w-date {
+    width: 5.75rem;
+  }
+  .w-score {
+    width: 5.5rem;
+  }
+  .w-call {
+    width: 13.5rem;
   }
   .count {
     margin: 0;
@@ -162,7 +179,6 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
   }
   .team {
     color: var(--ink-2);
-    min-width: 11rem;
   }
   .team b {
     font-weight: 500;
@@ -173,7 +189,14 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
   .team:not(.r) b {
     margin-inline: 0 8px;
   }
+  /* Long names end in an ellipsis; the reserved 3rem keeps the three-letter code on the row. */
   .team .name {
+    display: inline-block;
+    max-width: calc(100% - 3rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
     color: var(--muted);
   }
   .team.won,
@@ -237,9 +260,6 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
     }
   }
   @media (max-width: 560px) {
-    table {
-      min-width: 0;
-    }
     .mg,
     .sub-h {
       display: none;
@@ -256,9 +276,6 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
   @media (max-width: 720px) {
     .team .name {
       display: none;
-    }
-    .team {
-      min-width: 0;
     }
   }
   }
