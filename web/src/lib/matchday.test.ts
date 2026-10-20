@@ -1,87 +1,104 @@
-// Unit tests for the matchday state: live round, or the last and next round between rounds.
+// Unit tests for the matchday plan (which rounds the home page shows) and the round scorecard.
 // Run with `node --test src/lib/` from web/ (Node 24+ strips the types).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchdayState, scorecard, type MatchdayRound, type RoundWindow } from "./matchday.ts";
+import { matchdayPlan, scorecard, type MatchdayGame, type MatchdayRound } from "./matchday.ts";
 
-const at = (iso: string) => Date.parse(iso);
-const windows: RoundWindow[] = [
-  { round: 5, start_utc: "2026-10-13T17:45:00Z", end_utc: "2026-10-14T20:45:00Z" },
-  { round: 6, start_utc: "2026-10-15T17:45:00Z", end_utc: "2026-10-16T19:30:00Z" },
-  { round: 7, start_utc: "2026-10-21T16:00:00Z", end_utc: "2026-10-23T18:45:00Z" },
-];
-
-test("a round is live from its first tip-off until its last tip-off plus a game length", () => {
-  assert.deepEqual(matchdayState(windows, at("2026-10-15T17:44:59Z")), {
-    kind: "between",
-    last: 5,
-    next: 6,
-  });
-  assert.deepEqual(matchdayState(windows, at("2026-10-15T17:45:00Z")), { kind: "live", round: 6 });
-  assert.deepEqual(matchdayState(windows, at("2026-10-16T19:29:59Z")), { kind: "live", round: 6 });
-  assert.deepEqual(matchdayState(windows, at("2026-10-16T19:30:00Z")), {
-    kind: "between",
-    last: 6,
-    next: 7,
-  });
-});
-
-test("between rounds the last completed and the next round are shown", () => {
-  // Athens day of 2026-10-19: Round 6 ended on the 16th, Round 7 tips off on the 21st.
-  assert.deepEqual(matchdayState(windows, at("2026-10-19T08:00:00Z")), {
-    kind: "between",
-    last: 6,
-    next: 7,
-  });
-});
-
-test("before the first round there is no last round, and after the last none next", () => {
-  assert.deepEqual(matchdayState(windows, at("2026-09-01T00:00:00Z")), {
-    kind: "between",
-    last: null,
-    next: 5,
-  });
-  assert.deepEqual(matchdayState(windows, at("2027-05-01T00:00:00Z")), {
-    kind: "between",
-    last: 7,
-    next: null,
-  });
-  assert.deepEqual(matchdayState([], at("2026-10-19T08:00:00Z")), {
-    kind: "between",
-    last: null,
-    next: null,
-  });
-});
-
-test("rounds are picked by number, not by the order they arrive in", () => {
-  const shuffled = [windows[2], windows[0], windows[1]];
-  assert.deepEqual(matchdayState(shuffled, at("2026-10-19T08:00:00Z")), {
-    kind: "between",
-    last: 6,
-    next: 7,
-  });
-});
-
-const game = (hit: boolean | null) => ({
+const game = (over: Partial<MatchdayGame> = {}): MatchdayGame => ({
   game_id: "g",
   tipoff_utc: "2026-10-15T17:45:00Z",
   tipoff_time_confirmed: true,
   home: { code: "A", name: "A" },
   away: { code: "B", name: "B" },
   p_home: 0.6,
-  played: hit !== null,
-  home_score: 80,
-  away_score: 70,
-  hit,
+  played: false,
+  home_score: null,
+  away_score: null,
+  hit: null,
+  ...over,
+});
+const played = (hit: boolean | null = true): MatchdayGame =>
+  game({ played: true, home_score: 80, away_score: 70, hit });
+
+const round = (n: number, games: MatchdayGame[]): MatchdayRound => ({
+  round: n,
+  start_utc: "2026-10-15T17:45:00Z",
+  end_utc: "2026-10-16T19:30:00Z",
+  games,
+});
+const finished = (n: number) => round(n, [played(), played(false)]);
+const open = (n: number) => round(n, [played(), game()]);
+const future = (n: number) => round(n, [game(), game()]);
+
+test("one open round is the only block shown, with no recap or next round", () => {
+  const rounds = [finished(8), open(9), future(10)];
+  const plan = matchdayPlan(rounds, [9]);
+  assert.deepEqual(
+    plan.open.map((r) => r.round),
+    [9],
+  );
+  assert.equal(plan.recap, null);
+  assert.equal(plan.next, null);
+});
+
+test("a double week shows both open rounds, earliest first, whatever the input order", () => {
+  const rounds = [future(11), open(10), open(9), finished(8)];
+  const plan = matchdayPlan(rounds, [10, 9]);
+  assert.deepEqual(
+    plan.open.map((r) => r.round),
+    [9, 10],
+  );
+  assert.equal(plan.recap, null);
+});
+
+test("with no round open, the latest finished round is the recap and the next unstarted round is next", () => {
+  const rounds = [finished(7), finished(8), future(9), future(10)];
+  const plan = matchdayPlan(rounds, []);
+  assert.deepEqual(plan.open, []);
+  assert.equal(plan.recap?.round, 8);
+  assert.equal(plan.next?.round, 9);
+});
+
+test("a finished previous round is dropped once the next round is open", () => {
+  const rounds = [finished(8), finished(9), open(10), future(11)];
+  const plan = matchdayPlan(rounds, [10]);
+  assert.deepEqual(
+    plan.open.map((r) => r.round),
+    [10],
+  );
+  assert.equal(plan.recap, null, "round 9's recap is removed while round 10 is open");
+});
+
+test("before the first round there is no recap, and the first round is next", () => {
+  const plan = matchdayPlan([future(1), future(2)], []);
+  assert.equal(plan.recap, null);
+  assert.equal(plan.next?.round, 1);
+});
+
+test("after the last round there is a recap and no next round", () => {
+  const plan = matchdayPlan([finished(1), finished(2)], []);
+  assert.equal(plan.recap?.round, 2);
+  assert.equal(plan.next, null);
+});
+
+test("no rounds at all gives an empty plan", () => {
+  assert.deepEqual(matchdayPlan([], []), { open: [], recap: null, next: null });
+});
+
+test("an open number with no matching round is ignored", () => {
+  const plan = matchdayPlan([finished(5)], [7]);
+  assert.deepEqual(plan.open, []);
+  assert.equal(plan.recap?.round, 5);
 });
 
 test("the scorecard counts picks right out of the scored games only", () => {
-  const round: MatchdayRound = {
-    round: 6,
-    start_utc: windows[1].start_utc,
-    end_utc: windows[1].end_utc,
-    games: [game(true), game(false), game(true), game(null), game(null)],
-  };
-  assert.deepEqual(scorecard(round), { right: 2, scored: 3 });
+  const r: MatchdayRound = round(6, [
+    played(true),
+    played(false),
+    played(true),
+    game({ played: true, hit: null }),
+    game(),
+  ]);
+  assert.deepEqual(scorecard(r), { right: 2, scored: 3 });
 });

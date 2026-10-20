@@ -1,16 +1,16 @@
 ---
 import type { Competition } from "../lib/format";
+import caret from "@phosphor-icons/core/assets/bold/caret-down-bold.svg?raw";
 import {
   dash,
-  groupKey,
   groupLabel,
   headlineText,
   rightText,
   score3,
   share,
-  type FcGame,
   type Headline,
 } from "../lib/forecasts";
+import { leadModel, roundGroups } from "../lib/forecast_rounds";
 import { tip } from "../lib/tip";
 import Calibration from "./Calibration.astro";
 import ForecastGames from "./ForecastGames.astro";
@@ -22,7 +22,7 @@ interface Props {
 const { comp } = Astro.props;
 const fc = comp.forecasts;
 // The page leads with one model, named only by `forecasts.published`.
-const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
+const model = leadModel(fc);
 const label = fc?.models.find((m) => m.key === model)?.label ?? "Our model";
 const season = fc?.season.find((r) => r.model === model);
 const ours: Headline | null = season
@@ -35,11 +35,11 @@ const ours: Headline | null = season
       log_loss: season.log_loss,
     }
   : null;
-const keyOf = (g: FcGame) => groupKey(g.phase, g.phase === "RS" ? g.round : null);
 const called = fc && model ? fc.games.filter((g) => g.models[model]) : [];
-const latestKey = called.length ? keyOf(called[0]) : null;
-const latest = called.filter((g) => keyOf(g) === latestKey);
-const latestName = called.length ? groupLabel(called[0].phase, called[0].phase === "RS" ? called[0].round : null) : "";
+// Every round the model called, the latest first; the page prints the first one and the picker fetches the rest.
+const groups = fc && model ? roundGroups(fc.games, model) : [];
+const current = groups[0] ?? null;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const rounds = fc && model ? [...fc.rounds].reverse().filter((g) => g.models[model]) : [];
 // Every model with a scored round, the published one first: a side-by-side view, not a verdict.
@@ -78,11 +78,34 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
           <p class="headline">{headlineText(fc.headline, groupLabel(fc.headline.phase, fc.headline.round))}</p>
         )}
 
-        {latest.length > 0 && (
-          <section aria-labelledby={`fc-latest-${comp.key}`}>
-            <h3 id={`fc-latest-${comp.key}`}>Latest round</h3>
-            <p class="sub">{latestName}: each forecast beside the result.</p>
-            <ForecastGames title={`${comp.title}: ${latestName}`} games={latest} model={model} />
+        {current && (
+          <section
+            aria-labelledby={`fc-round-${comp.key}`}
+            data-round-comp={comp.key}
+            data-round-title={comp.title}
+            data-round-base={base}
+            data-round-model={model}
+            data-round-default={current.id}
+          >
+            <h3 id={`fc-round-${comp.key}`}>{current.label}</h3>
+            <form class="filters" aria-label={`${comp.title}: round`} onsubmit="return false">
+              <label class="field">
+                <span>Round</span>
+                <span class="select">
+                  <select name="round" style="--select-w: 9.5rem">
+                    {groups.map((g) => (
+                      <option value={g.id} selected={g.id === current.id}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span class="caret" set:html={caret} />
+                </span>
+              </label>
+            </form>
+            <p class="sub">Each forecast beside the result.</p>
+            <p class="note" data-round-status hidden></p>
+            <ForecastGames title={`${comp.title}: ${current.label}`} games={current.games} model={model} />
           </section>
         )}
 
@@ -414,6 +437,75 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
 </style>
 
 <script>
+  import check from "@phosphor-icons/core/assets/bold/check-bold.svg?raw";
+  import cross from "@phosphor-icons/core/assets/bold/x-bold.svg?raw";
+  import type { FcGame } from "../lib/forecasts";
+  import { gameRowHtml, roundFromQuery, roundParam, roundSearch } from "../lib/forecast_rounds";
+
+  // The round picker. The page prints the default round; any other round's games come from its per-round
+  // file and replace the table's rows. The chosen round is kept in the URL, one parameter per competition.
+  for (const sec of document.querySelectorAll<HTMLElement>("section[data-round-comp]")) {
+    const compKey = sec.dataset.roundComp ?? "";
+    const title = sec.dataset.roundTitle ?? "";
+    const base = sec.dataset.roundBase ?? "";
+    const model = sec.dataset.roundModel ?? "";
+    const defaultId = sec.dataset.roundDefault ?? "";
+    const select = sec.querySelector<HTMLSelectElement>("select[name=round]");
+    const heading = sec.querySelector<HTMLElement>("h3");
+    const table = sec.querySelector<HTMLTableElement>("table.games");
+    const status = sec.querySelector<HTMLElement>("[data-round-status]");
+    const body = table?.tBodies[0];
+    if (!select || !heading || !table || !body) continue;
+    const param = roundParam(compKey);
+    const options = [...select.options].map((o) => ({ id: o.value, label: o.textContent ?? "" }));
+    const icons = { hit: check, miss: cross };
+    const cache = new Map<string, FcGame[]>();
+    let wanted = "";
+
+    const paint = (id: string, games: FcGame[]) => {
+      if (id !== wanted) return;
+      body.innerHTML = games.map((g) => gameRowHtml(g, model, icons)).join("");
+      if (status) status.hidden = true;
+      table.removeAttribute("aria-busy");
+    };
+
+    const show = (id: string) => {
+      const label = options.find((o) => o.id === id)?.label ?? id;
+      wanted = id;
+      select.value = id;
+      heading.textContent = label;
+      const caption = table.querySelector("caption");
+      if (caption) caption.textContent = `${title}: ${label}`;
+      history.replaceState(null, "", location.pathname + roundSearch(location.search, param, id, defaultId) + location.hash);
+      const held = cache.get(id);
+      if (held) return paint(id, held);
+      table.setAttribute("aria-busy", "true");
+      fetch(`${base}/data/forecasts/${compKey}/${id}.json`)
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json() as Promise<{ games: FcGame[] }>;
+        })
+        .then(({ games }) => {
+          cache.set(id, games);
+          paint(id, games);
+        })
+        .catch(() => {
+          if (wanted !== id) return;
+          table.removeAttribute("aria-busy");
+          if (status) {
+            status.textContent = `${label} could not be loaded. Reload the page to try again.`;
+            status.hidden = false;
+          }
+        });
+    };
+
+    select.addEventListener("change", () => show(select.value));
+    // A valid round in the URL is shown; a missing or unknown one leaves the latest round, with the URL tidied.
+    const asked = roundFromQuery(location.search, param, options);
+    if (asked && asked.id !== defaultId) show(asked.id);
+    else history.replaceState(null, "", location.pathname + roundSearch(location.search, param, defaultId, defaultId) + location.hash);
+  }
+
   // The log sits closed; its link, and a #every-game address, open it.
   const log = document.getElementById("every-game") as HTMLDetailsElement | null;
   const openLog = () => {

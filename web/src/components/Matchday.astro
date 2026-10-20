@@ -1,43 +1,28 @@
 ---
-// One competition's matchday: the round on now, or between rounds the last round's scorecard and the next round.
-// Both states are rendered at build time; a small script shows the one that matches the visitor's clock.
+// One competition's matchday on the home page. While any round is open (a forecast logged and a game
+// still to play) it shows each open round, earliest first: played games with their result, unplayed
+// ones with the forecast. With none open it shows the latest finished round's recap and the next
+// round's fixtures. The choice is made at build time by matchdayPlan (lib/matchday.ts).
 import type { Competition } from "../lib/format";
 import { athensDay } from "../lib/format";
-import { averageMiss, marginCheck, matchdayState, scorecard, type MatchdayRound } from "../lib/matchday";
+import { averageMiss, marginCheck, matchdayPlan, scorecard, type MatchdayRound } from "../lib/matchday";
 import MatchRow from "./MatchRow.astro";
 
 interface Props {
   comp: Competition;
 }
 const { comp } = Astro.props;
-const rounds = comp.matchday.rounds;
-const windows = rounds.map((r) => ({ round: r.round, start_utc: r.start_utc, end_utc: r.end_utc }));
-const byNumber = (n: number | null): MatchdayRound | null => rounds.find((r) => r.round === n) ?? null;
-
-const state = matchdayState(windows, Date.now());
-// Block "live": the round on now, or (between rounds) the next one, so a round that starts while the page is open shows up.
-// Block "between": the last completed round's scorecard and the next round's preview.
-let live: MatchdayRound | null;
-let last: MatchdayRound | null;
-let next: MatchdayRound | null;
-if (state.kind === "live") {
-  live = byNumber(state.round);
-  const idx = rounds.findIndex((r) => r.round === state.round);
-  last = idx > 0 ? rounds[idx - 1] : null;
-  next = idx >= 0 && idx < rounds.length - 1 ? rounds[idx + 1] : null;
-} else {
-  live = byNumber(state.next);
-  last = byNumber(state.last);
-  next = byNumber(state.next);
-}
-const liveNow = state.kind === "live";
-const card = last ? scorecard(last) : null;
+const { open, recap, next } = matchdayPlan(
+  comp.matchday.rounds,
+  comp.open_rounds.map((r) => r.round),
+);
+const card = recap ? scorecard(recap) : null;
 // The published model's expected home margin per game, by game id (the home page's Points chart uses the same).
 const fc = comp.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
 const expMargin = new Map((fc && model ? fc.games : []).map((g) => [g.game_id, g.models[model]?.exp_margin]));
-const lastChecks = last ? last.games.map((g) => marginCheck(g, expMargin.get(g.game_id))) : [];
-const lastMiss = averageMiss(lastChecks);
+const recapChecks = recap ? recap.games.map((g) => marginCheck(g, expMargin.get(g.game_id))) : [];
+const recapMiss = averageMiss(recapChecks);
 // "Sat 24 Oct to Sun 25 Oct" style: the first and last day the round is played on.
 const dayRange = (r: MatchdayRound) => {
   const days = [...new Set(r.games.map((g) => athensDay(g.tipoff_utc)))];
@@ -45,74 +30,57 @@ const dayRange = (r: MatchdayRound) => {
 };
 ---
 
-<div class="matchday" data-matchday={comp.key} data-windows={JSON.stringify(windows)}>
+<div class="matchday" data-matchday={comp.key}>
   <h3 class="comp">{comp.title}</h3>
 
   {
-    live && (
-      <div class="block" data-state="live" hidden={!liveNow}>
+    open.map((r) => (
+      <div class="block">
         <header class="head">
-          <h4>Round {live.round}</h4>
-          <p>{liveNow ? "On now" : `Starts ${dayRange(live)}, Athens time`}</p>
+          <h4>Round {r.round}</h4>
+          <p>{r.games.some((g) => g.played) ? "On now" : `Starts ${dayRange(r)}, Athens time`}</p>
         </header>
         <ol class="rows">
-          {live.games.map((g) => <MatchRow game={g} />)}
+          {r.games.map((g) => <MatchRow game={g} />)}
         </ol>
+      </div>
+    ))
+  }
+
+  {
+    open.length === 0 && (
+      <div class="block">
+        <header class="head">
+          <h4>{recap ? `Round ${recap.round}` : "Last round"}</h4>
+          <div class="tally">
+            <p>{card && card.scored > 0 ? `We picked ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
+            {recapMiss !== null && <p class="miss">Average miss: {recapMiss.toFixed(1)} points</p>}
+          </div>
+        </header>
+        {
+          recap ? (
+            <ol class="rows">
+              {recap.games.map((g, i) => <MatchRow game={g} margin={recapChecks[i]} />)}
+            </ol>
+          ) : (
+            <p class="none">The first round tips off {next ? dayRange(next) : "soon"}.</p>
+          )
+        }
+        <header class="head next">
+          <h4>{next ? `Next round: ${next.round}` : "Next round"}</h4>
+          <p>{next ? `${dayRange(next)}, Athens time` : "No more games are scheduled this season"}</p>
+        </header>
+        {
+          next && (
+            <ol class="rows">
+              {next.games.map((g) => <MatchRow game={g} />)}
+            </ol>
+          )
+        }
       </div>
     )
   }
-
-  <div class="block" data-state="between" hidden={liveNow}>
-    <header class="head">
-      <h4>{last ? `Round ${last.round}` : "Last round"}</h4>
-      <div class="tally">
-        <p>{card && card.scored > 0 ? `We picked ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
-        {lastMiss !== null && <p class="miss">Average miss: {lastMiss.toFixed(1)} points</p>}
-      </div>
-    </header>
-    {
-      last ? (
-        <ol class="rows">
-          {last.games.map((g, i) => <MatchRow game={g} margin={lastChecks[i]} />)}
-        </ol>
-      ) : (
-        <p class="none">The first round tips off {next ? dayRange(next) : "soon"}.</p>
-      )
-    }
-    <header class="head next">
-      <h4>{next ? `Next round: ${next.round}` : "Next round"}</h4>
-      <p>{next ? `${dayRange(next)}, Athens time` : "No more games are scheduled this season"}</p>
-    </header>
-    {
-      next && (
-        <ol class="rows">
-          {next.games.map((g) => <MatchRow game={g} />)}
-        </ol>
-      )
-    }
-  </div>
 </div>
-
-<script>
-  import { matchdayState, type RoundWindow } from "../lib/matchday";
-
-  // Show the live block while a round is on, otherwise the between-rounds block. A page left open
-  // across a round boundary follows the clock; the data is as of the last build.
-  for (const root of document.querySelectorAll<HTMLElement>("[data-matchday]")) {
-    let windows: RoundWindow[] = [];
-    try {
-      windows = JSON.parse(root.dataset.windows ?? "[]") as RoundWindow[];
-    } catch {
-      continue; // keep the build-time state
-    }
-    const live = root.querySelector<HTMLElement>('[data-state="live"]');
-    const between = root.querySelector<HTMLElement>('[data-state="between"]');
-    if (!between) continue;
-    const onNow = matchdayState(windows, Date.now()).kind === "live";
-    if (live) live.hidden = !onNow;
-    between.hidden = onNow;
-  }
-</script>
 
 <style>
   .matchday,
@@ -123,14 +91,14 @@ const dayRange = (r: MatchdayRound) => {
   .matchday + .matchday {
     margin-top: 48px;
   }
+  .block + .block {
+    margin-top: 32px;
+  }
   .comp {
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--muted);
     margin-bottom: 4px;
-  }
-  .block[hidden] {
-    display: none;
   }
   .head {
     display: flex;
