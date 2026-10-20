@@ -167,6 +167,11 @@
 .grid :is(th, td):first-child {
   padding-left: 0;
 }
+/* The info button's tap area reaches 6px past it; in the last column that overflowed the scroll box
+   and showed a sideways scrollbar on a table that fits. Keep that column's tap area inside the table. */
+.grid :is(th, td):last-child .info-tip::after {
+  right: 0;
+}
 .grid thead th {
   padding-top: 0;
   border-bottom-color: var(--rule-strong);
