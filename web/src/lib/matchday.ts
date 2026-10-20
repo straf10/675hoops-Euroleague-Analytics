@@ -1,5 +1,4 @@
-// The home page's matchday: which round is on now, and which two are shown when none is.
-// A round is live from its first tip-off until its last tip-off plus a game length (publish.py).
+// The home page's matchday: which rounds to show, from the rounds and the open ones.
 import type { Team } from "./format";
 
 export interface MatchdayGame {
@@ -24,29 +23,30 @@ export interface MatchdayRound {
   games: MatchdayGame[];
 }
 
-export type RoundWindow = Pick<MatchdayRound, "round" | "start_utc" | "end_utc">;
-
-type MatchdayState =
-  | { kind: "live"; round: number }
-  | { kind: "between"; last: number | null; next: number | null };
-
-const ms = (iso: string): number => Date.parse(iso);
+/**
+ * What the home page's matchday shows for one competition. While any round is open (a logged
+ * forecast and a game still to play, site.json open_rounds) that is all it shows: each open round,
+ * earliest first, so a double week shows both until the earlier one is finished. With none open it
+ * shows the latest finished round's recap and the next round's fixtures.
+ */
+export interface MatchdayPlan {
+  open: MatchdayRound[];
+  recap: MatchdayRound | null;
+  next: MatchdayRound | null;
+}
 
 /**
- * The state at `now` (epoch ms). Live when a round's window contains it (the earliest round wins
- * if two overlap). Otherwise the last round whose window has ended and the first round not yet
- * started, each by round number, or null when there is none.
+ * The plan from every round of the season and the round numbers that are open. A round with a
+ * played game and no longer open is finished; a round with no played game is not started yet.
  */
-export function matchdayState(rounds: RoundWindow[], now: number): MatchdayState {
-  const live = rounds.find((r) => ms(r.start_utc) <= now && now < ms(r.end_utc));
-  if (live) return { kind: "live", round: live.round };
-  let last: RoundWindow | null = null;
-  let next: RoundWindow | null = null;
-  for (const r of rounds) {
-    if (ms(r.end_utc) <= now && (last === null || r.round > last.round)) last = r;
-    if (ms(r.start_utc) > now && (next === null || r.round < next.round)) next = r;
-  }
-  return { kind: "between", last: last?.round ?? null, next: next?.round ?? null };
+export function matchdayPlan(rounds: MatchdayRound[], openNumbers: readonly number[]): MatchdayPlan {
+  const open = new Set(openNumbers);
+  const byRound = (a: MatchdayRound, b: MatchdayRound) => a.round - b.round;
+  const openRounds = rounds.filter((r) => open.has(r.round)).sort(byRound);
+  if (openRounds.length > 0) return { open: openRounds, recap: null, next: null };
+  const started = rounds.filter((r) => r.games.some((g) => g.played)).sort(byRound);
+  const unstarted = rounds.filter((r) => !r.games.some((g) => g.played)).sort(byRound);
+  return { open: [], recap: started.at(-1) ?? null, next: unstarted[0] ?? null };
 }
 
 /** Games the logged picks got right, out of those scored (a pick and a played, provable game). */

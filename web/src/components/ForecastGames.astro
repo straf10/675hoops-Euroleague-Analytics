@@ -105,7 +105,9 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
   </div>
 </div>
 
-<style>
+<style is:global>
+  /* Global and nested under .fcg, so the rows the round picker prints by script are styled too. */
+  .fcg {
   .scroll {
     overflow-x: auto;
   }
@@ -258,6 +260,7 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
     .team {
       min-width: 0;
     }
+  }
   }
 </style>
 
