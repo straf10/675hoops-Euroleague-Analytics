@@ -37,6 +37,7 @@ const through = index?.current_through ?? "";
 const view: CoachView = { season: fallback, section: DEFAULT_SECTION, metric: DEFAULT_METRIC, dir: "desc" };
 const rows = seasonRows(allRows, view.season, base);
 const shown = sortCoaches(rows, view.metric, view.dir);
+// The table's caption (for screen readers) names the season.
 const title = `${seasonLabel(view.season)} EuroLeague coaches`;
 // Placement is shown for completed seasons only: the open season has none yet.
 const showsPlacement = placementShown(view.season, fallback);
@@ -58,8 +59,8 @@ const seasonsJson = JSON.stringify(seasons);
   <section class="wrap head" aria-labelledby="coaches-title">
     <h1 id="coaches-title">Coaches</h1>
     <p>
-      Every EuroLeague coach the box scores name{firstLabel ? `, from ${firstLabel} on` : ""}, season
-      by season. Expected wins sum each game's pre-game Elo win probability.
+      Every EuroLeague coach the box scores name{firstLabel ? ` since ${firstLabel}` : ""}, current or
+      not, season by season. Expected wins sum each game's pre-game Elo win probability.
     </p>
   </section>
 
@@ -72,103 +73,109 @@ const seasonsJson = JSON.stringify(seasons);
         </p>
       </section>
     ) : (
-      <>
-        <section class="wrap band" aria-labelledby="table-title">
-          <header class="sec-head">
-            <h2 id="table-title">{title}</h2>
-          </header>
-          <div class="find" role="search">
-            <label class="find-label" for="coach-q">
-              Find a coach <span class="find-scope">every coach since {firstLabel || "the box scores name them"}, current or not</span>
-            </label>
-            <input
-              type="search"
-              id="coach-q"
-              placeholder="Type part of a name"
-              autocomplete="off"
-              spellcheck="false"
-              aria-controls="coach-results"
-            />
-            <p class="find-count" id="coach-count" aria-live="polite"></p>
-            <ul class="find-results" id="coach-results"></ul>
-            <noscript>
-              <p class="find-count">Search needs JavaScript. The season table below links to every coach's page.</p>
-            </noscript>
+      <section class="wrap">
+        <div class="filters" role="group" aria-label="Filters">
+          <div class="field find" role="search">
+            <span id="coach-q-label">Find a coach</span>
+            <div class="find-box">
+              <input
+                type="search"
+                id="coach-q"
+                aria-labelledby="coach-q-label"
+                placeholder="Type part of a name"
+                autocomplete="off"
+                spellcheck="false"
+                aria-controls="coach-results"
+              />
+              <div class="find-panel" id="coach-panel">
+                <p class="find-count" id="coach-count" aria-live="polite"></p>
+                <ul class="find-results" id="coach-results"></ul>
+                <noscript>
+                  <p class="find-count">Search needs JavaScript. The table below links to every coach's page.</p>
+                </noscript>
+              </div>
+            </div>
             <script type="application/json" id="coach-search" set:html={embedded} />
           </div>
 
           {rows.length > 0 && (
             <>
-              <div class="filters">
-                <label class="field">
-                  <span>Season</span>
-                  <span class="select">
-                    <select id="season" name="season" style="--select-w: 7.875rem">
-                      {seasons.map((s) => (
-                        <option value={s} selected={s === view.season}>
-                          {seasonLabel(s)}
-                        </option>
-                      ))}
-                    </select>
-                    <span class="caret" set:html={caret} />
-                  </span>
-                </label>
-                <label class="field">
-                  <span>Section</span>
-                  <span class="select">
-                    <select id="section" name="section" style="--select-w: 9.5rem">
-                      {SECTIONS.map((s) => (
-                        <option value={s.key} selected={s.key === view.section}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                    <span class="caret" set:html={caret} />
-                  </span>
-                </label>
-              </div>
-              <p class="lede-sm">
-                <span id="lede-count">{shown.length} {shown.length === 1 ? "coach" : "coaches"}</span> with games that season.
-                {through && ` The latest season's box scores run through ${through}.`}{" "}
-                Tap a heading to sort; tap it again to reverse.
-              </p>
-              <p class="coach-status" id="coach-status" role="status" hidden></p>
-              <div
-                class="scroll"
-                id="coaches"
-                data-base={base}
-                data-seasons={seasonsJson}
-                data-fallback={fallback}
-              >
-                <table class="grid coach-table">
-                  <caption class="sr-only">{coachCaption(view, title)}</caption>
-                  <thead set:html={coachHeadHtml(view, showsPlacement)} />
-                  <tbody set:html={coachRowsHtml(shown, view, showsPlacement)} />
-                </table>
-              </div>
-              <p class="note">
-                Rates need a minimum sample within the season: win %, players used, top 7 minutes and
-                challenges per game {SEASON_MIN_SAMPLE.games} games; after timeout {SEASON_MIN_SAMPLE.possessions}{" "}
-                possessions; clutch win % {SEASON_MIN_SAMPLE.clutch} clutch games. A figure below its
-                sample is greyed and sorts last, as does a dash (no value: challenges start in 2021-22,
-                and style needs a coach page). Placement is the furthest stage the season reached:
-                play-in, playoffs, Final Four, runner-up or champion, counted from 2015-16 on, when the
-                box scores name the coach. It is not shown for the season in progress. Clutch challenges
-                count the challenges in the last 5:00 of the 4th quarter or overtime of clutch games.
-                The club column lists every club the coach managed that season.
-              </p>
-              <script type="application/json" id="coach-rows" set:html={embeddedRows} />
+              <label class="field">
+                <span>Season</span>
+                <span class="select">
+                  <select id="season" name="season" style="--select-w: 7.875rem">
+                    {seasons.map((s) => (
+                      <option value={s} selected={s === view.season}>
+                        {seasonLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                  <span class="caret" set:html={caret} />
+                </span>
+              </label>
+              <fieldset class="field">
+                <legend>Section</legend>
+                <div class="seg" role="radiogroup" aria-label="Column set">
+                  {SECTIONS.map((s) => (
+                    <>
+                      <input
+                        type="radio"
+                        name="section"
+                        id={`sec-${s.key}`}
+                        value={s.key}
+                        checked={s.key === view.section}
+                      />
+                      <label for={`sec-${s.key}`}>{s.label}</label>
+                    </>
+                  ))}
+                </div>
+              </fieldset>
             </>
           )}
-        </section>
-      </>
+        </div>
+
+        {rows.length > 0 && (
+          <>
+            <p class="lede-sm">
+              <span id="lede-count">{shown.length} {shown.length === 1 ? "coach" : "coaches"}</span> with games that season.
+              {through && ` The latest season's box scores run through ${through}.`}{" "}
+              Tap a heading to sort; tap it again to reverse.
+            </p>
+            <p class="coach-status" id="coach-status" role="status" hidden></p>
+            <div
+              class="scroll"
+              id="coaches"
+              data-base={base}
+              data-seasons={seasonsJson}
+              data-fallback={fallback}
+            >
+              <table class="grid coach-table">
+                <caption class="sr-only">{coachCaption(view, title)}</caption>
+                <thead set:html={coachHeadHtml(view, showsPlacement)} />
+                <tbody set:html={coachRowsHtml(shown, view, showsPlacement)} />
+              </table>
+            </div>
+            <p class="note">
+              Rates need a minimum sample within the season: win %, players used, top 7 minutes and
+              challenges per game {SEASON_MIN_SAMPLE.games} games; after timeout {SEASON_MIN_SAMPLE.possessions}{" "}
+              possessions; clutch win % {SEASON_MIN_SAMPLE.clutch} clutch games. A figure below its
+              sample is greyed and sorts last, as does a dash (no value: challenges start in 2021-22,
+              and style needs a coach page). Placement is the furthest stage the season reached:
+              play-in, playoffs, Final Four, runner-up or champion, counted from 2015-16 on, when the
+              box scores name the coach. It is not shown for the season in progress. Clutch challenges
+              count the challenges in the last 5:00 of the 4th quarter or overtime of clutch games.
+              The club column lists every club the coach managed that season.
+            </p>
+            <script type="application/json" id="coach-rows" set:html={embeddedRows} />
+          </>
+        )}
+      </section>
     )
   }
 </Base>
 
 <script>
   import {
-    SECTIONS,
     coachCaption,
     coachHeadHtml,
     coachRowsHtml,
@@ -192,9 +199,12 @@ const seasonsJson = JSON.stringify(seasons);
   const input = document.getElementById("coach-q") as HTMLInputElement | null;
   const list = document.getElementById("coach-results");
   const count = document.getElementById("coach-count");
+  const panel = document.getElementById("coach-panel") as HTMLDivElement | null;
+  // The results panel shows only while there is a query.
+  if (panel) panel.hidden = true;
 
   function render() {
-    if (!input || !list || !count) return;
+    if (!input || !list || !count || !panel) return;
     const hits = searchCoaches(data, input.value);
     list.replaceChildren(
       ...hits.map((c) => {
@@ -217,16 +227,16 @@ const seasonsJson = JSON.stringify(seasons);
           : hits.length === 1
             ? "1 coach"
             : `${hits.length} coaches`;
+    panel.hidden = input.value.trim() === "";
   }
 
   input?.addEventListener("input", render);
 
-  // The season and section selects and the sortable heads redraw the table from the view, then write the view to the query string.
+  // The season select, the section buttons and the sortable heads redraw the table from the view, then write the view to the query string.
   const host = document.getElementById("coaches");
   const seasonSel = document.getElementById("season") as HTMLSelectElement | null;
-  const sectionSel = document.getElementById("section") as HTMLSelectElement | null;
-  const title = document.getElementById("table-title");
-  if (host && seasonSel && sectionSel && title) {
+  const sectionRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="section"]'));
+  if (host && seasonSel && sectionRadios.length) {
     const base = host.dataset.base ?? "";
     const seasons = JSON.parse(host.dataset.seasons ?? "[]") as number[];
     const fallback = Number(host.dataset.fallback);
@@ -260,7 +270,7 @@ const seasonsJson = JSON.stringify(seasons);
       return request;
     };
 
-    // Redraws the table, the heading and the count from the view, then writes the view to the query string.
+    // Redraws the table, the caption and the count from the view, then writes the view to the query string.
     // A season already held draws at once (the sorted head keeps focus); a season being fetched shows a
     // loading line until it arrives, and a later switch wins over an earlier fetch.
     const draw = (all: CoachSeasonRow[]) => {
@@ -269,8 +279,7 @@ const seasonsJson = JSON.stringify(seasons);
       status.hidden = true;
       host.removeAttribute("aria-busy");
       seasonSel.value = String(view.season);
-      sectionSel.value = view.section;
-      title.textContent = heading;
+      for (const radio of sectionRadios) radio.checked = radio.value === view.section;
       caption.textContent = coachCaption(view, heading);
       const shows = placementShown(view.season, fallback);
       thead.innerHTML = coachHeadHtml(view, shows);
@@ -297,10 +306,12 @@ const seasonsJson = JSON.stringify(seasons);
       view = switchSeason(view, Number(seasonSel.value), fallback);
       paint();
     });
-    sectionSel.addEventListener("change", () => {
-      view = switchSection(view, sectionSel.value as SectionKey, placementShown(view.season, fallback));
-      paint();
-    });
+    for (const radio of sectionRadios) {
+      radio.addEventListener("change", () => {
+        view = switchSection(view, radio.value as SectionKey, placementShown(view.season, fallback));
+        paint();
+      });
+    }
     // The same head again flips the order; another head starts from the highest figure.
     thead.addEventListener("click", (e) => {
       const button = (e.target as Element).closest<HTMLButtonElement>("button[data-sort]");
@@ -316,33 +327,44 @@ const seasonsJson = JSON.stringify(seasons);
 </script>
 
 <style>
-  /* A compact search, left-aligned above the season and section filters. */
-  .find {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    margin: 0 0 18px;
-  }
-  .find-label {
-    font-size: 0.8125rem;
+  /* Title block and filter bar: the same spacing and rules as the players page. */
+  .head p {
+    margin-top: 10px;
+    max-width: 64ch;
     color: var(--ink-2);
   }
-  .find-scope {
-    color: var(--muted);
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 14px 20px;
+    margin: 32px 0 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--rule);
   }
-  input[type="search"] {
-    appearance: none;
+
+  /* The search sits inline with the other controls, its results in a panel beneath it. */
+  .find {
+    position: relative;
+  }
+  .find-box {
+    position: relative;
     width: 16rem;
     max-width: 100%;
-    height: 36px;
+  }
+  .find input[type="search"] {
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 32px;
     padding: 0 10px;
     border: 0;
     border-radius: 8px;
     background: var(--surface);
     box-shadow: inset 0 0 0 1px var(--rule-strong);
     color: var(--ink);
-    font: 500 0.875rem/1 var(--font);
+    font: 500 0.8125rem/1 var(--font);
+    transition: box-shadow 150ms ease;
   }
   input[type="search"]::placeholder {
     color: var(--muted);
@@ -350,8 +372,36 @@ const seasonsJson = JSON.stringify(seasons);
   input[type="search"]::-webkit-search-cancel-button {
     display: none;
   }
+  input[type="search"]:focus-visible {
+    outline: 2px solid var(--data-1);
+    outline-offset: 1px;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .find input[type="search"]:hover {
+      box-shadow: inset 0 0 0 1px var(--ink-2);
+    }
+  }
+  .find-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 5;
+    width: max(100%, 18rem);
+    max-width: min(24rem, calc(100vw - 32px));
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow:
+      0 0 0 1px var(--rule-strong),
+      0 8px 24px rgb(17 17 16 / 0.08);
+  }
+  .find-panel[hidden] {
+    display: none;
+  }
   .find-count {
-    margin: 12px 0 0;
+    margin: 0;
     font-size: 0.8125rem;
     color: var(--muted);
   }
@@ -361,6 +411,9 @@ const seasonsJson = JSON.stringify(seasons);
     padding: 0;
     display: grid;
     gap: 6px;
+  }
+  .find-results:empty {
+    display: none;
   }
   .find-results a {
     color: var(--ink);
@@ -376,11 +429,9 @@ const seasonsJson = JSON.stringify(seasons);
       text-decoration: underline;
     }
   }
-</style>
 
-<style>
   .lede-sm {
-    margin: 0 0 14px;
+    margin: 0 0 12px;
     color: var(--muted);
     font-size: 0.8125rem;
     max-width: 68ch;

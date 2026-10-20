@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   COACH_METRICS,
-  CORE_KEYS,
   SEASON_MIN_SAMPLE,
   SECTIONS,
   coachCaption,
@@ -91,7 +90,7 @@ const row = (over: Partial<CoachSeasonRow> & { name: string }): CoachSeasonRow =
 
 const view = (over: Partial<CoachView>): CoachView => ({
   season: 2026,
-  section: "expected",
+  section: "box",
   metric: "games",
   dir: "desc",
   ...over,
@@ -99,24 +98,40 @@ const view = (over: Partial<CoachView>): CoachView => ({
 
 const metric = (key: string) => metricOf(key)!;
 
-test("the sections name every non-core column exactly once", () => {
+test("the column sets name every metric exactly once, so no column repeats across them", () => {
   const own = SECTIONS.flatMap((s) => s.keys);
   assert.equal(new Set(own).size, own.length);
-  const all = COACH_METRICS.map((m) => m.key).filter((k) => !CORE_KEYS.includes(k));
+  const all = COACH_METRICS.map((m) => m.key);
   assert.deepEqual([...own].sort(), [...all].sort());
-  assert.deepEqual(columnKeys("expected"), [...CORE_KEYS, "expected_wins", "wins_above_expectation", "placement"]);
+  assert.deepEqual(columnKeys("box"), [
+    "games",
+    "wins",
+    "losses",
+    "win_pct",
+    "expected_wins",
+    "wins_above_expectation",
+    "placement",
+  ]);
   assert.deepEqual(columnKeys("advanced"), [
-    ...CORE_KEYS,
     "ato",
     "clutch_pct",
     "clutch_games",
     "challenges",
     "clutch_challenges",
+    "players",
+    "top7",
   ]);
   assert.deepEqual(
     SECTIONS.map((s) => s.label),
-    ["Expected", "Advanced", "Rotation"],
+    ["Box score", "Advanced"],
   );
+});
+
+test("the advanced set repeats no box score column, and placement is left out in the season in progress", () => {
+  const box = new Set(columnKeys("box"));
+  for (const key of columnKeys("advanced")) assert.ok(!box.has(key), key);
+  assert.ok(!columnKeys("box", false).includes("placement"));
+  assert.equal(columnKeys("box", false).length, columnKeys("box").length - 1);
 });
 
 test("season minimums: win % from 5 games, after timeout from 25 possessions, clutch from 5 games", () => {
@@ -200,27 +215,27 @@ test("the placement is the furthest stage, and sorts champion first", () => {
 test("placement is not shown for the season in progress", () => {
   assert.equal(placementShown(2026, 2026), false);
   assert.equal(placementShown(2025, 2026), true);
-  assert.ok(!columnKeys("expected", false).includes("placement"));
-  assert.ok(columnKeys("expected", true).includes("placement"));
-  const hidden = coachHeadHtml(view({ section: "expected" }), false);
+  assert.ok(!columnKeys("box", false).includes("placement"));
+  assert.ok(columnKeys("box", true).includes("placement"));
+  const hidden = coachHeadHtml(view({ section: "box" }), false);
   assert.ok(!hidden.includes('data-sort="placement"'));
-  assert.ok(coachHeadHtml(view({ section: "expected" }), true).includes('data-sort="placement"'));
+  assert.ok(coachHeadHtml(view({ section: "box" }), true).includes('data-sort="placement"'));
   // A placement sort from a completed season does not carry into the season in progress.
   assert.deepEqual(
-    coachViewFromQuery("?season=2026&section=expected&metric=placement", [2026, 2025], 2026),
+    coachViewFromQuery("?season=2026&section=box&metric=placement", [2026, 2025], 2026),
     view({ metric: "games" }),
   );
   assert.deepEqual(
-    coachViewFromQuery("?season=2025&section=expected&metric=placement", [2026, 2025], 2026),
+    coachViewFromQuery("?season=2025&section=box&metric=placement", [2026, 2025], 2026),
     view({ season: 2025, metric: "placement" }),
   );
   assert.deepEqual(
-    switchSeason(view({ section: "expected", metric: "placement", dir: "asc" }), 2026, 2026),
-    view({ section: "expected", metric: "expected_wins", dir: "desc" }),
+    switchSeason(view({ section: "box", metric: "placement", dir: "asc" }), 2026, 2026),
+    view({ section: "box", metric: "games", dir: "desc" }),
   );
   assert.deepEqual(
-    switchSeason(view({ section: "expected", metric: "placement", dir: "asc" }), 2025, 2026),
-    view({ season: 2025, section: "expected", metric: "placement", dir: "asc" }),
+    switchSeason(view({ section: "box", metric: "placement", dir: "asc" }), 2025, 2026),
+    view({ season: 2025, section: "box", metric: "placement", dir: "asc" }),
   );
 });
 
@@ -263,7 +278,7 @@ test("a fetched season sorts and switches section like the embedded one", () => 
     row({ name: "High", season: 2020, games: 10, wins: 8, losses: 2 }),
   ];
   const fetched = seasonOf(rows, 2020);
-  const view = switchSection({ season: 2020, section: "expected", metric: "games", dir: "desc" }, "advanced");
+  const view = switchSection({ season: 2020, section: "box", metric: "games", dir: "desc" }, "advanced");
   assert.equal(view.section, "advanced");
   assert.deepEqual(sortCoaches(seasonRows(fetched, 2020, "/b/"), "win_pct", "desc").map((r) => r.name), ["High", "Low"]);
 });
@@ -289,23 +304,28 @@ test("the view reads and writes the query string, with the page's season as the 
   });
   // An unknown season, section or a column of another section falls back to the defaults.
   assert.deepEqual(coachViewFromQuery("?season=1999&section=nope&metric=ato&sort=up", seasons, 2026), view({ metric: "games" }));
-  assert.deepEqual(coachViewFromQuery("?section=expected&metric=ato", seasons, 2026), view({ metric: "games" }));
+  assert.deepEqual(coachViewFromQuery("?section=box&metric=ato", seasons, 2026), view({ metric: "games" }));
+  assert.deepEqual(coachViewFromQuery("?section=advanced&metric=games", seasons, 2026), view({ section: "advanced", metric: "ato" }));
+  // Section keys from before the rename open the set that now holds their columns.
+  assert.deepEqual(coachViewFromQuery("?section=expected&metric=expected_wins", seasons, 2026), view({ metric: "expected_wins" }));
+  assert.deepEqual(coachViewFromQuery("?section=rotation&metric=top7", seasons, 2026), view({ section: "advanced", metric: "top7" }));
+  assert.deepEqual(coachViewFromQuery("?section=rotation", seasons, 2026), view({ section: "advanced", metric: "ato" }));
   assert.equal(coachViewToQuery(view({}), 2026), "");
-  const other = view({ season: 2025, section: "rotation", metric: "top7", dir: "asc" });
-  assert.equal(coachViewToQuery(other, 2026), "?season=2025&section=rotation&metric=top7&sort=asc");
+  const other = view({ season: 2025, section: "advanced", metric: "top7", dir: "asc" });
+  assert.equal(coachViewToQuery(other, 2026), "?season=2025&section=advanced&metric=top7&sort=asc");
   assert.deepEqual(coachViewFromQuery(coachViewToQuery(other, 2026), seasons, 2026), other);
 });
 
 test("switching section keeps the sort column when the new section shows it, else resets it", () => {
   const start = view({ metric: "games", dir: "asc" });
-  assert.deepEqual(switchSection(start, "expected").metric, "games");
-  assert.equal(switchSection(start, "expected").dir, "asc");
-  const moved = switchSection(view({ section: "expected", metric: "wins_above_expectation", dir: "asc" }), "advanced");
+  assert.deepEqual(switchSection(start, "box").metric, "games");
+  assert.equal(switchSection(start, "box").dir, "asc");
+  const moved = switchSection(view({ section: "box", metric: "wins_above_expectation", dir: "asc" }), "advanced");
   assert.deepEqual(moved, view({ section: "advanced", metric: "ato", dir: "desc" }));
 });
 
 test("the head has a sortable button for each shown column, the chosen one marked, and a tip each", () => {
-  const html = coachHeadHtml(view({ section: "advanced", metric: "win_pct", dir: "asc" }));
+  const html = coachHeadHtml(view({ section: "advanced", metric: "top7", dir: "asc" }));
   const shown = columnKeys("advanced");
   for (const key of shown) assert.ok(html.includes(`data-sort="${key}"`), key);
   assert.equal((html.match(/data-sort=/g) ?? []).length, shown.length);
@@ -322,8 +342,9 @@ test("the body escapes names, shows the clubs, greys a thin rate and prints a da
   assert.ok(html.includes("Ann &lt;b&gt;Smith&lt;/b&gt;"));
   assert.ok(html.includes('class="num strong thin"'));
   assert.ok(html.includes('<td class="club">FBT, PAO</td>'));
-  const rotation = coachRowsHtml(rows, view({ section: "rotation" }));
-  assert.ok(rotation.includes(">-</td>"));
+  const advanced = coachRowsHtml(rows, view({ section: "advanced" }));
+  assert.ok(advanced.includes(">-</td>"));
+  assert.ok(!advanced.includes(">4</td>"), "the advanced set shows no games column");
 });
 
 test("the caption names the season's section and metric", () => {

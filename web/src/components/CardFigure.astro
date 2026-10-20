@@ -1,0 +1,68 @@
+---
+// A share card on its HTML page: the light PNG, or its dark twin (`-dark.png`) in the dark theme. The
+// picture follows the system setting on its own; the script below then follows the site's theme toggle
+// (`data-theme` on <html>, which wins over the system) and points the Download link at the file shown.
+interface Props {
+  /** The card's path without extension, with the base path: `/cards/round-4`. */
+  path: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+const { path, alt, width, height } = Astro.props;
+---
+
+<figure class="card-figure" data-card={path}>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset={`${path}-dark.png`} />
+    <img src={`${path}.png`} width={width} height={height} alt={alt} />
+  </picture>
+  <figcaption>
+    <a href={`${path}.png`} download>Download PNG</a>
+  </figcaption>
+</figure>
+
+<script>
+  // Shows the card that matches the theme in force: the saved toggle choice when there is one, the
+  // system setting otherwise. Runs again when either changes.
+  const root = document.documentElement;
+  const system = matchMedia("(prefers-color-scheme: dark)");
+  const isDark = () => (root.dataset.theme ? root.dataset.theme === "dark" : system.matches);
+
+  function show() {
+    const suffix = isDark() ? "-dark.png" : ".png";
+    document.querySelectorAll<HTMLElement>("[data-card]").forEach((figure) => {
+      const file = figure.dataset.card + suffix;
+      const source = figure.querySelector("source");
+      // With no media query the source always matches, so the picture shows the file chosen here.
+      if (source) {
+        source.removeAttribute("media");
+        source.srcset = file;
+      }
+      figure.querySelector("img")?.setAttribute("src", file);
+      figure.querySelector("a")?.setAttribute("href", file);
+    });
+  }
+
+  show();
+  system.addEventListener("change", show);
+  new MutationObserver(show).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+
+<style>
+  .card-figure {
+    margin: 0;
+  }
+  .card-figure picture {
+    display: block;
+  }
+  .card-figure img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .card-figure figcaption {
+    margin-top: 0.75rem;
+  }
+</style>

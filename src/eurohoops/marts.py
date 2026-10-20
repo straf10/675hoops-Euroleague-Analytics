@@ -6,6 +6,7 @@ command sees the same validated union of both competitions.
 
 import gzip
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,8 @@ MINUTES_PER_GAME = 200.0
 MINUTES_PER_OVERTIME = 25.0
 MINUTES_TOLERANCE = 1.0
 
+log = logging.getLogger(__name__)
+
 
 def _sql(path: Path, **files: Path) -> str:
     """Fill ``{name}`` placeholders with quoted paths (all paths come from config, not users)."""
@@ -30,17 +33,28 @@ def _sql(path: Path, **files: Path) -> str:
 def build_marts(mart_path: Path, sql_dir: Path) -> bool:
     """(Re)build the marts; return whether GBL box-score tables were available and built."""
     mart_path.parent.mkdir(parents=True, exist_ok=True)
+    has_gbl = all(p.exists() for p in (GBL.staging_games, GBL.staging_teams))
     with duckdb.connect(str(mart_path)) as con:
         con.execute(
             _sql(
                 sql_dir / "games.sql",
                 euroleague_games=EUROLEAGUE.staging_games,
-                gbl_games=GBL.staging_games,
                 euroleague_teams=EUROLEAGUE.staging_teams,
-                gbl_teams=GBL.staging_teams,
             )
         )
-        has_box = all(p.exists() for p in (GBL_PLAYER_BOX, GBL_TEAM_BOX, GBL_BOX_FILL))
+        if has_gbl:
+            con.execute(
+                _sql(
+                    sql_dir / "games_gbl.sql",
+                    gbl_games=GBL.staging_games,
+                    gbl_teams=GBL.staging_teams,
+                )
+            )
+        else:
+            # Without GBL staging (e.g. a clone that only ingests EuroLeague) the marts hold
+            # EuroLeague games and teams only; GBL-reading commands then see no GBL rows.
+            log.warning("GBL staging files missing; marts built with EuroLeague only")
+        has_box = has_gbl and all(p.exists() for p in (GBL_PLAYER_BOX, GBL_TEAM_BOX, GBL_BOX_FILL))
         if has_box:
             con.execute(
                 _sql(

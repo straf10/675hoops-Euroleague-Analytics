@@ -7,19 +7,20 @@ import { create, type Font } from "fontkitten";
 import sharp from "sharp";
 import latin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?inline";
 import latinExt from "@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2?inline";
+import { LIGHT } from "./theme";
 
-// Colours: the page tokens of src/styles/global.css (light theme). Cards are always light.
-const PAPER = "#f9f9f7";
-export const SURFACE = "#fcfcfb";
-export const INK = "#111110";
-export const INK_SOFT = "#52514e";
-export const MUTED = "#6d6b66";
-export const AXIS = "#898781";
-export const RULE = "#e1e0d9";
-export const RULE_STRONG = "#c3c2b7";
-export const ORANGE = "#d9590b";
-export const GRAY = "#8f8d86";
-export const BLUE = "#2a78d6";
+// Colours: the light palette (theme.ts). Every card is drawn in these; the dark version is a recolour.
+const PAPER = LIGHT.paper;
+export const SURFACE = LIGHT.surface;
+export const INK = LIGHT.ink;
+export const INK_SOFT = LIGHT.inkSoft;
+export const MUTED = LIGHT.muted;
+export const AXIS = LIGHT.axis;
+export const RULE = LIGHT.rule;
+export const RULE_STRONG = LIGHT.ruleStrong;
+export const ORANGE = LIGHT.orange;
+export const GRAY = LIGHT.gray;
+export const BLUE = LIGHT.blue;
 
 const FOOTER = "675hoops.com · Every forecast logged before tip-off";
 
