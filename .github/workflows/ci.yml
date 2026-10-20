@@ -101,7 +101,7 @@ jobs:
           cp -r tests/fixtures/stats web/src/data/stats
       - name: TS unit tests
         working-directory: web
-        run: node --test "src/lib/**/*.test.ts"
+        run: node --test "src/lib/**/*.test.ts" "scripts/*.test.mjs"
       - name: Build the site
         working-directory: web
         run: |
