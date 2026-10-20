@@ -34,7 +34,7 @@ from tests import elor_synthetic as syn
 SEASON = 2026
 FIRST_UNPLAYED_ROUND = 3
 NOW = syn.round_start(SEASON, FIRST_UNPLAYED_ROUND).to_pydatetime() - timedelta(hours=10)
-WINDOW = timedelta(hours=36)  # round 4 is a week later: out
+ROUND_LEAD = timedelta(hours=48)  # round 4 is more than 48 h later: out
 SETTING = ElorSetting(0.5, 24)
 
 
@@ -82,7 +82,7 @@ def run(
         build,
         log_path=log,
         season=SEASON,
-        window=WINDOW,
+        round_lead=ROUND_LEAD,
         clock=lambda: at,
     )
 
@@ -196,7 +196,7 @@ def test_refuses_to_log_at_or_after_tip_off(tmp_path: Path) -> None:
             live,
             log_path=log,
             season=SEASON,
-            window=WINDOW,
+            round_lead=ROUND_LEAD,
             clock=lambda: next(ticks),
         )
     assert not log.exists()

@@ -62,14 +62,14 @@ def section(card: dict[str, object] = CARD, logged_rounds: int = 2) -> Section:
 def test_upcoming_results_and_scorecard() -> None:
     data = section_data(section(), NOW)
     assert data["season"] == "2026-27"
-    assert data["logged"] == 6  # first row per game only
+    assert data["logged"] == 6  # one row per game: the latest before tip-off
     assert len(data["upcoming"]) == 3
     assert len(data["results"]) == 3
     result = data["results"][0]
     assert (result["home_score"], result["away_score"]) == (90, 80)
     assert not result["hit"]  # p_home 0.4 but the home team won
     assert result["provable"]
-    assert result["predicted_at_utc"] == "2026-09-30T08:00:00Z"
+    assert result["predicted_at_utc"] == "2026-09-30T09:00:00Z"
     assert data["scorecard"]["elo"]["log_loss"] == 0.61
     assert data["scorecard"]["not_provable"] == 0
     assert data["backtest"]["params"] == {"k": 20.0, "hca": 90.0, "reversion": 0.25}
@@ -148,7 +148,10 @@ def test_rows_logged_after_tip_off_are_shown_apart_and_never_scored() -> None:
 
 
 def test_an_on_time_row_wins_over_an_earlier_listed_late_one() -> None:
-    """If a game has both, the pre-registered row is its earliest row stamped before tip-off."""
+    """If a game has both, the pick is its latest row stamped before tip-off.
+
+    A row stamped after tip-off never counts.
+    """
     plain = section()
     game = plain.games[(plain.games["season"] == 2026) & (plain.games["round"] == 1)].iloc[0]
     late = (
@@ -214,3 +217,61 @@ def test_every_club_in_the_data_has_a_short_name() -> None:
     source = {v: k for k, v in DISPLAY_CODES["euroleague"].items()}
     missing = [code for code in shown if source.get(code, code) not in SHORT_NAMES["euroleague"]]
     assert missing == [], f"clubs without a short name: {missing}"
+
+
+def _round_games(data: dict[str, object], number: int) -> list[dict[str, object]]:
+    rounds = {r["round"]: r["games"] for r in data["open_rounds"]}  # type: ignore[index]
+    return rounds.get(number, [])  # type: ignore[return-value]
+
+
+def test_every_open_round_is_listed_in_round_order() -> None:
+    """Rounds with a logged forecast and a game left to play are open, earliest round first. A
+    round with every game played is not open (it is a recap)."""
+    data = section_data(section(logged_rounds=3), NOW)
+    assert [r["round"] for r in data["open_rounds"]] == [2, 3]
+    assert [g["played"] for g in _round_games(data, 2)] == [False, False, False]
+
+
+def test_a_round_with_every_game_played_is_not_open() -> None:
+    data = section_data(section(logged_rounds=2), NOW)
+    assert [r["round"] for r in data["open_rounds"]] == [2]  # round 1 was played in full
+
+
+def test_an_open_round_shows_played_games_with_score_and_hit() -> None:
+    plain = section(logged_rounds=2)
+    games = plain.games.copy()
+    round_two = games[(games["season"] == 2026) & (games["round"] == 2)].index
+    games.loc[round_two[0], ["home_score", "away_score", "played"]] = [70, 85, True]
+    data = section_data(dataclasses.replace(plain, games=games), NOW)
+    rows = _round_games(data, 2)
+    done = rows[0]
+    assert done["played"] and (done["home_score"], done["away_score"]) == (70, 85)
+    assert done["hit"] is True  # the pick favoured away (0.4 home) and away won
+    assert all(not g["played"] and g["hit"] is None and g["home_score"] is None for g in rows[1:])
+    assert all(g["p_home"] == 0.4 and g["exp_margin"] == -2.0 for g in rows)
+
+
+def test_a_round_is_open_while_one_of_its_games_is_unfinished() -> None:
+    plain = section(logged_rounds=2)
+    games = plain.games.copy()
+    round_two = games[(games["season"] == 2026) & (games["round"] == 2)]
+    games.loc[round_two.index, ["home_score", "away_score", "played"]] = [80, 79, True]
+    games.loc[round_two.index[-1], ["home_score", "away_score", "played"]] = [None, None, False]
+    data = section_data(dataclasses.replace(plain, games=games), NOW)
+    assert [r["round"] for r in data["open_rounds"]] == [2]
+
+
+def test_the_pick_is_the_latest_row_stamped_before_tip_off() -> None:
+    """A game re-logged before tip-off shows its newest pick, not the first one logged."""
+    plain = section(logged_rounds=2)
+    game_id = _round_games(section_data(plain, NOW), 2)[0]["game_id"]
+    log = plain.log.copy()
+    mine = log["game_id"] == game_id
+    log.loc[mine, "p_home"] = 0.4
+    log.loc[mine & (log["predicted_at_utc"] == "2026-09-30T09:00:00Z"), "p_home"] = 0.7
+    log.loc[mine & (log["predicted_at_utc"] == "2026-09-30T08:00:00Z"), "p_home"] = 0.2
+    data = section_data(dataclasses.replace(plain, log=log), NOW)
+    row = next(g for g in _round_games(data, 2) if g["game_id"] == game_id)
+    assert row["p_home"] == 0.7
+    assert row["predicted_at_utc"] == "2026-09-30T09:00:00Z"
+    assert data["matchday"]["rounds"][1]["games"][0]["p_home"] == 0.7

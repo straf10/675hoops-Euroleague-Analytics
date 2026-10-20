@@ -31,7 +31,7 @@ SPEC = small_spec()
 SEASON = 2022
 FIRST_UNPLAYED_ROUND = 9  # tips off 2022-10-29T18:00Z (day 28 of the synthetic calendar)
 NOW = datetime(2022, 10, 29, 8, 0, tzinfo=UTC)  # 10 h before round 9
-WINDOW = timedelta(hours=36)  # round 10 is two days later: out
+ROUND_LEAD = timedelta(hours=48)  # round 10 is more than 48 h later: out
 CHOICE = Choice("proj_hc", None, "core", 180.0, 10.0, None, False, "total_m1_rest")
 ROUND_9_GAMES = 4
 
@@ -87,7 +87,7 @@ def run(
         lambda: builder(chosen, calls),
         log_path=log,
         season=SEASON,
-        window=WINDOW,
+        round_lead=ROUND_LEAD,
         clock=lambda: at,
         spec=SPEC,
     )
@@ -153,7 +153,7 @@ def test_upcoming_games_are_logged_once_append_only(model: LiveM5, tmp_path: Pat
     first = log.read_bytes()
     assert run(model, log, calls=calls) == 0  # same clock: nothing new, nothing rebuilt
     assert log.read_bytes() == first and len(calls) == 1
-    # A later run adds only the games the window now reaches (round 10); round 9 is untouched.
+    # A later run adds only the games the round lead now reaches (round 10); round 9 is untouched.
     assert run(model, log, calls=calls, at=NOW + timedelta(days=2)) == ROUND_9_GAMES
     assert log.read_bytes().startswith(first)
     assert {r["round"] for r in rows(log)} == {"9", "10"}
@@ -232,7 +232,7 @@ def test_late_stamps_are_refused_and_nothing_is_written(model: LiveM5, tmp_path:
             builder,
             log_path=log,
             season=SEASON,
-            window=WINDOW,
+            round_lead=ROUND_LEAD,
             clock=lambda: next(stamps),
             spec=SPEC,
         )

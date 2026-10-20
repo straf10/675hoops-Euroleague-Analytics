@@ -94,6 +94,106 @@
           "tipoff_time_confirmed": true
         }
       ],
+      "open_rounds": [
+        {
+          "round": 1,
+          "games": [
+            {
+              "game_id": "E2027_1",
+              "tipoff_utc": "2027-10-01T18:00:00Z",
+              "predicted_at_utc": "2027-10-01T08:00:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "BBB",
+                "name": "Team BBB & Co",
+                "short": "Team BBB & Co"
+              },
+              "p_home": 0.4657,
+              "exp_margin": -0.86,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            },
+            {
+              "game_id": "E2027_2",
+              "tipoff_utc": "2027-10-01T18:15:00Z",
+              "predicted_at_utc": "2027-10-01T08:15:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "CCC",
+                "name": "Team CCC & Co",
+                "short": "Team CCC & Co"
+              },
+              "p_home": 0.6152,
+              "exp_margin": 2.94,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            },
+            {
+              "game_id": "E2027_3",
+              "tipoff_utc": "2027-10-01T18:30:00Z",
+              "predicted_at_utc": "2027-10-01T08:30:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "DDD",
+                "name": "Team DDD & Co",
+                "short": "Team DDD & Co"
+              },
+              "p_home": 0.7095,
+              "exp_margin": 5.6,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "games": [
+            {
+              "game_id": "E2027_4",
+              "tipoff_utc": "2027-10-08T18:00:00Z",
+              "predicted_at_utc": "2027-10-08T08:00:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "EEE",
+                "name": "Team EEE & Co",
+                "short": "Team EEE & Co"
+              },
+              "p_home": 0.5848,
+              "exp_margin": 2.15,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            }
+          ]
+        }
+      ],
       "results": [
         {
           "game_id": "E2026_30",
@@ -3600,6 +3700,106 @@
           "venue": "Hall AAA",
           "venue_address": null,
           "tipoff_time_confirmed": true
+        }
+      ],
+      "open_rounds": [
+        {
+          "round": 1,
+          "games": [
+            {
+              "game_id": "GBL2027_1",
+              "tipoff_utc": "2027-10-01T18:00:00Z",
+              "predicted_at_utc": "2027-10-01T08:00:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "BBB",
+                "name": "Team BBB & Co",
+                "short": "Team BBB & Co"
+              },
+              "p_home": 0.4842,
+              "exp_margin": -0.47,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            },
+            {
+              "game_id": "GBL2027_2",
+              "tipoff_utc": "2027-10-01T18:15:00Z",
+              "predicted_at_utc": "2027-10-01T08:15:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "CCC",
+                "name": "Team CCC & Co",
+                "short": "Team CCC & Co"
+              },
+              "p_home": 0.6403,
+              "exp_margin": 4.3,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            },
+            {
+              "game_id": "GBL2027_3",
+              "tipoff_utc": "2027-10-01T18:30:00Z",
+              "predicted_at_utc": "2027-10-01T08:30:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "DDD",
+                "name": "Team DDD & Co",
+                "short": "Team DDD & Co"
+              },
+              "p_home": 0.721,
+              "exp_margin": 7.09,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "games": [
+            {
+              "game_id": "GBL2027_4",
+              "tipoff_utc": "2027-10-08T18:00:00Z",
+              "predicted_at_utc": "2027-10-08T08:00:00Z",
+              "home": {
+                "code": "AAA",
+                "name": "Team AAA & Co",
+                "short": "Team AAA & Co"
+              },
+              "away": {
+                "code": "EEE",
+                "name": "Team EEE & Co",
+                "short": "Team EEE & Co"
+              },
+              "p_home": 0.6183,
+              "exp_margin": 3.6,
+              "played": false,
+              "forfeit": false,
+              "home_score": null,
+              "away_score": null,
+              "hit": null
+            }
+          ]
         }
       ],
       "results": [

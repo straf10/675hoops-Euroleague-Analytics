@@ -101,6 +101,7 @@ from eurohoops.models.roster import RosterCacheError, read_rosters
 from eurohoops.odds import OddsApiError, OddsPaths, api_key, record_odds
 from eurohoops.predict import LatePredictionError, predict_upcoming
 from eurohoops.sim.formats import season_format
+from eurohoops.tipoff import first_tipoff_on
 
 
 def _payload_sha(payload: dict[str, Any]) -> str:
@@ -324,7 +325,9 @@ class _LiveFrame:
         )
 
 
-def _predict_eloc(games: pd.DataFrame, season: int, comp: Competition, window_hours: float) -> None:
+def _predict_eloc(
+    games: pd.DataFrame, season: int, comp: Competition, round_lead_hours: float
+) -> None:
     """The ELOC shadow log: off unless ELOC_LIVE_ENABLED (config.py) is set, and then it needs
     its CV report. A shadow model never blocks the Elo and M1 logs."""
     eloc = load_eloc(ELOC_CV.report) if eloc_logging_on(comp) else None
@@ -336,7 +339,7 @@ def _predict_eloc(games: pd.DataFrame, season: int, comp: Competition, window_ho
             eloc,
             log_path=comp.eloc_prediction_log,
             season=season,
-            window=timedelta(hours=window_hours),
+            round_lead=timedelta(hours=round_lead_hours),
             clock=utc_now,
         )
         typer.echo(f"{added} ELOC predictions appended to {comp.eloc_prediction_log}")
@@ -360,7 +363,9 @@ def _predict_pool(log_path: Path | None) -> None:
 
 def predict(
     competition: CompetitionOption = CompetitionName.euroleague,
-    window_hours: Annotated[float, typer.Option(help="Predict games tipping off within")] = 36.0,
+    round_lead_hours: Annotated[
+        float, typer.Option(help="Log every round whose first tip-off is within this many hours")
+    ] = 48.0,
 ) -> None:
     """Append pre-tip-off predictions for upcoming live-season games to the public log."""
     comp = COMPETITIONS[competition]
@@ -372,7 +377,7 @@ def predict(
             log_path=comp.prediction_log,
             season=live.season,
             replay_from=live.replay_from,
-            window=timedelta(hours=window_hours),
+            round_lead=timedelta(hours=round_lead_hours),
             clock=utc_now,
         )
         typer.echo(f"{added} predictions appended to {comp.prediction_log}")
@@ -385,7 +390,7 @@ def predict(
                 log_path=comp.m1_prediction_log,
                 season=live.season,
                 replay_from=live.replay_from,
-                window=timedelta(hours=window_hours),
+                round_lead=timedelta(hours=round_lead_hours),
                 clock=utc_now,
             )
             typer.echo(f"{added} M1 predictions appended to {comp.m1_prediction_log}")
@@ -399,7 +404,7 @@ def predict(
                     frame.m5,
                     log_path=comp.m5_prediction_log,
                     season=live.season,
-                    window=timedelta(hours=window_hours),
+                    round_lead=timedelta(hours=round_lead_hours),
                     clock=utc_now,
                 )
                 typer.echo(f"{added} M5 predictions appended to {comp.m5_prediction_log}")
@@ -418,7 +423,7 @@ def predict(
                     frame.elor,
                     log_path=comp.elor_prediction_log,
                     season=live.season,
-                    window=timedelta(hours=window_hours),
+                    round_lead=timedelta(hours=round_lead_hours),
                     clock=utc_now,
                 )
                 typer.echo(f"{added} ELOR predictions appended to {comp.elor_prediction_log}")
@@ -428,7 +433,7 @@ def predict(
                 raise
             except Exception:
                 log.exception("ELOR skipped: its forecast failed; nothing appended to its log")
-        _predict_eloc(live.games, live.season, comp, window_hours)
+        _predict_eloc(live.games, live.season, comp, round_lead_hours)
         _predict_pool(comp.pool_prediction_log)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
@@ -495,6 +500,21 @@ def injuries(
         f" (page updated {summary.get('page_updated_utc') or '?'}); log {paths.log}; "
         f"unmapped teams: {', '.join(summary['unmapped']) or 'none'}"
     )
+
+
+def first_tipoff(
+    today: Annotated[
+        bool, typer.Option("--today", help="Today's games, by UTC date (required).")
+    ] = False,
+) -> None:
+    """Print the UTC tip-off (ISO 8601, Z) of today's first confirmed, unplayed EuroLeague game;
+    print nothing when there is none. Reads the games mart only: no network, no writes."""
+    if not today:
+        log.error("first-tipoff: pass --today")
+        raise typer.Exit(code=2)
+    found = first_tipoff_on(read_games(MART_PATH, EUROLEAGUE.name), utc_now().date())
+    if found is not None:
+        typer.echo(found.strftime("%Y-%m-%dT%H:%M:%SZ"))
 
 
 def simulate(

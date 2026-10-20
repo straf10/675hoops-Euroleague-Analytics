@@ -126,16 +126,17 @@ def predict_upcoming_elor(
     *,
     log_path: Path,
     season: int,
-    window: timedelta,
+    round_lead: timedelta,
     clock: Callable[[], datetime],
 ) -> int:
-    """Like the M5 predictor: confirmed, unplayed ``season`` games within ``window`` that are not
-    logged at this model version yet. ``build`` is called only when there is something to log."""
+    """Like the M5 predictor: confirmed, unplayed ``season`` games of rounds starting within
+    ``round_lead`` that are not logged at this model version yet. ``build`` is called only when
+    there is something to log."""
     if not model.passed:
         log.info("ELOR did not pass its shadow criteria: not logged")
         return 0
     now = clock()
-    upcoming = upcoming_games(games, season, now, window)
+    upcoming = upcoming_games(games, season, now, round_lead)
     logged = logged_keys(log_path)
     fresh = np.array([(str(g), model.version) not in logged for g in games["game_id"]], dtype=bool)
     wanted = games[upcoming & fresh]

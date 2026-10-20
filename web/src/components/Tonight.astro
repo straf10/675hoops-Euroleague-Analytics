@@ -9,7 +9,7 @@ interface Props {
 const { comp } = Astro.props;
 const games = comp.upcoming;
 const days = [...new Set(games.map((g) => athensDay(g.tipoff_utc)))];
-const rounds = [...new Set(games.map((g) => g.round))];
+const rounds = [...new Set(games.map((g) => g.round))].sort((a, b) => a - b);
 ---
 
 <section class="tonight" data-comp={comp.key} aria-labelledby={`tn-${comp.key}`}>

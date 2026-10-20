@@ -1,5 +1,5 @@
-// Round cards: /cards/round-{n}.png (the next round's preview) and /cards/round-{n}-recap.png (each
-// finished round), each with a dark twin at /cards/round-{n}-dark.png and /cards/round-{n}-recap-dark.png.
+// Round cards: /cards/round-{n}.png (each open round, with the results so far) and /cards/round-{n}-recap.png
+// (each finished round), each with a dark twin at /cards/round-{n}-dark.png and /cards/round-{n}-recap-dark.png.
 // Built from site.json at build time; see src/lib/cards/.
 import type { APIRoute, GetStaticPaths } from "astro";
 import { cardPng, prerender } from "../../lib/cards/render";
