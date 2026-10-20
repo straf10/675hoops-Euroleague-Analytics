@@ -3,12 +3,12 @@
   "seasons": {
     "2018": {
       "games": 203,
-      "passed": 129,
-      "pass_rate": 0.6355,
+      "passed": 132,
+      "pass_rate": 0.6502,
       "failures_by_reason": {
         "missing_box": 52,
         "points_mismatch": 15,
-        "minutes_off": 74,
+        "minutes_off": 71,
         "bad_shot_lines": 0,
         "bad_point_lines": 0
       },
@@ -145,9 +145,6 @@
           "missing_box",
           "minutes_off"
         ],
-        "GBL2018_881B09EE": [
-          "minutes_off"
-        ],
         "GBL2018_8BBF8FB3": [
           "missing_box",
           "minutes_off"
@@ -195,9 +192,6 @@
           "missing_box",
           "minutes_off"
         ],
-        "GBL2018_BB493BCA": [
-          "minutes_off"
-        ],
         "GBL2018_BFB9D0EC": [
           "missing_box",
           "minutes_off"
@@ -239,9 +233,6 @@
           "minutes_off"
         ],
         "GBL2018_D8B18581": [
-          "minutes_off"
-        ],
-        "GBL2018_D989D3EB": [
           "minutes_off"
         ],
         "GBL2018_D9C9CDF1": [

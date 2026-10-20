@@ -1,0 +1,2 @@
+game_id,season,round,phase,tipoff_utc,home,away,p_home,exp_margin,model,model_version,predicted_at_utc
+E2026_61,2026,7,RS,2026-10-21T16:00:00Z,HTA,VIR,0.7632,8.38,pool,0.2.0+pool.6cc913ef,2026-10-20T07:12:23Z
