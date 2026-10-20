@@ -2,8 +2,7 @@
 
 Remove an entry as soon as the pipeline uses the name.
 - standings.py: season simulator, PLAN §5.8
-- config.py GBL_STINTS_REPORT and M3Grid.dummy_minutes: read by later M3 deliverables
-  (H6 dummy variant), not H1.
+- the rest are names only tests or scripts/data_audit.py use today (vulture cannot see them).
 """
 
 from eurohoops.standings import Format
