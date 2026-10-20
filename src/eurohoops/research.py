@@ -45,39 +45,8 @@ from eurohoops.config import (
     PLAYER_XWALK_FILE,
     SHOTS_REPORT,
 )
-from eurohoops.entity.pipeline import (
-    draft_labels,
-    label_metrics,
-    read_overrides,
-    run_entity,
-    silver_metrics,
-    silver_set,
-    tune,
-)
-from eurohoops.eval.m2_backtest import run_m2_backtest
-from eurohoops.eval.m2_backtest import search as m2_search
-from eurohoops.eval.m3_backtest import TunedRapm, build_rapm_inputs, prepare_data
-from eurohoops.eval.m3_players import season_end_players
-from eurohoops.eval.m4_backtest import net_offset, run_m4_backtest
-from eurohoops.eval.m5_rest import rest_report
-from eurohoops.eval.shot_making import player_report
-from eurohoops.eval.team_shot_quality import shots_with_xpts, team_report
-from eurohoops.eval.team_shot_quality import team_games as team_shot_games
-from eurohoops.eval.tracking import log_m2_backtest
-from eurohoops.ingest.bios import build_bios
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table, write_tables
-from eurohoops.models.player_seasons import xwalk_file
-from eurohoops.models.translation_pairs import build_pairs, season_rates, team_net
-from eurohoops.parse.free_throws import LEVEL_CHECK, build_ft_team_games, ft_report
-from eurohoops.parse.games import write_table
-from eurohoops.parse.gbl_box_lines import build_gbl_player_games
-from eurohoops.parse.gbl_stints import H_I_THRESHOLD, build_gbl_stints_mart
-from eurohoops.parse.gbl_stints import mart_report as gbl_stints_report
-from eurohoops.parse.player_names import euroleague_names, gbl_names
-from eurohoops.parse.shot_table import build_shot_table, reconcile, shot_report
-from eurohoops.publish import DISPLAY_CODES
-from eurohoops.stats.box import build_box_games
 
 log = logging.getLogger("eurohoops")
 
@@ -87,6 +56,8 @@ def shots() -> None:
     write reports/shots.json: exclusions per season and the feed-vs-box reconciliation.
 
     Local only, like ``possessions``: the daily workflow never runs it (M2 has no live use)."""
+    from eurohoops.parse.shot_table import build_shot_table, reconcile, shot_report  # noqa: PLC0415
+
     games = read_games(MART_PATH, EUROLEAGUE.name)
     table = build_shot_table(EUROLEAGUE.raw_dir, games)
     write_tables(
@@ -105,6 +76,12 @@ def shots() -> None:
 def free_throws() -> None:
     """Build ``ft_team_games`` (FT trips and points per team-game from EuroLeague play-by-play,
     and-ones tied to their shot) and write reports/free_throws.json (needs ``eurohoops shots``)."""
+    from eurohoops.parse.free_throws import (  # noqa: PLC0415
+        LEVEL_CHECK,
+        build_ft_team_games,
+        ft_report,
+    )
+
     shots_table = read_table(MART_PATH, "shots")
     excluded = read_table(MART_PATH, "shots_excluded")
     if shots_table is None or excluded is None:
@@ -138,6 +115,10 @@ def free_throws() -> None:
 
 def backtest_m2(score_test: bool, search_first: bool, tracking_uri: str) -> None:
     """M2 (EuroLeague only): the declared variants, the gate, and ``shot_xpts`` in the marts."""
+    from eurohoops.eval.m2_backtest import run_m2_backtest  # noqa: PLC0415
+    from eurohoops.eval.m2_backtest import search as m2_search  # noqa: PLC0415
+    from eurohoops.eval.tracking import log_m2_backtest  # noqa: PLC0415
+
     shots_table = read_table(MART_PATH, "shots")
     if shots_table is None:
         log.error("no shots in the marts; run: eurohoops shots")
@@ -181,6 +162,15 @@ def shot_quality() -> None:
     """Team shot quality (F6: mart ``team_shot_quality``, reports/m2_teams.json) and player
     shot-making with its stability verdict (F7: reports/m2_players.json), from the out-of-fold
     xPTS of the last ``backtest --model m2`` (``shot_xpts``)."""
+    from eurohoops.eval.shot_making import player_report  # noqa: PLC0415
+    from eurohoops.eval.team_shot_quality import (  # noqa: PLC0415
+        shots_with_xpts,
+        team_report,
+    )
+    from eurohoops.eval.team_shot_quality import (  # noqa: PLC0415
+        team_games as team_shot_games,
+    )
+
     tables = {
         n: read_table(MART_PATH, n) for n in ("shots", "shot_xpts", "ft_team_games", "shooters")
     }
@@ -233,6 +223,14 @@ def shot_quality() -> None:
 
 def m3_players() -> None:
     """Per-player-season RAPM ratings and uncertainty at each season's last-round cutoff (H7)."""
+    from eurohoops.eval.m3_backtest import (  # noqa: PLC0415
+        TunedRapm,
+        build_rapm_inputs,
+        prepare_data,
+    )
+    from eurohoops.eval.m3_players import season_end_players  # noqa: PLC0415
+    from eurohoops.stats.box import build_box_games  # noqa: PLC0415
+
     if not M3.report.is_file():
         log.error("missing %s; run: eurohoops backtest --model m3", M3.report)
         raise typer.Exit(code=1)
@@ -288,6 +286,8 @@ def m3_players() -> None:
 def m5_rest() -> None:
     """Rest beyond M5 (week 14-16 J7): residual on rest differences, rest-day distribution and
     the Greek clubs' two-competition weeks, from the committed per-game M5 predictions."""
+    from eurohoops.eval.m5_rest import rest_report  # noqa: PLC0415
+
     missing = [p for p in (M5.games_report, M5_GBL.games_report) if not p.is_file()]
     if missing:
         log.error("missing %s; run: eurohoops backtest --model m5 (both competitions)", missing)
@@ -313,6 +313,8 @@ def shot_charts() -> None:
     """Static M2 shot charts (F8) in docs/models/m2/ for the validation season: the league xPTS
     surface, and actual minus expected for the declared teams and the top-FGA players."""
     from eurohoops.eval.shot_charts import residual_chart, xpts_surface  # noqa: PLC0415
+    from eurohoops.eval.team_shot_quality import shots_with_xpts  # noqa: PLC0415
+    from eurohoops.publish import DISPLAY_CODES  # noqa: PLC0415
 
     tables = {n: read_table(MART_PATH, n) for n in ("shots", "shot_xpts", "shooters")}
     if any(t is None for t in tables.values()):
@@ -364,6 +366,21 @@ def entity(
     instead; ``--draft-labels`` writes the label sheet. Local only: reads the marts, the raw
     cache and the cached bios (``ingest-bios``).
     """
+    from eurohoops.entity.pipeline import (  # noqa: PLC0415
+        draft_labels,
+        label_metrics,
+        read_overrides,
+        run_entity,
+        silver_metrics,
+        silver_set,
+        tune,
+    )
+    from eurohoops.ingest.bios import build_bios  # noqa: PLC0415
+    from eurohoops.models.player_seasons import xwalk_file  # noqa: PLC0415
+    from eurohoops.parse.games import write_table  # noqa: PLC0415
+    from eurohoops.parse.player_names import euroleague_names, gbl_names  # noqa: PLC0415
+    from eurohoops.stats.box import build_box_games  # noqa: PLC0415
+
     start = time.monotonic()
     player_box = pd.read_parquet(GBL_PLAYER_BOX)
     player_box = player_box[player_box["game_id"].str.slice(3, 7).astype(int).isin(ENTITY_SEASONS)]
@@ -421,6 +438,15 @@ def backtest_m4(*, score_test: bool, tuning_only: bool) -> None:
     reports/m4_translation.json. Needs ``eurohoops entity`` first. Reads ``player_xwalk_frozen``
     (the crosswalk without the overrides added from the owner's labels), so the pre-registered
     M4 scores do not move when labels fix the matcher's misses."""
+    from eurohoops.eval.m4_backtest import net_offset, run_m4_backtest  # noqa: PLC0415
+    from eurohoops.models.translation_pairs import (  # noqa: PLC0415
+        build_pairs,
+        season_rates,
+        team_net,
+    )
+    from eurohoops.parse.gbl_box_lines import build_gbl_player_games  # noqa: PLC0415
+    from eurohoops.stats.box import build_box_games  # noqa: PLC0415
+
     start = time.monotonic()
     xwalk = read_table(MART_PATH, "player_xwalk_frozen")
     team_games = read_table(MART_PATH, "team_games")
@@ -482,6 +508,14 @@ def gbl_stints() -> None:
     Play-by-play is cached for 2018 and 2019 only (D4, reports/week9-12_progress.md), so only
     those seasons get stints; GBL RAPM (H-i) is attempted only if the H-i rule holds.
     """
+    from eurohoops.parse.gbl_stints import (  # noqa: PLC0415
+        H_I_THRESHOLD,
+        build_gbl_stints_mart,
+    )
+    from eurohoops.parse.gbl_stints import (  # noqa: PLC0415
+        mart_report as gbl_stints_report,
+    )
+
     if not GBL_PBP.exists():
         log.error("no staged GBL play-by-play; run: eurohoops ingest --competition gbl --pbp")
         raise typer.Exit(code=1)
