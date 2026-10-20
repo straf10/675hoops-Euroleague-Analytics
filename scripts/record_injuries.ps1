@@ -12,10 +12,11 @@ $UtcNow = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
 $logged = $false
 $rows = 0
 $stage = "recover"
+$refreshTag = ""
 
 function Write-Attempt([string]$Status, [int]$Rows, [string]$Sha) {
     $script:logged = $true
-    $line = "$UtcNow`t$Status`t$Rows`t$Sha"
+    $line = "$UtcNow`t$Status$script:refreshTag`t$Rows`t$Sha"
     if ($WhatIf) {
         Write-Host "[WhatIf] append attempt log: $line"
         return
@@ -76,10 +77,18 @@ try {
         (Get-Item $Mart).LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7)
     )
     if ($martStale) {
-        $stage = "ingest"
-        Invoke-Step "ingest --current-only" { uv run --no-dev eurohoops ingest --current-only }
-        $stage = "build"
-        Invoke-Step "build" { uv run --no-dev eurohoops build }
+        # A failed refresh is not fatal when a mart exists: record the injuries from the old one.
+        try {
+            $stage = "ingest"
+            Invoke-Step "ingest --current-only" { uv run --no-dev eurohoops ingest --current-only }
+            $stage = "build"
+            Invoke-Step "build" { uv run --no-dev eurohoops build }
+        }
+        catch {
+            if (-not (Test-Path $Mart)) { throw }
+            Write-Warning "stale-mart refresh failed at ${stage}: $($_.Exception.Message); using the existing mart"
+            $refreshTag = "+refresh_$($stage)_failed"
+        }
     }
 
     if ($WhatIf) {

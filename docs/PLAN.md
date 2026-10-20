@@ -53,7 +53,7 @@ The differentiators vs. the typical portfolio project, in priority order:
 
 ### 1.4 Not usable / out of scope
 - Tracking data (SportVU-style) — not public for Europe → no EPV (Cervone et al. 2016) or defensive-tracking models.
-- Pre-game injury/availability feeds — none public → affects the game predictor design (§5.6).
+- Pre-game injury/availability feeds — no official feed. BasketNews injury reports have been recorded from the owner's PC since 2026-10-07 but are not yet used by any model → affects the game predictor design (§5.6).
 
 ---
 
@@ -208,7 +208,7 @@ EuroHoops-Analytics/
 
 ### 5.6 M5 — Game predictor v2 (roster-aware)
 - Team strength = Σ(projected minutes × player rating) + team residual (coaching/system) + home + rest/travel (days since last game, back-to-backs with EL midweek + GBL weekend — **very relevant for Olympiacos/Panathinaikos**).
-- Availability: no injury feed → **two variants reported honestly**: (a) *projected roster* (from recent rotations; legit for live), (b) *oracle roster* (who actually played; upper bound, clearly labelled, never used for the live log).
+- Availability: no injury feed used yet (BasketNews snapshots recorded from the owner's PC since 2026-10-07, not yet used by any model) → **two variants reported honestly**: (a) *projected roster* (from recent rotations; legit for live), (b) *oracle roster* (who actually played; upper bound, clearly labelled, never used for the live log).
 - Stack/blend with M1 and Elo; pick by log loss on validation; recalibrate.
 - Outputs: P(win), expected margin (spread), expected total with distribution → over/under probabilities for any line.
 

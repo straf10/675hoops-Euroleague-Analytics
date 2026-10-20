@@ -68,9 +68,12 @@ def test_share_pages_exist_and_are_noindex() -> None:
     cards = WEB / "pages" / "cards"
     player = (cards / "players" / "[slug]" / "index.astro").read_text(encoding="utf-8")
     rnd = (cards / "round-[n]" / "index.astro").read_text(encoding="utf-8")
+    figure = (WEB / "components" / "CardFigure.astro").read_text(encoding="utf-8")
     for text in (player, rnd):
         assert "noindex" in text
-        assert ".png" in text and "download" in text
+        assert "CardFigure" in text
+    # The shared figure shows the PNG (light, or its dark twin) and offers it for download.
+    assert ".png" in figure and "-dark.png" in figure and "download" in figure
     assert "roundCardNames" in rnd
     assert "currentPlayers" in player
     assert "noindex" in BASE.read_text(encoding="utf-8")

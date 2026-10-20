@@ -1,35 +1,42 @@
 // Rendering the cards in parallel. Astro renders an endpoint's paths one at a time, and one 1080 x 1350
 // card takes a quarter of a second to rasterise and encode, so each route's getStaticPaths prerenders
 // its cards a few at a time (`prerender`) and the GET handler then reads the same memo (`cardPng`).
-// The memo lives for one build process, so every card is rendered once.
+// The memo lives for one build process, so every card is rendered once per theme.
 
 import { png } from "./draw";
+import { recolour, type Theme } from "./theme";
 
 /** How many cards are rasterised at once. */
 const LANES = 6;
 
+/** A card's SVG in the light palette, or null for no such card. */
+export type CardSvg = () => string | null | Promise<string | null>;
+
 const memo = new Map<string, Promise<Uint8Array | null>>();
 
-/** The PNG for a card key, rendered once. `svg` gives the card's SVG, or null for no such card. */
-export function cardPng(key: string, svg: () => string | null | Promise<string | null>): Promise<Uint8Array | null> {
-  let done = memo.get(key);
+/** The PNG for a card key in a theme, rendered once. */
+export function cardPng(key: string, svg: CardSvg, theme: Theme = "light"): Promise<Uint8Array | null> {
+  const id = `${theme}/${key}`;
+  let done = memo.get(id);
   if (!done) {
     done = Promise.resolve()
       .then(svg)
-      .then((s) => (s === null ? null : png(s)));
-    memo.set(key, done);
+      .then((s) => (s === null ? null : png(recolour(s, theme))));
+    memo.set(id, done);
   }
   return done;
 }
 
-/** Renders the given cards, LANES at a time. */
-export async function prerender(jobs: { key: string; svg: () => string | null | Promise<string | null> }[]): Promise<void> {
+/** Renders the given cards in both themes, LANES at a time. Each job's card is `key`, and its dark
+ * version is rendered beside it. */
+export async function prerender(jobs: { key: string; svg: CardSvg }[]): Promise<void> {
+  const tasks = jobs.flatMap((job) => (["light", "dark"] as const).map((theme) => ({ ...job, theme })));
   let next = 0;
   const lane = async () => {
-    while (next < jobs.length) {
-      const job = jobs[next++];
-      await cardPng(job.key, job.svg);
+    while (next < tasks.length) {
+      const job = tasks[next++];
+      await cardPng(job.key, job.svg, job.theme);
     }
   };
-  await Promise.all(Array.from({ length: Math.min(LANES, jobs.length) }, lane));
+  await Promise.all(Array.from({ length: Math.min(LANES, tasks.length) }, lane));
 }

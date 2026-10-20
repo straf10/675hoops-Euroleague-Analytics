@@ -1,11 +1,13 @@
 import gzip
 import json
+import logging
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from eurohoops.config import (
+    EUROLEAGUE,
     GBL,
     GBL_BOX_FILL,
     GBL_PLAYER_BOX,
@@ -44,6 +46,21 @@ def test_marts_round_trip_both_competitions() -> None:
     pd.testing.assert_frame_equal(read_games(MART_PATH, "euroleague"), euroleague)
     pd.testing.assert_frame_equal(read_games(MART_PATH, "gbl"), gbl)
     assert read_teams(MART_PATH, "gbl").equals(teams_table(gbl))
+
+
+@pytest.mark.usefixtures("workdir")
+def test_marts_build_with_euroleague_staging_only(caplog: pytest.LogCaptureFixture) -> None:
+    euroleague = make_games({2024: True, 2025: False})
+    write_table(euroleague, EUROLEAGUE.staging_games)
+    write_table(teams_table(euroleague), EUROLEAGUE.staging_teams)
+    assert not GBL.staging_games.exists()
+    with caplog.at_level(logging.WARNING, logger="eurohoops.marts"):
+        assert build_marts(MART_PATH, REPO / SQL_DIR) is False
+    assert "GBL staging files missing" in caplog.text
+    pd.testing.assert_frame_equal(read_games(MART_PATH, "euroleague"), euroleague)
+    assert read_games(MART_PATH, "gbl").empty
+    assert read_teams(MART_PATH, "euroleague").equals(teams_table(euroleague))
+    assert read_teams(MART_PATH, "gbl").empty
 
 
 @pytest.mark.usefixtures("workdir", "no_sleep")

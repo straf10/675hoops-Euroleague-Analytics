@@ -266,20 +266,30 @@ interface CoachMetric {
   read: (r: CoachSeasonRow) => Measure;
 }
 
-export type SectionKey = "expected" | "advanced" | "rotation";
+export type SectionKey = "box" | "advanced";
 
-/** The metric sections: the core columns are always shown; a section adds its own after them. */
+/** The column sets: each lists its own metrics in table order, and no metric sits in both (the coach
+ *  and club identify the row in either). Box score: the record and expectation. Advanced: after timeout,
+ *  clutch, challenges and rotation. */
 export const SECTIONS: { key: SectionKey; label: string; keys: string[] }[] = [
-  { key: "expected", label: "Expected", keys: ["expected_wins", "wins_above_expectation", "placement"] },
+  {
+    key: "box",
+    label: "Box score",
+    keys: ["games", "wins", "losses", "win_pct", "expected_wins", "wins_above_expectation", "placement"],
+  },
   {
     key: "advanced",
     label: "Advanced",
-    keys: ["ato", "clutch_pct", "clutch_games", "challenges", "clutch_challenges"],
+    keys: ["ato", "clutch_pct", "clutch_games", "challenges", "clutch_challenges", "players", "top7"],
   },
-  { key: "rotation", label: "Rotation", keys: ["players", "top7"] },
 ];
 
-export const CORE_KEYS = ["games", "wins", "losses", "win_pct"];
+/** Section keys from before the column sets were renamed, so an old link still opens a set:
+ *  "expected" is the box score, "rotation" the advanced set (its columns are now there). */
+const LEGACY_SECTIONS = new Map<string, SectionKey>([
+  ["expected", "box"],
+  ["rotation", "advanced"],
+]);
 
 /** Every sortable column. */
 export const COACH_METRICS: CoachMetric[] = [
@@ -400,18 +410,22 @@ export const COACH_METRICS: CoachMetric[] = [
   },
 ];
 
-export const DEFAULT_SECTION: SectionKey = "expected";
+export const DEFAULT_SECTION: SectionKey = "box";
 export const DEFAULT_METRIC = "games";
 
 export const metricOf = (key: string): CoachMetric | undefined =>
   COACH_METRICS.find((m) => m.key === key);
 
-/** The sortable columns a section shows, in table order: the core columns, then its own. */
+/** The sortable columns a column set shows, in table order. Placement is left out for the season in progress. */
 export function columnKeys(section: SectionKey, placement = true): string[] {
-  const own = (SECTIONS.find((s) => s.key === section)?.keys ?? []).filter(
+  return (SECTIONS.find((s) => s.key === section)?.keys ?? []).filter(
     (key) => placement || key !== "placement",
   );
-  return [...CORE_KEYS, ...own];
+}
+
+/** The column a set sorts by until the reader picks another: its first column. */
+export function firstColumn(section: SectionKey): string {
+  return SECTIONS.find((s) => s.key === section)?.keys[0] ?? DEFAULT_METRIC;
 }
 
 /** A season row on the list, with its link. */
@@ -460,27 +474,25 @@ export interface CoachView {
 export function switchSection(view: CoachView, section: SectionKey, placement = true): CoachView {
   const keys = columnKeys(section, placement);
   if (keys.includes(view.metric)) return { ...view, section };
-  const first = SECTIONS.find((s) => s.key === section)?.keys[0] ?? DEFAULT_METRIC;
-  return { ...view, section, metric: first, dir: "desc" };
+  return { ...view, section, metric: firstColumn(section), dir: "desc" };
 }
 
 /** Changing season keeps the sort column when the new season shows it, else the section's first. */
 export function switchSeason(view: CoachView, season: number, openSeason: number): CoachView {
   const next = { ...view, season };
   if (columnKeys(view.section, placementShown(season, openSeason)).includes(view.metric)) return next;
-  const first = SECTIONS.find((s) => s.key === view.section)?.keys[0] ?? DEFAULT_METRIC;
-  return { ...next, metric: first, dir: "desc" };
+  return { ...next, metric: firstColumn(view.section), dir: "desc" };
 }
 
-/** Unknown or missing values fall back to the defaults: the fallback season, the first section,
- *  games, most first. A season must be one of `seasons`. */
+/** Unknown or missing values fall back to the defaults: the fallback season, the box score, games, most
+ *  first. A season must be one of `seasons`. A column the set does not show falls back to its first. */
 export function coachViewFromQuery(search: string, seasons: number[], fallbackSeason: number): CoachView {
   const p = new URLSearchParams(search);
   const asked = Number(p.get("season"));
-  const sectionAsked = p.get("section");
+  const sectionAsked = p.get("section") ?? "";
   const section = SECTIONS.some((s) => s.key === sectionAsked)
     ? (sectionAsked as SectionKey)
-    : DEFAULT_SECTION;
+    : (LEGACY_SECTIONS.get(sectionAsked) ?? DEFAULT_SECTION);
   const metric = p.get("metric") ?? "";
   const sort = p.get("sort");
   const season = seasons.includes(asked) ? asked : fallbackSeason;
@@ -489,7 +501,7 @@ export function coachViewFromQuery(search: string, seasons: number[], fallbackSe
     section,
     metric: columnKeys(section, placementShown(season, fallbackSeason)).includes(metric)
       ? metric
-      : DEFAULT_METRIC,
+      : firstColumn(section),
     dir: sort === "asc" ? "asc" : "desc",
   };
 }
