@@ -1,0 +1,84 @@
+name: deploy-site
+
+# Rebuilds and deploys the site from the current main, without the prediction pipeline. It reuses
+# the site data (site-data artifact) of the newest daily-predictions run, so front-end changes
+# go live in minutes. Changes to the exported data itself (publish, export-stats) still need a
+# daily-predictions run.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  build-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      # Newest unexpired site-data artifact (only daily-predictions uploads one; kept 7 days).
+      - name: Find the latest site data
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          run_id=$(gh api "repos/$REPO/actions/artifacts?name=site-data&per_page=20" \
+            -q '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::no unexpired site-data artifact; run daily-predictions instead"
+            exit 1
+          fi
+          echo "Using site data from run $run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      # the artifact's root is the paths' common ancestor, web/: it holds src/data/ and public/api/
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-data
+          path: web
+          run-id: ${{ steps.find.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build the site (Astro, into site/)
+        working-directory: web
+        env:
+          # Public by design (it ships in the browser bundle). Unset means Sentry stays off.
+          PUBLIC_SENTRY_DSN: ${{ secrets.PUBLIC_SENTRY_DSN }}
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+          retention-days: 1
+
+  # Same as daily-predictions' deploy-page: the only job with Cloudflare credentials; it runs no
+  # repo code, only the downloaded artifact and a pinned wrangler.
+  deploy-page:
+    needs: build-site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.149.0"
+          command: deploy --assets site --name 675hoops --compatibility-date 2026-10-01

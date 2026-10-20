@@ -155,7 +155,7 @@ jobs:
             web/public/api/
             web/public/downloads/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
       # main may have moved during the run: replay the run's commit on top of it. A conflict (an
       # append-only log changed on both sides) is never resolved here: abort, fail, merge by hand.
       - name: Commit predictions and reports if changed
