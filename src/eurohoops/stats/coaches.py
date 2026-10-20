@@ -9,7 +9,9 @@ Seasons: ``coaches/seasons.json`` has one row per coach and season, with the clu
 merged (in order of first game), the season's figures, playoff flags for that season (0 or 1 each)
 and the season's style block (stats/coach_style.py) when styles are given.
 Playoffs: a season counts as a playoff season for a coach with a PO or FF game in it, a Final Four
-season with an FF game, and a title for the coach of the Final Four champion (``final_winners``).
+season with an FF game, a title for the coach of the Final Four champion (``final_winners``), a
+runner-up season for the coach of the other side of that final, and a play-in season for a coach
+with a PI game in it (the team lost there when it made no playoffs).
 """
 
 import json
@@ -164,20 +166,26 @@ def _count(rows: pd.DataFrame) -> dict[str, Any]:
 
 
 def _playoffs(rows: pd.DataFrame) -> dict[str, int]:
-    """Seasons with a playoff game, with a Final Four game and with the Final Four title."""
+    """Seasons with a playoff game, a Final Four game, the Final Four title, a lost Final Four
+    final (``runner_up``) and a play-in game."""
     by_season = pd.DataFrame(
         {
             "season": rows["season"],
             "playoffs": rows["phase"].isin(PLAYOFF_PHASES),
             "final_four": rows["phase"] == "FF",
             "title": rows["champion"],
+            # the final is marked on both sides; the side that did not win it lost it
+            "runner_up": rows["final"] & ~rows["champion"],
+            "play_in": rows["phase"] == "PI",
         }
     ).groupby("season")
-    seasons = by_season[["playoffs", "final_four", "title"]].any()
+    seasons = by_season[["playoffs", "final_four", "title", "runner_up", "play_in"]].any()
     return {
         "seasons": int(seasons["playoffs"].sum()),
         "final_four": int(seasons["final_four"].sum()),
         "titles": int(seasons["title"].sum()),
+        "runner_ups": int(seasons["runner_up"].sum()),
+        "play_ins": int(seasons["play_in"].sum()),
     }
 
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { lines, PAIR_SIZE, range, sortLines, UNIT_SIZE, type LineupRow } from "./lineups.ts";
+import { lines, minimumNote, PAIR_SIZE, range, sortLines, UNIT_SIZE, type LineupRow } from "./lineups.ts";
 
 const pair: LineupRow = ["P1", "P2", 120.5, 210, 250, 230, 8.6, 13.1];
 const unit: LineupRow = ["A", "B", "C", "D", "E", 55, 90, 80, 95, -16.7, 21.4];
@@ -68,4 +68,10 @@ test("sorting does not change the input", () => {
     list.map((l) => l.ids[0]),
     before
   );
+});
+
+test("the table notes state the season's minimum minutes", () => {
+  const minimums = { pair: 100, unit: 50 };
+  assert.equal(minimumNote("duos", minimums), "Duos with at least 100 minutes on court together.");
+  assert.equal(minimumNote("units", minimums), "Units with at least 50 minutes on court together.");
 });

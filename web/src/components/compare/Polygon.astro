@@ -75,6 +75,7 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
 
 <script>
   import { AXES, PRESETS, describeProfile, poolUrl, profile, profileSvg, toggleAxis, MIN_AXES, MAX_AXES, type Profile, type RawPlayer } from "../../lib/polygon";
+  import { labels } from "../../lib/passing";
 
   type Raw = {
     fields: string[];
@@ -163,20 +164,22 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
         status.textContent = missing.length
           ? `No percentile pool for ${[...new Set(missing.map((p) => (career ? "the career pool" : seasonName(p.season))))].join(", ")}, so ${missing.map((p) => p.name).join(", ")} ${missing.length === 1 ? "is" : "are"} not drawn.`
           : "";
+        // The key: a dot in the shape's series token, then the short name (surname, or initial and surname where
+        // two drawn players share one, as the passing chart labels them) and the season. The full name and season
+        // are the entry's tooltip.
+        const short = labels(shapes.map((s) => s.name));
         list.replaceChildren(
-          ...shapes.map((s) => {
+          ...shapes.map((s, i) => {
             const li = document.createElement("li");
+            li.title = `${s.name} ${s.season}`;
             const sw = document.createElement("i");
             sw.className = "swatch";
             sw.style.background = `var(--series-${s.slot})`;
             sw.setAttribute("aria-hidden", "true");
-            const name = document.createElement("span");
-            name.className = "series-name";
-            name.textContent = s.name;
-            const season = document.createElement("span");
-            season.className = "series-season";
-            season.textContent = s.season;
-            li.append(sw, name, " ", season); // the space is not drawn in the flex row, but a reader hears it
+            const label = document.createElement("span");
+            label.className = "series-name";
+            label.textContent = `${short[i]} ${s.season}`;
+            li.append(sw, label);
             return li;
           }),
         );
@@ -325,40 +328,6 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
   .profile-figure :global(.axis-label) {
     fill: var(--ink-2);
     font-size: 11px;
-  }
-  .profile-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border-top: 1px solid var(--rule);
-  }
-  /* The key: one row per player-season, its series colour in a swatch beside the name (ink, never coloured). */
-  .profile-list li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 2px 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--rule);
-    color: var(--ink);
-    font-size: 0.875rem;
-  }
-  .swatch {
-    flex: none;
-    align-self: center;
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-  }
-  .series-name {
-    font-weight: 600;
-    overflow-wrap: anywhere;
-  }
-  .series-season {
-    color: var(--ink-2);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.8125rem;
   }
   .profile-status {
     margin: 8px 0 0;

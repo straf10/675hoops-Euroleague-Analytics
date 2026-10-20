@@ -23,7 +23,7 @@ const { comp } = Astro.props;
 const fc = comp.forecasts;
 // The page leads with one model, named only by `forecasts.published`.
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
-const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
+const label = fc?.models.find((m) => m.key === model)?.label ?? "Our model";
 const season = fc?.season.find((r) => r.model === model);
 const ours: Headline | null = season
   ? {

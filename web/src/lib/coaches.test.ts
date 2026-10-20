@@ -11,11 +11,12 @@ import {
   coachViewFromQuery,
   coachViewToQuery,
   columnKeys,
-  finishOf,
   formatMeasure,
   metricOf,
   namedSeasons,
   normaliseName,
+  placementOf,
+  placementShown,
   rate,
   searchCoaches,
   seasonLabel,
@@ -26,6 +27,7 @@ import {
   signed,
   sortCoaches,
   switchSection,
+  switchSeason,
   winPct,
   type CoachRow,
   type CoachSeasonRow,
@@ -42,7 +44,7 @@ const style = (over: {
   rotationGames?: number;
   challengeGames?: number;
   perGame?: number | null;
-  late?: number | null;
+  clutch?: number;
 }): CoachStyle => ({
   ato: { possessions: over.possessions ?? 100, points: 0, ppp: over.ppp === undefined ? 1 : over.ppp, league_ppp: 1.05 },
   clutch: {
@@ -66,9 +68,10 @@ const style = (over: {
           from_season: 2021,
           games: over.challengeGames,
           per_game: over.perGame ?? 0.4,
-          late_share: over.late ?? 0.5,
           league_per_game: 0.36,
-          league_late_share: 0.45,
+          clutch: over.clutch ?? 0,
+          clutch_per_clutch_game: 0.1,
+          league_clutch_per_clutch_game: 0.12,
         },
 });
 
@@ -101,7 +104,19 @@ test("the sections name every non-core column exactly once", () => {
   assert.equal(new Set(own).size, own.length);
   const all = COACH_METRICS.map((m) => m.key).filter((k) => !CORE_KEYS.includes(k));
   assert.deepEqual([...own].sort(), [...all].sort());
-  assert.deepEqual(columnKeys("expected"), [...CORE_KEYS, "expected_wins", "wins_above_expectation"]);
+  assert.deepEqual(columnKeys("expected"), [...CORE_KEYS, "expected_wins", "wins_above_expectation", "placement"]);
+  assert.deepEqual(columnKeys("advanced"), [
+    ...CORE_KEYS,
+    "ato",
+    "clutch_pct",
+    "clutch_games",
+    "challenges",
+    "clutch_challenges",
+  ]);
+  assert.deepEqual(
+    SECTIONS.map((s) => s.label),
+    ["Expected", "Advanced", "Rotation"],
+  );
 });
 
 test("season minimums: win % from 5 games, after timeout from 25 possessions, clutch from 5 games", () => {
@@ -119,13 +134,21 @@ test("season minimums: win % from 5 games, after timeout from 25 possessions, cl
   assert.equal(metric("clutch_pct").read(clutchRow(5)).thin, false);
 });
 
-test("rotation and challenges need 5 games in the season", () => {
+test("rotation and challenges per game need 5 games in the season", () => {
   const rot = (games: number) => row({ name: "R", style: style({ rotationGames: games }) });
   assert.equal(metric("players").read(rot(4)).thin, true);
   assert.equal(metric("top7").read(rot(5)).thin, false);
-  const ch = (games: number) => row({ name: "H", style: style({ challengeGames: games }) });
+  const ch = (games: number) => row({ name: "H", style: style({ challengeGames: games, clutch: 3 }) });
   assert.equal(metric("challenges").read(ch(4)).thin, true);
-  assert.equal(metric("late").read(ch(5)).thin, false);
+  assert.equal(metric("challenges").read(ch(5)).thin, false);
+});
+
+test("clutch challenges are a count of the season's clutch-window challenges, a dash without a record", () => {
+  const ch = row({ name: "H", style: style({ challengeGames: 5, clutch: 3 }) });
+  assert.deepEqual(metric("clutch_challenges").read(ch), { value: 3, thin: false });
+  assert.equal(formatMeasure(metric("clutch_challenges").read(ch), "int"), "3");
+  const none = row({ name: "N", style: style({}) });
+  assert.equal(formatMeasure(metric("clutch_challenges").read(none), "int"), "-");
 });
 
 test("a thin figure goes last whichever way the sort runs", () => {
@@ -149,29 +172,62 @@ test("ties keep the order the rows came in", () => {
   assert.deepEqual(sortCoaches(rows, "games", "desc").map((r) => r.name), ["C", "B", "A"]);
 });
 
-test("the finish is the furthest stage, and sorts champion first", () => {
-  assert.equal(finishOf({ seasons: 0, final_four: 0, titles: 0 }), "regular");
-  assert.equal(finishOf({ seasons: 1, final_four: 0, titles: 0 }), "playoffs");
-  assert.equal(finishOf({ seasons: 1, final_four: 1, titles: 0 }), "final_four");
-  assert.equal(finishOf({ seasons: 1, final_four: 1, titles: 1 }), "champion");
+test("the placement is the furthest stage, and sorts champion first", () => {
+  const none = { seasons: 0, final_four: 0, titles: 0 };
+  assert.equal(placementOf(none), "regular");
+  assert.equal(placementOf({ ...none, play_ins: 1 }), "play_in");
+  assert.equal(placementOf({ seasons: 1, final_four: 0, titles: 0, play_ins: 1 }), "playoffs");
+  assert.equal(placementOf({ seasons: 1, final_four: 0, titles: 0 }), "playoffs");
+  assert.equal(placementOf({ seasons: 1, final_four: 1, titles: 0 }), "final_four");
+  assert.equal(placementOf({ seasons: 1, final_four: 1, titles: 0, runner_ups: 1 }), "runner_up");
+  assert.equal(placementOf({ seasons: 1, final_four: 1, titles: 1 }), "champion");
   const rows = [
     row({ name: "Regular" }),
+    row({ name: "Play-in", playoffs: { ...none, play_ins: 1 } }),
     row({ name: "Champion", playoffs: { seasons: 1, final_four: 1, titles: 1 } }),
+    row({ name: "Runner-up", playoffs: { seasons: 1, final_four: 1, titles: 0, runner_ups: 1 } }),
     row({ name: "Playoffs", playoffs: { seasons: 1, final_four: 0, titles: 0 } }),
     row({ name: "Final Four", playoffs: { seasons: 1, final_four: 1, titles: 0 } }),
   ];
-  const order = ["Champion", "Final Four", "Playoffs", "Regular"];
-  assert.deepEqual(sortCoaches(rows, "finish", "desc").map((r) => r.name), order);
+  const order = ["Champion", "Runner-up", "Final Four", "Playoffs", "Play-in", "Regular"];
+  assert.deepEqual(sortCoaches(rows, "placement", "desc").map((r) => r.name), order);
   assert.deepEqual(
-    sortCoaches(rows, "finish", "desc").map((r) => formatMeasure(metric("finish").read(r), "finish")),
-    ["Champion", "Final Four", "Playoffs", "Regular season"],
+    sortCoaches(rows, "placement", "desc").map((r) => formatMeasure(metric("placement").read(r), "placement")),
+    ["Champion", "Runner-up", "Final Four", "Playoffs", "Play-in", "Regular season"],
+  );
+});
+
+test("placement is not shown for the season in progress", () => {
+  assert.equal(placementShown(2026, 2026), false);
+  assert.equal(placementShown(2025, 2026), true);
+  assert.ok(!columnKeys("expected", false).includes("placement"));
+  assert.ok(columnKeys("expected", true).includes("placement"));
+  const hidden = coachHeadHtml(view({ section: "expected" }), false);
+  assert.ok(!hidden.includes('data-sort="placement"'));
+  assert.ok(coachHeadHtml(view({ section: "expected" }), true).includes('data-sort="placement"'));
+  // A placement sort from a completed season does not carry into the season in progress.
+  assert.deepEqual(
+    coachViewFromQuery("?season=2026&section=expected&metric=placement", [2026, 2025], 2026),
+    view({ metric: "games" }),
+  );
+  assert.deepEqual(
+    coachViewFromQuery("?season=2025&section=expected&metric=placement", [2026, 2025], 2026),
+    view({ season: 2025, metric: "placement" }),
+  );
+  assert.deepEqual(
+    switchSeason(view({ section: "expected", metric: "placement", dir: "asc" }), 2026, 2026),
+    view({ section: "expected", metric: "expected_wins", dir: "desc" }),
+  );
+  assert.deepEqual(
+    switchSeason(view({ section: "expected", metric: "placement", dir: "asc" }), 2025, 2026),
+    view({ season: 2025, section: "expected", metric: "placement", dir: "asc" }),
   );
 });
 
 test("challenges show a dash in a season without a record", () => {
   const rows = [
     row({ name: "None", style: style({}) }),
-    row({ name: "Some", style: style({ challengeGames: 30, perGame: 0.2, late: 0.7 }) }),
+    row({ name: "Some", style: style({ challengeGames: 30, perGame: 0.2, clutch: 7 }) }),
   ];
   assert.deepEqual(sortCoaches(rows, "challenges", "desc").map((r) => r.name), ["Some", "None"]);
   assert.equal(formatMeasure(metric("challenges").read(rows[0]), "dec2"), "-");
@@ -207,8 +263,8 @@ test("a fetched season sorts and switches section like the embedded one", () => 
     row({ name: "High", season: 2020, games: 10, wins: 8, losses: 2 }),
   ];
   const fetched = seasonOf(rows, 2020);
-  const view = switchSection({ season: 2020, section: "expected", metric: "games", dir: "desc" }, "finish");
-  assert.equal(view.section, "finish");
+  const view = switchSection({ season: 2020, section: "expected", metric: "games", dir: "desc" }, "advanced");
+  assert.equal(view.section, "advanced");
   assert.deepEqual(sortCoaches(seasonRows(fetched, 2020, "/b/"), "win_pct", "desc").map((r) => r.name), ["High", "Low"]);
 });
 
@@ -253,7 +309,7 @@ test("the head has a sortable button for each shown column, the chosen one marke
   const shown = columnKeys("advanced");
   for (const key of shown) assert.ok(html.includes(`data-sort="${key}"`), key);
   assert.equal((html.match(/data-sort=/g) ?? []).length, shown.length);
-  assert.ok(!html.includes('data-sort="finish"'));
+  assert.ok(!html.includes('data-sort="placement"'));
   assert.ok(html.includes('aria-sort="ascending"'));
   assert.equal((html.match(/class="info-tip"/g) ?? []).length, shown.length);
 });
@@ -280,7 +336,7 @@ test("formatting: integers, win %, shares, rates, signed figures, dash without a
   assert.equal(formatMeasure({ value: null, thin: false }, win.kind), "-");
   assert.equal(formatMeasure({ value: 3.4, thin: false }, "int"), "3");
   assert.equal(formatMeasure({ value: 2.5, thin: false }, metric("wins_above_expectation").kind), "+2.5");
-  assert.equal(formatMeasure({ value: 0.4, thin: false }, metric("late").kind), "40%");
+  assert.equal(formatMeasure({ value: 4, thin: false }, metric("clutch_challenges").kind), "4");
 });
 
 test("names normalise without accents, case or extra spaces", () => {

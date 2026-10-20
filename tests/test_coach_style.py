@@ -251,13 +251,14 @@ def test_a_big_margin_in_the_last_five_minutes_is_not_clutch() -> None:
 # ---- challenges and rotation ----
 
 
-def test_challenges_are_counted_by_team_and_late_ones_by_period() -> None:
+def test_challenges_are_counted_by_team_and_clutch_window_ones_by_clock() -> None:
     rows = [
         act("CCH", A, period=4, left=200),
+        act("CCH", A, period=4, left=400),  # 4th quarter, but more than 5:00 left
         act("CCH", B, period=2, left=500),
         act("CCH", A, period=5, left=100),
     ]
-    assert challenges(rows) == {A: (2, 2), B: (1, 0)}
+    assert challenges(rows) == {A: (3, 2), B: (1, 0)}
 
 
 def test_rotation_counts_players_with_minutes_and_the_top_seven_share() -> None:
@@ -326,9 +327,32 @@ def test_game_style_reads_the_cached_play_by_play_and_box_score(tmp_path: Path) 
     assert style.teams[A].ato_possessions == 1  # the first possession after the timeout only
     assert style.teams[A].ato_points == 2
     assert style.teams[A].challenges == 1
-    assert style.teams[A].challenges_late == 0
+    assert style.teams[A].challenges_clutch == 0  # the game is not a clutch game
     assert style.teams[A].players_used == 2
     assert style.clutch is False  # no fourth-quarter rows, so nothing inside the window
+
+
+def test_clutch_challenges_count_only_in_clutch_windows(tmp_path: Path) -> None:
+    # Game 3 is clutch (level at 03:00 of the 4th): the 06:00 challenge is outside the window.
+    _write(
+        tmp_path / "playbyplay" / "E2022" / "3.json.gz",
+        _pbp([], [_row("CCH", A, "06:00"), _row("CCH", A, "03:00")]),
+    )
+    clutch = game_style(tmp_path, 2022, "3")
+    assert clutch is not None
+    assert clutch.clutch is True
+    assert clutch.teams[A].challenges == 2
+    assert clutch.teams[A].challenges_clutch == 1
+    # Game 4 is not clutch (20 points apart in the window): its window challenge is not counted.
+    _write(
+        tmp_path / "playbyplay" / "E2022" / "4.json.gz",
+        _pbp([], [_row("2FGM", B, "07:00", POINTS_A=0, POINTS_B=20), _row("CCH", A, "03:00")]),
+    )
+    blowout = game_style(tmp_path, 2022, "4")
+    assert blowout is not None
+    assert blowout.clutch is False
+    assert blowout.teams[A].challenges == 1
+    assert blowout.teams[A].challenges_clutch == 0
 
 
 def test_game_styles_and_coach_figures_compare_with_the_league(tmp_path: Path) -> None:
@@ -372,7 +396,8 @@ def test_game_styles_and_coach_figures_compare_with_the_league(tmp_path: Path) -
     # 2021-22 is in the challenge window: the coach's team-game counts, with none made
     assert block["challenges"]["games"] == 1
     assert block["challenges"]["per_game"] == 0.0
-    assert block["challenges"]["late_share"] is None
+    assert block["challenges"]["clutch"] == 0
+    assert block["challenges"]["clutch_per_clutch_game"] is None
     assert CHALLENGE_FROM == 2021
 
 
@@ -399,6 +424,7 @@ def test_coach_payloads_carry_the_style_block_per_coach() -> None:
                 "won": True,
                 "p_win": 0.5,
                 "phase": "RS",
+                "final": False,
                 "champion": False,
                 "slug": "john-smith",
                 "name": "John Smith",

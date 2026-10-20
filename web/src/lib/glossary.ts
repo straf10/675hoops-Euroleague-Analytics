@@ -52,7 +52,7 @@ const GM = "games/[id]";
 export const TERMS: GlossaryTerm[] = [
   // Box score
   { id: "scoring-run", term: "Scoring run", group: "Box score", def: "A stretch of points by one team that the other team does not interrupt. Each game page shows each team's three biggest.", shownOn: [GM] },
-  { id: "assist-network", term: "Assist network", group: "Box score", def: "Each assist paired with the basket it set up, so passer to scorer. The network has a line for each pair of players who assisted each other at least once, thicker for more assists; it draws the top eight players. The pair table and the list count the points the scorer made and need two assists to show. The matched share says how many box-score assists could be paired.", shownOn: [TP] },
+  { id: "assist-network", term: "Assist network", group: "Box score", def: "Each assist paired with the basket it set up, so passer to scorer. The network has a line for each pair of players who assisted each other at least once, thicker for more assists; it draws the top eight players. The list counts the points the scorer made and needs two assists to show. The matched share says how many box-score assists could be paired.", shownOn: [TP] },
   { id: "gp", term: "GP", name: "Games played", group: "Box score", def: "The games a player appeared in.", shownOn: [PL, PP, CM] },
   { id: "gs", term: "GS", name: "Games started", group: "Box score", def: "The games a player was in the starting five.", shownOn: [PP, CM] },
   {

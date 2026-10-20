@@ -1,5 +1,5 @@
-// Unit tests for the Passing tab: the roster volumes, the top players, the matrix, the list and
-// the matched share. Run with `node --test src/lib/` from web/ (Node 24+ strips the types).
+// Unit tests for the Passing tab: the roster volumes, the pairs, the list, the network and the
+// matched share. Run with `node --test src/lib/` from web/ (Node 24+ strips the types).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +7,6 @@ import {
   EDGE_MAX,
   EDGE_MIN,
   VIEW,
-  buildMatrix,
   connections,
   edgeOpacity,
   edgeTitle,
@@ -18,7 +17,6 @@ import {
   passingView,
   roster,
   strongPairs,
-  topPlayers,
   vertex,
   type AssistClub,
   type PairRow,
@@ -65,16 +63,6 @@ test("roster volumes are zero when a field is absent", () => {
   assert.equal(people[0].made, 0);
 });
 
-test("the top players rank by assists plus made field goals, eight at most", () => {
-  const people = [person("A", 1, 1), person("B", 5, 0), person("C", 0, 0), person("D", 0, 4)];
-  assert.deepEqual(
-    topPlayers(people).map((p) => p.id),
-    ["B", "D", "A"],
-  );
-  const many = Array.from({ length: 12 }, (_, i) => person(`P${i}`, i + 1, 0));
-  assert.equal(topPlayers(many).length, 8);
-});
-
 test("pairs below the threshold are not strong, and the strong ones sort by assists", () => {
   assert.deepEqual(strongPairs(club), [
     ["A", "B", 4, 9],
@@ -82,24 +70,6 @@ test("pairs below the threshold are not strong, and the strong ones sort by assi
     ["A", "C", 2, 4],
     ["B", "A", 2, 4],
   ]);
-});
-
-test("the matrix puts assists in row = passer, column = scorer, and leaves the rest empty", () => {
-  const players = [person("A", 6, 0), person("B", 3, 6), person("C", 0, 3)];
-  const m = buildMatrix(strongPairs(club), players);
-  assert.equal(m.cells[0][1]?.assists, 4); // A -> B
-  assert.equal(m.cells[0][1]?.points, 9);
-  assert.equal(m.cells[1][0]?.assists, 2); // B -> A
-  assert.equal(m.cells[0][0], null); // the diagonal
-  assert.equal(m.cells[2][0], null); // C -> A is below the threshold
-  assert.equal(m.cells[0][1]?.shade, 1); // the largest cell is fully shaded
-  assert.equal(m.cells[1][0]?.shade, 0.5);
-});
-
-test("the matrix skips pairs with a player outside the top list", () => {
-  const m = buildMatrix(strongPairs(club), [person("A", 6, 0), person("B", 3, 6)]);
-  const total = m.cells.flat().filter((c) => c !== null).length;
-  assert.equal(total, 2); // A -> B and B -> A only
 });
 
 test("connections are the text list: passer, scorer, assists and points, named", () => {
@@ -122,14 +92,13 @@ test("the view is null without the club's assist file", () => {
   assert.equal(passingView(2024, undefined, []), null);
 });
 
-test("the view carries the caveat numbers and the matrix players", () => {
+test("the view carries the caveat numbers and the top connection", () => {
   const people = [person("A", 6, 0), person("B", 3, 6)];
   const view = passingView(2024, club, people);
   assert.ok(view);
   assert.equal(view.season, 2024);
   assert.equal(view.matched, 0.9);
   assert.equal(view.asRows, 20);
-  assert.equal(view.matrix.players.length, 2);
   assert.equal(view.connections[0].passer, "Player A");
 });
 

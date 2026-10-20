@@ -138,7 +138,13 @@ def test_seasons_merge_a_coaches_clubs_and_flag_his_playoffs(tmp_path: Path) -> 
     assert season[0]["season"] == 2020
     assert season[0]["clubs"] == ["AAA", "CCC"]
     assert (season[0]["games"], season[0]["wins"], season[0]["losses"]) == (3, 2, 1)
-    assert season[0]["playoffs"] == {"seasons": 1, "final_four": 0, "titles": 0}
+    assert season[0]["playoffs"] == {
+        "seasons": 1,
+        "final_four": 0,
+        "titles": 0,
+        "runner_ups": 0,
+        "play_ins": 0,
+    }
     assert season[0]["style"] is None
 
 
@@ -308,7 +314,32 @@ def test_playoff_seasons_final_fours_and_titles_come_from_the_named_games(tmp_pa
     rows = coach_games(tmp_path, _games(games))
     index = coach_payloads(rows, codes={}, names={})["coaches/index.json"]
     playoffs = {c["slug"]: c["playoffs"] for c in index["coaches"]}
-    assert playoffs["john-smith"] == {"seasons": 1, "final_four": 1, "titles": 1}
-    assert playoffs["ann-jones"] == {"seasons": 2, "final_four": 1, "titles": 0}
-    assert playoffs["kim-lee"] == {"seasons": 2, "final_four": 1, "titles": 0}
-    assert playoffs["su-park"] == {"seasons": 1, "final_four": 1, "titles": 0}
+    # Park lost the 2020 final (runner-up); Lee and Park have 2021 play-in games.
+    assert playoffs["john-smith"] == {
+        "seasons": 1,
+        "final_four": 1,
+        "titles": 1,
+        "runner_ups": 0,
+        "play_ins": 0,
+    }
+    assert playoffs["ann-jones"] == {
+        "seasons": 2,
+        "final_four": 1,
+        "titles": 0,
+        "runner_ups": 0,
+        "play_ins": 0,
+    }
+    assert playoffs["kim-lee"] == {
+        "seasons": 2,
+        "final_four": 1,
+        "titles": 0,
+        "runner_ups": 0,
+        "play_ins": 1,
+    }
+    assert playoffs["su-park"] == {
+        "seasons": 1,
+        "final_four": 1,
+        "titles": 0,
+        "runner_ups": 1,
+        "play_ins": 1,
+    }

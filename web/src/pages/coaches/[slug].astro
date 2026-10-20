@@ -145,11 +145,13 @@ const h2hJson = JSON.stringify(
                   </tr>
                   <tr>
                     <th scope="row">
-                      Challenges late
-                      <small>Share of challenges used in the 4th quarter or overtime</small>
+                      Clutch challenges per clutch game
+                      <small>
+                        Challenges in the last 5:00 of the 4th quarter or overtime, in clutch games
+                      </small>
                     </th>
-                    <td class="num">{share(style.challenges.late_share)}</td>
-                    <td class="num">{share(style.challenges.league_late_share)}</td>
+                    <td class="num">{rate(style.challenges.clutch_per_clutch_game)}</td>
+                    <td class="num">{rate(style.challenges.league_clutch_per_clutch_game)}</td>
                   </tr>
                 </>
               )}

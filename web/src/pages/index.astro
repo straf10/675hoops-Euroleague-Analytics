@@ -22,7 +22,7 @@ const description =
 const main = comps[0];
 const fc = main.forecasts;
 const model = fc ? (fc.published ?? fc.models[0]?.key) : undefined;
-const label = fc?.models.find((m) => m.key === model)?.label ?? "Our forecast";
+const label = fc?.models.find((m) => m.key === model)?.label ?? "Our model";
 const ours = fc?.season.find((r) => r.model === model) ?? null;
 const live = main.scorecard;
 const nums = headlineNumbers(data.data_volume);
