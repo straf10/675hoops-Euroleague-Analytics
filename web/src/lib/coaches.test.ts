@@ -19,6 +19,7 @@ import {
   rate,
   searchCoaches,
   seasonLabel,
+  seasonOf,
   seasonRange,
   seasonRows,
   share,
@@ -185,6 +186,30 @@ test("the season's rows are that season's coaches, with links", () => {
   const shown = seasonRows(rows, 2026, "/base/");
   assert.deepEqual(shown.map((r) => r.slug), ["a-coach"]);
   assert.equal(shown[0].href, "/base/coaches/a-coach/");
+});
+
+test("a season's file holds only that season's rows, in file order, and leaves the input alone", () => {
+  const rows: CoachSeasonRow[] = [
+    row({ name: "Old One", season: 2025 }),
+    row({ name: "New Two", season: 2026 }),
+    row({ name: "New One", season: 2026 }),
+  ];
+  const before = JSON.stringify(rows);
+  assert.deepEqual(seasonOf(rows, 2026).map((r) => r.name), ["New Two", "New One"]);
+  assert.deepEqual(seasonOf(rows, 2025).map((r) => r.name), ["Old One"]);
+  assert.deepEqual(seasonOf(rows, 2019), []);
+  assert.equal(JSON.stringify(rows), before);
+});
+
+test("a fetched season sorts and switches section like the embedded one", () => {
+  const rows: CoachSeasonRow[] = [
+    row({ name: "Low", season: 2020, games: 10, wins: 2, losses: 8 }),
+    row({ name: "High", season: 2020, games: 10, wins: 8, losses: 2 }),
+  ];
+  const fetched = seasonOf(rows, 2020);
+  const view = switchSection({ season: 2020, section: "expected", metric: "games", dir: "desc" }, "finish");
+  assert.equal(view.section, "finish");
+  assert.deepEqual(sortCoaches(seasonRows(fetched, 2020, "/b/"), "win_pct", "desc").map((r) => r.name), ["High", "Low"]);
 });
 
 test("the season options are the seasons the box scores name coaches for, newest first", () => {
