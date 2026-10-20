@@ -41,7 +41,7 @@ const dayRange = (r: MatchdayRound) => {
           <p>{r.games.some((g) => g.played) ? "On now" : `Starts ${dayRange(r)}, Athens time`}</p>
         </header>
         <ol class="rows">
-          {r.games.map((g) => <MatchRow game={g} />)}
+          {r.games.map((g) => <MatchRow game={g} comp={comp.key} />)}
         </ol>
       </div>
     ))
@@ -60,7 +60,7 @@ const dayRange = (r: MatchdayRound) => {
         {
           recap ? (
             <ol class="rows">
-              {recap.games.map((g, i) => <MatchRow game={g} margin={recapChecks[i]} />)}
+              {recap.games.map((g, i) => <MatchRow game={g} comp={comp.key} margin={recapChecks[i]} />)}
             </ol>
           ) : (
             <p class="none">The first round tips off {next ? dayRange(next) : "soon"}.</p>
@@ -73,7 +73,7 @@ const dayRange = (r: MatchdayRound) => {
         {
           next && (
             <ol class="rows">
-              {next.games.map((g) => <MatchRow game={g} />)}
+              {next.games.map((g) => <MatchRow game={g} comp={comp.key} />)}
             </ol>
           )
         }

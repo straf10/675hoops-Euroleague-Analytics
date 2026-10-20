@@ -4,13 +4,24 @@ import check from "@phosphor-icons/core/assets/bold/check-bold.svg?raw";
 import cross from "@phosphor-icons/core/assets/bold/x-bold.svg?raw";
 import { marginText, type MarginCheck, type MatchdayGame } from "../lib/matchday";
 import { athensDay, athensTime, pct } from "../lib/format";
+import chevron from "@phosphor-icons/core/assets/regular/caret-down.svg?raw";
+import "../styles/match-report.css";
 
 interface Props {
   game: MatchdayGame;
+  /** The competition key (Matchday passes it): names the report file, data/reports/<comp>/<game_id>.json. */
+  comp: string;
   /** The model's margin against the final, when the page has both; shown under the row. */
   margin?: MarginCheck | null;
 }
-const { game: g, margin = null } = Astro.props;
+const { game: g, comp, margin = null } = Astro.props;
+// Games with a match report on disk, as "comp/game_id" keys; the toggle shows only for those.
+const reportFiles = import.meta.glob("../data/api/reports/*/*.json");
+const withReport = new Set(
+  Object.keys(reportFiles).map((k) => k.split("/").slice(-2).join("/").replace(/\.json$/, "")),
+);
+const hasReport = withReport.has(`${comp}/${g.game_id}`);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const homeWon = g.played && g.home_score !== null && g.away_score !== null && g.home_score > g.away_score;
 // The call: the side with the higher logged chance; null when nothing was logged before tip-off.
 const homePick = g.p_home !== null && g.p_home >= 0.5;
@@ -72,7 +83,85 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
     }
   </span>
   {margin && <p class="margin">{marginText(g, margin)}</p>}
+  {
+    hasReport && (
+      <div class="report-wrap">
+        <button
+          type="button"
+          class="report-toggle"
+          aria-expanded="false"
+          aria-controls={`report-${g.game_id}`}
+          data-report-toggle
+          data-comp={comp}
+          data-id={g.game_id}
+          data-base={base}
+          hidden
+        >
+          Match report
+          <span class="chev" set:html={chevron} aria-hidden="true" />
+        </button>
+        <div class="report" id={`report-${g.game_id}`} role="region" aria-label={`Match report: ${g.away.name} at ${g.home.name}`}>
+          <div class="report-inner">
+            <div class="report-body" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 </li>
+
+<script>
+  import { renderReport, type MatchReport } from "../lib/match_report";
+
+  // One delegated handler for every row on the page. Each report is fetched on its first open and cached.
+  const cache = new Map<string, Promise<string>>();
+  const load = (base: string, comp: string, id: string): Promise<string> => {
+    const key = `${comp}/${id}`;
+    let html = cache.get(key);
+    if (!html) {
+      html = fetch(`${base}/data/reports/${comp}/${id}.json`)
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json() as Promise<MatchReport>;
+        })
+        .then((report) => renderReport(report, base));
+      cache.set(key, html);
+      // A failed load is not kept: the next open tries again.
+      html.catch(() => cache.delete(key));
+    }
+    return html;
+  };
+
+  document.querySelectorAll<HTMLButtonElement>("[data-report-toggle]").forEach((b) => (b.hidden = false));
+
+  document.addEventListener("click", (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    const btn = target?.closest("[data-report-toggle]") as HTMLButtonElement | null | undefined;
+    if (!btn) return;
+    const panel = document.getElementById(btn.getAttribute("aria-controls") ?? "");
+    const body = panel?.querySelector<HTMLElement>(".report-body");
+    if (!panel || !body) return;
+
+    const open = btn.getAttribute("aria-expanded") !== "true";
+    btn.setAttribute("aria-expanded", String(open));
+    panel.classList.toggle("open", open);
+    if (!open || body.dataset.loaded === "1" || body.dataset.loading === "1") return;
+
+    body.dataset.loading = "1";
+    body.innerHTML = `<p class="mr-note">Loading…</p>`;
+    load(btn.dataset.base ?? "", btn.dataset.comp ?? "", btn.dataset.id ?? "")
+      .then((html) => {
+        body.innerHTML = html;
+        body.dataset.loaded = "1";
+      })
+      .catch(() => {
+        body.innerHTML = `<p class="mr-note">The report could not be loaded. Close it and open it again to retry.</p>`;
+      })
+      .finally(() => {
+        delete body.dataset.loading;
+      });
+  });
+</script>
 
 <style>
   .row {
