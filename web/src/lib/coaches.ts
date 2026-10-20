@@ -296,7 +296,7 @@ export const COACH_METRICS: CoachMetric[] = [
   },
   {
     key: "wins_above_expectation",
-    head: "Above expectation",
+    head: "Above exp.",
     about: "Wins minus expected wins: positive when the coach won more than the Elo ratings expected.",
     kind: "signed1",
     read: (r) => plain(r.wins_above_expectation),
@@ -396,12 +396,16 @@ export interface CoachRow extends CoachSeasonRow {
   href: string;
 }
 
+/** One season's coach rows, in the order the season file has them: the page embeds the open season
+ *  and the season switch fetches `data/coaches/{season}.json`, which is this slice. */
+export function seasonOf(rows: CoachSeasonRow[], season: number): CoachSeasonRow[] {
+  return rows.filter((r) => r.season === season);
+}
+
 /** The coaches of one season, with links (the list is one season at a time). */
 export function seasonRows(rows: CoachSeasonRow[], season: number, base: string): CoachRow[] {
   const root = base.replace(/\/$/, "");
-  return rows
-    .filter((r) => r.season === season)
-    .map((r) => ({ ...r, href: `${root}/coaches/${r.slug}/` }));
+  return seasonOf(rows, season).map((r) => ({ ...r, href: `${root}/coaches/${r.slug}/` }));
 }
 
 /** The rows in the order of a metric. A tie keeps the order the rows came in; a missing or thin

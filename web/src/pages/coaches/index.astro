@@ -13,6 +13,7 @@ import {
   coachViewFromQuery,
   namedSeasons,
   seasonLabel,
+  seasonOf,
   seasonRows,
   sortCoaches,
   type CoachSearchEntry,
@@ -45,7 +46,8 @@ const entries: CoachSearchEntry[] = (index?.coaches ?? []).map((c) => ({
   clubs: c.clubs,
 }));
 const embedded = JSON.stringify(entries).replace(/</g, "\\u003c");
-const embeddedRows = JSON.stringify(allRows).replace(/</g, "\\u003c");
+// Only the open season's rows are embedded; the season switch fetches the others (data/coaches/{season}.json).
+const embeddedRows = JSON.stringify(seasonOf(allRows, view.season)).replace(/</g, "\\u003c");
 const seasonsJson = JSON.stringify(seasons);
 ---
 
@@ -126,10 +128,11 @@ const seasonsJson = JSON.stringify(seasons);
               </div>
             </header>
             <p class="lede-sm">
-              {shown.length} {shown.length === 1 ? "coach" : "coaches"} with games that season.
+              <span id="lede-count">{shown.length} {shown.length === 1 ? "coach" : "coaches"}</span> with games that season.
               {through && ` The latest season's box scores run through ${through}.`}{" "}
               Tap a heading to sort; tap it again to reverse.
             </p>
+            <p class="coach-status" id="coach-status" role="status" hidden></p>
             <div
               class="scroll"
               id="coaches"
@@ -219,24 +222,69 @@ const seasonsJson = JSON.stringify(seasons);
   const sectionSel = document.getElementById("section") as HTMLSelectElement | null;
   const title = document.getElementById("table-title");
   if (host && seasonSel && sectionSel && title) {
-    const all = JSON.parse(document.getElementById("coach-rows")?.textContent ?? "[]") as CoachSeasonRow[];
     const base = host.dataset.base ?? "";
     const seasons = JSON.parse(host.dataset.seasons ?? "[]") as number[];
     const fallback = Number(host.dataset.fallback);
+    const status = document.getElementById("coach-status")!;
+    const lede = document.getElementById("lede-count");
     const caption = host.querySelector("caption")!;
     const thead = host.querySelector("thead")!;
     const body = host.querySelector("tbody")!;
     let view: CoachView = coachViewFromQuery(location.search, seasons, fallback);
 
-    const paint = () => {
+    // The open season is embedded; each other season is fetched once and kept for the visit.
+    const cache = new Map<number, CoachSeasonRow[]>([
+      [fallback, JSON.parse(document.getElementById("coach-rows")?.textContent ?? "[]") as CoachSeasonRow[]],
+    ]);
+    const pending = new Map<number, Promise<CoachSeasonRow[] | undefined>>();
+    const loadSeason = (n: number): Promise<CoachSeasonRow[] | undefined> => {
+      const have = cache.get(n);
+      if (have) return Promise.resolve(have);
+      let request = pending.get(n);
+      if (!request) {
+        request = fetch(`${base}/data/coaches/${n}.json`)
+          .then((r) => (r.ok ? (r.json() as Promise<CoachSeasonRow[]>) : undefined))
+          .then((rows) => {
+            if (rows) cache.set(n, rows);
+            return rows;
+          })
+          .catch(() => undefined)
+          .finally(() => pending.delete(n));
+        pending.set(n, request);
+      }
+      return request;
+    };
+
+    // Redraws the table, the heading and the count from the view, then writes the view to the query string.
+    // A season already held draws at once (the sorted head keeps focus); a season being fetched shows a
+    // loading line until it arrives, and a later switch wins over an earlier fetch.
+    const draw = (all: CoachSeasonRow[]) => {
+      const rows = sortCoaches(seasonRows(all, view.season, base), view.metric, view.dir);
       const heading = `${seasonLabel(view.season)} EuroLeague coaches`;
+      status.hidden = true;
+      host.removeAttribute("aria-busy");
       seasonSel.value = String(view.season);
       sectionSel.value = view.section;
       title.textContent = heading;
       caption.textContent = coachCaption(view, heading);
       thead.innerHTML = coachHeadHtml(view);
-      body.innerHTML = coachRowsHtml(sortCoaches(seasonRows(all, view.season, base), view.metric, view.dir), view);
+      body.innerHTML = coachRowsHtml(rows, view);
+      if (lede) lede.textContent = `${rows.length} ${rows.length === 1 ? "coach" : "coaches"}`;
       history.replaceState(null, "", location.pathname + coachViewToQuery(view, fallback));
+    };
+    const paint = () => {
+      const wanted = view.season;
+      const held = cache.get(wanted);
+      if (held) return draw(held);
+      status.hidden = false;
+      status.textContent = `Loading the ${seasonLabel(wanted)} coaches…`;
+      host.setAttribute("aria-busy", "true");
+      void loadSeason(wanted).then((all) => {
+        if (view.season !== wanted) return; // a later switch has taken over
+        if (all) return draw(all);
+        status.textContent = `The ${seasonLabel(wanted)} coaches could not be loaded. Try again.`;
+        host.removeAttribute("aria-busy");
+      });
     };
 
     seasonSel.addEventListener("change", () => {
@@ -325,6 +373,22 @@ const seasonsJson = JSON.stringify(seasons);
     font-size: 0.8125rem;
     max-width: 68ch;
   }
+  .coach-status {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+  /* The table fits the content width on desktop: headers and the coach name wrap instead of widening it,
+     and the cells take less padding. A phone still scrolls the table inside .scroll. */
+  .coach-table.grid :global(th),
+  .coach-table.grid :global(td) {
+    white-space: normal;
+    padding-left: 10px;
+  }
+  .coach-table.grid :global(th:first-child),
+  .coach-table.grid :global(td:first-child) {
+    padding-left: 0;
+  }
   /* The table is built in lib/coaches.ts (and redrawn by the page script): its classes are global. */
   .coach-table :global(td.club) {
     color: var(--muted);
@@ -369,6 +433,10 @@ const seasonsJson = JSON.stringify(seasons);
   }
   .coach-table :global(thead .info-tip) {
     margin-left: 0;
+  }
+  /* The last head's ? hit area reaches 6px past the table's right edge and widened it; it reaches left instead. */
+  .coach-table :global(thead .info-tip::after) {
+    inset: -6px 0 -6px -6px;
   }
   @media (hover: hover) and (pointer: fine) {
     .coach-table :global(thead button[data-sort]:hover) {
