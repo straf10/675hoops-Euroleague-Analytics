@@ -50,7 +50,7 @@
   --brand-orange: #d9590b; /* the logo mark's arc; the same orange as --data-1 */
 
   /* Data (validated order: orange is the subject and the model, gray the baseline, blue the other pole;
-     docs/DESIGN_ORANGE_PROPOSAL.md has the validator numbers) */
+     docs/history/DESIGN_ORANGE_PROPOSAL.md has the validator numbers) */
   --data-1: #d9590b;
   --data-1-wash: rgb(217 89 11 / 0.1);
   --data-2: #8f8d86; /* neutral series: baselines, away share */

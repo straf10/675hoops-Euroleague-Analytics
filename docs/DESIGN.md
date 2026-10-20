@@ -148,7 +148,7 @@ Light and dark are equal citizens. The page follows the visitor's system setting
 
 ## Colors
 
-A near-neutral ground with three data inks: orange for the subject, a neutral gray for baselines, and blue for the opposite pole. Orange replaced the original model blue in Phase B (owner decision, 2026-10-10; EuroLeague's identity is black and orange). The validator numbers are in `docs/DESIGN_ORANGE_PROPOSAL.md`.
+A near-neutral ground with three data inks: orange for the subject, a neutral gray for baselines, and blue for the opposite pole. Orange replaced the original model blue in Phase B (owner decision, 2026-10-10; EuroLeague's identity is black and orange). The validator numbers are in `docs/history/DESIGN_ORANGE_PROPOSAL.md`.
 
 ### Primary
 - **Accent Orange** (`--data-1`, #d9590b light, #e2691f night; also `--brand-orange`): the model and everything it claims, and the player or club in view. Forecast shares, the Elo line, calibration dots, above-average ratings, hot shooting zones, the "Hit" outcome icon, focus rings, text selection, the logo arc. 3.7:1 on paper, so it is a mark colour and never a text colour.
