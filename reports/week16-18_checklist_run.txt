@@ -435,7 +435,7 @@ PASS
 
 FAILS: 5 (end 17:13Z)
 exit=5 elapsed=4260s
-Binary file C:/Users/nikos/AppData/Local/Temp/claude/C--Python-Sports-Project/c55a6f0e-7490-47bc-be2c-4fe6d1206c99/scratchpad/split_checklist.log matches
+Binary file C:/Users/<user>/AppData/Local/Temp/claude/C--Python-Sports-Project/c55a6f0e-7490-47bc-be2c-4fe6d1206c99/scratchpad/split_checklist.log matches
 
 ================================ Pass C ================================
 HEAD 14fc9e7, base origin/main, scratch /tmp/tmp.ukt1OpYrTj, start 17:41Z

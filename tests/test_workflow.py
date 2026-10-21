@@ -71,7 +71,7 @@ def test_daily_runs_are_closer_together_than_the_round_lead() -> None:
 def test_daily_builds_the_site_from_fresh_data() -> None:
     publish = DAILY.index("eurohoops publish")
     build = DAILY.index("npm run build")
-    upload = DAILY.index("upload-artifact@v4", build)
+    upload = DAILY.index("actions/upload-artifact@", build)
     assert publish < build < upload
     assert "working-directory: web" in DAILY
 

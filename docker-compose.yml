@@ -5,7 +5,8 @@ services:
     build: .
     image: eurohoops-api
     ports:
-      - "8000:8000"
+      # this machine only: the API has no auth, so keep it off the local network
+      - "127.0.0.1:8000:8000"
     volumes:
       # the repository's data, read-only: the API never writes a file
       - ./data:/srv/eurohoops/data:ro

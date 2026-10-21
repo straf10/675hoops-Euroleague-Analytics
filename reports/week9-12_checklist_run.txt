@@ -11,7 +11,7 @@ Not one uninterrupted pass. The owner accepted this record instead:
   fixed to accept that tag and re-run alone (it reads git only; the M2 runs were not repeated).
 Result: every item passes except 22 and 25, the two allowed reds.
 
-=== Pass A: items 1-23 (HEAD 5afcfc0, base origin/main, scratch C:\Users\nikos\AppData\Local\Temp\checklist_scratch, start 09:05Z) ===
+=== Pass A: items 1-23 (HEAD 5afcfc0, base origin/main, scratch C:\Users\<user>\AppData\Local\Temp\checklist_scratch, start 09:05Z) ===
 ===== 1 uv sync --frozen =====
 Checked 137 packages in 13ms
 PASS
@@ -127,7 +127,7 @@ PASS
 
 ===== 19 actionlint =====
 bash.exe :    Building actionlint-py==1.7.12.25
-At C:\Users\nikos\AppData\Local\Temp\ps-script-c6edda10-928e-40cc-917d-44717742b129.ps1:106 char:294
+At C:\Users\<user>\AppData\Local\Temp\ps-script-c6edda10-928e-40cc-917d-44717742b129.ps1:106 char:294
 + ... s=Get-Date; & "C:\Program Files\Git\bin\bash.exe" scripts/checklist.s ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (   Building actionlint-py==1.7.12.25:String) [], RemoteException
@@ -210,7 +210,7 @@ dark 390: horizontal overflow 0 px; M1 line visible: True
 PASS
 FAILS: 0 (end 10:25Z)
 
-=== Pass B: items 24-37 (HEAD df35abd, base origin/main, scratch C:\Users\nikos\AppData\Local\Temp\checklist_scratch24, start 11:06Z) ===
+=== Pass B: items 24-37 (HEAD df35abd, base origin/main, scratch C:\Users\<user>\AppData\Local\Temp\checklist_scratch24, start 11:06Z) ===
 ===== 24 F5 backtest_m2.json complete, declaration < verdict < test, two runs identical =====
 run 1 (--score-test): 2078 s (limit 3600 s)
 run 2 (--score-test): 1945 s (limit 3600 s)
@@ -267,7 +267,7 @@ PASS
 ===== 30 uv sync --no-dev, then build + predict =====
 no-dev env without ['lightgbm', 'optuna', 'matplotlib', 'mlflow']
 bash.exe : INFO eurohoops.predict: 0 upcoming games in window, 0 already logged, 0 rows appended
-At C:\Users\nikos\AppData\Local\Temp\ps-script-668e8e06-d7a0-4f99-b780-498070950557.ps1:106 char:325
+At C:\Users\<user>\AppData\Local\Temp\ps-script-668e8e06-d7a0-4f99-b780-498070950557.ps1:106 char:325
 + ... s=Get-Date; & "C:\Program Files\Git\bin\bash.exe" scripts/checklist.s ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (INFO eurohoops....0 rows appended:String) [], RemoteException

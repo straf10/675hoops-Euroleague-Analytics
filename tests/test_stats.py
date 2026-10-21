@@ -33,7 +33,7 @@ from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games, game_lines, seconds
 from eurohoops.stats.coach_style import game_styles
 from eurohoops.stats.coaches import coach_games, with_elo
-from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, write_downloads
+from eurohoops.stats.downloads import COLUMNS, DATASETS, build_downloads, csv_gz, write_downloads
 from eurohoops.stats.export import (
     OTHER_RESULTS,
     PLAYER_FIELDS,
@@ -694,3 +694,21 @@ def test_standing_prefers_the_official_table_and_breaks_ties_head_to_head() -> N
     assert regular_season_standings(games, {"B": 1, "A": 2, "C": 3}) == {"B": 1, "A": 2, "C": 3}
     # an official table that disagrees with the wins is ignored
     assert regular_season_standings(games, {"C": 1, "A": 2, "B": 3}) == {"A": 1, "B": 2, "C": 3}
+
+
+def test_download_csvs_defuse_text_that_a_spreadsheet_would_run_as_a_formula() -> None:
+    frame = pd.DataFrame(
+        {
+            "player": ['=HYPERLINK("x")', "+1", "@SUM(A1)", "-cmd", "Nikos Persidis"],
+            "note": ["-", "-3", "-0.5", "\tx", None],
+            "pts": [1, -2, 3, 4, 5],
+        }
+    )
+    rows = gzip.decompress(csv_gz(frame)).decode("utf-8").splitlines()
+    assert rows[1:] == [
+        '"\'=HYPERLINK(""x"")",-,1',
+        "'+1,-3,-2",
+        "'@SUM(A1),-0.5,3",
+        "'-cmd,'\tx,4",
+        "Nikos Persidis,,5",
+    ]

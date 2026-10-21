@@ -1,4 +1,6 @@
 # The image needs pyproject.toml, uv.lock, README.md, LICENSE and src/ only.
+.env
+.env.*
 .git
 .github
 .venv

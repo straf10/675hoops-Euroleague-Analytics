@@ -17,6 +17,7 @@ import gzip
 import hashlib
 import io
 import json
+import re
 import zipfile
 from collections.abc import Mapping
 from datetime import datetime
@@ -201,8 +202,25 @@ def _frames(inputs: Inputs) -> dict[str, pd.DataFrame]:
     return out
 
 
+FORMULA_START = re.compile(r"[=+@\t\r]|-(?![\d.]*$)")
+
+
+def _defuse_formula(value: object) -> object:
+    """Text a spreadsheet would run as a formula gets a leading quote (CSV injection)."""
+    if isinstance(value, str) and FORMULA_START.match(value):
+        return "'" + value
+    return value
+
+
 def csv_gz(frame: pd.DataFrame) -> bytes:
-    """CSV with LF line ends in a gzip with no timestamp or name: the same frame, the same bytes."""
+    """CSV with LF line ends in a gzip with no timestamp or name: the same frame, the same bytes.
+
+    Scraped names are untrusted, so text cells that start like a formula are defused first.
+    """
+    text_columns = frame.select_dtypes(include=["object", "string"]).columns
+    if len(text_columns):
+        frame = frame.copy()
+        frame[text_columns] = frame[text_columns].map(_defuse_formula)
     text = frame.to_csv(index=False, lineterminator="\n", float_format="%.2f")
     buffer = io.BytesIO()
     with gzip.GzipFile(filename="", mode="wb", fileobj=buffer, compresslevel=9, mtime=0) as gz:

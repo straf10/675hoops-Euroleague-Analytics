@@ -20,7 +20,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const current = seasons[String(season)];
 const duos = current ? sortLines(lines(current.pairs, PAIR_SIZE), "net") : [];
 const units = current ? sortLines(lines(current.units, UNIT_SIZE), "net") : [];
-const payload = JSON.stringify({ code, seasons, names, base, initial: season });
+// "<" escaped so a player name cannot close the <script> element
+const payload = JSON.stringify({ code, seasons, names, base, initial: season }).replace(/</g, "\\u003c");
 const pairNote = current ? minimumNote("duos", current.minimums) : "";
 const unitNote = current ? minimumNote("units", current.minimums) : "";
 ---

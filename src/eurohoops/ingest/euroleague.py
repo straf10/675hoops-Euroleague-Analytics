@@ -46,6 +46,13 @@ class CacheStats:
         )
 
 
+def _game_code(value: object) -> int:
+    """The API's gameCode as a positive int, so it cannot steer a cache path or the URL."""
+    if isinstance(value, bool) or not isinstance(value, int | str) or not str(value).isdigit():
+        raise ValueError(f"unexpected EuroLeague gameCode {value!r}")
+    return int(value)
+
+
 def _schedule_games(payload: bytes) -> list[RawGame]:
     games: list[RawGame] = json.loads(payload)["data"]
     return games
@@ -79,19 +86,20 @@ def _fetch_details(
     for game in games:
         if not game["played"]:
             continue
+        game_code = _game_code(game["gameCode"])
         for endpoint in DETAIL_ENDPOINTS:
-            path = root / endpoint.lower() / f"E{season}" / f"{game['gameCode']}.json.gz"
+            path = root / endpoint.lower() / f"E{season}" / f"{game_code}.json.gz"
             if path.exists():
                 stats.detail_hits += 1
                 continue
-            url = DETAIL_URL.format(endpoint=endpoint, game_code=game["gameCode"], season=season)
+            url = DETAIL_URL.format(endpoint=endpoint, game_code=game_code, season=season)
             payload = fetcher.get(url)
             stats.detail_fetches += 1
             if payload.strip():
                 write_atomic(path, payload)
             else:
                 stats.detail_empty += 1
-                log.warning("empty %s body for E%d game %s", endpoint, season, game["gameCode"])
+                log.warning("empty %s body for E%d game %s", endpoint, season, game_code)
 
 
 def ingest_seasons(

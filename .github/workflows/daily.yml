@@ -19,10 +19,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
       - run: uv sync --frozen --no-dev
@@ -31,7 +31,7 @@ jobs:
       # Restore and save are separate steps so a failed run still saves what it fetched: with
       # actions/cache a failure dropped it, and every retry started cold and hit the rate limit.
       - name: Restore GBL raw cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: data/raw/gbl
           key: gbl-raw-${{ github.run_id }}
@@ -39,7 +39,7 @@ jobs:
       # The team model (M1) needs box scores: keep the EuroLeague raw cache between runs too, so
       # only games finished since the last run are fetched (the first run fills 2023-24 on).
       - name: Restore EuroLeague raw cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: data/raw/euroleague
           key: euroleague-raw-${{ github.run_id }}
@@ -62,13 +62,13 @@ jobs:
             || echo "::warning::people refresh failed; the cached listing stays"
       - name: Save GBL raw cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: data/raw/gbl
           key: gbl-raw-${{ github.run_id }}
       - name: Save EuroLeague raw cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: data/raw/euroleague
           key: euroleague-raw-${{ github.run_id }}
@@ -145,7 +145,7 @@ jobs:
         run: |
           uv run --no-dev eurohoops publish
           uv run --no-dev eurohoops export-stats --from-cache
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: site-data
           path: |
@@ -188,15 +188,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
       # the artifact's root is the paths' common ancestor, web/: it holds src/data/ and public/api/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: site-data
           path: web
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -209,7 +209,7 @@ jobs:
         run: |
           npm ci
           npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: site
           path: site
@@ -220,14 +220,16 @@ jobs:
     needs: build-site
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # the Cloudflare secrets live in this environment, which only main can deploy from
+    environment: production
     permissions:
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: site
           path: site
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

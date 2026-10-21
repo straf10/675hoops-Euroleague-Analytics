@@ -19,10 +19,11 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      # Newest unexpired site-data artifact (only daily-predictions uploads one; kept 7 days).
+      # Newest unexpired site-data artifact built from main (only daily-predictions uploads one;
+      # kept 7 days). Runs from other branches are skipped so they never reach production.
       - name: Find the latest site data
         id: find
         env:
@@ -30,7 +31,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           run_id=$(gh api "repos/$REPO/actions/artifacts?name=site-data&per_page=20" \
-            -q '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')
+            -q '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main")][0].workflow_run.id // empty')
           if [ -z "$run_id" ]; then
             echo "::error::no unexpired site-data artifact; run daily-predictions instead"
             exit 1
@@ -38,13 +39,13 @@ jobs:
           echo "Using site data from run $run_id"
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
       # the artifact's root is the paths' common ancestor, web/: it holds src/data/ and public/api/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: site-data
           path: web
           run-id: ${{ steps.find.outputs.run_id }}
           github-token: ${{ github.token }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -57,7 +58,7 @@ jobs:
         run: |
           npm ci
           npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: site
           path: site
@@ -69,14 +70,16 @@ jobs:
     needs: build-site
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # the Cloudflare secrets live in this environment, which only main can deploy from
+    environment: production
     permissions:
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: site
           path: site
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
