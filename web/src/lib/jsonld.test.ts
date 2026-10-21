@@ -80,9 +80,13 @@ test("description, image and url come from the caller", () => {
   assert.equal(ev.url, "https://675hoops.com/games/E2023_115/");
 });
 
-test("a venue without an address is a Place with a name only, never an invented address", () => {
+test("a venue without an address uses its name as the address text, never an invented street", () => {
   const ev = sportsEvent(game({ location: { name: "UBER ARENA" } }));
-  assert.deepEqual(ev.location, { "@type": "Place", name: "UBER ARENA" });
+  assert.deepEqual(ev.location, {
+    "@type": "Place",
+    name: "UBER ARENA",
+    address: { "@type": "PostalAddress", streetAddress: "UBER ARENA" },
+  });
 });
 
 test("a date-only startDate passes through unchanged when the time is not set", () => {
