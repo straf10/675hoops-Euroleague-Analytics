@@ -70,6 +70,8 @@ jobs:
     needs: build-site
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # the Cloudflare secrets live in this environment, which only main can deploy from
+    environment: production
     permissions:
       contents: read
     steps:
