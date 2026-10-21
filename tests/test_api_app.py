@@ -432,7 +432,7 @@ def test_the_compose_file_runs_the_api_on_the_local_data_read_only() -> None:
         "services:",
         "  api:",
         "    build: .",
-        '      - "8000:8000"',
+        '      - "127.0.0.1:8000:8000"',
         "      - ./data:/srv/eurohoops/data:ro",
         "      - ./reports:/srv/eurohoops/reports:ro",
         "      - ./predictions:/srv/eurohoops/predictions:ro",

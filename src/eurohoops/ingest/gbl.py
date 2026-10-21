@@ -26,6 +26,7 @@ RESULTS_URL = (
     "https://www.esake.gr/el/action/EsakeResults"
     "?idchampionship={season_id}&idteam=&idseason={phase}&series={code}"
 )
+ROUND_CODE = re.compile(r"\d{1,4}")
 BOX_URL = "https://www.esake.gr/el/action/EsakegameView?idgame={idgame}&mode=3"
 # BasketHotel serves the ESAKE PBP widget (docs/spikes/gbl-pbp.md). ESAKE's main.js hard-codes
 # the api and league ids; its default season id resolves any game via external game ids.
@@ -78,6 +79,9 @@ class _Session:
     fetches: int = 0
 
     def results(self, season: int, phase: str, code: str) -> ResultsPage:
+        # round codes come from scraped HTML; digits only keeps them inside the cache and the URL
+        if not ROUND_CODE.fullmatch(code):
+            raise ValueError(f"unexpected ESAKE round code {code!r}")
         path = self.root / "results" / str(season) / phase / f"{code}.html.gz"
         if path.exists():
             self.hits += 1

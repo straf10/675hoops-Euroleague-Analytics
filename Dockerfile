@@ -19,5 +19,7 @@ RUN uv sync --frozen --no-dev --no-editable \
 
 # The data (marts, raw caches, reports, logs) is mounted here, read-only, by docker-compose.yml.
 WORKDIR /srv/eurohoops
+RUN useradd --system --no-create-home --uid 10001 eurohoops
+USER eurohoops
 EXPOSE 8000
 CMD ["uvicorn", "--factory", "eurohoops.api.app:local_app", "--host", "0.0.0.0", "--port", "8000"]

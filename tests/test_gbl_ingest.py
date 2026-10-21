@@ -3,7 +3,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from eurohoops.ingest.gbl import MIN_INTERVAL_S, SEASON_IDS, ingest_gbl
+from eurohoops.ingest.gbl import MIN_INTERVAL_S, SEASON_IDS, _Session, ingest_gbl
 from eurohoops.ingest.http import Fetcher
 from eurohoops.parse.box import build_box_tables
 from eurohoops.parse.games import build_gbl_tables
@@ -89,3 +89,15 @@ def test_box_tables_cover_played_non_forfeit_games(tmp_path: Path) -> None:
     assert set(team_box["game_id"]) == set(games.loc[~games["forfeit"], "game_id"])
     assert len(player_box) == 4 * 24
     assert (team_box.groupby("game_id")["total_points"].sum() == 81 + 64).all()
+
+
+@pytest.mark.parametrize("code", ["../../boxscore/2026/X", "01/../..", "", "1a"])
+def test_a_scraped_round_code_that_is_not_digits_never_reaches_the_cache(
+    tmp_path: Path, code: str
+) -> None:
+    api = FakeEsake()
+    session = _Session(fetcher_for(api), tmp_path, live_season=2026)
+    with pytest.raises(ValueError, match="round code"):
+        session.results(2018, "00000001", code)
+    assert api.calls == []
+    assert list(tmp_path.iterdir()) == []

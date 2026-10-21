@@ -431,7 +431,7 @@ const bandHead = [
   </div>
   {
     liveShots && (
-      <script type="application/json" id="attempts-live" set:html={JSON.stringify(liveShots)} />
+      <script type="application/json" id="attempts-live" set:html={JSON.stringify(liveShots).replace(/</g, "\\u003c")} />
     )
   }
 </Base>

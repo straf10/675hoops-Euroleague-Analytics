@@ -4,7 +4,12 @@ from pathlib import Path
 import httpx
 import pytest
 
-from eurohoops.ingest.euroleague import MIN_INTERVAL_S, PastSeasonNotCachedError, ingest_seasons
+from eurohoops.ingest.euroleague import (
+    MIN_INTERVAL_S,
+    PastSeasonNotCachedError,
+    _game_code,
+    ingest_seasons,
+)
 from eurohoops.ingest.http import MAX_ATTEMPTS, Fetcher
 from tests.conftest import FIXTURES
 
@@ -144,3 +149,14 @@ def test_a_finished_season_missing_from_the_cache_is_an_error_not_a_fetch(tmp_pa
     with pytest.raises(PastSeasonNotCachedError):
         ingest_seasons(fetcher_for(api), tmp_path, [2024], details=False, live_season=LIVE)
     assert api.calls == []
+
+
+@pytest.mark.parametrize("value", ["../../x", "1&seasoncode=E1999", True, None, 1.5])
+def test_a_game_code_that_is_not_a_plain_number_is_rejected(value: object) -> None:
+    with pytest.raises(ValueError, match="gameCode"):
+        _game_code(value)
+
+
+def test_numeric_game_codes_pass_through_as_ints() -> None:
+    assert _game_code(326) == 326
+    assert _game_code("12") == 12
