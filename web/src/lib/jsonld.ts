@@ -119,12 +119,16 @@ const EVENT_STATUS = {
 } as const;
 const OFFLINE = "https://schema.org/OfflineEventAttendanceMode";
 
-/** The venue as a schema.org Place; the PostalAddress only when there is an address. */
+/**
+ * The venue as a schema.org Place. Search Console wants an address; the league gives a street
+ * address for recent games only, so older ones carry the venue name as the address text, never a
+ * made-up street.
+ */
 function place(v: Venue): JsonLdObject {
   return {
     "@type": "Place",
     name: v.name,
-    ...(v.address ? { address: { "@type": "PostalAddress", streetAddress: v.address } } : {}),
+    address: { "@type": "PostalAddress", streetAddress: v.address ?? v.name },
   };
 }
 
