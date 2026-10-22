@@ -89,5 +89,64 @@ Matching is only for the status to reach the right EuroLeague player. It is not 
 - The market already prices absences (dare-2015), so the gain against the benchmark may be zero.
 
 ## Unmatched rows
-(Filled in after the matching rule was committed, from `injuries/euroleague_2026-27.csv` and the
-2026 roster listing. Matching only; no score is computed.)
+Run once, 2026-10-22, after the matching rule was committed and before any score. Source: the
+1,031 rows of `injuries/euroleague_2026-27.csv` (11 snapshots, 2026-10-07 to 2026-10-22) against
+the 2026 people listing (327 players, type `J`, 20 clubs). No score was computed.
+
+**Totals.** 824 rows matched (one roster player each); **207 rows unmatched**; 0 ambiguous. The
+207 rows are 30 distinct (team, player) pairs. In the latest snapshot (2026-10-22 11:00Z), 23 of
+102 rows are unmatched, 15 of them `Out` (of 43 `Out` rows).
+
+| Status | Matched rows | Unmatched rows |
+|---|---|---|
+| Out | 271 | 128 |
+| Uncertain | 462 | 69 |
+| Expected | 44 | 5 |
+| Game-time | 12 | 4 |
+| Ready | 29 | 1 |
+| Doubtful | 6 | 0 |
+
+**Causes (read from the listing, not used to change the rule).** Class A: no player of that surname
+in the 2026 listing at all (the listing is the source of the roster, so these players cannot be
+matched by it). Class B: a player with the same surname is listed for the same club under another
+first name, initial form or spelling (the rule needs the same key, so it does not match).
+
+| Team | BasketNews name | BN id | Class | Rows (snapshots) | Statuses seen |
+|---|---|---|---|---|---|
+| ASV | Juhann Begarin | 35892 | A | 10 (10) | Game-time, Uncertain |
+| ASV | Patrick Mills | 6183 | B (listed "MILLS, PATTY") | 7 (7) | Expected, Uncertain |
+| BES | Lonnie Walker IV | 22564 | A | 5 (5) | Expected, Uncertain |
+| BES | Mady Sissoko | 39046 | A (SISSOKO is listed as a non-player) | 3 (3) | Out |
+| DUB | Mouhammadou Jaiteh | 14688 | A | 11 (11) | Out |
+| DUB | Tomislav Vuckovic | 40316 | A | 11 (11) | Out |
+| HTA | Frederic Bourdillon | 24348 | A | 1 (1) | Out |
+| HTA | Itay Segev | 12194 | A | 1 (1) | Out |
+| HTA | Max Heidegger | 35310 | A | 1 (1) | Out |
+| HTA | Tamir Blatt | 21168 | A | 4 (4) | Out |
+| HTA | Yiftach Ziv | 35088 | A | 1 (1) | Out |
+| IST | Burak Can Yildizli | 14714 | A | 1 (1) | Out |
+| IST | D. Karutasu | 40764 | B ("KARUTASU, DARIUS") | 11 (11) | Out, Uncertain |
+| IST | P.J. Dozier | 21746 | B ("DOZIER, PJ") | 6 (6) | Out, Uncertain |
+| MAD | Max Shulga | 39042 | B ("SHULGA, MAKSYM") | 11 (11) | Uncertain |
+| OLY | Antonios Karagiannidis | 35250 | B ("KARAGIANNIDIS, ANTONIS") | 11 (11) | Uncertain |
+| OLY | George Papas | 35869 | A | 11 (11) | Uncertain |
+| PAN | Juan Hernangomez | 19143 | B ("HERNANGOMEZ, JUANCHO") | 1 (1) | Uncertain |
+| PAN | Nikos Rogkavopoulos | 24143 | B ("ROGKAVOPOULOS, NIKOLAOS") | 9 (9) | Out, Ready, Uncertain |
+| PAR | Jabari Parker | 15928 | A | 11 (11) | Out |
+| PAR | Mitar Bosnjakovic | 37625 | A | 11 (11) | Out |
+| PRS | Nobel Boungou-Colo | 16649 | A | 11 (11) | Out |
+| PRS | T.J. Warren | 17092 | B ("WARREN, TJ") | 6 (6) | Uncertain |
+| RED | Aleksej Nedeljkovic | 40277 | A | 11 (11) | Out |
+| RED | Christian Koloko | 36365 | A | 4 (4) | Out |
+| RED | Jovan Bikic | 39633 | A | 11 (11) | Out |
+| RED | Ognjen Simjanovski | 40278 | A (DOBRIC, OGNJEN is another surname) | 11 (11) | Out |
+| RED | Vojin Medarevic | 39021 | A | 11 (11) | Out |
+| TEL | Gabriel Lundberg | 24128 | A | 3 (3) | Out |
+| TEL | Shane Hunter | 38648 | A (LARKIN, SHANE is another surname) | 1 (1) | Out |
+
+**Consequence for the gate (open question, see the owner note below).** The declared rule matches
+only 79 of the 102 latest-snapshot rows and 28 of its 43 `Out` rows. Most of the `Out` players that
+the rule misses are class A, so with this roster source M5-INJ would act on well under half of the
+absences the feed reports. Fixing that means a different roster source or a declared rule for
+initials and nicknames. Either is a change to the declared rule, so it needs the owner before the
+gate is committed. Nothing was changed here.
