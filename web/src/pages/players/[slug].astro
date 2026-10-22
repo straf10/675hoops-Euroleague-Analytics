@@ -113,7 +113,7 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
       </span>
       {pos && <span>{pos}</span>}
       <span>{seasonCount}, {span}</span>
-      <a href={`${base}/compare/?p=${data.slug}:${latest.season}`}>Compare with others</a>
+      <a href={`${base}/compare/?p=${data.slug}:${latest.season}`} rel="nofollow">Compare with others</a>
       {card && <a href={`${base}/cards/players/${data.slug}/`}>Share card</a>}
     </p>
     <p class="lede">{lede}</p>

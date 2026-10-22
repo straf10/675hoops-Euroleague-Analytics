@@ -8,3 +8,9 @@
 
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Raw data the pages load in the browser: keep it out of search results.
+/data/*
+  X-Robots-Tag: noindex
+/api/*
+  X-Robots-Tag: noindex
