@@ -365,6 +365,28 @@ def round_headline(
     }
 
 
+def _mkt_paired(
+    per_model: Mapping[str, pd.DataFrame], active: Sequence[str]
+) -> list[dict[str, Any]]:
+    """MKT against each model on the games both have a pre-tip row for. Kept apart from ``shared``,
+    which never includes MKT, so the models' own figures do not depend on the odds log."""
+    if MKT_KEY not in per_model:
+        return []
+    market = per_model[MKT_KEY]
+    out = []
+    for key in active:
+        ids = set(per_model[key]["game_id"]) & set(market["game_id"])
+        out.append(
+            {
+                "key": key,
+                "n": len(ids),
+                "model": metrics(per_model[key][per_model[key]["game_id"].isin(ids)]),
+                "mkt": metrics(market[market["game_id"].isin(ids)]),
+            }
+        )
+    return out
+
+
 def build_forecasts(
     logs: Mapping[str, Path | None],
     labels: Mapping[str, str],
@@ -394,7 +416,7 @@ def build_forecasts(
         per_model[MKT_KEY] = market_calls
         first_round[MKT_KEY] = int(market_calls["round"].min())
     used = {k: labels[k] for k in per_model}
-    active = [k for k, calls in per_model.items() if len(calls)]
+    active = [k for k, calls in per_model.items() if len(calls) and k != MKT_KEY]  # not in shared
     compared = active if len(active) > 1 else []
     shared_ids = (
         set.intersection(*(set(per_model[k]["game_id"]) for k in compared)) if compared else set()
@@ -419,6 +441,7 @@ def build_forecasts(
                 for k in compared
             ],
         },
+        **({"mkt_paired": _mkt_paired(per_model, active)} if MKT_KEY in per_model else {}),
         "rounds": _rounds(per_model, used),
         "games": _games_list(per_model),
         "trend": _trend(shown, baseline) if baseline is not None else [],

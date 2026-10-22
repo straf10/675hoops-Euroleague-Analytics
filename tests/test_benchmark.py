@@ -146,7 +146,7 @@ def test_mkt_is_the_latest_pre_tip_snapshot_and_ignores_later_ones(tmp_path: Pat
     assert {g["game_id"] for g in fc["games"] if "mkt" in g["models"]} == {"G1", "G2"}
 
 
-def test_mkt_is_scored_on_the_shared_games(tmp_path: Path) -> None:
+def test_mkt_is_paired_with_each_model_and_never_enters_shared(tmp_path: Path) -> None:
     fc = build_forecasts(
         {"elo": elo_log(tmp_path / "elo.csv")},
         LABELS,
@@ -155,13 +155,35 @@ def test_mkt_is_scored_on_the_shared_games(tmp_path: Path) -> None:
         odds_log=odds_csv(tmp_path / "odds.csv"),
     )
     assert [(m["key"], m["first_round"]) for m in fc["models"]] == [("elo", 1), ("mkt", 1)]
-    # Elo logged G1-G3; MKT has G1 and G2, so the shared games are G1 and G2.
-    assert fc["shared"]["n"] == 2
-    shared = {r["model"]: r for r in fc["shared"]["rows"]}
-    assert shared["elo"]["log_loss"] == pytest.approx(ll(0.8, 0.4), abs=1e-6)
-    assert shared["mkt"]["log_loss"] == pytest.approx(ll(0.9, 0.5), abs=1e-6)
-    assert shared["elo"]["margin_mae"] == pytest.approx((5 + 6) / 2)  # |5 - 10|, |1 + 5|
-    assert shared["mkt"]["margin_mae"] is None
+    # Elo alone among the models: no shared set. MKT is paired with Elo on G1 and G2 only
+    # (Elo logged G1-G3; MKT has G1 and G2).
+    assert fc["shared"] == {"n": 0, "rows": []}
+    (pair,) = fc["mkt_paired"]
+    assert (pair["key"], pair["n"]) == ("elo", 2)
+    assert pair["model"]["log_loss"] == pytest.approx(ll(0.8, 0.4), abs=1e-6)
+    assert pair["mkt"]["log_loss"] == pytest.approx(ll(0.9, 0.5), abs=1e-6)
+    assert pair["model"]["margin_mae"] == pytest.approx((5 + 6) / 2)  # |5 - 10|, |1 + 5|
+    assert pair["mkt"]["margin_mae"] is None
+
+
+def test_mkt_leaves_existing_models_figures_unchanged(tmp_path: Path) -> None:
+    """Adding odds (and so MKT) must not move any existing model's figures."""
+    log = elo_log(tmp_path / "elo.csv")
+    without = build_forecasts({"elo": log}, LABELS, games(), 2026)
+    with_odds = build_forecasts(
+        {"elo": log}, LABELS, games(), 2026, odds_log=odds_csv(tmp_path / "odds.csv")
+    )
+    assert [m for m in with_odds["season"] if m["model"] != "mkt"] == without["season"]
+    assert with_odds["shared"] == without["shared"]
+    assert with_odds["mkt_paired"] != []  # MKT itself is present and paired
+    assert [{**r, "models": _drop_mkt(r["models"])} for r in with_odds["rounds"]] == without[
+        "rounds"
+    ]
+    assert [{**g, "models": _drop_mkt(g["models"])} for g in with_odds["games"]] == without["games"]
+
+
+def _drop_mkt(models: dict[str, object]) -> dict[str, object]:
+    return {k: v for k, v in models.items() if k != "mkt"}
 
 
 def test_mkt_absent_without_odds_or_without_its_label(tmp_path: Path) -> None:
