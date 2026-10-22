@@ -119,3 +119,8 @@ from eurohoops.audit_status import POSTPONED_REASON, is_postponed  # noqa: E402
 
 POSTPONED_REASON
 is_postponed
+
+# B2 early-season totals diagnostic (scripts/diag_early_totals.py, research only)
+from eurohoops.eval.early_totals import build_report  # noqa: E402
+
+build_report
