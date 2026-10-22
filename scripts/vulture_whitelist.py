@@ -119,3 +119,8 @@ from eurohoops.audit_status import POSTPONED_REASON, is_postponed  # noqa: E402
 
 POSTPONED_REASON
 is_postponed
+
+# B1 MKT benchmark: the live report entry point (scripts/checks/mkt_benchmark.py), tests only today
+from eurohoops.eval.benchmark import benchmark  # noqa: E402
+
+benchmark

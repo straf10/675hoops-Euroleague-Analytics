@@ -384,7 +384,13 @@ def _elo(store: Store, comp: Competition, season: int) -> dict[str, tuple[float,
 # ---- site ----
 
 # The page leads with SITE_FORECAST_MODEL; the team models appear only in its small comparison.
-FORECAST_MODELS = {"elo": "Our model", "m1": "M1", "m5": "M5", "elor": "Roster Elo (trial)"}
+FORECAST_MODELS = {
+    "elo": "Our model",
+    "m1": "M1",
+    "m5": "M5",
+    "elor": "Roster Elo (trial)",
+    "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line; EuroLeague only (no odds for GBL)
+}
 
 
 def _path_or_none(store: Store, relative: Path | None) -> Path | None:
