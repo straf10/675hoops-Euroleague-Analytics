@@ -1,0 +1,10 @@
+snapshot_utc,page_updated_utc,team,team_name_bn,player,bn_player_id,position,status,return_round,comment
+2026-10-08T09:00:00Z,2026-10-08T05:00:00Z,ULK,Fenerbahce Beko Istanbul,Nemanja Dangubic,1111,PG,Out,Indefinitely,Knee
+2026-10-08T09:00:00Z,2026-10-08T05:00:00Z,PAN,Panathinaikos AKTOR Athens,Patty Mills,2222,PG,Out,Round 5,Ankle
+2026-10-08T09:00:00Z,2026-10-08T05:00:00Z,DUB,Dubai Basketball,John Smith,3333,PF,Out,Round 5,Back
+2026-10-08T09:00:00Z,2026-10-08T05:00:00Z,PAN,Panathinaikos AKTOR Athens,Nemanja Dangubic,1111,PG,Out,Round 5,Wrong club
+2026-10-08T09:00:00Z,2026-10-08T05:00:00Z,ULK,Fenerbahce Beko Istanbul,Lonnie Walker,4444,SG,Out,Round 5,Hamstring
+2026-10-11T09:00:00Z,2026-10-11T05:00:00Z,PAN,Panathinaikos AKTOR Athens,Patty Mills,2222,PG,Uncertain,Round 6,Ankle
+2026-10-11T09:00:00Z,2026-10-11T05:00:00Z,ULK,Fenerbahce Beko Istanbul,Lonnie Walker,4444,SG,Uncertain,Round 6,Hamstring
+2026-10-14T09:00:00Z,2026-10-14T05:00:00Z,ULK,Fenerbahce Beko Istanbul,Nemanja Dangubic,1111,PG,Ready,Round 6,Back to training
+2026-10-20T09:00:00Z,2026-10-20T05:00:00Z,PAN,Panathinaikos AKTOR Athens,Nikolaos Rogkavopoulos,5555,PG,Out,Indefinitely,Surgery

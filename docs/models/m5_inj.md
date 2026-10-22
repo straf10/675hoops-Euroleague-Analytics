@@ -144,9 +144,26 @@ first name, initial form or spelling (the rule needs the same key, so it does no
 | TEL | Gabriel Lundberg | 24128 | A | 3 (3) | Out |
 | TEL | Shane Hunter | 38648 | A (LARKIN, SHANE is another surname) | 1 (1) | Out |
 
-**Consequence for the gate (open question, see the owner note below).** The declared rule matches
-only 79 of the 102 latest-snapshot rows and 28 of its 43 `Out` rows. Most of the `Out` players that
-the rule misses are class A, so with this roster source M5-INJ would act on well under half of the
-absences the feed reports. Fixing that means a different roster source or a declared rule for
-initials and nicknames. Either is a change to the declared rule, so it needs the owner before the
-gate is committed. Nothing was changed here.
+**Consequence for the gate (see "Owner decisions needed" below).** The declared rule matches 79 of
+the 102 latest-snapshot rows and 28 of its 43 `Out` rows (271 of 399 `Out` rows over the whole log).
+So M5-INJ would act on about two thirds of the `Out` rows; the rest are mostly class A, and a
+missed `Out` leaves that player's minutes as M5 has them. Covering them means a different roster
+source or a declared rule for initials and nicknames. Either changes the declared rule, so it
+needs the owner before the gate is committed. Nothing was changed here.
+
+## Owner decisions needed before the gate is committed
+1. **Roster source (blocking for the gate's meaning).** The declared rule matches 79 of 102 rows in
+   the latest snapshot and 28 of its 43 `Out` rows. The people listing has no player of the same
+   surname for 12 of the 15 unmatched `Out` rows in the latest snapshot (class A). Options: (a) keep the declared rule and the gate as drafted, which
+   tests M5-INJ on the absences the listing can see; (b) a new declared rule version, committed
+   before any logging, with a second roster source (the 2026 box-score player lines) and a declared
+   initials and nickname rule. (b) changes the matching, so this card's rule would be replaced, not
+   edited in place.
+2. **Stale `Out`.** A player dropped from the feed keeps his last listed status (see "Player status").
+   Confirm, or add a declared expiry.
+3. **Switch-on.** Logging stays off (`M5INJ_LIVE_ENABLED = False`). Flipping it is the owner's step,
+   done with the gate commit, so that the gate's games are the games logged after it.
+4. **Feed freshness.** The daily job (08:00 UTC) reads the `injuries/` log as committed on `main`; it
+   does not record snapshots itself. The status used is the latest committed snapshot before the
+   cutoff, which may be hours old at 08:00.
+

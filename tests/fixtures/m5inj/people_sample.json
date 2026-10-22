@@ -1,0 +1,11 @@
+{
+  "data": [
+    {"type": "J", "club": {"code": "ULK"}, "person": {"code": "1001", "name": "DANGUBIĆ, NEMANJA"}},
+    {"type": "J", "club": {"code": "PAN"}, "person": {"code": "1002", "name": "MILLS, PATTY"}},
+    {"type": "J", "club": {"code": "PAN"}, "person": {"code": "1003", "name": "ROGKAVOPOULOS, NIKOLAOS"}},
+    {"type": "J", "club": {"code": "DUB"}, "person": {"code": "1004", "name": "SMITH, JOHN"}},
+    {"type": "J", "club": {"code": "DUB"}, "person": {"code": "1005", "name": "SMITH, JOHN"}},
+    {"type": "J", "club": {"code": "ULK"}, "person": {"code": "1007", "name": "WALKER IV, LONNIE"}},
+    {"type": "E", "club": {"code": "PAN"}, "person": {"code": "1006", "name": "DANGUBIC, NEMANJA"}}
+  ]
+}
