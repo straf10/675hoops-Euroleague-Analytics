@@ -119,3 +119,9 @@ from eurohoops.audit_status import POSTPONED_REASON, is_postponed  # noqa: E402
 
 POSTPONED_REASON
 is_postponed
+
+# E1: power of the R1 looks, reporting only (scripts/r1_power.py)
+from eurohoops.eval.r1_power import normal_cumulative_prob, simulate_promotion  # noqa: E402
+
+normal_cumulative_prob
+simulate_promotion
