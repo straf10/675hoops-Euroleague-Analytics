@@ -130,3 +130,8 @@ from eurohoops.eval.r1_power import normal_cumulative_prob, simulate_promotion  
 
 normal_cumulative_prob
 simulate_promotion
+
+# B2 early-season totals diagnostic (scripts/diag_early_totals.py, research only)
+from eurohoops.eval.early_totals import build_report  # noqa: E402
+
+build_report
