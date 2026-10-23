@@ -23,6 +23,7 @@ from eurohoops.logs import TIME_FORMAT
 REGULAR_SEASON = "RS"
 WITHIN_POINTS = (5, 10)  # margin error bands, in points
 MARKET_LABEL = "Bookmakers"
+MKT_KEY = "mkt"  # the benchmark forecaster: the bookmakers' pre-tip line (docs/models/mkt.md)
 _NUMERIC = ("p_home", "exp_margin", "exp_total")
 
 
@@ -89,7 +90,7 @@ def _market_calls(odds_path: Path, games: pd.DataFrame, season: int) -> pd.DataF
     closing = (
         odds[before]
         .sort_values("fetched_at_utc")
-        .drop_duplicates("game_id", keep="last")[["game_id", "p_home"]]
+        .drop_duplicates("game_id", keep="last")[["game_id", "p_home", "fetched_at_utc"]]
     )
     scored = closing.astype({"p_home": "float64"}).merge(_finished(games, season), on="game_id")
     scored = scored.assign(
@@ -102,7 +103,7 @@ def _market_calls(odds_path: Path, games: pd.DataFrame, season: int) -> pd.DataF
 
 def _market_empty() -> pd.DataFrame:
     cols = ["game_id", "p_home", "exp_margin", "exp_total", "margin", "round", "phase"]
-    return pd.DataFrame(columns=[*cols, "tipoff_utc", "home_score", "away_score"])
+    return pd.DataFrame(columns=[*cols, "tipoff_utc", "home_score", "away_score", "fetched_at_utc"])
 
 
 def _pick_right(p_home: pd.Series, margin: pd.Series) -> pd.Series:
@@ -136,6 +137,7 @@ def metrics(calls: pd.DataFrame) -> dict[str, Any]:
     home_won = (margin > 0).astype(np.float64)
     picked = p != 0.5
     right = int((((p > 0.5) == (margin > 0)) & picked).sum())
+    has_margin = bool(calls["exp_margin"].notna().any())  # the market has no margin forecast
     error = np.abs(calls["exp_margin"].to_numpy(dtype=np.float64) - margin)
     out |= {
         "picks": int(picked.sum()),
@@ -143,8 +145,10 @@ def metrics(calls: pd.DataFrame) -> dict[str, Any]:
         "right_pct": _round(right / picked.sum()) if picked.any() else None,
         "log_loss": _round(per_game_log_loss(p, home_won).mean()),
         "brier": _round(np.mean((p - home_won) ** 2)),
-        "margin_mae": _round(error.mean()),
-        "within": {str(w): _round((error <= w).mean()) for w in WITHIN_POINTS},
+        "margin_mae": _round(error.mean()) if has_margin else None,
+        "within": {
+            str(w): _round((error <= w).mean()) if has_margin else None for w in WITHIN_POINTS
+        },
     }
     if calls["exp_total"].notna().any():
         total = (calls["home_score"] + calls["away_score"]).to_numpy(dtype=np.float64)
@@ -256,7 +260,7 @@ def _games_list(per_model: Mapping[str, pd.DataFrame]) -> list[dict[str, Any]]:
                 "models": {
                     str(r["model"]): {
                         "p_home": float(r["p_home"]),
-                        "exp_margin": float(r["exp_margin"]),
+                        "exp_margin": None if pd.isna(r["exp_margin"]) else float(r["exp_margin"]),
                         "right": None if r["right"] is None else bool(r["right"]),
                     }
                     for r in rows.to_dict("records")
@@ -361,6 +365,28 @@ def round_headline(
     }
 
 
+def _mkt_paired(
+    per_model: Mapping[str, pd.DataFrame], active: Sequence[str]
+) -> list[dict[str, Any]]:
+    """MKT against each model on the games both have a pre-tip row for. Kept apart from ``shared``,
+    which never includes MKT, so the models' own figures do not depend on the odds log."""
+    if MKT_KEY not in per_model:
+        return []
+    market = per_model[MKT_KEY]
+    out = []
+    for key in active:
+        ids = set(per_model[key]["game_id"]) & set(market["game_id"])
+        out.append(
+            {
+                "key": key,
+                "n": len(ids),
+                "model": metrics(per_model[key][per_model[key]["game_id"].isin(ids)]),
+                "mkt": metrics(market[market["game_id"].isin(ids)]),
+            }
+        )
+    return out
+
+
 def build_forecasts(
     logs: Mapping[str, Path | None],
     labels: Mapping[str, str],
@@ -379,20 +405,25 @@ def build_forecasts(
     of the model the site leads with (default: the first); ``odds_log`` is the bookmaker log,
     whose closing line is scored beside the published model on the games both called.
     """
+    market_calls = _market_calls(odds_log, games, season) if odds_log else _market_empty()
     per_model: dict[str, pd.DataFrame] = {}
     first_round: dict[str, int | None] = {}
     for key in labels:
         path = logs.get(key)
         if path is not None:
             per_model[key], first_round[key] = _calls(path, games, season, manual_pushes)
+    if MKT_KEY in labels and len(market_calls):  # the benchmark is scored like a model
+        per_model[MKT_KEY] = market_calls
+        first_round[MKT_KEY] = int(market_calls["round"].min())
     used = {k: labels[k] for k in per_model}
-    active = [k for k, calls in per_model.items() if len(calls)]
+    active = [k for k, calls in per_model.items() if len(calls) and k != MKT_KEY]  # not in shared
     compared = active if len(active) > 1 else []
     shared_ids = (
         set.intersection(*(set(per_model[k]["game_id"]) for k in compared)) if compared else set()
     )
-    lead = published if published in per_model else next(iter(per_model), None)
-    market_calls = _market_calls(odds_log, games, season) if odds_log else _market_empty()
+    lead = (
+        published if published in per_model else next((k for k in per_model if k != MKT_KEY), None)
+    )
     market = (
         {"label": MARKET_LABEL, "season": _headline(market_calls)} if len(market_calls) else None
     )
@@ -410,6 +441,7 @@ def build_forecasts(
                 for k in compared
             ],
         },
+        **({"mkt_paired": _mkt_paired(per_model, active)} if MKT_KEY in per_model else {}),
         "rounds": _rounds(per_model, used),
         "games": _games_list(per_model),
         "trend": _trend(shown, baseline) if baseline is not None else [],
