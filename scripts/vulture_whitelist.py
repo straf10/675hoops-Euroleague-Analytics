@@ -135,3 +135,11 @@ simulate_promotion
 from eurohoops.eval.early_totals import build_report  # noqa: E402
 
 build_report
+
+# POOL-c (docs/models/pool_c.md, draft gate): fit, frozen apply and the paired gap are written ahead
+# of their pipeline step; nothing in src calls them until the owner commits the gate
+from eurohoops.eval.pool_c import apply_c, fit_c, paired_gap  # noqa: E402
+
+apply_c
+fit_c
+paired_gap
