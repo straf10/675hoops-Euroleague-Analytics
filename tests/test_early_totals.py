@@ -5,11 +5,13 @@ Expected values are worked out by hand from the fixture rows (see the comments i
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
 
 from eurohoops.eval.early_totals import (
+    _verdict,
     bucket_of,
     build_report,
     excludes_zero,
@@ -128,14 +130,51 @@ def test_report_is_deterministic(
     assert build_report(games, odds, m1_log, 2026) == build_report(games, odds, m1_log, 2026)
 
 
-def test_verdict_declares_bias_only_when_early_excludes_zero_and_late_does_not(
-    games: pd.DataFrame, odds: pd.DataFrame, m1_log: pd.DataFrame
-) -> None:
+def test_fixture_verdicts(games: pd.DataFrame, odds: pd.DataFrame, m1_log: pd.DataFrame) -> None:
     report = build_report(games, odds, m1_log, season=2026)
-    # Line: early values {10.5, 5.5} give a CI above 0, late values {2.5, -0.5} a CI through 0.
-    assert report["verdict"]["line"] == {"early_bias_present": True, "early_sign": 1}
-    # M1: early values {6, -5} give a CI through 0, so no declaration.
-    assert report["verdict"]["m1"]["early_bias_present"] is False
+    # Line: early values {10.5, 5.5} give a CI entirely above 0; late {2.5, -0.5} a CI through 0.
+    assert report["verdict"]["line"] == {
+        "early_bias_present": True,
+        "early_shift_opposite": False,
+    }
+    # M1: early values {6, -5} give a CI through 0, so no declaration and no opposite shift.
+    assert report["verdict"]["m1"] == {
+        "early_bias_present": False,
+        "early_shift_opposite": False,
+    }
+
+
+def _buckets(early: list[float] | None, late: list[float] | None) -> dict[str, Any]:
+    """A minimal bucket table for ``_verdict``: one metric, CIs given for rounds 1-5 and 11+."""
+    return {
+        "1-5": {"n": 5 if early else 0, "m": {"ci95": early}},
+        "11+": {"n": 5 if late else 0, "m": {"ci95": late}},
+    }
+
+
+def test_verdict_positive_early_ci_and_null_late_ci_declares_bias() -> None:
+    verdict = _verdict(_buckets([1.0, 3.0], [-1.0, 1.0]), "m")
+    assert verdict == {"early_bias_present": True, "early_shift_opposite": False}
+
+
+def test_verdict_negative_early_ci_is_opposite_shift_not_bias() -> None:
+    verdict = _verdict(_buckets([-3.0, -1.0], [-1.0, 1.0]), "m")
+    assert verdict == {"early_bias_present": False, "early_shift_opposite": True}
+
+
+def test_verdict_null_early_ci_declares_nothing() -> None:
+    verdict = _verdict(_buckets([-1.0, 1.0], [-1.0, 1.0]), "m")
+    assert verdict == {"early_bias_present": False, "early_shift_opposite": False}
+
+
+def test_verdict_late_ci_excluding_zero_blocks_declaration() -> None:
+    verdict = _verdict(_buckets([1.0, 3.0], [1.0, 2.0]), "m")
+    assert verdict["early_bias_present"] is False
+
+
+def test_verdict_empty_bucket_declares_nothing() -> None:
+    verdict = _verdict(_buckets(None, [-1.0, 1.0]), "m")
+    assert verdict == {"early_bias_present": False, "early_shift_opposite": False}
 
 
 def test_excludes_zero() -> None:

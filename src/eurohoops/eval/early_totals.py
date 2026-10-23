@@ -150,9 +150,14 @@ def build_report(
 
 
 def _verdict(buckets: dict[str, Any], metric: str) -> dict[str, Any]:
+    """Owner decision 2026-10-23: the rounds 1-5 CI must lie entirely above 0 and the rounds 11+
+    CI must not exclude 0. A rounds 1-5 CI entirely below 0 is descriptive only."""
     early = buckets["1-5"][metric]["ci95"] if buckets["1-5"]["n"] else None
     late = buckets["11+"][metric]["ci95"] if buckets["11+"]["n"] else None
+    early_above = early is not None and early[0] > 0
+    early_below = early is not None and early[1] < 0
+    late_clear = late is not None and not excludes_zero(late)
     return {
-        "early_bias_present": excludes_zero(early) and late is not None and not excludes_zero(late),
-        "early_sign": None if early is None else int(np.sign(buckets["1-5"][metric]["mean"])),
+        "early_bias_present": early_above and late_clear,
+        "early_shift_opposite": early_below,
     }

@@ -44,13 +44,16 @@ bootstrap CI:
 
 ## Rule (declared before any result is computed)
 "Early-season bias present" is declared, **separately for the line and for M1**, if:
-- the rounds 1–5 CI excludes 0, **and**
-- the rounds 11+ CI does not exclude 0.
+- the rounds 1–5 95% CI lies **entirely above 0** (the total, line or M1, runs above the actual
+  total), **and**
+- the rounds 11+ 95% CI does not exclude 0.
 
-Rounds 6–10 are reported and have no role in the rule. The rule as written does not require the
-sign of the early gap to be positive; the report prints the sign next to each verdict, so a
-negative early gap that passes the rule is visible. (Open question for the owner: should the
-rule require a positive sign? See the last section.)
+The CI is the two-sided 95% interval described above (not one-sided).
+
+A rounds 1–5 CI lying **entirely below 0** is reported as "early shift, opposite direction". This
+is descriptive only: it is not the bias, and it does not declare anything.
+
+Rounds 6–10 are reported and have no role in the rule.
 
 ## Risks and power
 - **Low power.** A 5-round bucket holds about 45 EuroLeague games (18 teams, 9 games per round).
@@ -78,9 +81,12 @@ fresh data). M1 and M5 are not re-tuned on any split used for their gates (PLAN 
   `predictions/euroleague_m1_2026-27.csv` read-only, and writes only the report JSON.
 - The script is not run on live 2026-27 data until the owner has committed this rule.
 
-## Open questions for the owner
-1. Should the early-bias rule require a positive sign (line or M1 above actual)? As drafted, a
-   significant negative early gap also passes.
-2. Blank total in the latest pre-tip snapshot: no line (as drafted), or fall back to the latest
-   earlier snapshot with a total?
-3. Playoffs: excluded (as drafted). Confirm.
+## Owner decisions (2026-10-23)
+1. **Sign.** The early-bias rule requires the rounds 1–5 95% CI to lie entirely above 0 (line or
+   M1 total higher than actual). A rounds 1–5 CI entirely below 0 is reported as "early shift,
+   opposite direction" (descriptive, not the bias). The two-sided 95% CI is kept.
+2. **Blank total.** A blank total in the latest pre-tip snapshot gives no line, with no fallback
+   to an earlier snapshot.
+3. **Playoffs.** Playoff games are excluded from all buckets.
+
+Status of the card is unchanged: draft, not committed by the owner.
