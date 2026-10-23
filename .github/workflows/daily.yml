@@ -166,7 +166,7 @@ jobs:
           BRANCH: ${{ github.ref_name }}
         run: |
           git add predictions/ reports/ odds/
-          # M5-INJ's log (docs/models/m5_inj.md): named explicitly; absent while M5INJ_LIVE_ENABLED is off.
+          # M5-INJ's log (docs/models/m5_inj.md): named explicitly; written once M5INJ_LIVE_ENABLED is on.
           if [ -f predictions/euroleague_m5inj_2026-27.csv ]; then git add predictions/euroleague_m5inj_2026-27.csv; fi
           if git diff --cached --quiet; then
             echo "No changes to commit."

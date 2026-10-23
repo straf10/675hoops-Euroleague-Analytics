@@ -49,7 +49,13 @@ from eurohoops.api.export import (
 from eurohoops.api.readmodel import FORECAST_MODELS, Store
 from eurohoops.cli._shared import _live
 from eurohoops.cli.publish import utc_now
-from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH, SITE_FORECAST_MODEL
+from eurohoops.config import (
+    EUROLEAGUE,
+    LIVE_SEASON,
+    M5INJ_LIVE_ENABLED,
+    MART_PATH,
+    SITE_FORECAST_MODEL,
+)
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import write_json
 from eurohoops.marts import data_volume, read_games, read_teams
@@ -98,6 +104,7 @@ def legacy_site(out: Path, now: datetime) -> None:
                         "m1": comp.m1_prediction_log,
                         "m5": comp.m5_prediction_log,
                         "elor": comp.elor_prediction_log,
+                        "m5inj": comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
                     },
                     FORECAST_MODELS,
                     live.games,

@@ -1,9 +1,9 @@
 # M5-INJ: M5 with the BasketNews "Out" status (EuroLeague, shadow)
 
-**Status: draft, not committed by the owner.** Drafted 2026-10-22 (PLAN §8.1 backlog, IDEAS.md A1).
-Nothing here is a promotion or a gate until the owner commits it. Logging stays off
-(`M5INJ_LIVE_ENABLED = False`, config) until then, so the gate's evaluation games are the games
-logged after the gate commit.
+**Status: committed by the owner, 2026-10-23.** Drafted 2026-10-22 (PLAN §8.1 backlog, IDEAS.md A1).
+Logging is switched on by the same commit (`M5INJ_LIVE_ENABLED = True`, config). The gate's
+evaluation games are the EuroLeague games that both M5 and M5-INJ log after this commit, through
+season end. The gate, the matching rule and the status rule below are fixed from this commit on.
 
 ## Question
 M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it reacts to an absence
@@ -74,7 +74,7 @@ Matching is only for the status to reach the right EuroLeague player. It is not 
 - **Unmatched rows** have no effect on any forecast from the status path (see the M5 section below
   for what that means for M5's own projection).
 
-## Logging (when switched on)
+## Logging
 - File: `predictions/euroleague_m5inj_2026-27.csv` (the M1/M5 column shape, `model = m5inj`).
 - Written by `eurohoops predict` only when `M5INJ_LIVE_ENABLED` is True, and only if M5's own
   validation gate passed (the M5 report). The same upcoming-game rule as M5 (`predict.upcoming_games`).
@@ -82,7 +82,7 @@ Matching is only for the status to reach the right EuroLeague player. It is not 
 - Append-only, like every log. The logged row keeps only the forecast; the matched status is
   recomputed from `injuries/` at the row's `predicted_at_utc` when needed.
 
-## Draft gate (IDEAS.md A1, unchanged)
+## Gate (IDEAS.md A1, unchanged; committed 2026-10-23)
 - **Question:** does `M5-INJ` beat M5 on EuroLeague home-win log loss on live games?
 - **Evaluation data:** EuroLeague 2026-27 games that both M5 and `M5-INJ` logged after the gate
   commit, through season end (about 250 games).
@@ -168,9 +168,14 @@ was not checked (no score or box-score query was run for this card).
 - Stale status: the status is read from the latest snapshot as a whole; an older `Out` does not
   carry forward (above).
 
-## Open items for the owner
-1. The class-A count: 21 in the owner's note, 22 pairs in the list (George Papas, OLY, is the extra).
-2. Coverage: the 22 unmatched pairs keep their projected minutes in M5-INJ, as the M5 section says.
-3. Switch-on: logging stays off (`M5INJ_LIVE_ENABLED = False`); flipping it is the owner's step, done
-   with the gate commit.
-4. Feed freshness: the daily job uses the committed `injuries/` log, which may be hours old at 08:00 UTC.
+- No alias for any of the 22 class-A pairs (George Papas, OLY, included): different players.
+- Coverage accepted: the 22 unmatched pairs keep their M5 projected minutes. Of them, only Jabari
+  Parker (PAR) and Iffe Lundberg (TEL) had real EuroLeague minutes in 2025-26, and both have been
+  `Out` in every snapshot, so M5's two-missed-games rule already removes them.
+- Gate committed and logging switched on (`M5INJ_LIVE_ENABLED = True`) in the same commit.
+
+## Known limits (accepted)
+- Feed freshness: the daily job uses the committed `injuries/` log, which may be hours old when the
+  daily run starts.
+- A player missing from the people listing who later gets injured is not matched; a second roster
+  source would be a new matching-rule version with its own log.

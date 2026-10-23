@@ -197,9 +197,9 @@ EUROLEAGUE = Competition(
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
 )
 
-# M5-INJ (docs/models/m5_inj.md): a draft whose gate the owner has not committed. Off until the
-# owner commits the gate, so that its evaluation games are the games logged after that commit.
-M5INJ_LIVE_ENABLED = False
+# M5-INJ (docs/models/m5_inj.md): gate committed by the owner on 2026-10-23, logging on from then.
+# Its evaluation games are the games logged after that commit.
+M5INJ_LIVE_ENABLED = True
 
 # POOL (docs/models/pool.md): an equal-weight logarithmic pool of four live EuroLeague logs.
 # Switched on by the owner on 2026-10-17 after approving the protocol (pins re-checked that day).
