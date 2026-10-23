@@ -41,3 +41,7 @@ web/public/downloads/
 .impeccable/
 skills-lock.json
 mlruns/
+
+# Research PDFs and per-paper notes (local only)
+/docs/research/pdfs/
+/docs/research/papers/
