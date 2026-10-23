@@ -89,3 +89,43 @@ No gate, no rule change, no model change. No live 2026-27 rows. No attempt to tu
 ## Questions for the owner
 1. Accept the playoff counts (22 EuroLeague, 18 GBL) from 2025-26, or give the 2026-27 format?
 2. The GBL R1 test has little power at either look. Is that acceptable, or should the GBL look or statistic be declared differently before 2026-27 round 13?
+
+**Owner decision (2026-10-23), recorded here:** R1 v1 stands unchanged for 2026-27, playoff counts 22 and 18 accepted. GBL R1 v2 is drafted below, from 2027-28 only.
+
+---
+
+## GBL R1 v2 (draft, applies from 2027-28)
+
+Status: draft, not committed by the owner. The owner decided on 2026-10-23 to plan a v2; this section is the draft text and the power analysis, not a rule in force.
+
+- **R1 v1 stands unchanged for 2026-27.** The GBL flagship looks in `m1.md` (round 13 and season end; M1 − Elo; two-sided 97.5% CI; mean at most −0.01) are not edited.
+- **R1 v2 (GBL only) applies from the 2027-28 season and never retroactively.** Nothing scored in 2026-27 is judged under v2 except as pooled data below.
+- **Games:** live GBL games that both Elo and M1 logged before tip-off and that have a result, from 2026-27 round 1 through the 2027-28 season. 2026-27 games are scored under the 2026-27 rules (the latest logged row before tip-off, per the scorecard rule). A new M1 or Elo `model_version` in either season breaks the pool: the count restarts from that version, as in v1.
+- **Statistic and bar:** the same as v1. Mean per-game log-loss gap M1 − Elo; paired bootstrap over games (10,000 resamples, fixed seed); promote at the first look where the two-sided 97.5% CI upper bound is below 0 **and** the mean is −0.01 or lower.
+- **Looks:** 2027-28 regular-season round 13 (pooled n = 200 + 91 = 291) and 2027-28 season end (pooled n = 200 + 200 = 400). The looks are nested.
+
+### Why pool
+v1 at round 13 has 91 games. At a true gap of −0.02 it promotes about 6% of the time (analytic, SD 0.2719). Pooling the 2026-27 season doubles the sample at season end and roughly triples it at round 13.
+
+### Power (analytic, normal approximation; no live 2026-27 rows used)
+SD 0.2719 is the GBL M1 − Elo test-split SD, the same as v1 (`reports/r1_power.json`, key `gbl_v2_analytic`). Cumulative = promotion by that look; marginal = first promotion at that look.
+
+| True gap | Round 13 (291 games): marginal | Season end (400 games): marginal / cumulative |
+|---|---|---|
+| −0.003 | 0.020 | 0.011 / 0.031 |
+| −0.005 | 0.027 | 0.016 / 0.043 |
+| −0.010 | 0.053 | 0.032 / 0.085 |
+| −0.020 | 0.162 | 0.093 / 0.255 |
+| 0 (null, reference) | 0.013 | 0.007 / 0.019 |
+
+For comparison, v1 at −0.02: round 13 marginal 0.062; season end cumulative 0.142.
+
+Simulation is not repeated for v2. The GBL gap shape is strongly skewed (skew −2.4, excess kurtosis 9.1), so the analytic values are an approximation. For v1 the simulation ran below analytic at these sizes, so these v2 analytic values are probably slightly optimistic.
+
+### Risks
+- **Stationarity.** Pooling assumes the M1 − Elo gap has the same mean in 2026-27 and 2027-28. A version change in either model restarts the pool. If the gap drifts with the season (roster or rule changes), the pooled mean mixes two regimes.
+- **Within-season dependence.** Games in one round share shocks. The round-clustered sensitivity used for v1 should be reported alongside v2.
+- **Power is still limited.** Even pooled, a true gap of −0.01 gives about 5% at round 13 and about 8.5% by season end. The bar is the owner's v1 bar, kept as is.
+
+### Option, not a decision
+Keeping the v1 bar is the default in this draft, and no reason was found to state otherwise. A smaller detectable gap would need a different bar, which would have to be pre-registered separately; it is not proposed here.

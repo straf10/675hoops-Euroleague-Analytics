@@ -689,5 +689,66 @@
       "excess_kurtosis": 9.0898,
       "source": "test split, 340 games"
     }
+  },
+  "gbl_v2_analytic": {
+    "sd": 0.271908,
+    "sd_source": "GBL M1 - Elo test SD (same as v1; no 2026-27 live rows used)",
+    "rows": [
+      {
+        "true_gap": -0.003,
+        "marginal": [
+          0.02,
+          0.0113
+        ],
+        "cumulative": [
+          0.02,
+          0.0313
+        ]
+      },
+      {
+        "true_gap": -0.005,
+        "marginal": [
+          0.0269,
+          0.0156
+        ],
+        "cumulative": [
+          0.0269,
+          0.0425
+        ]
+      },
+      {
+        "true_gap": -0.01,
+        "marginal": [
+          0.0533,
+          0.032
+        ],
+        "cumulative": [
+          0.0533,
+          0.0853
+        ]
+      },
+      {
+        "true_gap": -0.02,
+        "marginal": [
+          0.1619,
+          0.0927
+        ],
+        "cumulative": [
+          0.1619,
+          0.2546
+        ]
+      },
+      {
+        "true_gap": 0.0,
+        "marginal": [
+          0.0125,
+          0.0067
+        ],
+        "cumulative": [
+          0.0125,
+          0.0192
+        ]
+      }
+    ]
   }
 }

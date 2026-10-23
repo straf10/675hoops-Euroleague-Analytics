@@ -12,6 +12,7 @@ Run: ``uv run python scripts/r1_power.py``
 """
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -157,8 +158,10 @@ def bootstrap_check(diff: np.ndarray) -> dict[str, Any]:
     return {"bootstrap_ci_upper": round(hi, 8), "vectorised_upper": round(fast, 8), "n": len(diff)}
 
 
-def analytic(competition: str, sd: float, sd_source: str) -> dict[str, Any]:
-    looks = LOOKS[competition]
+def analytic(
+    competition: str, sd: float, sd_source: str, looks: Sequence[Look] | None = None
+) -> dict[str, Any]:
+    looks = looks or LOOKS[competition]
     rows = []
     for gap in TRUE_GAPS + REFERENCE_GAPS:
         cumulative = normal_cumulative_prob(gap, sd, looks)
@@ -216,6 +219,7 @@ def main() -> None:
         "simulation": {},
         "bootstrap_check": {},
     }
+    gbl_test_sd = 0.0
     for competition in LOOKS:
         m_a, m_b = PAIR[competition]
         frame = per_game[competition]
@@ -224,6 +228,8 @@ def main() -> None:
         }
         diffs = {s: losses[s][m_a] - losses[s][m_b] for s in losses}
         test_diff = diffs["test"]
+        if competition == "gbl":
+            gbl_test_sd = float(test_diff.std(ddof=1))
         report["analytic"][competition] = analytic(
             competition, float(test_diff.std(ddof=1)), f"test split, {len(test_diff)} games"
         )
@@ -243,6 +249,17 @@ def main() -> None:
             "excess_kurtosis": round(float(stats.kurtosis(test_diff)), 4),
             "source": f"test split, {len(test_diff)} games",
         }
+    # GBL R1 v2 (draft, applies from 2027-28): pools the 2026-27 season with 2027-28.
+    # Looks: 2027-28 round 13 (200 + 91 games) and 2027-28 season end (200 + 200 games).
+    report["gbl_v2_analytic"] = analytic(
+        "gbl",
+        float(gbl_test_sd),
+        "GBL M1 - Elo test SD (same as v1; no 2026-27 live rows used)",
+        looks=[
+            Look("2027-28 round 13 (pooled)", 200 + 91),
+            Look("2027-28 season end (pooled)", 400),
+        ],
+    )
     write_json(OUT, report)
     print(f"wrote {OUT}")
 
