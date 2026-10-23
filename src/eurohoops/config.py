@@ -132,6 +132,9 @@ class Competition:
         None  # live ELOC shadow log (EuroLeague only; see ELOC_LIVE_ENABLED)
     )
     pool_prediction_log: Path | None = None  # live POOL shadow log (EuroLeague only, gated)
+    m5inj_prediction_log: Path | None = (
+        None  # live M5-INJ shadow log (EuroLeague only; see M5INJ_LIVE_ENABLED)
+    )
     # Elo model inputs per logged prediction (docs/match_report.md, section 1); append-only
     inputs_log: Path | None = None
 
@@ -190,8 +193,13 @@ EUROLEAGUE = Competition(
     elor_prediction_log=Path("predictions/euroleague_elor_2026-27.csv"),
     eloc_prediction_log=Path("predictions/euroleague_eloc_2026-27.csv"),
     pool_prediction_log=Path("predictions/euroleague_pool_2026-27.csv"),
+    m5inj_prediction_log=Path("predictions/euroleague_m5inj_2026-27.csv"),
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
 )
+
+# M5-INJ (docs/models/m5_inj.md): a draft whose gate the owner has not committed. Off until the
+# owner commits the gate, so that its evaluation games are the games logged after that commit.
+M5INJ_LIVE_ENABLED = False
 
 # POOL (docs/models/pool.md): an equal-weight logarithmic pool of four live EuroLeague logs.
 # Switched on by the owner on 2026-10-17 after approving the protocol (pins re-checked that day).

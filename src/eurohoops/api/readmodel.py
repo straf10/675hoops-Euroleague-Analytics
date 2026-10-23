@@ -52,6 +52,7 @@ from eurohoops.config import (
     LIVE_SEASON,
     M2_PLAYERS_REPORT,
     M3_PLAYERS_REPORT,
+    M5INJ_LIVE_ENABLED,
     M6_BOARD,
     M6_PROJECTIONS,
     M6_SIMILARITY,
@@ -389,6 +390,7 @@ FORECAST_MODELS = {
     "m1": "M1",
     "m5": "M5",
     "elor": "Roster Elo (trial)",
+    "m5inj": "M5 + injuries (trial)",
     "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line; EuroLeague only (no odds for GBL)
 }
 
@@ -429,6 +431,9 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         "m1": _path_or_none(store, comp.m1_prediction_log),
                         "m5": _path_or_none(store, comp.m5_prediction_log),
                         "elor": _path_or_none(store, comp.elor_prediction_log),
+                        "m5inj": _path_or_none(store, comp.m5inj_prediction_log)
+                        if M5INJ_LIVE_ENABLED
+                        else None,
                     },
                     FORECAST_MODELS,
                     games,
@@ -594,6 +599,7 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
             "m1": comp.m1_prediction_log,
             "m5": comp.m5_prediction_log,
             "elor": comp.elor_prediction_log,
+            "m5inj": comp.m5inj_prediction_log,
         }
         models: dict[str, Any] = {}
         head: Mapping[Any, Any] | None = None
@@ -1230,7 +1236,12 @@ def report_game_ids(store: Store, competition: str) -> list[str]:
     return list(dict.fromkeys(live["game_id"].astype(str)))
 
 
-LOG_MODELS = {"m1": "m1_prediction_log", "m5": "m5_prediction_log", "elor": "elor_prediction_log"}
+LOG_MODELS = {
+    "m1": "m1_prediction_log",
+    "m5": "m5_prediction_log",
+    "elor": "elor_prediction_log",
+    "m5inj": "m5inj_prediction_log",
+}
 
 
 def _inputs_frame(store: Store, comp: Competition) -> pd.DataFrame | None:

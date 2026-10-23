@@ -43,6 +43,7 @@ from eurohoops.config import (
     LIVE_SEASON,
     M3_PLAYERS_REPORT,
     M5,
+    M5INJ_LIVE_ENABLED,
     M6,
     M6_BOARD,
     M6_GBL,
@@ -65,13 +66,15 @@ from eurohoops.eval.elor_cv import ElorInputs
 from eurohoops.eval.m5_backtest import M5Inputs, PlayerPartFn
 from eurohoops.eval.m6_backtest import M6Inputs, TargetInputs, World, prepare
 from eurohoops.eval.scorecard import build_scorecard
+from eurohoops.ingest.bios import el_people_path
 from eurohoops.ingest.http import make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
 from eurohoops.inputs import INPUT_COLUMNS, backfill_rows
 from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
 from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
-from eurohoops.live_m5 import live_spec, load_m5, predict_upcoming_m5
+from eurohoops.live_m5 import LiveM5, live_spec, load_m5, predict_upcoming_m5
+from eurohoops.live_m5inj import predict_upcoming_m5inj
 from eurohoops.live_m6 import (
     board_report,
     inputs_digest,
@@ -95,6 +98,7 @@ from eurohoops.live_sim import (
 )
 from eurohoops.logs import append_rows, write_json
 from eurohoops.marts import read_games, read_table, read_teams
+from eurohoops.models.availability import read_injuries, read_roster_names
 from eurohoops.models.box_impact import STAT_COLUMNS
 from eurohoops.models.elor import WalkForwardRatings
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
@@ -327,6 +331,38 @@ class _LiveFrame:
         )
 
 
+def _predict_m5inj(
+    games: pd.DataFrame,
+    *,
+    m5: LiveM5 | None,
+    frame: _LiveFrame,
+    comp: Competition,
+    season: int,
+    round_lead_hours: float,
+) -> None:
+    """The M5-INJ shadow log: off unless M5INJ_LIVE_ENABLED (config.py) is set. It needs M5's
+    report and the injury and roster caches. A shadow model never blocks the other logs."""
+    if not M5INJ_LIVE_ENABLED or m5 is None or comp.m5inj_prediction_log is None:
+        return
+    try:
+        added = predict_upcoming_m5inj(
+            games,
+            m5,
+            frame.m5,
+            injuries=read_injuries(INJURY_LOG),
+            roster=read_roster_names(el_people_path(EUROLEAGUE.raw_dir, LIVE_SEASON)),
+            log_path=comp.m5inj_prediction_log,
+            season=season,
+            round_lead=timedelta(hours=round_lead_hours),
+            clock=utc_now,
+        )
+        typer.echo(f"{added} M5-INJ predictions appended to {comp.m5inj_prediction_log}")
+    except LatePredictionError:
+        raise
+    except Exception:
+        log.exception("M5-INJ skipped: its forecast failed; nothing appended to its log")
+
+
 def _predict_eloc(
     games: pd.DataFrame, season: int, comp: Competition, round_lead_hours: float
 ) -> None:
@@ -436,6 +472,14 @@ def predict(
                 raise
             except Exception:
                 log.exception("ELOR skipped: its forecast failed; nothing appended to its log")
+        _predict_m5inj(
+            live.games,
+            m5=m5,
+            frame=frame,
+            comp=comp,
+            season=live.season,
+            round_lead_hours=round_lead_hours,
+        )
         _predict_eloc(live.games, live.season, comp, round_lead_hours)
         _predict_pool(comp.pool_prediction_log)
     except LatePredictionError as exc:
@@ -625,6 +669,7 @@ def score(competition: CompetitionOption = CompetitionName.euroleague) -> None:
         m1_log_path=comp.m1_prediction_log,
         m5_log_path=comp.m5_prediction_log,
         elor_log_path=comp.elor_prediction_log,
+        m5inj_log_path=comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))
