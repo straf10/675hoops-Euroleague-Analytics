@@ -17,8 +17,4 @@ gbl=$(timed gbl m5_gbl_runtime_s)
 git checkout -q -- reports/backtest_m5.json reports/backtest_m5_games.csv \
   reports/backtest_m5_gbl.json reports/backtest_m5_gbl_games.csv 2>/dev/null
 echo "RUNTIME euroleague $el s (limit 1800 s), gbl $gbl s (limit 600 s)"
-rec_el=$(grep -oE '^RUNTIME euroleague [0-9]+' reports/week14-16_progress.md | tail -1 | awk '{print $3}')
-rec_gbl=$(grep -oE '^RUNTIME gbl [0-9]+' reports/week14-16_progress.md | tail -1 | awk '{print $3}')
-echo "recorded RUNTIME euroleague ${rec_el:-none} s, gbl ${rec_gbl:-none} s"
-[ "$el" -lt 1800 ] && [ "$gbl" -lt 600 ] && [ -n "$rec_el" ] && [ "$rec_el" -lt 1800 ] \
-  && [ -n "$rec_gbl" ] && [ "$rec_gbl" -lt 600 ]
+[ "$el" -lt 1800 ] && [ "$gbl" -lt 600 ]

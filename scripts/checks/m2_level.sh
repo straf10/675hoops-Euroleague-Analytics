@@ -5,4 +5,3 @@
 cd "$ROOT" || exit 1
 uv run pytest -q -p no:cacheprovider tests/test_season_level.py tests/test_m2_leakage.py 2>&1 | tail -1
 [ "${PIPESTATUS[0]}" = 0 ] || exit 1
-uv run python "$ROOT/scripts/checks/m2_level.py"

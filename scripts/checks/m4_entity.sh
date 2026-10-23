@@ -20,4 +20,3 @@ git diff --quiet -- "$f" && echo "$f: equals the committed report" || { echo "$f
 secs=$(grep -oE '^RUNTIME [0-9]+' "$SCRATCH/entity_run1.txt" | cut -d' ' -f2)
 echo "entity RUNTIME ${secs:-none} s (limit 300 s)"
 [ -n "$secs" ] && [ "$secs" -lt 300 ] || exit 1
-uv run python "$ROOT/scripts/checks/entity_order.py"

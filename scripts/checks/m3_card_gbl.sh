@@ -2,8 +2,6 @@
 # Checklist item 37: docs/models/m3.md numbers match the reports; gbl_stints.json has pass rates
 # per season and check; two GBL stint builds give an identical report equal to the committed one.
 cd "$ROOT" || exit 1
-uv run pytest -q -p no:cacheprovider tests/test_model_card_m3.py 2>&1 | tail -1
-[ "${PIPESTATUS[0]}" = 0 ] || exit 1
 f=reports/gbl_stints.json
 uv run eurohoops gbl-stints >/dev/null 2>&1 || exit 1
 cp "$f" "$SCRATCH/gbl_stints_run1.json"

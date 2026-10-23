@@ -1,8 +1,7 @@
 # Ideas backlog: inspiration from other basketball analytics sites
 
 Captured 2026-10-17 from the owner's notes (ideas 1–19), with a feasibility review against the
-code as it stands today. Nothing here is approved work: each item needs an owner decision, and any
-model change still goes through a written protocol and a gate before it reaches `predictions/`.
+code as it stands today. Ideas, not committed work.
 
 **Legend.** Status: **Have** (exists), **Partial** (some of it exists), **New**.
 Effort: S (≤ 1 day), M (2–4 days), L (a week or more). Verdict: **Do**, **Later**, **Skip**.
@@ -112,8 +111,6 @@ that is the KenPom-style rating from §13, already built.
 
 ## 7. Game pages with in-game win probability — Do (flagship, large)
 
-Protocol draft: docs/models/wp.md
-
 What is needed:
 1. **In-game win probability model** (new). Features: score margin, seconds remaining, pre-game
    Elo difference (or pre-game P(home) from the published forecast), home, possession if
@@ -121,7 +118,7 @@ What is needed:
    first, gradient boosting second; train on 2007–2022 play-by-play, validate and test on later
    seasons, isotonic calibration on out-of-fold predictions, check calibration by time bucket.
    Start every game's chain at the published pre-game P(home), not 0.5. The closed-form fallback `WP = Φ(margin_adj / (11 · sqrt(t/2400)))` is the baseline to
-   beat. Write a protocol first like the other models.
+   beat.
 2. **Per-game outputs:** the win-probability line, top swings (largest WP change per play or per
    run), scoring runs (top 3 per team; runs need no model), and the box score per team.
 3. **Player impact in that game:** WPA per player (sum of WP changes on his events) next to
@@ -141,7 +138,7 @@ the source of most of the metric list in §13. Their reported accuracy numbers w
 | In-game WP (`train_wp_model.py`) | One row per scoring event, 2007–2025. Features: margin, seconds left, time fraction, OT flag, margin × time, **`margin / sqrt(time_frac)`**, pre-game Elo diff, last-10-events scoring run, lead changes. `GradientBoostingClassifier` (300 trees, depth 4, lr 0.05). Train 2007–22, val 2023, test 2024–25. **Isotonic** calibration on out-of-fold expanding-window predictions (not Platt, despite the site text). | `is_home` is always 1 (dead feature); OT clock hard-coded; the WPA chain starts at 0.5, not the pre-game WP. | **Adopt the recipe for §7**, fixing those three. |
 | WPA (`calculate_wpa.py`) | ΔWP of each PBP row goes to that row's player, sign-flipped for the away team, × 100. | Shooter takes all credit; no assist or defender split. | Adopt with an assist split (e.g. share ΔWP of an assisted make). |
 | RAPM (`calculate_rapm.py`) | Pass 1 ridge α 100; box-score ridge fitted on pass-1 output; pass 2 `RidgeCV` shrinks toward that prior. | Prior fitted on the same season it shrinks (circular); CV not grouped by game (leaks); one season; no intervals. | **Nothing to borrow**: our `rapm_spm` is walk-forward, multi-season, with intervals. |
-| Season sim (`simulate_monte_carlo.py`) | Margin = 3 + s_home − s_away + N(0, 12²). Strengths: joint Gaussian posterior, prior mean from last season's Elo (75% carry), prior weight ≈ 7 games, tuned on 2016–24. One strength vector drawn per simulation. EuroLeague tiebreakers. | H2H tiebreak approximated. | Ours (M7) has the same structure (M1 posterior, per-sim draws, rule tiebreakers). **Borrow their backtest**: checkpoints at rounds 4/8/12/20 since 2016, log loss on Top 4/6/10, a cap on wrong extreme calls (p ≥ 0.95 or ≤ 0.05 wrong ≤ 3%), binned calibration. Useful for diagnosing why M7 failed its gate, and an **Elo-based prior** is a cheap variant to try. |
+| Season sim (`simulate_monte_carlo.py`) | Margin = 3 + s_home − s_away + N(0, 12²). Strengths: joint Gaussian posterior, prior mean from last season's Elo (75% carry), prior weight ≈ 7 games, tuned on 2016–24. One strength vector drawn per simulation. EuroLeague tiebreakers. | H2H tiebreak approximated. | Ours (M7) has the same structure (M1 posterior, per-sim draws, rule tiebreakers). **Borrow their backtest**: checkpoints at rounds 4/8/12/20 since 2016, log loss on Top 4/6/10, a cap on wrong extreme calls (p ≥ 0.95 or ≤ 0.05 wrong ≤ 3%), binned calibration. Useful for diagnosing why M7 v1 failed its check, and an **Elo-based prior** is a cheap variant to try. |
 | Elo (`calculate_elo.py`) | K 10, HCA 50, 75% carry, no margin-of-victory multiplier. | — | Cross-check only; ours is tuned by backtest. |
 | Adjusted ratings | KenPom-style multiplicative iteration, decay 0.97 per round. | Not possession-based, not venue-adjusted. | No: M1 is better. Per-round decay is a variant at most. |
 | Remaining SoS | Opponent's **home** win % when we play away, **away** win % when we play home. | Raw win %, noisy early. | Same idea as the venue adjustment in §3; do it with Elo. |
@@ -153,7 +150,7 @@ the source of most of the metric list in §13. Their reported accuracy numbers w
 | Matchup calibration | Postseason probabilities were badly overconfident (Platt slope 0.37 on n = 71) because the in-game model was reused at t = 2400 s for pre-game odds. | Fit on tiny n. | Lesson: never use the in-game model as a pre-game forecaster; keep the published Elo forecast as the WP chain's starting point. |
 | Referees, coaches | None (coaches: after-timeout CSVs only). | — | — |
 
-Their weakest point is ours strongest: they have no live, pre-registered record, and their
+Their weakest point is ours strongest: they have no live, logged record, and their
 accuracy tracker replays with current ratings (look-ahead).
 
 Top things to borrow, ranked:
@@ -210,8 +207,8 @@ the unit next to the observed one.
 | Strength of schedule | Partial | §3 |
 | Home-court decomposition per team | No | Later, descriptive only; per-team home edges are mostly noise (see `docs/models/diag_home_court.md`) |
 | In-game WP model (GBM + Platt) | New | §7 |
-| Logistic-regression game forecaster | Have more (Elo, M1, M5, POOL, gated) | Nothing to borrow |
-| Monte Carlo season sim | Have (M7: strength drawn per simulation, tiebreakers per rules, 10,000 sims) | Borrow: clinch/elimination logic (show 100%/0% only when mathematically settled) and their calibration framing; M7 failed its gate, so compare their backtest method with ours |
+| Logistic-regression game forecaster | Have more (Elo, M1, M5, POOL) | Nothing to borrow |
+| Monte Carlo season sim | Have (M7: strength drawn per simulation, tiebreakers per rules, 10,000 sims) | Borrow: clinch/elimination logic (show 100%/0% only when mathematically settled) and their calibration framing; M7 v1 failed its check, so compare their backtest method with ours |
 | RAPM ridge details | Have | — |
 | Game Control Index (dominance, control, drama, comeback, crunch-time swing, killer instinct) | New | Cheap after §7; show per game and per team. Skip the 0–100 composite (arbitrary weights); show the parts |
 | Glossary (per 100, stint, ridge, TS%, four factors) | Have (`lib/glossary.ts`) | Add any new terms |
@@ -233,18 +230,18 @@ otherwise a crew that works Olympiacos games looks strict. Show samples; describ
 ## 17. Roster continuity, minutes-weighted — Do
 
 Returning-minutes share: of last season's minutes for the club, the share played by players on
-this season's roster (roster from `people/E{season}`, as in the approved ELOR protocol). A
-25-minute starter leaving counts about 25× a 1-minute player, as asked. Variant: weight by
-minutes × RAPM ("returning impact"). Show on team pages and in the Teams table. The ELOR protocol
-already builds both inputs, so this is mostly a publish step. Note: `parse/continuity.py` is about
+this season's roster (roster from `people/E{season}`). A
+25-minute starter leaving counts about 25× a 1-minute player. Variant: weight by
+minutes × RAPM ("returning impact"). Show on team pages and in the Teams table. The ELOR build
+already produces both inputs, so this is mostly a publish step. Note: `parse/continuity.py` is about
 club codes, not players.
 
 ## 18. Elo from previous seasons + home/away net ratings
 
 - **Cold start:** already handled. Elo carries 75% of last season's rating (reversion 0.25), M7's
-  prior comes from M1's committed parameters, and ELOR (approved, not run) adds a roster-based
+  prior comes from M1's committed parameters, and ELOR (built, not run) adds a roster-based
   preseason rating.
-- **Home/away split net ratings:** new. Worth one shadow-model protocol: Elo + per-team home and
+- **Home/away split net ratings:** new. Worth one shadow model: Elo + per-team home and
   away net ratings, shrunk toward the league home edge. Expect little: per-team home advantage is
   mostly noise in most leagues, and our own diagnostic could not even pin down the league-wide
   value. Test it, do not assume it.
@@ -266,7 +263,7 @@ translation projector with fixed scale factors (not fitted); a projected-vs-actu
 from a seeded random generator.
 
 Worth borrowing:
-1. **Calibration plot from our own pre-registered log** (predicted vs observed by bin, with the
+1. **Calibration plot from our own logged predictions** (predicted vs observed by bin, with the
    diagonal and counts). We have the real data they only mock up.
 2. **Two-way quadrant** for players: O-RAPM vs D-RAPM, quadrant lines at league average.
 3. **Quarter flows** per team (who starts slow, who closes): from `ByQuarter`, cheap.

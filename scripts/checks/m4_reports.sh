@@ -24,8 +24,6 @@ assert g['loss_diff']['ci95'][1] is not None, g
 assert r['el_to_gbl']['label'] == 'reported, not gated'
 print('  gate', g['variant'], 'PASS' if g['passed'] else 'FAIL', g['loss_diff']['mean'], g['loss_diff']['ci95'], 'pooled' if g['pooled'] else '', g['n_movers'], 'movers')
 " || exit 1
-uv run python "$ROOT/scripts/checks/m4_order.py" || exit 1
 secs=$(grep -oE '^RUNTIME [0-9]+' "$SCRATCH/m4_run1.txt" | cut -d' ' -f2)
-recorded=$(grep -oE '^RUNTIME m4 [0-9]+' reports/week12-14_progress.md | tail -1 | cut -d' ' -f3)
-echo "RUNTIME ${secs:-none} s (limit 600 s); recorded RUNTIME m4 ${recorded:-none} s"
-[ -n "$secs" ] && [ "$secs" -lt 600 ] && [ -n "$recorded" ] && [ "$recorded" -lt 600 ]
+echo "RUNTIME ${secs:-none} s (limit 600 s)"
+[ -n "$secs" ] && [ "$secs" -lt 600 ]

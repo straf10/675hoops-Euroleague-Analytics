@@ -1,6 +1,6 @@
 # Possessions and the `team_games` mart
 
-*Built 2026-09-25 (weeks 5–7, E1). Code: `src/eurohoops/parse/team_box.py`,
+*Built 2026-09-25. Code: `src/eurohoops/parse/team_box.py`,
 `src/eurohoops/parse/possessions.py`, `src/eurohoops/parse/possession_report.py`.
 Report: `reports/possessions.json` (`uv run eurohoops possessions`).*
 
@@ -19,7 +19,7 @@ Columns: competition, season, game_id, team, opponent, home, points, fga, fta, o
 minutes (40 + 5 per overtime in which someone scored), `poss_raw`, `poss_game`, source.
 Contract: `TEAM_GAMES_SCHEMA` (two rows per game, `poss_game` = mean of `poss_raw`).
 
-## Possession definition (PLAN R1, EuroLeague free-throw weight since M1 v2)
+## Possession definition (R1; EuroLeague free-throw weight since M1 v2)
 `poss_raw = FGA − OREB + TOV + 0.42 · FTA` per team; `poss_game` = the mean of both teams.
 Team rebounds and team turnovers are included wherever the source records them. Until M1 v1
 the weight was R1's 0.44; see "How the free-throw weight is estimated" below.
@@ -37,14 +37,15 @@ Every rated game has two rows except 9 (all listed in `team_games_missing`):
 Points in `team_games` equal the `games` scores for every row (0 mismatches; checked in the
 report and enforced when the table is built).
 
-## Verified source facts
-- **EuroLeague:** in all 5,042 cached box scores (2007-08 → 2026-27; E2018_21 has no players), `totr` equals the sum of
-  the player lines plus `tmr` for FGA, FTA, OREB, DREB, TOV and points. Team rebounds and team
-  turnovers exist separately (`tmr`) and are in the totals for every season from 2007.
-- **ESAKE:** in all 1,262 cached pages with stat tables (of 1,340), the totals row equals players + team row for REBS,
-  D.REBS, O.REBS and TO; FGA/FTA equal the player sums. The team row is **always 0 in 2018-19
-  → 2020-21** and mostly non-zero from 2021-22 on: ESAKE started recording team rebounds and
-  team turnovers during 2021-22. Before that they are simply missing from the totals.
+## Source facts
+- **EuroLeague:** in all 5,042 cached box scores (2007-08 → 2026-27; E2018_21 has no players),
+  `totr` equals the sum of the player lines plus `tmr` for FGA, FTA, OREB, DREB, TOV and points.
+  Team rebounds and team turnovers exist separately (`tmr`) and are in the totals for every
+  season from 2007.
+- **ESAKE:** in all 1,262 cached pages with stat tables (of 1,340), the totals row equals players
+  + team row for REBS, D.REBS, O.REBS and TO; FGA/FTA equal the player sums. The team row is
+  **always 0 in 2018-19 → 2020-21** and mostly non-zero from 2021-22 on: ESAKE started recording
+  team rebounds and team turnovers during 2021-22. Before that they are missing from the totals.
 - **GBL play-by-play (2018-20):** has player and team rebounds (`made a offensive rebound`,
   `Offensive rebound`) and turnovers (bad pass, ball handling, travelling, offensive foul, out
   of bounds, 3/5/8/24-second and backcourt violations). On the 264 games with both an ESAKE box
@@ -81,7 +82,7 @@ formula is a count, so the only unknown is `w` in
     PBP possessions ≈ (FGA − OREB + TOV) + w · FTA
 
 The play-by-play counter above gives the actual possession count of each team-game. Choosing `w`
-so that the formula is right *on average* (method of moments) gives a closed form:
+so that the formula is right on average (method of moments) gives a closed form:
 
     w = Σ (PBP − (FGA − OREB + TOV)) / Σ FTA          (sums over team-games)
 
@@ -97,9 +98,9 @@ and in `reports/stints_mart.json` (`pbp_vs_box_possessions`) on every cached gam
 
 On the passing stints-mart games (4,172), a game-level bootstrap (2,000 resamples) puts the
 all-season weight at 0.415, 95% CI [0.414, 0.417]; by season it drifts from ≈0.44 (2011-15) to
-≈0.41 (2016-22) and ≈0.40 (2023-25). **0.42 is the rounded EuroLeague value, a deliberate round
-number between the 50-game sample (0.421) and the population (0.416).** It is fixed, not
-re-estimated per season, so a possession means the same thing in every season of the backtest.
+≈0.41 (2016-22) and ≈0.40 (2023-25). **0.42 is the rounded EuroLeague value, a round number between
+the 50-game sample (0.421) and the population (0.416).** It is fixed, not re-estimated per season,
+so a possession means the same thing in every season of the backtest.
 
 Why it is below the NBA's 0.44: EuroLeague trips end fewer possessions per FTA (more and-ones
 and technical free throws per attempt, FIBA team-foul rules). The weight only moves the level of

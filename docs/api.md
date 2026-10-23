@@ -15,20 +15,20 @@ Team codes are the **source** codes (`ULK`, `PAN`, …). Person ids look like `P
 | `GET /site` | `site` | the forecasts, results, scorecards and Elo of both competitions (today's `site.json`) |
 | `GET /stats` | `stats_index` | the path of every stats file |
 | `GET /stats/{path}` | `stats_file` | one stats file, e.g. `meta.json`, `seasons/2025/players.json` |
-| `GET /games/upcoming?competition=` | `upcoming_games` | unplayed live-season games with their pre-registered forecast |
-| `GET /predictions/{game_id}` | `prediction` | every logged forecast of a game per model: the pre-registered row, then later rows |
+| `GET /games/upcoming?competition=` | `upcoming_games` | unplayed live-season games with their forecast |
+| `GET /predictions/{game_id}` | `prediction` | every logged forecast of a game per model: the scored row first, then later rows |
 | `GET /teams/{competition}/{team}/ratings` | `team_ratings` | published Elo rating, change and rank |
 | `GET /teams/{competition}/{team}/factors?season=` | `team_factors` | four factors and schedule strength. A missing input is `value: null` with a `reason` |
 | `GET /players/{person_id}` | `player` | the person's seasons, M3 impact (RAPM/SPM with intervals) and M2 shot-making |
 | `GET /players/{person_id}/projection` | `player_projection` | `reports/m6_projections.json` |
 | `GET /players/{person_id}/similar` | `player_similar` | `reports/m6_similarity.json` |
 | `GET /scouting/board` | `scouting_board` | `reports/m6_board.json` (the over/under board) |
-| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, always `gated: false` with M7's gate verdict and reason |
+| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, always `gated: false`, with M7's verdict and reason |
 | `GET /metrics/live` | `metrics_live` | the live scorecards: Elo, the baseline, M1 and the M5 shadow |
 | `GET /openapi.json` | FastAPI | the schema; identical across runs |
 
 A route with nothing to return answers **404** with `{"detail": "<reason>"}`. The simulation route
-also adds M7's gate verdict to its 404 body. No birth date or age is in any response.
+also adds M7's verdict to its 404 body. No birth date or age is in any response.
 
 ## Running it locally
 
@@ -83,7 +83,7 @@ optional: a route that answered 404 writes no file, and the page then shows "not
 - **Route and read-model tests**: `tests/test_api_app.py`, `tests/test_api_readmodel.py` and
   `tests/test_api_export.py` run on a fixture tree (`tests/api_tree.py`). They check every route,
   the 404 bodies, read-only access (no file changes during a request), and a stable OpenAPI schema.
-- **Checklist item 59** (`scripts/checks/api_export.py`) runs on the real data. It checks that the
+- **`scripts/checks/api_export.py`** runs on the real data. It checks that the
   old export and the export through the API are byte-identical, that the contract holds on the real
   output, that the export runtime is recorded, and that `docker compose config` is valid.
 

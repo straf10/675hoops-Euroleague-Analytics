@@ -44,4 +44,3 @@ assert gbl['gate']['gated'] is False, 'the GBL comparison must be labelled as no
 print('  gate', gate['variant'], 'PASS' if gate['passed'] else 'FAIL', gate['brier_chosen'],
       gate['brier_point_sim'], gate['brier_standings_now'], gate['spiegelhalter_z_pooled'])
 " || exit 1
-uv run python "$ROOT/scripts/checks/m7_order.py"

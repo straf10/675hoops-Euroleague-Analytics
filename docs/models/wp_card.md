@@ -1,69 +1,30 @@
 # In-game win probability (WP) model card
 
-Version `0.2.0+wp.9702906e`, protocol `docs/models/wp.md` (v1, approved 2026-10-18). Built from the cached
-EuroLeague play-by-play for seasons 2007-2025. The 2026 partial season is not used.
+Status: published (the game WP line uses this model, not the baseline). Player WPA is not computed or published.
 
-## What the model is
+## What it is
+Version `0.2.0+wp.9702906e`, spec `docs/models/wp.md`. Built from the cached EuroLeague play-by-play for seasons 2007–2025. The 2026 partial season is not used.
 
-The chosen model is a logistic regression with time interactions (protocol section 5a), calibrated
-by an isotonic map fitted on out-of-fold predictions of 2010-2022. It predicts the home team's win
-probability at any game state: the score margin, the time left, overtime, the pre-game Elo
-probability and the neutral-site flag. The closed-form baseline is the protocol's section 1 formula
-with the Elo margin scale.
+- The chosen model is a logistic regression with time interactions (spec section 5a), calibrated by an isotonic map fitted on out-of-fold predictions of 2010–2022.
+- It predicts the home team's win probability at any game state: score margin, time left, overtime, the pre-game Elo probability and the neutral-site flag.
+- The baseline is the closed-form formula with the Elo margin scale.
+- The tip-off line starts at the published pre-game probability (spec section 7).
+- The model is never a pre-game forecaster. It writes nothing to `predictions/`. The fitted object lives in memory only, and `models/` is not written.
 
-The gate passed. On the test seasons 2024 and 2025 the model's mean log loss per game is lower than
-the baseline's, and the 95% paired bootstrap interval over games lies below zero. The game WP line
-therefore uses the model, not the baseline. Player WPA is not computed and not published.
+**Implementation notes**
+1. The isotonic map is fitted on the out-of-fold scoring-event rows of 2010–2022. Each season is predicted by a model fitted on earlier seasons only.
+2. The comparison is between the calibrated state probability and the closed-form baseline, both without the tip-off gap. The displayed line adds the gap.
+3. The baseline's Elo margin scale for each evaluation season is fitted on the included games of earlier seasons only.
+4. Gradient boosting uses the section 4 features without the margin-logit-time interaction and without `t` (for trees, `t` is a monotone copy of `tf`). `random_state` is 20261018. Settings G1 to G4 are chosen on validation raw log loss.
+5. Calibration buckets use game weighting. Q1 is `t` above 1800; Q2 is 1200 to 1800; Q3 is 600 to 1200; Q4 is 0 to 600, with the boundary value in the later bucket. The last 2 minutes are `t` 0 to 120, inside Q4. Overtime is every overtime checkpoint.
+6. The game-control formulas (spec section 8), written for the winner, are applied to each team's own WP. They are in `eurohoops.models.wp_control` and are not built into a page yet.
+7. The regulation checkpoint at `t = 0` and the first overtime checkpoint at `t = 300` are the same game moment. Both are kept.
+8. The backtest command refuses to run when `reports/backtest_wp.json` exists.
+9. Assists and box data are not read. Under the 100/0 convention they change no WP value.
+10. scikit-learn is a direct dependency, with a mypy override because it ships no stubs.
 
-The in-game model is never a pre-game forecaster, and it writes nothing to `predictions/`. The
-tip-off line starts at the published pre-game probability (section 7). The model is not committed:
-`models/` is never written, and the fitted object lives in memory only.
-
-## Data and exclusions
-
-Of 5,122 mart games in 2007-2025, 4,861 are included. 261 are excluded: 82 not played (54 in 2019,
-28 in 2021), 1 with an unusable team code (2018, `E2018_21`), 0 with no file, 0 score mismatches,
-and 178 with an `ND` or sentinel clock (157 in 2016, 16 in 2017-2022, 5 in 2023-2025). The protocol's
-173 counts the 2007-2022 games only; this run adds the 5 in 2023-2025. A blank clock on a play event
-that is not a marker is also excluded under the same rule, and none were found. The 3,803 training
-games, 328 validation games (2023) and 730 test games (2024-2025) are in the Numbers below.
-
-## Readings of the protocol
-
-Where the text was open, the reading below is the one used. The owner should check these.
-
-1. **Isotonic rows.** The isotonic map is fitted on the out-of-fold scoring-event rows of 2010-2022
-   (the training rows), not on checkpoints. Each season is predicted by a model fitted on earlier
-   seasons only.
-2. **Gate scope.** The gate compares the calibrated model's state probability with the closed-form
-   baseline, both without the tip-off gap. The displayed line adds the gap; the gate does not.
-3. **Baseline scale.** The Elo margin scale for each evaluation season is fitted on the included
-   games (the exclusions apply) of earlier seasons only.
-4. **GBM inputs.** Gradient boosting uses the section 4 features without the m-logit-tf interaction
-   and without `t` (for trees `t` is a monotone copy of `tf`). `random_state` is fixed at 20261018,
-   the only change from defaults. Settings G1 to G4 are chosen on validation raw log loss.
-5. **Calibration buckets.** Each game's checkpoints in a bucket share weight 1 (game weighting).
-   Q1 is `t` above 1800; Q2 is 1200 to 1800; Q3 is 600 to 1200; Q4 is 0 to 600, with the boundary
-   value in the later bucket. The last 2 minutes are `t` 0 to 120, inside Q4. Overtime is every
-   overtime checkpoint.
-6. **Per-team control view.** The section 8 game-control formulas, written for the winner, are
-   applied to each team's own WP. The parts are in `eurohoops.models.wp_control` and are not built
-   into a page yet.
-7. **Checkpoints at the period joins.** The regulation checkpoint at `t = 0` and the first overtime
-   checkpoint at `t = 300` are the same game moment. Both are kept, as section 6 lists them.
-8. **Rerun guard.** The backtest command refuses to run if `reports/backtest_wp.json` exists, so the
-   gate is reported once.
-9. **Assists and box data.** Not read. Under the 100/0 convention they change no WP value, and
-   player WPA is not published.
-10. **Dependency.** scikit-learn is declared as a direct dependency (it was only transitive before),
-    with a mypy override because it ships no stubs.
-
-## Numbers
-
-Every value below is read from `reports/backtest_wp.json` by the test in
-`tests/test_model_card_wp.py`. Log loss and Brier are checkpoint-averaged within each game, then
-averaged over games. Intervals are 95% paired bootstrap intervals over whole games (10,000
-resamples, seed 20261018).
+## Results
+Every value below is read from `reports/backtest_wp.json`. Log loss and Brier are checkpoint-averaged within each game, then averaged over games. Intervals are 95% paired bootstrap intervals over whole games (10,000 resamples, seed 20261018).
 
 ### Counts and exclusions
 
@@ -81,6 +42,8 @@ resamples, seed 20261018).
 | Validation games (2023) | 328 | `backtest_wp.json:counts/validation_games` |
 | Test games (2024-2025) | 730 | `backtest_wp.json:counts/test_games` |
 | Scoring-event training rows | 317665 | `backtest_wp.json:train_rows/scoring_rows` |
+
+Not played: 82 (54 in 2019, 28 in 2021). Code mismatch: 1 (2018, `E2018_21`). The excluded bad-clock games are 157 in 2016, 16 in 2017–2022 and 5 in 2023–2025. A blank clock on a play event that is not a marker is also excluded under the same rule; none were found.
 
 ### Families and the validation choice (2023)
 
@@ -103,13 +66,11 @@ resamples, seed 20261018).
 | Elo margin scale 2024 | 20.82 | `backtest_wp.json:margin_scale_by_season/2024` |
 | Elo margin scale 2025 | 21.12 | `backtest_wp.json:margin_scale_by_season/2025` |
 
-### Gate (test seasons 2024-2025)
-
-The gate passes if the 95% interval of the mean delta lies below zero and the mean delta is negative.
+### Test seasons 2024-2025: model minus baseline
 
 | Quantity | Value | Source |
 |---|---|---|
-| Gate passes | True | `backtest_wp.json:gate/passes` |
+| Passes the paired-bootstrap comparison (CI entirely below zero and mean negative) | True | `backtest_wp.json:gate/passes` |
 | Mean delta log loss (model minus baseline) | -0.0177 | `backtest_wp.json:gate/delta_logloss_mean` |
 | Delta 95% interval, lower | -0.0317 | `backtest_wp.json:gate/delta_logloss_ci95/0` |
 | Delta 95% interval, upper | -0.0049 | `backtest_wp.json:gate/delta_logloss_ci95/1` |
@@ -139,8 +100,7 @@ The gate passes if the 95% interval of the mean delta lies below zero and the me
 | Delta log loss 2025 interval, lower | -0.0326 | `backtest_wp.json:test/by_season/2025/delta_logloss/ci95/0` |
 | Delta log loss 2025 interval, upper | 0.0001 | `backtest_wp.json:test/by_season/2025/delta_logloss/ci95/1` |
 
-The 2025 interval's upper end lies just above zero. The gate uses the pooled test seasons, as the
-protocol says, so the pass rests on 2024-2025 together.
+The 2025 interval's upper end lies just above zero. The comparison uses the pooled test seasons, so the result rests on 2024–2025 together.
 
 ### Validation (2023)
 
@@ -158,9 +118,7 @@ protocol says, so the pass rests on 2024-2025 together.
 
 ### Calibration by time bucket (test seasons, model)
 
-Predicted and observed are game-weighted means. The gap is predicted minus observed. The protocol's
-tolerance is 0.02 in each bucket; the model is within it in every test bucket. The slope is the
-game-weighted regression of observed on predicted within the bucket.
+Predicted and observed are game-weighted means. The gap is predicted minus observed. The tolerance is 0.02 in each bucket; the model is within it in every test bucket. The slope is the game-weighted regression of observed on predicted within the bucket.
 
 | Quantity | Value | Source |
 |---|---|---|
@@ -189,7 +147,7 @@ game-weighted regression of observed on predicted within the bucket.
 | overtime: gap | -0.0010 | `backtest_wp.json:test/calibration/model/OT/gap` |
 | overtime: slope | 0.9957 | `backtest_wp.json:test/calibration/model/OT/slope` |
 
-For comparison, the baseline's gap by bucket:
+Baseline gap by bucket, for comparison:
 
 | Quantity | Value | Source |
 |---|---|---|
@@ -202,7 +160,7 @@ For comparison, the baseline's gap by bucket:
 
 ### Tip-off gap (test games)
 
-The gap is the pre-game probability minus the model's probability at tip-off (section 7).
+The gap is the pre-game probability minus the model's probability at tip-off.
 
 | Quantity | Value | Source |
 |---|---|---|
@@ -215,3 +173,9 @@ The gap is the pre-game probability minus the model's probability at tip-off (se
 | Quantity | Value | Source |
 |---|---|---|
 | Runtime seconds | 1712.2 | `backtest_wp.json:runtime_seconds` |
+
+## Files
+- Spec: `docs/models/wp.md`.
+- Report: `reports/backtest_wp.json`, `reports/backtest_wp_games.csv`.
+- Code: `src/eurohoops/models/wp.py`, `src/eurohoops/models/wp_control.py`, `src/eurohoops/eval/wp_backtest.py`.
+- Command: `eurohoops backtest --model wp`.

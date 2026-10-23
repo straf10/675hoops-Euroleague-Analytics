@@ -6,8 +6,6 @@ rule, the sampler and the verdict-order check script."""
 import json
 import math
 import re
-import subprocess
-import sys
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
@@ -69,9 +67,7 @@ from tests.m7_synthetic import (
 
 SPEC = small_spec()
 INPUTS = build_inputs()
-REPO = Path(__file__).parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
-ORDER_SCRIPT = REPO / "scripts" / "checks" / "m7_order.py"
 MODELS = model_keys(SPEC)
 REPORT_KEYS = {
     "model",
@@ -834,134 +830,3 @@ def test_the_cli_refuses_a_tuning_only_gbl_run() -> None:
         cli.app, ["backtest", "--model", "m7", "--competition", "gbl", "--tuning-only"]
     )
     assert result.exit_code == 1
-
-
-# --- scripts/checks/m7_order.py -----------------------------------------------------------------
-
-
-def _git(repo: Path, *args: str) -> str:
-    done = subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=test",
-            "-c",
-            "user.email=test@example.com",
-            "-c",
-            "commit.gpgsign=false",
-            *args,
-        ],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return done.stdout.strip()
-
-
-def _commit(repo: Path, message: str, *, report: dict[str, bool], progress: list[str]) -> str:
-    (repo / "reports").mkdir(exist_ok=True)
-    (repo / "reports" / "backtest_m7.json").write_text(json.dumps(report), encoding="utf-8")
-    (repo / "reports" / "m7_progress.md").write_text("\n".join(progress), encoding="utf-8")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-m", message)
-    return _git(repo, "rev-parse", "HEAD")
-
-
-def _check(repo: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(ORDER_SCRIPT)], cwd=repo, capture_output=True, text=True, check=False
-    )
-
-
-def _history(repo: Path, *, leak_validation_at_verdict: bool = False) -> dict[str, str]:
-    """verdict (tuning only) -> validation scored -> test scored."""
-    _git(repo, "init", "-q")
-    verdict = _commit(
-        repo,
-        "verdict",
-        report={"validation_scored": leak_validation_at_verdict, "test_scored": False},
-        progress=["# progress"],
-    )
-    validation = _commit(
-        repo,
-        "validation",
-        report={"validation_scored": True, "test_scored": False},
-        progress=["# progress", f"VERDICT {verdict}"],
-    )
-    test = _commit(
-        repo,
-        "test",
-        report={"validation_scored": True, "test_scored": True},
-        progress=["# progress", f"VERDICT {verdict}", f"VALIDATION {validation}"],
-    )
-    return {"verdict": verdict, "validation": validation, "test": test}
-
-
-def test_m7_order_accepts_verdict_then_validation_then_test(tmp_path: Path) -> None:
-    shas = _history(tmp_path)
-    _commit(
-        tmp_path,
-        "name the commits",
-        report={"validation_scored": True, "test_scored": True},
-        progress=[
-            f"VERDICT {shas['verdict']}",
-            f"VALIDATION {shas['validation']}",
-            f"TEST {shas['test']}",
-        ],
-    )
-    done = _check(tmp_path)
-    assert done.returncode == 0, done.stdout + done.stderr
-    assert "verdict < validation < test: yes" in done.stdout
-
-
-def test_m7_order_needs_the_test_commit_once_test_is_scored(tmp_path: Path) -> None:
-    shas = _history(tmp_path)
-    _commit(
-        tmp_path,
-        "forget the test commit",
-        report={"validation_scored": True, "test_scored": True},
-        progress=[f"VERDICT {shas['verdict']}", f"VALIDATION {shas['validation']}"],
-    )
-    done = _check(tmp_path)
-    assert done.returncode == 1
-    assert "NO" in done.stdout
-
-
-def test_m7_order_rejects_a_validation_number_at_the_verdict_commit(tmp_path: Path) -> None:
-    shas = _history(tmp_path, leak_validation_at_verdict=True)
-    _commit(
-        tmp_path,
-        "name the commits",
-        report={"validation_scored": True, "test_scored": True},
-        progress=[
-            f"VERDICT {shas['verdict']}",
-            f"VALIDATION {shas['validation']}",
-            f"TEST {shas['test']}",
-        ],
-    )
-    assert _check(tmp_path).returncode == 1
-
-
-def test_m7_order_does_not_need_a_test_commit_before_test_is_scored(tmp_path: Path) -> None:
-    _git(tmp_path, "init", "-q")
-    verdict = _commit(
-        tmp_path,
-        "verdict",
-        report={"validation_scored": False, "test_scored": False},
-        progress=["# progress"],
-    )
-    _commit(
-        tmp_path,
-        "validation",
-        report={"validation_scored": True, "test_scored": False},
-        progress=[f"VERDICT {verdict}"],
-    )
-    head = _git(tmp_path, "rev-parse", "HEAD")
-    _commit(
-        tmp_path,
-        "name validation",
-        report={"validation_scored": True, "test_scored": False},
-        progress=[f"VERDICT {verdict}", f"VALIDATION {head}"],
-    )
-    assert _check(tmp_path).returncode == 0

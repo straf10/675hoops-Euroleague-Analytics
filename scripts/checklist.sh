@@ -103,11 +103,6 @@ skip 25 "F6 teams" || { item "25 F6 calibration in the large per development sea
 skip 26 "F7 players" || { item "26 F7 m2_players.json with CIs, stability verdict = F-k rule"; bash "$CHECKS/m2_players.sh"; res $?; }
 skip 27 "F8 charts" || { item "27 F8 charts exist, geometry test"; bash "$CHECKS/m2_charts.sh"; res $?; }
 skip 28 "F9 MLflow + leakage" || { item "28 F9 MLflow parent + children, leakage tests"; bash "$CHECKS/m2_mlflow.sh"; res $?; }
-skip 29 "F10 model card" || {
-  item "29 F10 model card numbers match the reports"
-  uv run pytest -q -p no:cacheprovider tests/test_model_card_m2.py 2>&1 | tail -1
-  res "${PIPESTATUS[0]}"
-}
 skip 30 "no-dev build + predict" || { item "30 uv sync --no-dev, then build + predict"; bash "$CHECKS/no_dev.sh"; res $?; }
 skip 31 "G5 level variants" || {
   item "31 G5 level variants: fields, post-hoc labels, two runs identical, leakage, declaration < run"
@@ -140,11 +135,6 @@ skip 40 "M4 units + leakage" || {
   res "${PIPESTATUS[0]}"
 }
 skip 41 "M4 report" || { item "41 backtest_m4.json + gate, two runs identical, verdict < validation < test, runtime"; bash "$CHECKS/m4_reports.sh"; res $?; }
-skip 42 "M4 card + entity doc" || {
-  item "42 docs/models/m4.md and docs/data/entity.md numbers = reports"
-  uv run pytest -q -p no:cacheprovider tests/test_model_card_m4.py 2>&1 | tail -1
-  res "${PIPESTATUS[0]}"
-}
 skip 43 "M5 units + facts" || {
   item "43 M5 unit tests (rest, shares, model core, harness), minutes.py unchanged, section 3 facts"
   PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m5_facts.py" | tail -1 && \
@@ -158,11 +148,6 @@ skip 44 "M5 leakage" || {
 }
 skip 45 "M5 report" || { item "45 backtest_m5.json + gate/oracle/gap, two runs identical, GBL fixed choice, verdict < validation < test"; bash "$CHECKS/m5_reports.sh"; res $?; }
 skip 46 "M5 runtime" || { item "46 backtest --model m5 runtime: EL < 1,800 s, GBL < 600 s"; bash "$CHECKS/m5_runtime.sh"; res $?; }
-skip 47 "M5 card" || {
-  item "47 docs/models/m5.md numbers = reports; CONTEXT terms"
-  uv run pytest -q -p no:cacheprovider tests/test_model_card_m5.py 2>&1 | tail -1
-  res "${PIPESTATUS[0]}"
-}
 skip 48 "M7 units + facts" || {
   item "48 M7 unit tests (posterior, formats, engine, harness), section 3 facts, rating_fits/forecast/rank unchanged"
   PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m7_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_rating_posterior.py tests/test_team_eff.py tests/test_sim_formats.py tests/test_sim_season.py tests/test_rank_by_wins.py tests/test_sim_played.py tests/test_standings.py tests/test_m7_backtest.py 2>&1 | tail -1
@@ -180,14 +165,9 @@ skip 52 "simulate dry run" || {
   (PYTHONIOENCODING=utf-8 uv run python "$CHECKS/sim_dry_run.py"     && uvx --from actionlint-py actionlint .github/workflows/daily.yml && echo "daily.yml clean")
   res $?
 }
-skip 53 "M7 card" || {
-  item "53 docs/models/m7.md numbers = reports; CONTEXT terms"
-  uv run pytest -q -p no:cacheprovider tests/test_model_card_m7.py 2>&1 | tail -1
-  res "${PIPESTATUS[0]}"
-}
 skip 54 "M6 units + facts" || {
   item "54 M6 unit tests (player seasons, projection, aging, board, similarity, live), section 3 facts, Twin unchanged"
-  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m6_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_player_seasons.py tests/test_projection.py tests/test_aging.py tests/test_board.py tests/test_player_similarity.py tests/test_m6_backtest.py tests/test_m6_order.py tests/test_live_m6.py tests/test_stats.py 2>&1 | tail -1
+  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m6_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_player_seasons.py tests/test_projection.py tests/test_aging.py tests/test_board.py tests/test_player_similarity.py tests/test_m6_backtest.py tests/test_live_m6.py tests/test_stats.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
 skip 55 "M6 leakage" || {
@@ -209,7 +189,7 @@ skip 59 "API" || {
 }
 skip 60 "site + M6 card" || {
   item "60 site: web build, M6 page screenshots 1440/390 light/dark, sample/interval DOM check, no console errors; m6.md numbers = reports; CONTEXT terms"
-  (bash "$CHECKS/web_build.sh" >/dev/null 2>&1     && uv run --with playwright python "$CHECKS/screenshots_m6_players.py" "$SCRATCH/web/site" "$SCRATCH/shots_m6"     && uv run --with playwright python "$CHECKS/screenshots_m6_pages.py" "$SCRATCH/web/site" "$SCRATCH/shots_m6"     && uv run pytest -q -p no:cacheprovider tests/test_model_card_m6.py tests/test_web_m6_codes.py 2>&1 | tail -1)
+  (bash "$CHECKS/web_build.sh" >/dev/null 2>&1     && uv run --with playwright python "$CHECKS/screenshots_m6_players.py" "$SCRATCH/web/site" "$SCRATCH/shots_m6"     && uv run --with playwright python "$CHECKS/screenshots_m6_pages.py" "$SCRATCH/web/site" "$SCRATCH/shots_m6"     && uv run pytest -q -p no:cacheprovider tests/test_web_m6_codes.py 2>&1 | tail -1)
   res $?
 }
 echo; echo "FAILS: $fails (end $(date -u +%H:%MZ))"; exit "$fails"

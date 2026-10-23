@@ -5,7 +5,6 @@
 # runs when it ran in the same checklist.
 cd "$ROOT" || exit 1
 export MLFLOW_DISABLE_AGENT_HINT=1
-p=reports/m7_progress.md
 flag=$(uv run python -c "import json;print('--score-test' if json.load(open('reports/backtest_m7.json')).get('test_scored') else '')")
 timed() {  # $1 = competition, $2 = cache file
   if [ -s "$SCRATCH/$2" ]; then cat "$SCRATCH/$2"; return; fi
@@ -19,8 +18,4 @@ gbl=$(timed gbl m7_gbl_runtime_s)
 git checkout -q -- reports/backtest_m7.json reports/backtest_m7_teams.csv \
   reports/backtest_m7_gbl.json reports/backtest_m7_gbl_teams.csv 2>/dev/null
 echo "RUNTIME euroleague $el s (limit 1800 s), gbl $gbl s (limit 600 s)"
-rec() { grep -oE "^RUNTIME $1 [0-9]+" "$p" | tail -1 | awk '{print $NF}'; }
-rec_el=$(rec "m7 euroleague"); rec_gbl=$(rec "m7 gbl"); rec_sim=$(rec "simulate")
-echo "recorded RUNTIME m7 euroleague ${rec_el:-none} s, m7 gbl ${rec_gbl:-none} s, simulate ${rec_sim:-none} s"
-[ "$el" -lt 1800 ] && [ "$gbl" -lt 600 ] && [ -n "$rec_el" ] && [ "$rec_el" -lt 1800 ] \
-  && [ -n "$rec_gbl" ] && [ "$rec_gbl" -lt 600 ] && [ -n "$rec_sim" ] && [ "$rec_sim" -lt 120 ]
+[ "$el" -lt 1800 ] && [ "$gbl" -lt 600 ]

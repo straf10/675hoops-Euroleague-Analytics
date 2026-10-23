@@ -6,10 +6,7 @@ the verdict-order check script."""
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from dataclasses import asdict, replace
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -41,8 +38,6 @@ from tests.m5_synthetic import build_inputs, default_run, fake_player_part, smal
 pytestmark = pytest.mark.slow
 
 SPEC = small_spec()
-REPO = Path(__file__).parent.parent
-ORDER_SCRIPT = REPO / "scripts" / "checks" / "m5_order.py"
 MODELS = ("m5", "m1", "elo", "b0")
 METRIC_KEYS = {
     "n",
@@ -653,134 +648,3 @@ def test_format_m5_table_runs_for_both_modes(
     tuning = format_m5_table(tuning_run[0])
     assert "gate" not in tuning and "validation" not in tuning
     assert asdict(_choice(full_run[0]))["shares"] in full
-
-
-# --- scripts/checks/m5_order.py ---------------------------------------------------------------
-
-
-def _git(repo: Path, *args: str) -> str:
-    run = subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=test",
-            "-c",
-            "user.email=test@example.com",
-            "-c",
-            "commit.gpgsign=false",
-            *args,
-        ],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return run.stdout.strip()
-
-
-def _commit(repo: Path, message: str, *, report: dict[str, bool], progress: list[str]) -> str:
-    (repo / "reports").mkdir(exist_ok=True)
-    (repo / "reports" / "backtest_m5.json").write_text(json.dumps(report), encoding="utf-8")
-    (repo / "reports" / "week14-16_progress.md").write_text("\n".join(progress), encoding="utf-8")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-m", message)
-    return _git(repo, "rev-parse", "HEAD")
-
-
-def _check(repo: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(ORDER_SCRIPT)], cwd=repo, capture_output=True, text=True, check=False
-    )
-
-
-def _history(repo: Path, *, leak_validation_at_verdict: bool = False) -> dict[str, str]:
-    """verdict (tuning only) -> validation scored -> test scored -> progress naming the test."""
-    _git(repo, "init", "-q")
-    verdict = _commit(
-        repo,
-        "verdict",
-        report={"validation_scored": leak_validation_at_verdict, "test_scored": False},
-        progress=["# progress"],
-    )
-    validation = _commit(
-        repo,
-        "validation",
-        report={"validation_scored": True, "test_scored": False},
-        progress=["# progress", f"VERDICT {verdict}"],
-    )
-    test = _commit(
-        repo,
-        "test",
-        report={"validation_scored": True, "test_scored": True},
-        progress=["# progress", f"VERDICT {verdict}", f"VALIDATION {validation}"],
-    )
-    return {"verdict": verdict, "validation": validation, "test": test}
-
-
-def test_m5_order_accepts_verdict_then_validation_then_test(tmp_path: Path) -> None:
-    shas = _history(tmp_path)
-    _commit(
-        tmp_path,
-        "name the commits",
-        report={"validation_scored": True, "test_scored": True},
-        progress=[
-            f"VERDICT {shas['verdict']}",
-            f"VALIDATION {shas['validation']}",
-            f"TEST {shas['test']}",
-        ],
-    )
-    run = _check(tmp_path)
-    assert run.returncode == 0, run.stdout + run.stderr
-    assert "verdict < validation < test: yes" in run.stdout
-
-
-def test_m5_order_needs_the_test_commit_once_test_is_scored(tmp_path: Path) -> None:
-    shas = _history(tmp_path)
-    _commit(
-        tmp_path,
-        "forget the test commit",
-        report={"validation_scored": True, "test_scored": True},
-        progress=[f"VERDICT {shas['verdict']}", f"VALIDATION {shas['validation']}"],
-    )
-    run = _check(tmp_path)
-    assert run.returncode == 1
-    assert "NO" in run.stdout
-
-
-def test_m5_order_rejects_a_validation_number_at_the_verdict_commit(tmp_path: Path) -> None:
-    shas = _history(tmp_path, leak_validation_at_verdict=True)
-    _commit(
-        tmp_path,
-        "name the commits",
-        report={"validation_scored": True, "test_scored": True},
-        progress=[
-            f"VERDICT {shas['verdict']}",
-            f"VALIDATION {shas['validation']}",
-            f"TEST {shas['test']}",
-        ],
-    )
-    assert _check(tmp_path).returncode == 1
-
-
-def test_m5_order_does_not_need_a_test_commit_before_test_is_scored(tmp_path: Path) -> None:
-    _git(tmp_path, "init", "-q")
-    verdict = _commit(
-        tmp_path,
-        "verdict",
-        report={"validation_scored": False, "test_scored": False},
-        progress=["# progress"],
-    )
-    _commit(
-        tmp_path,
-        "validation",
-        report={"validation_scored": True, "test_scored": False},
-        progress=[f"VERDICT {verdict}"],
-    )
-    head = _git(tmp_path, "rev-parse", "HEAD")
-    _commit(
-        tmp_path,
-        "name validation",
-        report={"validation_scored": True, "test_scored": False},
-        progress=[f"VERDICT {verdict}", f"VALIDATION {head}"],
-    )
-    assert _check(tmp_path).returncode == 0

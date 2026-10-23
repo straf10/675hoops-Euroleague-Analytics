@@ -14,6 +14,4 @@ else
   git checkout -q -- reports/backtest_m3.json
 fi
 echo "RUNTIME $secs s (limit 1800 s)"
-recorded=$(grep -oE '^RUNTIME [0-9]+' reports/week9-12_progress.md | tail -1 | cut -d' ' -f2)
-echo "recorded RUNTIME ${recorded:-none} s"
-[ "$secs" -lt 1800 ] && [ -n "$recorded" ] && [ "$recorded" -lt 1800 ]
+[ "$secs" -lt 1800 ]

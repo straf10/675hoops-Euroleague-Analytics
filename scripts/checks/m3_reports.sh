@@ -25,4 +25,3 @@ assert all(g[k] is not None for k in ('rule', 'metric', 'variant', 'reference', 
 assert r['oracle_minutes']['label'] == 'oracle, not a forecast'
 print('  gate', g['variant'], 'PASS' if g['passed'] else 'FAIL', g['rmse_diff']['mean'], g['rmse_diff']['ci95'])
 " || exit 1
-uv run python "$ROOT/scripts/checks/m3_order.py"

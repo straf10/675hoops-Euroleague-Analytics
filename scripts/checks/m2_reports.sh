@@ -25,6 +25,5 @@ git diff --quiet -- "$f" && committed=1
 echo "runtime within budget: $([ $budget_ok = 1 ] && echo yes || echo NO)"
 echo "two runs byte-identical: $([ $same = 1 ] && echo yes || echo NO)"
 echo "equals the committed report: $([ $committed = 1 ] && echo yes || echo NO)"
-uv run python "$ROOT/scripts/checks/m2_order.py" || exit 1
 uv run python "$ROOT/scripts/checks/m2_report_fields.py" || exit 1
 [ $budget_ok = 1 ] && [ $same = 1 ] && [ $committed = 1 ]

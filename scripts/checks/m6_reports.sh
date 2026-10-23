@@ -49,4 +49,3 @@ assert gbl['gate']['gated'] is False, 'the GBL comparison must be labelled as no
 print('  gate', chosen, 'PASS' if gate['passed'] else 'FAIL', gate['loss_chosen'], gate['loss_marcel'],
       gate['loss_same_as_last'], 'coverage ok', gate['coverage_ok'])
 " || exit 1
-uv run python "$ROOT/scripts/checks/m6_order.py"

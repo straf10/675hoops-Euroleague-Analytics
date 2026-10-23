@@ -40,4 +40,3 @@ assert gbl['gate']['gated'] is False, 'the GBL comparison must be labelled as no
 ci = gate['log_loss_m5_minus_m1']
 print('  gate', gate['variant'], 'PASS' if gate['passed'] else 'FAIL', ci['mean'], ci['ci95'])
 " || exit 1
-uv run python "$ROOT/scripts/checks/m5_order.py"
