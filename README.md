@@ -51,7 +51,7 @@ EuroLeague test-season baseline (log loss): home team 0.6600; re-tuned Elo 0.624
 
 Outputs: raw cache; `data/marts/eurohoops.duckdb` (pandera-validated staging); `reports/*.json` from backtests; `predictions/*_2026-27.csv`; `reports/live_scorecard*.json`; `web/` (Astro), deployed daily to Cloudflare.
 
-**Daily run.** [`daily.yml`](.github/workflows/daily.yml) runs at 08:00 UTC and can be started by hand. It ingests both leagues, builds the marts, records odds and injuries, logs forecasts and simulations, scores, publishes, and commits the logs to `main`, replaying its commit if `main` has moved. Backtests are not part of it. `possessions` and `continuity` are local only.
+**Daily run.** [`daily.yml`](.github/workflows/daily.yml) runs at 07:47 UTC and can be started by hand. It ingests both leagues, builds the marts, records odds and injuries, logs forecasts and simulations, scores, publishes, and commits the logs to `main`, replaying its commit if `main` has moved. Backtests are not part of it. `possessions` and `continuity` are local only.
 
 ## Quick start
 

@@ -1,6 +1,6 @@
 # Register the recorder's Task Scheduler jobs for the clone's scripts/record_injuries.ps1 (all UTC,
 # fixed and DST-independent):
-#   675hoops-injury-recorder: 07:30 and 11:00 daily, so the snapshot lands before daily CI at 08:00.
+#   675hoops-injury-recorder: 07:30 and 11:00 daily, so the snapshot lands before daily CI at 07:47.
 #   675hoops match-day injuries: -MatchDay every 30 minutes from 10:00 to 21:00. The script decides
 #     itself whether to record (120 to 60 minutes before today's first EuroLeague tip-off); other
 #     polls exit at once.

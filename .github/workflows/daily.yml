@@ -2,7 +2,7 @@ name: daily-predictions
 
 on:
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "47 7 * * *"
   workflow_dispatch:
 
 concurrency:
