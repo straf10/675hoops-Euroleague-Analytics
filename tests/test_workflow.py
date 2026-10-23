@@ -62,7 +62,7 @@ def test_daily_runs_are_closer_together_than_the_round_lead() -> None:
     a day, a round is logged on the first run inside that lead: 24 to 48 h before it tips off."""
     (cron,) = re.findall(r'cron: "([^"]+)"', DAILY)
     assert cron.split()[2:] == ["*", "*", "*"]
-    assert cron.split()[:2] == ["0", "8"]
+    assert cron.split()[:2] == ["47", "7"]
     assert "--round-lead-hours" not in DAILY  # predict keeps its 48 h default
     assert "--window-hours" not in DAILY
     assert inspect.signature(live_predict).parameters["round_lead_hours"].default == 48.0
