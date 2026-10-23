@@ -18,6 +18,7 @@ from eurohoops.models.availability import (
     NO_MATCH,
     RosterPlayer,
     apply_out,
+    load_aliases,
     match_injuries,
     out_players,
     parse_roster_names,
@@ -104,6 +105,12 @@ def test_a_snapshot_at_or_after_the_cutoff_is_ignored(matched: pd.DataFrame) -> 
     assert "P1003" not in out_players(matched, before)
     assert "P1003" not in out_players(matched, at)
     assert "P1003" in out_players(matched, after)
+
+
+def test_a_player_absent_from_the_latest_snapshot_is_not_out(matched: pd.DataFrame) -> None:
+    # Dangubic is Out on 10-08 but absent from the 10-11 snapshot, the latest before 10-12: the
+    # older Out does not carry forward.
+    assert "P1001" not in out_players(matched, datetime(2026, 10, 12, tzinfo=UTC))
 
 
 def test_uncertain_is_not_out(matched: pd.DataFrame) -> None:
@@ -302,3 +309,50 @@ def test_the_version_pins_m5_and_the_rule() -> None:
     assert m5inj_version("0.2.0+m5.d4848a7e").startswith("0.")
     assert "+m5inj." in m5inj_version("0.2.0+m5.d4848a7e")
     assert m5inj_version("0.2.0+m5.d4848a7e") != m5inj_version("0.2.0+m5.other")
+
+
+# --- aliases (owner-confirmed 2026-10-23) -------------------------------------------------------
+
+
+def test_the_alias_file_is_the_owner_list() -> None:
+    assert load_aliases() == {
+        ("ASV", "6183"): "MILLS, PATTY",
+        ("IST", "40764"): "KARUTASU, DARIUS",
+        ("IST", "21746"): "DOZIER, PJ",
+        ("MAD", "39042"): "SHULGA, MAKSYM",
+        ("OLY", "35250"): "KARAGIANNIDIS, ANTONIS",
+        ("PAN", "19143"): "HERNANGOMEZ, JUANCHO",
+        ("PAN", "24143"): "ROGKAVOPOULOS, NIKOLAOS",
+        ("PRS", "17092"): "WARREN, TJ",
+    }
+
+
+def test_an_alias_matches_the_same_club_player(roster: list[RosterPlayer]) -> None:
+    rows = pd.DataFrame(
+        {
+            "snapshot_utc": ["2026-10-08T09:00:00Z"],
+            "team": ["PAN"],
+            "player": ["Patrick Mills"],
+            "bn_player_id": ["6183"],
+            "status": ["Out"],
+        }
+    )
+    assert match_injuries(rows, roster, {})["match"].tolist() == [NO_MATCH]
+    matched = match_injuries(rows, roster, {("PAN", "6183"): "MILLS, PATTY"})
+    assert matched["match"].tolist() == [MATCHED]
+    assert matched["player_id"].tolist() == ["P1002"]
+
+
+def test_an_alias_never_crosses_clubs(roster: list[RosterPlayer]) -> None:
+    rows = pd.DataFrame(
+        {
+            "snapshot_utc": ["2026-10-08T09:00:00Z"],
+            "team": ["ULK"],
+            "player": ["Patrick Mills"],
+            "bn_player_id": ["6183"],
+            "status": ["Out"],
+        }
+    )
+    matched = match_injuries(rows, roster, {("ULK", "6183"): "MILLS, PATTY"})
+    assert matched["match"].tolist() == [NO_MATCH]
+    assert matched["player_id"].tolist() == [""]

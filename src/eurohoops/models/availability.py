@@ -7,7 +7,7 @@ already has; nothing is fetched here.
 
 import json
 from collections import defaultdict
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +20,7 @@ from eurohoops.ingest.cache import read_cached
 from eurohoops.logs import TIME_FORMAT
 
 OUT = "Out"
+ALIASES_PATH = Path(__file__).with_name("injury_aliases.csv")
 MATCHED, AMBIGUOUS, NO_MATCH = "matched", "ambiguous", "no_roster_match"
 INJURY_DTYPES = {
     "snapshot_utc": str,
@@ -63,21 +64,38 @@ def read_injuries(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, dtype=INJURY_DTYPES, keep_default_na=False)
 
 
-def match_injuries(injuries: pd.DataFrame, roster: Iterable[RosterPlayer]) -> pd.DataFrame:
+def load_aliases(path: Path = ALIASES_PATH) -> dict[tuple[str, str], str]:
+    """(club, BasketNews id) -> the roster name it is the same player as (owner-confirmed list)."""
+    table = pd.read_csv(path, dtype=str, keep_default_na=False)
+    return {
+        (str(r["team"]), str(r["bn_player_id"])): str(r["roster_name"])
+        for r in table.to_dict("records")
+    }
+
+
+def match_injuries(
+    injuries: pd.DataFrame,
+    roster: Iterable[RosterPlayer],
+    aliases: Mapping[tuple[str, str], str] | None = None,
+) -> pd.DataFrame:
     """Each injury row with the roster player it names, or why it names none.
 
-    A row matches iff exactly one roster player has the same club code and the same
-    ``latin_key`` of the name. Two or more such players: ``ambiguous``; none: ``no_roster_match``.
+    A row is matched on the name, or on its alias when ``(team, bn_player_id)`` is in ``aliases``
+    (default: the committed alias file). Either way it matches iff exactly one roster player has the
+    same club code and the same ``latin_key``. Two or more such players: ``ambiguous``; none:
+    ``no_roster_match``. An alias never moves a player to another club.
     Columns: the injury row's columns plus ``player_id`` (empty unless matched) and ``match``.
     """
+    names_by_alias = load_aliases() if aliases is None else dict(aliases)
     by_key: dict[tuple[str, str], set[str]] = defaultdict(set)
     for p in roster:
         by_key[(p.club, latin_key(p.name))].add(p.player_id)
     out = injuries.copy()
     ids = []
     verdicts = []
-    for team, name in zip(out["team"], out["player"], strict=True):
-        found = sorted(by_key.get((str(team), latin_key(str(name))), set()))
+    for team, bn_id, name in zip(out["team"], out["bn_player_id"], out["player"], strict=True):
+        wanted = names_by_alias.get((str(team), str(bn_id)), str(name))
+        found = sorted(by_key.get((str(team), latin_key(wanted)), set()))
         if len(found) == 1:
             ids.append(found[0])
             verdicts.append(MATCHED)
@@ -90,28 +108,22 @@ def match_injuries(injuries: pd.DataFrame, roster: Iterable[RosterPlayer]) -> pd
 
 
 def out_players(matched: pd.DataFrame, cutoff: datetime) -> set[str]:
-    """Player ids whose latest status before ``cutoff`` is ``Out``.
+    """Player ids marked ``Out`` in the latest snapshot stamped strictly before ``cutoff``.
 
-    Only snapshots stamped strictly before ``cutoff`` count. A player's status is that of the
-    latest such snapshot in which he is listed; he is ``Out`` if any of his rows in that snapshot
-    says ``Out``. Unmatched rows are ignored.
+    That snapshot is taken as a whole: a player who is not listed in it has no status (not Out),
+    even if an older snapshot had him Out. Unmatched rows are never Out.
     """
     if matched.empty:
         return set()
-    rows = matched[matched["match"] == MATCHED]
-    stamps = pd.to_datetime(rows["snapshot_utc"], format=TIME_FORMAT, utc=True)
+    stamps = pd.to_datetime(matched["snapshot_utc"], format=TIME_FORMAT, utc=True)
     limit = pd.Timestamp(cutoff)
     limit = limit.tz_localize("UTC") if limit.tzinfo is None else limit
-    before = rows[stamps < limit]
-    if before.empty:
+    before = stamps < limit
+    if not before.any():
         return set()
-    latest = before.assign(stamp=stamps[before.index])
-    out: set[str] = set()
-    for _, group in latest.groupby("player_id"):
-        newest = group[group["stamp"] == group["stamp"].max()]
-        if (newest["status"] == OUT).any():
-            out.add(str(group["player_id"].iloc[0]))
-    return out
+    latest = stamps[before].max()
+    rows = matched[(stamps == latest) & (matched["match"] == MATCHED) & (matched["status"] == OUT)]
+    return {str(p) for p in rows["player_id"]}
 
 
 def apply_out(shares: pd.DataFrame, game_ids: Collection[str], out: set[str]) -> pd.DataFrame:
