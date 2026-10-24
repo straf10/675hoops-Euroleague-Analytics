@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 280" width="560" height="280" role="img" aria-labelledby="bootstrap-title bootstrap-desc"><title id="bootstrap-title">Bootstrap distribution of the gap</title><desc id="bootstrap-desc">Illustration of two bootstrap distributions of the mean log-loss gap: one whose 97.5% interval lies wholly below zero with a mean under -0.01, which passes, and one centred near zero, which fails.</desc><style>svg{--paper:#f9f9f7;--surface:#fcfcfb;--sunk:#f1f1ee;--ink:#111110;--ink-soft:#52514e;--muted:#6d6b66;--axis:#898781;--rule:#e1e0d9;--rule-strong:#c3c2b7;--accent:#d9590b;--accent-tint:rgba(217,89,11,.09);--base:#8f8d86;--blue:#2a78d6;--blue-tint:rgba(42,120,214,.10)} svg .mask{fill:var(--paper)}
+svg .lmask{fill:var(--paper)}
+svg .node .body{stroke-width:1}
+svg .n-step .body{fill:var(--surface);stroke:var(--ink)}
+svg .n-focal .body{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1.4}
+svg .n-store .body{fill:var(--sunk);stroke:var(--muted)}
+svg .n-input .body{fill:var(--surface);stroke:var(--axis)}
+svg .n-ext .body{fill:var(--paper);stroke:var(--rule-strong)}
+svg .n-shadow .body{fill:var(--surface);stroke:var(--ink-soft);stroke-dasharray:4 3}
+svg .n-base .body{fill:var(--sunk);stroke:var(--base)}
+svg .tag{fill:none;stroke:var(--rule-strong);stroke-width:.8}
+svg .n-focal .tag{stroke:var(--accent)}
+svg text{font-family:'Geist','Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif}
+svg .t-name{font-size:12.5px;font-weight:600;fill:var(--ink)}
+svg .t-sub{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;fill:var(--ink-soft)}
+svg .t-tag{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:7.5px;letter-spacing:.06em;fill:var(--muted)}
+svg .n-focal .t-tag{fill:var(--accent)}
+svg .t-eyebrow{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8.5px;letter-spacing:.14em;fill:var(--muted)}
+svg .t-eyebrow-accent{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8.5px;letter-spacing:.14em;fill:var(--accent);font-weight:600}
+svg .t-label{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8px;letter-spacing:.06em;fill:var(--muted)}
+svg .t-aside{font-size:11px;font-style:italic;fill:var(--muted)}
+svg .t-axis{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;fill:var(--muted)}
+svg .t-axislab{font-size:11px;fill:var(--ink-soft)}
+svg .t-rowname{font-size:12px;font-weight:500;fill:var(--ink)}
+svg .t-serieslab{font-size:11px;font-weight:600;fill:var(--ink)}
+svg .t-serieslab-blue{font-size:11px;font-weight:600;fill:var(--blue)}
+svg .t-serieslab-accent{font-size:11px;font-weight:600;fill:var(--accent)}
+svg .t-serieslab-muted{font-size:11px;font-weight:600;fill:var(--muted)}
+svg .c{fill:none;stroke:var(--muted);stroke-width:1.1}
+svg .c-accent{fill:none;stroke:var(--accent);stroke-width:1.3}
+svg .dash{stroke-dasharray:5 4}
+svg .mk{fill:var(--muted)} svg .mk-accent{fill:var(--accent)} svg .mk-blue{fill:var(--blue)}
+svg .hair{stroke:var(--rule);stroke-width:.8}
+svg .grid{stroke:var(--rule);stroke-width:.8}
+svg .axis{stroke:var(--rule-strong);stroke-width:1}
+svg .guide{stroke:var(--axis);stroke-width:.9;stroke-dasharray:3 3;fill:none}
+svg .zero{stroke:var(--ink);stroke-width:1}
+svg .line-ink{fill:none;stroke:var(--ink);stroke-width:1.8}
+svg .line-blue{fill:none;stroke:var(--blue);stroke-width:1.8}
+svg .line-accent{fill:none;stroke:var(--accent);stroke-width:1.8}
+svg .line-muted{fill:none;stroke:var(--muted);stroke-width:1.6}
+svg .area-accent{fill:var(--accent-tint);stroke:none}
+svg .dot-accent{fill:var(--accent)} svg .dot-ink{fill:var(--ink)} svg .dot-muted{fill:var(--paper);stroke:var(--muted);stroke-width:1.4}
+svg .tip{stroke:var(--ink-soft);stroke-width:1;stroke-dasharray:3 3}
+svg .tip-accent{stroke:var(--accent)}
+svg .window{fill:var(--blue-tint);stroke:var(--blue);stroke-width:.8}
+svg .diamond{fill:var(--surface);stroke:var(--ink);stroke-width:1}
+svg .seg{stroke-width:1}
+svg .seg-warm,svg .sw-warm .body{fill:var(--sunk);stroke:var(--rule-strong)}
+svg .seg-tune,svg .sw-tune .body{fill:var(--base);stroke:var(--base)}
+svg .seg-fold,svg .sw-fold .body{fill:var(--base);stroke:var(--base)}
+svg .seg-val,svg .sw-val .body{fill:var(--blue);stroke:var(--blue)}
+svg .seg-test,svg .sw-test .body{fill:var(--ink);stroke:var(--ink)}
+svg .seg-live,svg .sw-live .body{fill:var(--accent);stroke:var(--accent)}
+svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" height="100%" rx="8" style="fill:var(--paper)"/><defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-accent" points="0 0, 8 3, 0 6"/></marker>
+<marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-blue" points="0 0, 8 3, 0 6"/></marker>
+</defs><text x="63.333333333333314" y="256" class="t-axis" text-anchor="middle" >-0.04</text>
+<text x="150.0" y="256" class="t-axis" text-anchor="middle" >-0.03</text>
+<text x="236.66666666666666" y="256" class="t-axis" text-anchor="middle" >-0.02</text>
+<text x="323.3333333333333" y="256" class="t-axis" text-anchor="middle" >-0.01</text>
+<text x="410.0" y="256" class="t-axis" text-anchor="middle" >0</text>
+<text x="496.6666666666667" y="256" class="t-axis" text-anchor="middle" >+0.01</text>
+<line class="axis" x1="20" y1="240" x2="540" y2="240"/>
+<text x="280.0" y="274" class="t-axislab" text-anchor="middle" >mean log-loss gap (shadow − Elo), one value per resample</text>
+<text x="20" y="26" class="t-axislab" text-anchor="start" ></text>
+<polygon class="area-accent" points="138.5,240.0 138.5,225.0 141.2,223.0 143.8,220.8 146.5,218.4 149.2,215.8 151.8,212.9 154.5,209.8 157.2,206.4 159.9,202.8 162.5,199.0 165.2,194.9 167.9,190.5 170.5,185.8 173.2,181.0 175.9,175.8 178.6,170.5 181.2,164.9 183.9,159.2 186.6,153.3 189.2,147.2 191.9,141.0 194.6,134.8 197.3,128.5 199.9,122.2 202.6,115.9 205.3,109.7 207.9,103.7 210.6,97.8 213.3,92.1 216.0,86.6 218.6,81.5 221.3,76.7 224.0,72.3 226.6,68.3 229.3,64.7 232.0,61.7 234.6,59.1 237.3,57.1 240.0,55.7 242.7,54.8 245.3,54.5 248.0,54.8 250.7,55.7 253.3,57.1 256.0,59.1 258.7,61.7 261.4,64.7 264.0,68.3 266.7,72.3 269.4,76.7 272.0,81.5 274.7,86.6 277.4,92.1 280.1,97.8 282.7,103.7 285.4,109.7 288.1,115.9 290.7,122.2 293.4,128.5 296.1,134.8 298.8,141.0 301.4,147.2 304.1,153.3 306.8,159.2 309.4,164.9 312.1,170.5 314.8,175.8 317.5,181.0 320.1,185.8 322.8,190.5 325.5,194.9 328.1,199.0 330.8,202.8 333.5,206.4 336.1,209.8 338.8,212.9 341.5,215.8 344.2,218.4 346.8,220.8 349.5,223.0 352.2,225.0 352.2,240.0"/>
+<polyline class="line-accent" points="20.0,240.0 22.6,240.0 25.2,240.0 27.8,240.0 30.4,240.0 33.0,240.0 35.6,240.0 38.2,240.0 40.8,240.0 43.4,240.0 46.0,240.0 48.6,240.0 51.2,240.0 53.8,239.9 56.4,239.9 59.0,239.9 61.6,239.9 64.2,239.9 66.8,239.8 69.4,239.8 72.0,239.8 74.6,239.7 77.2,239.6 79.8,239.6 82.4,239.5 85.0,239.4 87.6,239.2 90.2,239.1 92.8,238.9 95.4,238.7 98.0,238.4 100.6,238.2 103.2,237.8 105.8,237.4 108.4,237.0 111.0,236.5 113.6,235.9 116.2,235.3 118.8,234.5 121.4,233.7 124.0,232.7 126.6,231.7 129.2,230.5 131.8,229.1 134.4,227.6 137.0,226.0 139.6,224.2 142.2,222.1 144.8,219.9 147.4,217.5 150.0,214.9 152.6,212.1 155.2,209.0 157.8,205.6 160.4,202.1 163.0,198.3 165.6,194.2 168.2,189.9 170.8,185.4 173.4,180.6 176.0,175.6 178.6,170.4 181.2,165.0 183.8,159.4 186.4,153.6 189.0,147.8 191.6,141.8 194.2,135.7 196.8,129.6 199.4,123.4 202.0,117.3 204.6,111.3 207.2,105.3 209.8,99.5 212.4,93.9 215.0,88.5 217.6,83.4 220.2,78.6 222.8,74.2 225.4,70.1 228.0,66.4 230.6,63.2 233.2,60.5 235.8,58.2 238.4,56.5 241.0,55.3 243.6,54.7 246.2,54.6 248.8,55.0 251.4,56.0 254.0,57.6 256.6,59.7 259.2,62.2 261.8,65.3 264.4,68.8 267.0,72.7 269.6,77.1 272.2,81.8 274.8,86.8 277.4,92.1 280.0,97.6 282.6,103.4 285.2,109.3 287.8,115.3 290.4,121.4 293.0,127.5 295.6,133.6 298.2,139.7 300.8,145.8 303.4,151.7 306.0,157.5 308.6,163.1 311.2,168.6 313.8,173.9 316.4,179.0 319.0,183.8 321.6,188.4 324.2,192.8 326.8,197.0 329.4,200.8 332.0,204.5 334.6,207.9 337.2,211.0 339.8,214.0 342.4,216.7 345.0,219.2 347.6,221.4 350.2,223.5 352.8,225.4 355.4,227.1 358.0,228.6 360.6,230.0 363.2,231.3 365.8,232.4 368.4,233.4 371.0,234.3 373.6,235.0 376.2,235.7 378.8,236.3 381.4,236.8 384.0,237.3 386.6,237.7 389.2,238.0 391.8,238.3 394.4,238.6 397.0,238.8 399.6,239.0 402.2,239.2 404.8,239.3 407.4,239.4 410.0,239.5 412.6,239.6 415.2,239.7 417.8,239.7 420.4,239.8 423.0,239.8 425.6,239.9 428.2,239.9 430.8,239.9 433.4,239.9 436.0,239.9 438.6,240.0 441.2,240.0 443.8,240.0 446.4,240.0 449.0,240.0 451.6,240.0 454.2,240.0 456.8,240.0 459.4,240.0 462.0,240.0 464.6,240.0 467.2,240.0 469.8,240.0 472.4,240.0 475.0,240.0 477.6,240.0 480.2,240.0 482.8,240.0 485.4,240.0 488.0,240.0 490.6,240.0 493.2,240.0 495.8,240.0 498.4,240.0 501.0,240.0 503.6,240.0 506.2,240.0 508.8,240.0 511.4,240.0 514.0,240.0 516.6,240.0 519.2,240.0 521.8,240.0 524.4,240.0 527.0,240.0 529.6,240.0 532.2,240.0 534.8,240.0 537.4,240.0 540.0,240.0"/>
+<polyline class="line-muted dash" points="20.0,240.0 22.6,240.0 25.2,240.0 27.8,240.0 30.4,240.0 33.0,240.0 35.6,240.0 38.2,240.0 40.8,240.0 43.4,240.0 46.0,240.0 48.6,240.0 51.2,240.0 53.8,240.0 56.4,240.0 59.0,240.0 61.6,240.0 64.2,240.0 66.8,240.0 69.4,240.0 72.0,240.0 74.6,240.0 77.2,240.0 79.8,240.0 82.4,240.0 85.0,240.0 87.6,240.0 90.2,240.0 92.8,240.0 95.4,240.0 98.0,240.0 100.6,240.0 103.2,240.0 105.8,240.0 108.4,240.0 111.0,240.0 113.6,240.0 116.2,240.0 118.8,240.0 121.4,240.0 124.0,240.0 126.6,240.0 129.2,240.0 131.8,240.0 134.4,240.0 137.0,240.0 139.6,240.0 142.2,240.0 144.8,240.0 147.4,240.0 150.0,240.0 152.6,240.0 155.2,240.0 157.8,240.0 160.4,240.0 163.0,240.0 165.6,240.0 168.2,240.0 170.8,240.0 173.4,240.0 176.0,240.0 178.6,240.0 181.2,240.0 183.8,239.9 186.4,239.9 189.0,239.9 191.6,239.9 194.2,239.9 196.8,239.8 199.4,239.8 202.0,239.8 204.6,239.7 207.2,239.6 209.8,239.6 212.4,239.5 215.0,239.4 217.6,239.2 220.2,239.1 222.8,238.9 225.4,238.7 228.0,238.4 230.6,238.2 233.2,237.8 235.8,237.4 238.4,237.0 241.0,236.5 243.6,235.9 246.2,235.3 248.8,234.5 251.4,233.7 254.0,232.7 256.6,231.7 259.2,230.5 261.8,229.1 264.4,227.6 267.0,226.0 269.6,224.2 272.2,222.1 274.8,219.9 277.4,217.5 280.0,214.9 282.6,212.1 285.2,209.0 287.8,205.6 290.4,202.1 293.0,198.3 295.6,194.2 298.2,189.9 300.8,185.4 303.4,180.6 306.0,175.6 308.6,170.4 311.2,165.0 313.8,159.4 316.4,153.6 319.0,147.8 321.6,141.8 324.2,135.7 326.8,129.6 329.4,123.4 332.0,117.3 334.6,111.3 337.2,105.3 339.8,99.5 342.4,93.9 345.0,88.5 347.6,83.4 350.2,78.6 352.8,74.2 355.4,70.1 358.0,66.4 360.6,63.2 363.2,60.5 365.8,58.2 368.4,56.5 371.0,55.3 373.6,54.7 376.2,54.6 378.8,55.0 381.4,56.0 384.0,57.6 386.6,59.7 389.2,62.2 391.8,65.3 394.4,68.8 397.0,72.7 399.6,77.1 402.2,81.8 404.8,86.8 407.4,92.1 410.0,97.6 412.6,103.4 415.2,109.3 417.8,115.3 420.4,121.4 423.0,127.5 425.6,133.6 428.2,139.7 430.8,145.8 433.4,151.7 436.0,157.5 438.6,163.1 441.2,168.6 443.8,173.9 446.4,179.0 449.0,183.8 451.6,188.4 454.2,192.8 456.8,197.0 459.4,200.8 462.0,204.5 464.6,207.9 467.2,211.0 469.8,214.0 472.4,216.7 475.0,219.2 477.6,221.4 480.2,223.5 482.8,225.4 485.4,227.1 488.0,228.6 490.6,230.0 493.2,231.3 495.8,232.4 498.4,233.4 501.0,234.3 503.6,235.0 506.2,235.7 508.8,236.3 511.4,236.8 514.0,237.3 516.6,237.7 519.2,238.0 521.8,238.3 524.4,238.6 527.0,238.8 529.6,239.0 532.2,239.2 534.8,239.3 537.4,239.4 540.0,239.5"/>
+<line class="zero" x1="410.0" y1="240.0" x2="410.0" y2="39.7"/>
+<line class="guide" x1="323.3" y1="240.0" x2="323.3" y2="39.7"/>
+<text x="414.0" y="43.70909090909092" class="t-sub" text-anchor="start" >0: no better</text>
+<text x="319.3333333333333" y="43.70909090909092" class="t-sub" text-anchor="end" >−0.01 bar</text>
+<text x="231.33333333333334" y="73.09090909090912" class="t-serieslab-accent" text-anchor="end" >passes</text>
+<text x="444.6666666666667" y="125.01818181818183" class="t-serieslab-muted" text-anchor="start" >fails</text>
+<text x="245.33333333333334" y="214.03636363636363" class="t-sub" text-anchor="middle" >97.5% CI</text></svg>

@@ -1,57 +1,225 @@
 # 6.75 Analytics
 
-**EuroLeague game forecasts for the 2026-27 season, logged before tip-off and scored afterwards.** The pipeline ingests official EuroLeague data, builds team, shot, player and roster models, and publishes the forecasts with their scorecards. Every model is compared with a home-team baseline and Elo, and for EuroLeague also with bookmaker odds recorded before each game. Misses stay on the scorecard.
+**EuroLeague and Greek Basket League (GBL) win forecasts for 2026-27, logged before tip-off and scored afterwards.** Every morning at 07:47 UTC a GitHub Actions job fetches new data, asks eight models who will win the next games, commits their forecasts to a public log, and scores every finished game. Misses stay on the scorecard.
 
-- Live site: https://675hoops.com/
-- The repository also has a Greek Basket League (GBL) pipeline, logged in `predictions/`. The site shows EuroLeague only.
+Live site: https://675hoops.com/ (EuroLeague). "6.75" is the FIBA three-point distance in metres; the package and CLI are named `eurohoops`.
 
 [![ci](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/ci.yml) [![daily predictions](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/daily.yml/badge.svg)](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/daily.yml)
 
-"6.75" is the EuroLeague and FIBA three-point distance in metres. The repository, package and CLI are named `eurohoops`.
+**Contents:** [How it works](#how-it-works) · [1 Ingest and build](#1-ingest-and-build) · [2 Models](#2-models) · [3 Model maths](#3-model-maths) · [4 Backtesting](#4-backtesting) · [5 Logging](#5-logging) · [6 Scoring](#6-scoring) · [7 Promotion](#7-promotion) · [8 Publishing](#8-publishing) · [Quick start](#quick-start)
 
-## How the numbers are checked
+## How it works
 
-- **Logged before tip-off.** The daily run commits each forecast before tip-off, and git history dates every row. Late rows are shown and flagged, not scored.
-- **Test seasons.** 2024-25 and 2025-26 are the test seasons. M1 v2 and M7 gate v2 are not clean hold-outs; their selection reused seasons already seen.
-- **Promotion.** Elo is the published forecast. M5 replaces it only if the rule in [`docs/models/m5.md`](docs/models/m5.md) is met at one of two checkpoints (after EuroLeague round 19, and after the last game): a mean log-loss gain of at least 0.01 with the 97.5% paired-bootstrap interval below zero. `uv run eurohoops promote-check --competition euroleague --look 1|2` refuses to run before a checkpoint is due. A promoted model is not demoted within the season.
-- **Proper scoring first.** Log loss is primary, then Brier score, calibration (ECE, reliability diagrams), margin RMSE and MAE, totals error and CRPS. Accuracy is secondary.
-- **Honest about the ceiling.** Published pre-game EuroLeague work reports at most about 67% test accuracy ([R16](#references)). A reported 98.9% ([R18](#references)) is far above that and is not plausible pre-game, so such figures usually mean features that see the game being predicted. Per-model leakage tests are in `tests/test_m2_leakage.py`, `tests/test_m3_leakage.py` and `tests/test_m5_leakage.py`.
+`ingest` → `build` → `backtest` → `predict` → `score` → `publish`, each run as `uv run eurohoops <cmd>`. The backtest runs offline when a model changes; its report fixes the parameters the daily run uses.
 
-## Models
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.svg">
+  <img alt="Daily pipeline: sources, raw cache, DuckDB marts, predict, append-only logs, score, site; the offline backtest feeds parameters and the promotion test picks the published model" src="docs/assets/readme/overview-light.svg" width="100%">
+</picture>
 
-**Published** means shown on the site. **Shadow** means logged next to Elo, not shown as the forecast. Headline numbers are EuroLeague unless marked GBL. Log loss is lower-is-better.
+The daily workflow ([`daily.yml`](.github/workflows/daily.yml)) commits `predictions/`, `reports/` and `odds/` to `main`. That commit proves each forecast existed before its game.
 
-| Model | What it does | Status | Headline result |
+## 1. Ingest and build
+
+- **Ingest** stores every raw response gzip-compressed under `data/raw/` and never fetches it again. Only the live season's schedule refreshes. esake.gr gets at most one request per 2 s.
+- **Build** parses the cache, validates each table with pandera, and loads the DuckDB marts. Everything downstream reads the marts. Team codes stay the source's (`ULK`, `PAN`); display names appear only on the site.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/ingest-dark.svg">
+  <img alt="Five sources (EuroLeague API, esake.gr, EuroLeague people, The Odds API, BasketNews) go into an immutable raw cache, then parse and validate into DuckDB marts; odds and injury snapshots go to append-only logs" src="docs/assets/readme/ingest-light.svg" width="100%">
+</picture>
+
+| Source | What | Notes |
+|---|---|---|
+| EuroLeague API | schedules, box scores, play-by-play, shots, rosters from 2007-08 | undocumented, so everything is cached |
+| esake.gr | GBL results, box scores, play-by-play from 2018-19 | box scores before 2020-21 are less reliable |
+| The Odds API | EuroLeague bookmaker prices | recorded forward from 2026-09-25; a benchmark, not a betting product |
+| BasketNews | EuroLeague injury report snapshots | recorded several times a day ([`scripts/record_injuries.ps1`](scripts/record_injuries.ps1)) |
+
+**Possessions**, the unit behind M1, M3 and M5:
+
+```
+poss = FGA − OREB + TOV + 0.42 · FTA        pace = poss × 40 / minutes
+```
+
+Not every free throw ends a possession; 0.42 is the weight that matches a play-by-play possession count on average. A **stint** is a stretch with the same ten players on the floor (EuroLeague, 2011 onward); stints feed M3. The `player_xwalk` mart links one person across both leagues ([`docs/data/entity.md`](docs/data/entity.md)).
+
+## 2. Models
+
+Elo is the published forecast. Every other game model is a **shadow**: it logs its own forecast for every game, is scored on the same games, and replaces Elo only by beating it on live games at a fixed checkpoint ([section 7](#7-promotion)).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/models-dark.svg">
+  <img alt="Model dependency map: Elo is published; ELOR builds on Elo and M3; M5 builds on M3 and M1; M7 simulates seasons from M1; M5-INJ adjusts M5 for injuries; POOL averages four logs; B0 is the baseline" src="docs/assets/readme/models-light.svg" width="100%">
+</picture>
+
+EuroLeague numbers unless marked; log loss is lower-is-better.
+
+| Model | Adds over Elo | Status | Headline result |
 |---|---|---|---|
-| **Elo** ([card](docs/models/elo.md)) | MOV-adjusted Elo after FiveThirtyEight ([R5](#references)) | Published (EuroLeague); GBL logged | Test log loss 0.6292 (2024-25 and 2025-26, 732 games) |
-| **M1** ([card](docs/models/m1.md)) | Possession-based team model: offense, defense and pace ratings | Shadow; GBL flagship candidate | Test log loss 0.6232, against re-tuned Elo 0.6246; the difference is not significant. Validation check passed. |
-| **M2** ([card](docs/models/m2.md)) | Shot quality (xPTS) from location and game state, no shooter identity | Research; no live forecast | Validation log loss 0.6333 against 0.6353 for the spline baseline. Failed its calibration target (ECE 0.0104 against 0.01). |
-| **M3** ([card](docs/models/m3.md)) | Player impact: regularised adjusted plus-minus with a box-score prior, 90% intervals | Research; feeds M5 | Validation RMSE 11.48, best of its set; test RMSE 11.68, level with box-score-only. Validation check passed by a narrow margin. |
-| **M4** ([card](docs/models/m4.md)) | League translation between GBL and EuroLeague for box-score rates | Reported; not live | Failed. Difference −0.14 against same-stats baseline, 95% CI [−0.43, +0.02], six movers only. |
-| **M5** ([card](docs/models/m5.md)) | Roster-aware predictor: projected minutes times player ratings, home court | Shadow; EuroLeague flagship candidate | Validation log loss 0.5838 against M1 0.5877 (interval includes zero). Test tie with M1: 0.6232 each. GBL check failed. |
-| **M6** ([card](docs/models/m6.md)) | Player projections with 80% intervals, over/under board, comparables | Live (2026-27 projections and board) | Test projection loss 5.90 against Marcel 6.06 (difference −0.16, CI excludes zero). Validation tie with Marcel. |
-| **M7** ([card](docs/models/m7.md)) | Season simulator: Monte Carlo of the rest of the season, then playoff and title odds | Published (EuroLeague; labelled gated); GBL not gated | Gate v2 passed on 372 team-checkpoints: Brier 0.1117, against 0.1828 for current standings, and not worse than the point simulator. Gate v1 failed on one validation season. |
+| **Elo** ([card](docs/models/elo.md)) | the reference; MOV Elo after FiveThirtyEight ([R5](#references)) | Published | Test log loss 0.6293 (2025-26, 402 games), B0 0.6557 |
+| **M1** ([card](docs/models/m1.md)) | offence, defence, pace; totals | Shadow, EL and GBL | Test 0.6232 vs re-tuned Elo 0.6246, not significant |
+| **M2** ([card](docs/models/m2.md)) | shot quality (xPTS) | Research | Validation 0.6333 vs 0.6353; missed its calibration target |
+| **M3** ([card](docs/models/m3.md)) | player impact (RAPM + box-score prior) | Player ratings; feeds M5, ELOR | Test RMSE 11.68, level with box-score-only |
+| **M4** ([card](docs/models/m4.md)) | GBL ↔ EuroLeague translation | Not live | Failed: −0.14, CI [−0.43, +0.02] |
+| **M5** ([card](docs/models/m5.md)) | who is expected to play | Shadow, EL flagship candidate | Validation 0.5838 vs M1 0.5877; test tie with M1 |
+| **M5-INJ** ([card](docs/models/m5_inj.md)) | injury reports | Shadow since 2026-10-23 | Live only |
+| **ELOR** ([card](docs/models/elo_roster_prior.md)) | summer roster changes | Shadow | Folds 2015–23: −0.0023 vs Elo, CI [−0.0043, −0.0007] |
+| **POOL** ([card](docs/models/pool.md)) | average of Elo, M1, M5, ELOR | Shadow | Live only |
+| **M6** ([card](docs/models/m6.md)) | player projections and comparables | Live | Test loss 5.90 vs Marcel 6.06, CI excludes 0 |
+| **M7** ([card](docs/models/m7.md)) | season simulation | Published standings | Brier 0.1117 vs 0.1828 for current standings |
 
-Phase D audit ([`docs/models/audit_phase_d.md`](docs/models/audit_phase_d.md)): no model beats Elo on win probability yet, since every M1 and M5 comparison with Elo has a 95% CI that includes 0 (M5 minus Elo on test log loss: −0.001351, CI [−0.011383, 0.008787]). M5's totals gain is the clear one: CRPS against Elo on test is −0.914002, CI [−1.220227, −0.576823].
+No model beats Elo on win probability in backtests yet (M5 − Elo on test: −0.0014, CI [−0.0114, 0.0088]). M5's totals gain is clear: CRPS −0.914, CI [−1.220, −0.577]. A test checks every number on the cards against the committed reports.
 
-EuroLeague test-season baseline (log loss): home team 0.6600; re-tuned Elo 0.6246 (published Elo 0.6292); M1 and M5 0.6232 each ([M1 card](docs/models/m1.md), [M3 card](docs/models/m3.md)). Each card lists its code, reports and quoted numbers, and a test checks them against the committed reports.
+## 3. Model maths
 
-## Data
+Every game model outputs `p_home` (probability the home team wins) and `exp_margin` (expected home-minus-away points).
 
-- **EuroLeague.** Official public API (`live.euroleague.net`, `api-live.euroleague.net`): play-by-play, shot coordinates, box scores, schedules and rosters from 2007-08. Undocumented and may change, so every raw response is cached.
-- **Greek Basket League.** HTML from [esake.gr](https://www.esake.gr/): results, box scores and play-by-play. Throttled to at least 2 s between requests; raw pages are cached. Coverage 2018-19 onward; box scores before 2020-21 are less reliable.
-- **Betting odds.** The Odds API, EuroLeague only. No verified free historical source exists, so odds are recorded forward in `odds/` from 2026-09-25 (round 1). A market benchmark, not a betting product.
-- **Injury reports.** BasketNews EuroLeague injury report, snapshotted on each run (`eurohoops injuries`). The owner's PC records it from a separate clone: fixed runs at 07:30 and 11:00 UTC, plus a match-day run every 30 minutes from 10:00 to 21:00 UTC that records only 120 to 60 minutes before today's first EuroLeague tip-off (`scripts/record_injuries.ps1 -MatchDay`; `eurohoops first-tipoff --today` prints that tip-off). Registered by `scripts/register_injury_task.ps1`.
-- **Player identity.** A crosswalk links players across leagues, since GBL names mix Greek and Latin script ([`docs/data/entity.md`](docs/data/entity.md)).
-- **Shots.** About 612,000 field-goal attempts, 2007-08 to 2025-26; M2 is fitted from 2011-12. Exclusions are listed with reasons ([`docs/data/shots.md`](docs/data/shots.md)).
+### Elo
 
-## Pipeline
+One rating per team, starting at 1500. The rating gap plus home court becomes a probability; after the game both ratings move by the same amount, more for surprises and bigger margins.
 
-`ingest` → `build` → `backtest` → `predict` → `score` → `publish`
+```
+d      = R_home − R_away + hca                hca = 90 (EL), 130 (GBL)
+p_home = 1 / (1 + 10^(−d/400))
+M      = (|margin| + 3)^0.8 / (7.5 + 0.006 · w)   w = winner's rating edge
+Δ      = K · M · (result − p_home)            K = 20 (EL), 40 (GBL)
+R_home += Δ,  R_away −= Δ;  each summer R ← R − 0.25 · (R − 1500)
+```
 
-Outputs: raw cache; `data/marts/eurohoops.duckdb` (pandera-validated staging); `reports/*.json` from backtests; `predictions/*_2026-27.csv`; `reports/live_scorecard*.json`; `web/` (Astro), deployed daily to Cloudflare.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/elo-curve-dark.svg">
+  <img alt="Elo win probability against the rating gap; equal teams give the home side 0.627 from the 90-point home-court advantage" src="docs/assets/readme/elo-curve-light.svg" width="460">
+</picture>
 
-**Daily run.** [`daily.yml`](.github/workflows/daily.yml) runs at 07:47 UTC and can be started by hand. It ingests both leagues, builds the marts, records odds and injuries, logs forecasts and simulations, scores, publishes, and commits the logs to `main`, replaying its commit if `main` has moved. Backtests are not part of it. `possessions` and `continuity` are local only.
+### M1 · team efficiency
+
+A weighted ridge regression rates offence, defence and pace from every earlier game. Old games count less, and each season pulls ratings toward the league mean.
+
+```
+100 · points / poss = μ + h·home + off[team] − def[opponent]     (ridge, time-decayed)
+ORtg_H = μ + h + off[H] − def[A]        ORtg_A = μ − h + off[A] − def[H]
+margin = pace · (ORtg_H − ORtg_A) / 100
+p_home = P(margin + s·ε > 0),  ε ~ Student-t (df 7 EL, 20 GBL)
+```
+
+### M3 · player impact
+
+Adjusted plus-minus per 100 possessions, controlling for the other nine players, shrunk toward a box-score estimate (SPM) rather than zero.
+
+```
+100 · pts / poss = c + h·home + Σ O[offence five] − Σ D[defence five]
+minimise Σ w·error² + λ‖β − β_SPM‖²,   λ = 4000;   player value = O − D
+```
+
+### M5 · roster-aware
+
+Team strength from the players expected to play (minute shares from the last five games), plus a team residual for coaching and system.
+
+```
+player_part = (poss/100) · [Σ_home share·(O − D) − Σ_away share·(O − D)]
+margin      = player_part + h + r_home − r_away
+```
+
+**M5-INJ** is M5 with every player listed **Out** in the latest BasketNews snapshot set to zero minutes, teammates scaled up to fill them. Nothing is re-tuned.
+
+### ELOR · Elo with a roster prior
+
+Elo plus a preseason roster rating `P_t` (M3 ratings × projected minutes), faded out over the season.
+
+```
+w(r) = 0.5 · max(0, 1 − (r − 1)/24)        B_t = R_t + w(r) · (P_t − R_t,start)
+```
+
+### POOL
+
+The average of four logged forecasts in log-odds space, with nothing to tune:
+
+```
+p_pool = sigmoid(mean of logit(p_elo), logit(p_m1), logit(p_m5), logit(p_elor))
+```
+
+### M7 · season simulator
+
+Plays the rest of the season 10,000 times. Each run draws team strengths from M1's posterior, `θ ~ N(θ̂, σ²(G + P)⁻¹)`, keeps them all season, and applies the official tie-breaks, play-in and playoffs.
+
+## 4. Backtesting
+
+A backtest replays history as if live: each forecast uses only games before its round, and parameters are chosen on seasons earlier than the ones scored.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/splits-dark.svg">
+  <img alt="Season splits per model: warm-up, tuning, validation, test and the live 2026-27 season" src="docs/assets/readme/splits-light.svg" width="100%">
+</picture>
+
+**Warm-up** builds ratings, **tuning** picks parameters by log loss, **validation** checks the choice, **test** (2024-25, 2025-26) is scored once. Each experiment's pass bar is committed in `experiments/<id>.md` before its result is computed. M1 v2 and M7 gate v2 reused seen seasons, so they are not clean hold-outs.
+
+## 5. Logging
+
+Each run forecasts every game in rounds starting within 48 hours and appends one row per model: `game_id, home, away, tipoff_utc, p_home, exp_margin, model, model_version, predicted_at_utc`. Rows are never edited. The scored row is the **latest one stamped and pushed before tip-off**; later rows are shown as "Logged late" and not scored.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/timeline-dark.svg">
+  <img alt="Example week: the Tuesday run logs nothing, Wednesday logs row 1 once the round is within 48 hours, Thursday logs row 2 which is scored, Friday scores the result" src="docs/assets/readme/timeline-light.svg" width="100%">
+</picture>
+
+## 6. Scoring
+
+Log loss decides. It is a proper scoring rule: your best expected score comes from reporting what you believe.
+
+```
+LL = −mean[ y·ln(p) + (1 − y)·ln(1 − p) ]      y = 1 if the home team won
+```
+
+A 0.65 call costs 0.431 if right and 1.050 if wrong. Always saying 0.5 scores 0.693.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/logloss-dark.svg">
+  <img alt="Log loss penalty for one game against the forecast, for a home win and a home loss" src="docs/assets/readme/logloss-light.svg" width="560">
+</picture>
+
+Also reported: **Brier** `mean((p − y)²)`, **ECE** (calibration over 10 bins), **margin MAE** and **CRPS** (the whole margin distribution), and accuracy (secondary). Baselines: **B0**, the long-run home-win rate; **MKT**, the de-vigged bookmaker median before tip-off, `(1/odds_h) / (1/odds_h + 1/odds_a)`. Published pre-game EuroLeague work tops out near 67% accuracy ([R16](#references)); far higher claims ([R18](#references)) usually leak the game being predicted.
+
+**Live, 2026-10-23** (current numbers on the site):
+
+| Forecaster | League | Games | Log loss | Accuracy |
+|---|---|---:|---:|---:|
+| **Elo** | EL | 65 | 0.635 | 61.5% |
+| B0 | EL | 65 | 0.709 | 53.8% |
+| M1 | EL | 57 | 0.643 | 61.4% |
+| M5 | EL | 37 | 0.645 | 62.2% |
+| ELOR | EL | 13 | 0.589 | 69.2% |
+| Market (Elo on same games 0.609) | EL | 34 | 0.584 | – |
+| **Elo** | GBL | 21 | 0.428 | 81.0% |
+| M1 | GBL | 21 | 0.367 | 85.7% |
+
+Shadows started on different dates, so only the paired test below compares them fairly with Elo.
+
+## 7. Promotion
+
+A shadow replaces Elo only by beating it on live games at a checkpoint: EuroLeague after round 19 and at season end (challenger M5), GBL after round 13 and at season end (challenger M1). `eurohoops promote-check` refuses to run early.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/promotion-dark.svg">
+  <img alt="Promotion flow: write the pass bar, walk-forward backtest, live shadow log, checkpoint, paired bootstrap; promoted only if the CI upper bound is below 0 and the mean gap is at most -0.01" src="docs/assets/readme/promotion-light.svg" width="100%">
+</picture>
+
+```
+d_i     = LL_shadow(i) − LL_elo(i)        on the games both logs share
+CI      = 97.5% interval of the mean over 10,000 paired resamples (seed 20261009)
+promote ⇔ CI upper < 0  and  mean(d) ≤ −0.01
+```
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/bootstrap-dark.svg">
+  <img alt="Illustration of two bootstrap distributions of the mean gap: one wholly below zero with mean under -0.01 passes, one centred near zero fails" src="docs/assets/readme/bootstrap-light.svg" width="560">
+</picture>
+
+97.5% because two looks split the 5% error budget; −0.01 because a shadow must be clearly better, not just detectably better. Pairing cancels out a hard week that hurts both models.
+
+## 8. Publishing
+
+`api/readmodel.py` turns marts, logs and reports into JSON; `publish` writes `web/src/data/site.json`, and the Astro site in `web/` deploys to Cloudflare. Because the logs live in public git history, anyone can verify every forecast predates its game and recompute every score.
 
 ## Quick start
 
@@ -69,13 +237,13 @@ uv run eurohoops publish                     # site data for web/
 cd web && npm ci && npm run dev              # http://localhost:4321/
 ```
 
-- A missing past season is an error, so an empty cache fails. The full history needs the raw cache from the release archive used by [`seed-el-history.yml`](.github/workflows/seed-el-history.yml) (`euroleague-raw-2007-2022.tar.gz`, release `data-el-raw-2007-2022`).
-- `ingest --current-only` stages only the live season, for fast local runs. M5 needs a full `ingest`.
-- GBL uses the same commands with `--competition gbl`. Backtests run per model, e.g. `uv run eurohoops backtest --model m1`, and rewrite the committed report.
+- An empty cache fails. The full history needs the raw archive used by [`seed-el-history.yml`](.github/workflows/seed-el-history.yml) (release `data-el-raw-2007-2022`).
+- `ingest --current-only` stages only the live season; M5 needs a full `ingest`.
+- GBL uses the same commands with `--competition gbl`. Backtests run per model, e.g. `uv run eurohoops backtest --model m1`.
 
 ## Tests and quality
 
-The CI workflow ([`ci.yml`](.github/workflows/ci.yml)) runs on every push:
+CI ([`ci.yml`](.github/workflows/ci.yml)) runs on every push:
 
 ```bash
 uv run ruff check . && uv run ruff format --check .
@@ -84,45 +252,22 @@ uv run pytest -q -n auto --dist loadfile --cov=eurohoops --cov-fail-under=85
 uv run vulture src scripts/vulture_whitelist.py --min-confidence 60
 ```
 
-- Coverage is at least 85%: 1,424 tests, 92.6% line coverage (as of 2026-10-11).
-- pandera validates each staging table; box-score invariants are checked on each build.
-- Runs are reproducible: fixed seeds and paired bootstrap intervals on every model comparison.
-- The front end works at 390 px phone width in light and dark themes ([`docs/DESIGN.md`](docs/DESIGN.md)).
+About 1,950 tests at 92% line coverage. Fixed seeds and paired bootstrap intervals make every comparison reproducible.
 
 ## Repository layout
 
-`src/eurohoops/` is the pipeline; `web/` the Astro site; `tests/` the pytest suite; `scripts/` benchmarks and checks; `docs/` product, design, plan, model cards and research notes; `predictions/` and `odds/` the logs; `reports/` backtests, scorecards and screenshots. Docs: [PLAN](docs/PLAN.md) (roadmap, data inventory, references) · [PRODUCT](docs/PRODUCT.md) · [model cards](docs/models/).
-
-Rules for evaluation, promotion, logging and code are in [`CLAUDE.md`](CLAUDE.md). The experiment process is in [`workflow.md`](workflow.md).
+`src/eurohoops/` pipeline · `web/` site · `tests/` · `scripts/` · `docs/` ([plan](docs/PLAN.md), [product](docs/PRODUCT.md), [model cards](docs/models/)) · `predictions/` and `odds/` logs · `reports/` backtests and scorecards. Rules are in [`CLAUDE.md`](CLAUDE.md); the experiment process in [`workflow.md`](workflow.md).
 
 ## References
 
 Full list in [`docs/PLAN.md`](docs/PLAN.md#sources). Cited above:
 
-- **R4** Manner (2016), *Modeling and Forecasting the Outcomes of NBA Basketball Games*, JQAS 12(1). [link](https://static.uni-graz.at/fileadmin/_Persoenliche_Webseite/manner_hans/Publikationen/NBA_revision2.pdf)
 - **R5** FiveThirtyEight, *NBA Elo methodology*. [link](https://fivethirtyeight.com/features/how-we-calculate-nba-elo-ratings)
-- **R6** Sill (2010), *Improved NBA Adjusted +/- Using Regularization and Out-of-Sample Testing*, MIT Sloan. [link](https://supermariogiacomazzo.github.io/STOR538_WEBSITE/Articles/Basketball/Basketball_Sill.pdf)
-- **R7** Deshpande & Jensen (2016), *Estimating an NBA Player's Impact on His Team's Chances of Winning*, JQAS 12(2). [link](https://arxiv.org/abs/1604.03186)
-- **R8** Watts, Pipping-Gamón & Wyner (2026), *Dummy RAPM*. [link](https://arxiv.org/pdf/2608.19454)
-- **R9** Chang et al. (2014), *Quantifying Shot Quality in the NBA*, MIT Sloan. [link](https://www.semanticscholar.org/paper/Quantifying-Shot-Quality-in-the-NBA-Chang-Maheswaran/2ef041e6d5b83979d37cb0526b7bcc9f63c5b59e)
-- **R10** Franks, D'Amour, Cervone & Bornn (2016), *Meta-Analytics*, JQAS 12(4). [link](https://arxiv.org/abs/1609.09830)
-- **R14** Walsh & Joshi (2024), *Machine Learning for Sports Betting: Accuracy or Calibration?*, MLWA 16. [link](https://arxiv.org/abs/2303.06021)
-- **R15** Hubáček, Šourek & Železný (2019), *Exploiting Sports-Betting Market Using Machine Learning*, IJF 35(2). [link](http://ida.felk.cvut.cz/zelezny/pubs/ijf.2019.pdf)
 - **R16** Giasemidis (2020), *Descriptive and Predictive Analysis of EuroLeague Games and the Wisdom of Basketball Crowds*. [link](https://arxiv.org/abs/2002.08465)
-- **R17** Lampis, Ntzoufras, Vassalos & Dimitriou (2023), *Predictions of European Basketball Match Results with Machine Learning*, J. Sports Analytics. [link](https://journals.sagepub.com/doi/10.3233/JSA-220639)
 - **R18** Ballı & Özdemir (2021), EuroLeague prediction with hybrid features, *Chaos, Solitons & Fractals*. [link](https://www.sciencedirect.com/science/article/abs/pii/S0960077921004732)
-- **R19** German Basketball Analytics, *Ranking all Major European Basketball Leagues*. [link](https://germanbasketballanalytics.substack.com/p/ranking-all-major-european-basketball)
 
-Also in the plan: R1 Kubatko et al. (2007), R2 Oliver (2004), R3 Glickman & Stern (1998), R11 Efron & Morris (1975), R12 Vaci et al. (2019), R13 Terner & Franks (2021).
+## Data terms and license
 
-## Data sources and terms
-
-- **EuroLeague statistics.** Source: Euroleague Basketball. These statistics remain the property of Euroleague Basketball; they are shared for non-commercial analysis and are not covered by our licence. This covers the games, team box scores, player box scores and shots on the [Downloads page](https://675hoops.com/downloads/).
-- **Our own outputs.** The forecast logs (`predictions/*.csv`), the scorecards (`reports/live_scorecard*.json`) and the model outputs the project publishes are licensed under CC BY 4.0, attributed as "6.75 Analytics (https://675hoops.com)". The terms are in [`LICENSE-DATA`](LICENSE-DATA).
-
-## License
-
-- **Code:** all rights reserved; see [`LICENSE`](LICENSE). Public for portfolio and reference purposes; not licensed for reuse.
-- **Data:** the project's own outputs (forecast logs, scorecards, published model outputs) are CC BY 4.0; see [`LICENSE-DATA`](LICENSE-DATA). EuroLeague statistics are not ours to license (see "Data sources and terms" above).
-
-<!-- Open items: confirm the 0.6600 home-team baseline covers the same 732 games; cold-cache download and extract commands for a local run; links for R2, R3, R11 and R12 (the plan has none). -->
+- **EuroLeague statistics** remain the property of Euroleague Basketball, shared for non-commercial analysis and not covered by our licence (this includes the [Downloads page](https://675hoops.com/downloads/) files).
+- **Our outputs** (forecast logs, scorecards, published model outputs) are CC BY 4.0, attributed as "6.75 Analytics (https://675hoops.com)"; see [`LICENSE-DATA`](LICENSE-DATA).
+- **Code:** all rights reserved; see [`LICENSE`](LICENSE). Public for portfolio and reference, not licensed for reuse.

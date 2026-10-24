@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 300" width="560" height="300" role="img" aria-labelledby="logloss-title logloss-desc"><title id="logloss-title">Log loss penalty</title><desc id="logloss-desc">Log loss for one game as a function of the forecast: small when the forecast leaned the right way, and rising without limit as a confident forecast turns out wrong.</desc><style>svg{--paper:#0e0e0d;--surface:#1a1a19;--sunk:#1c1c1b;--ink:#f2f1ec;--ink-soft:#c3c2b7;--muted:#9c9a92;--axis:#7d7b74;--rule:#2c2c2a;--rule-strong:#45453f;--accent:#e2691f;--accent-tint:rgba(226,105,31,.15);--base:#6a6862;--blue:#3987e5;--blue-tint:rgba(57,135,229,.16)} svg .mask{fill:var(--paper)}
+svg .lmask{fill:var(--paper)}
+svg .node .body{stroke-width:1}
+svg .n-step .body{fill:var(--surface);stroke:var(--ink)}
+svg .n-focal .body{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1.4}
+svg .n-store .body{fill:var(--sunk);stroke:var(--muted)}
+svg .n-input .body{fill:var(--surface);stroke:var(--axis)}
+svg .n-ext .body{fill:var(--paper);stroke:var(--rule-strong)}
+svg .n-shadow .body{fill:var(--surface);stroke:var(--ink-soft);stroke-dasharray:4 3}
+svg .n-base .body{fill:var(--sunk);stroke:var(--base)}
+svg .tag{fill:none;stroke:var(--rule-strong);stroke-width:.8}
+svg .n-focal .tag{stroke:var(--accent)}
+svg text{font-family:'Geist','Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif}
+svg .t-name{font-size:12.5px;font-weight:600;fill:var(--ink)}
+svg .t-sub{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;fill:var(--ink-soft)}
+svg .t-tag{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:7.5px;letter-spacing:.06em;fill:var(--muted)}
+svg .n-focal .t-tag{fill:var(--accent)}
+svg .t-eyebrow{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8.5px;letter-spacing:.14em;fill:var(--muted)}
+svg .t-eyebrow-accent{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8.5px;letter-spacing:.14em;fill:var(--accent);font-weight:600}
+svg .t-label{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8px;letter-spacing:.06em;fill:var(--muted)}
+svg .t-aside{font-size:11px;font-style:italic;fill:var(--muted)}
+svg .t-axis{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;fill:var(--muted)}
+svg .t-axislab{font-size:11px;fill:var(--ink-soft)}
+svg .t-rowname{font-size:12px;font-weight:500;fill:var(--ink)}
+svg .t-serieslab{font-size:11px;font-weight:600;fill:var(--ink)}
+svg .t-serieslab-blue{font-size:11px;font-weight:600;fill:var(--blue)}
+svg .t-serieslab-accent{font-size:11px;font-weight:600;fill:var(--accent)}
+svg .t-serieslab-muted{font-size:11px;font-weight:600;fill:var(--muted)}
+svg .c{fill:none;stroke:var(--muted);stroke-width:1.1}
+svg .c-accent{fill:none;stroke:var(--accent);stroke-width:1.3}
+svg .dash{stroke-dasharray:5 4}
+svg .mk{fill:var(--muted)} svg .mk-accent{fill:var(--accent)} svg .mk-blue{fill:var(--blue)}
+svg .hair{stroke:var(--rule);stroke-width:.8}
+svg .grid{stroke:var(--rule);stroke-width:.8}
+svg .axis{stroke:var(--rule-strong);stroke-width:1}
+svg .guide{stroke:var(--axis);stroke-width:.9;stroke-dasharray:3 3;fill:none}
+svg .zero{stroke:var(--ink);stroke-width:1}
+svg .line-ink{fill:none;stroke:var(--ink);stroke-width:1.8}
+svg .line-blue{fill:none;stroke:var(--blue);stroke-width:1.8}
+svg .line-accent{fill:none;stroke:var(--accent);stroke-width:1.8}
+svg .line-muted{fill:none;stroke:var(--muted);stroke-width:1.6}
+svg .area-accent{fill:var(--accent-tint);stroke:none}
+svg .dot-accent{fill:var(--accent)} svg .dot-ink{fill:var(--ink)} svg .dot-muted{fill:var(--paper);stroke:var(--muted);stroke-width:1.4}
+svg .tip{stroke:var(--ink-soft);stroke-width:1;stroke-dasharray:3 3}
+svg .tip-accent{stroke:var(--accent)}
+svg .window{fill:var(--blue-tint);stroke:var(--blue);stroke-width:.8}
+svg .diamond{fill:var(--surface);stroke:var(--ink);stroke-width:1}
+svg .seg{stroke-width:1}
+svg .seg-warm,svg .sw-warm .body{fill:var(--sunk);stroke:var(--rule-strong)}
+svg .seg-tune,svg .sw-tune .body{fill:var(--base);stroke:var(--base)}
+svg .seg-fold,svg .sw-fold .body{fill:var(--base);stroke:var(--base)}
+svg .seg-val,svg .sw-val .body{fill:var(--blue);stroke:var(--blue)}
+svg .seg-test,svg .sw-test .body{fill:var(--ink);stroke:var(--ink)}
+svg .seg-live,svg .sw-live .body{fill:var(--accent);stroke:var(--accent)}
+svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" height="100%" rx="8" style="fill:var(--paper)"/><defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-accent" points="0 0, 8 3, 0 6"/></marker>
+<marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-blue" points="0 0, 8 3, 0 6"/></marker>
+</defs><line class="grid" x1="48" y1="260.0" x2="540" y2="260.0"/>
+<text x="40" y="263.0" class="t-axis" text-anchor="end" >0.0</text>
+<line class="grid" x1="48" y1="215.8" x2="540" y2="215.8"/>
+<text x="40" y="218.76923076923077" class="t-axis" text-anchor="end" >0.5</text>
+<line class="grid" x1="48" y1="171.5" x2="540" y2="171.5"/>
+<text x="40" y="174.53846153846155" class="t-axis" text-anchor="end" >1.0</text>
+<line class="grid" x1="48" y1="127.3" x2="540" y2="127.3"/>
+<text x="40" y="130.30769230769232" class="t-axis" text-anchor="end" >1.5</text>
+<line class="grid" x1="48" y1="83.1" x2="540" y2="83.1"/>
+<text x="40" y="86.0769230769231" class="t-axis" text-anchor="end" >2.0</text>
+<line class="grid" x1="48" y1="38.8" x2="540" y2="38.8"/>
+<text x="40" y="41.84615384615384" class="t-axis" text-anchor="end" >2.5</text>
+<text x="48.0" y="276" class="t-axis" text-anchor="middle" >0.00</text>
+<text x="171.0" y="276" class="t-axis" text-anchor="middle" >0.25</text>
+<text x="294.0" y="276" class="t-axis" text-anchor="middle" >0.50</text>
+<text x="417.0" y="276" class="t-axis" text-anchor="middle" >0.75</text>
+<text x="540.0" y="276" class="t-axis" text-anchor="middle" >1.00</text>
+<line class="axis" x1="48" y1="260" x2="540" y2="260"/>
+<text x="294.0" y="294" class="t-axislab" text-anchor="middle" >forecast P(home win)</text>
+<text x="48" y="20" class="t-axislab" text-anchor="start" >penalty for this game</text>
+<polyline class="line-ink" points="84.9,30.9 87.4,36.6 89.8,41.9 92.3,47.0 94.7,51.8 97.2,56.3 99.7,60.6 102.1,64.7 104.6,68.7 107.0,72.4 109.5,76.0 112.0,79.5 114.4,82.9 116.9,86.1 119.3,89.2 121.8,92.2 124.3,95.1 126.7,97.9 129.2,100.6 131.6,103.2 134.1,105.8 136.6,108.3 139.0,110.7 141.5,113.1 143.9,115.4 146.4,117.6 148.9,119.8 151.3,121.9 153.8,124.0 156.2,126.1 158.7,128.0 161.2,130.0 163.6,131.9 166.1,133.8 168.5,135.6 171.0,137.4 173.5,139.1 175.9,140.8 178.4,142.5 180.8,144.2 183.3,145.8 185.8,147.4 188.2,149.0 190.7,150.5 193.1,152.0 195.6,153.5 198.1,155.0 200.5,156.4 203.0,157.8 205.4,159.2 207.9,160.6 210.4,161.9 212.8,163.3 215.3,164.6 217.7,165.9 220.2,167.1 222.7,168.4 225.1,169.6 227.6,170.8 230.0,172.0 232.5,173.2 235.0,174.4 237.4,175.6 239.9,176.7 242.3,177.8 244.8,178.9 247.3,180.0 249.7,181.1 252.2,182.2 254.6,183.3 257.1,184.3 259.6,185.3 262.0,186.4 264.5,187.4 266.9,188.4 269.4,189.4 271.9,190.3 274.3,191.3 276.8,192.3 279.2,193.2 281.7,194.1 284.2,195.1 286.6,196.0 289.1,196.9 291.5,197.8 294.0,198.7 296.5,199.6 298.9,200.4 301.4,201.3 303.8,202.2 306.3,203.0 308.8,203.8 311.2,204.7 313.7,205.5 316.1,206.3 318.6,207.1 321.1,207.9 323.5,208.7 326.0,209.5 328.4,210.3 330.9,211.0 333.4,211.8 335.8,212.6 338.3,213.3 340.7,214.1 343.2,214.8 345.7,215.5 348.1,216.3 350.6,217.0 353.0,217.7 355.5,218.4 358.0,219.1 360.4,219.8 362.9,220.5 365.3,221.2 367.8,221.9 370.3,222.6 372.7,223.2 375.2,223.9 377.6,224.6 380.1,225.2 382.6,225.9 385.0,226.5 387.5,227.2 389.9,227.8 392.4,228.4 394.9,229.1 397.3,229.7 399.8,230.3 402.2,230.9 404.7,231.6 407.2,232.2 409.6,232.8 412.1,233.4 414.5,234.0 417.0,234.6 419.5,235.1 421.9,235.7 424.4,236.3 426.8,236.9 429.3,237.5 431.8,238.0 434.2,238.6 436.7,239.1 439.1,239.7 441.6,240.3 444.1,240.8 446.5,241.4 449.0,241.9 451.4,242.4 453.9,243.0 456.4,243.5 458.8,244.0 461.3,244.6 463.7,245.1 466.2,245.6 468.7,246.1 471.1,246.7 473.6,247.2 476.0,247.7 478.5,248.2 481.0,248.7 483.4,249.2 485.9,249.7 488.3,250.2 490.8,250.7 493.3,251.2 495.7,251.7 498.2,252.1 500.6,252.6 503.1,253.1 505.6,253.6 508.0,254.1 510.5,254.5 512.9,255.0 515.4,255.5 517.9,255.9 520.3,256.4 522.8,256.8 525.2,257.3 527.7,257.8 530.2,258.2 532.6,258.7 535.1,259.1 537.5,259.6"/>
+<polyline class="line-blue" points="50.5,259.6 52.9,259.1 55.4,258.7 57.8,258.2 60.3,257.8 62.8,257.3 65.2,256.8 67.7,256.4 70.1,255.9 72.6,255.5 75.1,255.0 77.5,254.5 80.0,254.1 82.4,253.6 84.9,253.1 87.4,252.6 89.8,252.1 92.3,251.7 94.7,251.2 97.2,250.7 99.7,250.2 102.1,249.7 104.6,249.2 107.0,248.7 109.5,248.2 112.0,247.7 114.4,247.2 116.9,246.7 119.3,246.1 121.8,245.6 124.3,245.1 126.7,244.6 129.2,244.0 131.6,243.5 134.1,243.0 136.6,242.4 139.0,241.9 141.5,241.4 143.9,240.8 146.4,240.3 148.9,239.7 151.3,239.1 153.8,238.6 156.2,238.0 158.7,237.5 161.2,236.9 163.6,236.3 166.1,235.7 168.5,235.1 171.0,234.6 173.5,234.0 175.9,233.4 178.4,232.8 180.8,232.2 183.3,231.6 185.8,230.9 188.2,230.3 190.7,229.7 193.1,229.1 195.6,228.4 198.1,227.8 200.5,227.2 203.0,226.5 205.4,225.9 207.9,225.2 210.4,224.6 212.8,223.9 215.3,223.2 217.7,222.6 220.2,221.9 222.7,221.2 225.1,220.5 227.6,219.8 230.0,219.1 232.5,218.4 235.0,217.7 237.4,217.0 239.9,216.3 242.3,215.5 244.8,214.8 247.3,214.1 249.7,213.3 252.2,212.6 254.6,211.8 257.1,211.0 259.6,210.3 262.0,209.5 264.5,208.7 266.9,207.9 269.4,207.1 271.9,206.3 274.3,205.5 276.8,204.7 279.2,203.8 281.7,203.0 284.2,202.2 286.6,201.3 289.1,200.4 291.5,199.6 294.0,198.7 296.5,197.8 298.9,196.9 301.4,196.0 303.8,195.1 306.3,194.1 308.8,193.2 311.2,192.3 313.7,191.3 316.1,190.3 318.6,189.4 321.1,188.4 323.5,187.4 326.0,186.4 328.4,185.3 330.9,184.3 333.4,183.3 335.8,182.2 338.3,181.1 340.7,180.0 343.2,178.9 345.7,177.8 348.1,176.7 350.6,175.6 353.0,174.4 355.5,173.2 358.0,172.0 360.4,170.8 362.9,169.6 365.3,168.4 367.8,167.1 370.3,165.9 372.7,164.6 375.2,163.3 377.6,161.9 380.1,160.6 382.6,159.2 385.0,157.8 387.5,156.4 389.9,155.0 392.4,153.5 394.9,152.0 397.3,150.5 399.8,149.0 402.2,147.4 404.7,145.8 407.2,144.2 409.6,142.5 412.1,140.8 414.5,139.1 417.0,137.4 419.5,135.6 421.9,133.8 424.4,131.9 426.8,130.0 429.3,128.0 431.8,126.1 434.2,124.0 436.7,121.9 439.1,119.8 441.6,117.6 444.1,115.4 446.5,113.1 449.0,110.7 451.4,108.3 453.9,105.8 456.4,103.2 458.8,100.6 461.3,97.9 463.7,95.1 466.2,92.2 468.7,89.2 471.1,86.1 473.6,82.9 476.0,79.5 478.5,76.0 481.0,72.4 483.4,68.7 485.9,64.7 488.3,60.6 490.8,56.3 493.3,51.8 495.7,47.0 498.2,41.9 500.6,36.6 503.1,30.9"/>
+<line class="guide" x1="48.0" y1="198.7" x2="540.0" y2="198.7"/>
+<text x="52.92" y="192.68313402738946" class="t-sub" text-anchor="start" >coin flip: ln 2 = 0.693</text>
+<circle class="dot dot-accent" cx="367.8" cy="221.9" r="4"/>
+<circle class="dot dot-accent" cx="367.8" cy="167.1" r="4"/>
+<text x="359.8" y="239.89228049951367" class="t-sub" text-anchor="end" >0.65, home wins: 0.431</text>
+<text x="359.8" y="157.13111975588617" class="t-sub" text-anchor="end" >0.65, home loses: 1.050</text>
+<text x="97.2" y="52.11538461538461" class="t-serieslab" text-anchor="start" >home wins</text>
+<text x="490.8" y="52.11538461538461" class="t-serieslab-blue" text-anchor="end" >home loses</text></svg>

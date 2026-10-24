@@ -45,3 +45,5 @@ mlruns/
 # Research PDFs and per-paper notes (local only)
 /docs/research/pdfs/
 /docs/research/papers/
+/docs/assets/pipeline-explainer.html
+/docs/assets/pipeline_explainer_gen.py
