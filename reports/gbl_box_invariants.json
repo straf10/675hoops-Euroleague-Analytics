@@ -610,9 +610,9 @@
       }
     },
     "2026": {
-      "games": 21,
-      "passed": 19,
-      "pass_rate": 0.9048,
+      "games": 26,
+      "passed": 24,
+      "pass_rate": 0.9231,
       "failures_by_reason": {
         "missing_box": 0,
         "points_mismatch": 1,
