@@ -10,7 +10,7 @@
     "euroleague": 0.0,
     "gbl": 0.0
   },
-  "data_sha256": "c80f135fd813eb1e434426f712c0bce8afc32c609e362a371c1195ab3ddaf781",
+  "data_sha256": "1926eb8dfd7dfba639cbfc2a38e85dc038ec3f07e2e5f52a1fcbbdbdb885a0a2",
   "stats": [
     "pts",
     "fg3a",
@@ -28964,6 +28964,78 @@
       "flags": []
     },
     {
+      "person_id": "G:9B0B82A0",
+      "competition": "gbl",
+      "team": "00000002",
+      "name": "Antonis Karagiannidis",
+      "debut_season": 2020,
+      "stats": {
+        "pts": {
+          "mean": 17.222,
+          "lo80": 11.8538,
+          "hi80": 22.5901
+        },
+        "fg3a": {
+          "mean": 0.8007,
+          "lo80": 0.0,
+          "hi80": 2.4894
+        },
+        "fta": {
+          "mean": 6.2822,
+          "lo80": 4.0206,
+          "hi80": 8.5438
+        },
+        "ast": {
+          "mean": 2.6789,
+          "lo80": 0.7583,
+          "hi80": 4.5995
+        },
+        "tov": {
+          "mean": 2.256,
+          "lo80": 1.1504,
+          "hi80": 3.3616
+        },
+        "oreb": {
+          "mean": 6.3855,
+          "lo80": 4.9935,
+          "hi80": 7.7774
+        },
+        "dreb": {
+          "mean": 8.4777,
+          "lo80": 6.3914,
+          "hi80": 10.564
+        },
+        "stl": {
+          "mean": 2.2122,
+          "lo80": 1.3884,
+          "hi80": 3.036
+        },
+        "blk": {
+          "mean": 1.6506,
+          "lo80": 0.9512,
+          "hi80": 2.35
+        },
+        "ts": {
+          "mean": 0.5688,
+          "lo80": 0.4873,
+          "hi80": 0.6503
+        },
+        "fg3": {
+          "mean": 0.3386,
+          "lo80": 0.057,
+          "hi80": 0.6202
+        },
+        "ft": {
+          "mean": 0.5771,
+          "lo80": 0.4561,
+          "hi80": 0.698
+        }
+      },
+      "exposure": 549.4415,
+      "n_seasons": 4,
+      "flags": []
+    },
+    {
       "person_id": "G:9DBC8FE2",
       "competition": "gbl",
       "team": "2A25C696",
@@ -29258,6 +29330,80 @@
       "competition": "gbl",
       "team": "00000011",
       "name": "Giorgos Arnokouros",
+      "debut_season": 2026,
+      "stats": {
+        "pts": {
+          "mean": 22.1603,
+          "lo80": 14.5275,
+          "hi80": 29.7931
+        },
+        "fg3a": {
+          "mean": 6.9185,
+          "lo80": 1.5382,
+          "hi80": 12.2988
+        },
+        "fta": {
+          "mean": 5.6131,
+          "lo80": 2.6367,
+          "hi80": 8.5896
+        },
+        "ast": {
+          "mean": 4.9409,
+          "lo80": 0.0,
+          "hi80": 9.9151
+        },
+        "tov": {
+          "mean": 3.3934,
+          "lo80": 1.5134,
+          "hi80": 5.2734
+        },
+        "oreb": {
+          "mean": 2.47,
+          "lo80": 0.3246,
+          "hi80": 4.6153
+        },
+        "dreb": {
+          "mean": 6.2977,
+          "lo80": 2.9405,
+          "hi80": 9.655
+        },
+        "stl": {
+          "mean": 1.932,
+          "lo80": 0.9409,
+          "hi80": 2.9231
+        },
+        "blk": {
+          "mean": 0.6567,
+          "lo80": 0.0,
+          "hi80": 1.5975
+        },
+        "ts": {
+          "mean": 0.5691,
+          "lo80": 0.472,
+          "hi80": 0.6662
+        },
+        "fg3": {
+          "mean": 0.3444,
+          "lo80": 0.2283,
+          "hi80": 0.4604
+        },
+        "ft": {
+          "mean": 0.7292,
+          "lo80": 0.5674,
+          "hi80": 0.891
+        }
+      },
+      "exposure": 0.0,
+      "n_seasons": 0,
+      "flags": [
+        "no_history"
+      ]
+    },
+    {
+      "person_id": "G:A61713DB",
+      "competition": "gbl",
+      "team": "2A25C696",
+      "name": "Giannis Rallis",
       "debut_season": 2026,
       "stats": {
         "pts": {
@@ -30642,6 +30788,80 @@
       "competition": "gbl",
       "team": "B742845D",
       "name": "Ja\u2019Vier Francis",
+      "debut_season": 2026,
+      "stats": {
+        "pts": {
+          "mean": 22.1603,
+          "lo80": 14.5275,
+          "hi80": 29.7931
+        },
+        "fg3a": {
+          "mean": 6.9185,
+          "lo80": 1.5382,
+          "hi80": 12.2988
+        },
+        "fta": {
+          "mean": 5.6131,
+          "lo80": 2.6367,
+          "hi80": 8.5896
+        },
+        "ast": {
+          "mean": 4.9409,
+          "lo80": 0.0,
+          "hi80": 9.9151
+        },
+        "tov": {
+          "mean": 3.3934,
+          "lo80": 1.5134,
+          "hi80": 5.2734
+        },
+        "oreb": {
+          "mean": 2.47,
+          "lo80": 0.3246,
+          "hi80": 4.6153
+        },
+        "dreb": {
+          "mean": 6.2977,
+          "lo80": 2.9405,
+          "hi80": 9.655
+        },
+        "stl": {
+          "mean": 1.932,
+          "lo80": 0.9409,
+          "hi80": 2.9231
+        },
+        "blk": {
+          "mean": 0.6567,
+          "lo80": 0.0,
+          "hi80": 1.5975
+        },
+        "ts": {
+          "mean": 0.5691,
+          "lo80": 0.472,
+          "hi80": 0.6662
+        },
+        "fg3": {
+          "mean": 0.3444,
+          "lo80": 0.2283,
+          "hi80": 0.4604
+        },
+        "ft": {
+          "mean": 0.7292,
+          "lo80": 0.5674,
+          "hi80": 0.891
+        }
+      },
+      "exposure": 0.0,
+      "n_seasons": 0,
+      "flags": [
+        "no_history"
+      ]
+    },
+    {
+      "person_id": "G:C921D75C",
+      "competition": "gbl",
+      "team": "2A25C696",
+      "name": "Charis Paraskevopoulos",
       "debut_season": 2026,
       "stats": {
         "pts": {
@@ -32890,6 +33110,78 @@
         }
       },
       "exposure": 347.5547,
+      "n_seasons": 1,
+      "flags": []
+    },
+    {
+      "person_id": "G:F8C3F7B9",
+      "competition": "gbl",
+      "team": "2A25C696",
+      "name": "Dimitris Poulos",
+      "debut_season": 2025,
+      "stats": {
+        "pts": {
+          "mean": 23.8692,
+          "lo80": 0.0,
+          "hi80": 53.773
+        },
+        "fg3a": {
+          "mean": 6.3266,
+          "lo80": 0.0,
+          "hi80": 23.827
+        },
+        "fta": {
+          "mean": 5.3405,
+          "lo80": 0.0,
+          "hi80": 17.8575
+        },
+        "ast": {
+          "mean": 4.5205,
+          "lo80": 0.0,
+          "hi80": 20.7431
+        },
+        "tov": {
+          "mean": 3.751,
+          "lo80": 0.0,
+          "hi80": 16.1487
+        },
+        "oreb": {
+          "mean": 2.3395,
+          "lo80": 0.0,
+          "hi80": 11.0351
+        },
+        "dreb": {
+          "mean": 6.1155,
+          "lo80": 0.0,
+          "hi80": 23.6352
+        },
+        "stl": {
+          "mean": 2.0806,
+          "lo80": 0.0,
+          "hi80": 10.6455
+        },
+        "blk": {
+          "mean": 0.6342,
+          "lo80": 0.0,
+          "hi80": 5.2134
+        },
+        "ts": {
+          "mean": 0.577,
+          "lo80": 0.0011,
+          "hi80": 1.1528
+        },
+        "fg3": {
+          "mean": 0.3444,
+          "lo80": 0.0,
+          "hi80": 0.9748
+        },
+        "ft": {
+          "mean": 0.7292,
+          "lo80": 0.1672,
+          "hi80": 1.2912
+        }
+      },
+      "exposure": 1.9345,
       "n_seasons": 1,
       "flags": []
     },
@@ -36424,6 +36716,78 @@
       "flags": []
     },
     {
+      "person_id": "P:P014316",
+      "competition": "gbl",
+      "team": "00000002",
+      "name": "Cory Joseph",
+      "debut_season": 2025,
+      "stats": {
+        "pts": {
+          "mean": 20.0003,
+          "lo80": 14.4293,
+          "hi80": 25.5714
+        },
+        "fg3a": {
+          "mean": 7.9464,
+          "lo80": 4.9347,
+          "hi80": 10.9581
+        },
+        "fta": {
+          "mean": 5.7529,
+          "lo80": 3.3956,
+          "hi80": 8.1103
+        },
+        "ast": {
+          "mean": 8.0095,
+          "lo80": 4.7949,
+          "hi80": 11.2241
+        },
+        "tov": {
+          "mean": 3.9417,
+          "lo80": 2.2158,
+          "hi80": 5.6676
+        },
+        "oreb": {
+          "mean": 1.8367,
+          "lo80": 0.6458,
+          "hi80": 3.0277
+        },
+        "dreb": {
+          "mean": 4.5514,
+          "lo80": 2.3022,
+          "hi80": 6.8006
+        },
+        "stl": {
+          "mean": 1.6095,
+          "lo80": 0.6489,
+          "hi80": 2.5702
+        },
+        "blk": {
+          "mean": 0.3474,
+          "lo80": 0.0,
+          "hi80": 0.8792
+        },
+        "ts": {
+          "mean": 0.579,
+          "lo80": 0.4824,
+          "hi80": 0.6756
+        },
+        "fg3": {
+          "mean": 0.3415,
+          "lo80": 0.2156,
+          "hi80": 0.4674
+        },
+        "ft": {
+          "mean": 0.7399,
+          "lo80": 0.5881,
+          "hi80": 0.8917
+        }
+      },
+      "exposure": 172.8358,
+      "n_seasons": 2,
+      "flags": []
+    },
+    {
       "person_id": "P:PLJT",
       "competition": "gbl",
       "team": "00000010",
@@ -36588,7 +36952,7 @@
         "stl": 1.5774,
         "blk": 1.6078
       },
-      "reason": "translated EuroLeague SPM +2.9 (GBL rotation top quarter: >= -0.4) at 19.2 minutes per game in 2025, 2 season(s) since his debut"
+      "reason": "translated EuroLeague SPM +2.9 (GBL rotation top quarter: >= -0.3) at 19.2 minutes per game in 2025, 2 season(s) since his debut"
     },
     {
       "person_id": "G:9DBC8FE2",
@@ -36609,7 +36973,7 @@
         "stl": 1.2965,
         "blk": 1.11
       },
-      "reason": "translated EuroLeague SPM +1.8 (GBL rotation top quarter: >= -0.4) at 15.8 minutes per game in 2025, 2 season(s) since his debut"
+      "reason": "translated EuroLeague SPM +1.8 (GBL rotation top quarter: >= -0.3) at 15.8 minutes per game in 2025, 2 season(s) since his debut"
     },
     {
       "person_id": "G:4C3E0D1F",
@@ -36630,7 +36994,28 @@
         "stl": 1.8125,
         "blk": 0.7515
       },
-      "reason": "translated EuroLeague SPM +1.5 (GBL rotation top quarter: >= -0.4) at 16.0 minutes per game in 2025, 3 season(s) since his debut"
+      "reason": "translated EuroLeague SPM +1.5 (GBL rotation top quarter: >= -0.3) at 16.0 minutes per game in 2025, 3 season(s) since his debut"
+    },
+    {
+      "person_id": "G:F8C3F7B9",
+      "team": "2A25C696",
+      "name": "Dimitris Poulos",
+      "seasons_since_debut": 1,
+      "minutes": 2.0,
+      "projected_brapm": null,
+      "projected_spm": 0.5009,
+      "translated_el": {
+        "pts": 21.9203,
+        "fg3a": 6.1734,
+        "fta": 4.5366,
+        "ast": 3.3909,
+        "tov": 3.6379,
+        "oreb": 2.3782,
+        "dreb": 5.2677,
+        "stl": 1.7032,
+        "blk": 0.538
+      },
+      "reason": "translated EuroLeague SPM +0.5 (GBL rotation top quarter: >= -0.3) at 2.0 minutes per game in 2025, 1 season(s) since his debut"
     }
   ]
 }
