@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+# Query-string views (?season=, ?p=) canonicalise to the base page: keep crawlers off them.
+Disallow: /*?
 
 Sitemap: https://675hoops.com/sitemap-index.xml
