@@ -1,0 +1,8 @@
+game_id,season,tipoff_utc,played,forfeit,home_score,away_score
+G1,2026,2026-10-10T17:00:00Z,True,False,80,70
+G2,2026,2026-10-11T17:00:00Z,True,False,60,75
+G3,2026,2026-10-12T17:00:00Z,True,False,90,85
+G4,2026,2026-10-13T17:00:00Z,True,True,0,20
+G5,2026,2026-10-30T17:00:00Z,True,False,88,79
+G6,2026,2026-10-14T17:00:00Z,False,False,,
+G7,2026,2026-10-15T17:00:00Z,True,False,70,68
