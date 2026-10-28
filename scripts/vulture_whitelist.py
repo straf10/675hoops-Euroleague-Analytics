@@ -143,3 +143,15 @@ from eurohoops.eval.pool_c import apply_c, fit_c, paired_gap  # noqa: E402
 apply_c
 fit_c
 paired_gap
+
+# Win Shares (stats/win_shares.py): the points-per-win fit and the team-sum check run from
+# scripts/fit_points_per_win.py and tests only.
+from eurohoops.stats.win_shares import (  # noqa: E402
+    fit_points_per_win,
+    team_check,
+    team_seasons_regular,
+)
+
+fit_points_per_win
+team_check
+team_seasons_regular

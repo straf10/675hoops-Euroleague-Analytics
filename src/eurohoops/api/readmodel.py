@@ -104,6 +104,7 @@ from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
 from eurohoops.stats.units import load_units
+from eurohoops.stats.win_shares import box_win_shares
 from eurohoops.stats.wp import WpLines, logged_pre, wp_lines
 
 T = TypeVar("T")
@@ -482,6 +483,11 @@ def stats_inputs(store: Store) -> Inputs:
         raw = store.path(EUROLEAGUE.raw_dir)
         seasons = (int(s) for s in box.players["season"].unique())
         cached = [s for s in seasons if el_people_path(raw, s).exists()]
+        # Every played game's assists, not only the site window: the splits keep full careers, and
+        # Win Shares need the assisted field goals of every box score.
+        assists = game_assists(raw, games[games["played"]])
+        ids, years = games["game_id"].astype(str), games["season"].astype(int)
+        season_of = dict(zip(ids, years, strict=True))
         return Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
@@ -494,7 +500,8 @@ def stats_inputs(store: Store) -> Inputs:
             runs=game_runs(raw, played),
             roster=read_rosters(raw, sorted(cached)),
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
-            assists=game_assists(raw, played),
+            assists=assists,
+            win_shares=box_win_shares(box.players, box.teams, assists, season_of),
             wp=_wp_lines(store, games),
             coaches=_coach_games(store, games),
             styles=_coach_styles(store, games),
