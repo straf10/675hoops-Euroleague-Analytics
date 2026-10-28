@@ -13,6 +13,7 @@ import pandas as pd
 import typer
 
 from eurohoops.cli._shared import (
+    Live,
     _live,
     _team_games,
     log,
@@ -23,12 +24,13 @@ from eurohoops.cli.backtest import (
     _live_names,
     _m2_shots,
     _m5_inputs,
-    _m6_board,
     _m6_inputs,
     _m6_similar,
 )
 from eurohoops.config import (
     ELOC_CV,
+    ELOH_FIT,
+    ELOH_LIVE_ENABLED,
     ELOR_CV,
     EUROLEAGUE,
     INJURY_LOG,
@@ -38,7 +40,6 @@ from eurohoops.config import (
     M5,
     M5INJ_LIVE_ENABLED,
     M6,
-    M6_BOARD,
     M6_PROJECTIONS,
     M6_SIMILARITY,
     M7,
@@ -62,12 +63,12 @@ from eurohoops.ingest.http import make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
 from eurohoops.inputs import INPUT_COLUMNS, backfill_rows
 from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
+from eurohoops.live_eloh import load_eloh, predict_upcoming_eloh
 from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import LiveM5, live_spec, load_m5, predict_upcoming_m5
 from eurohoops.live_m5inj import predict_upcoming_m5inj
 from eurohoops.live_m6 import (
-    board_report,
     inputs_digest,
     live_checkpoint,
     live_people,
@@ -138,13 +139,13 @@ def project(
     projections_only: Annotated[
         bool,
         typer.Option(
-            help="Only reports/m6_projections.json: the board and the comparables need the local "
-            "M2 shot marts (the daily workflow)"
+            help="Only reports/m6_projections.json: the comparables need the local M2 shot marts "
+            "(the daily workflow)"
         ),
     ] = False,
 ) -> None:
-    """Live M6 (weeks 16-18 L9): the 2026-27 projections (reports/m6_projections.json), the
-    over/under board (m6_board.json) and the "plays like" lists (m6_similarity.json). Runs only
+    """Live M6 (weeks 16-18 L9): the 2026-27 projections (reports/m6_projections.json) and the
+    "plays like" lists (m6_similarity.json). Runs only
     when the EuroLeague M6 gate passed (L-l)."""
     started = time.perf_counter()
     if not M6.report.exists():
@@ -179,13 +180,6 @@ def project(
         m3_seasons = json.loads(M3_PLAYERS_REPORT.read_text(encoding="utf-8"))["seasons"]
         season = max(int(s) for s in m3_seasons)  # D23: the newest complete season
         shots, xpts, variant = _m2_shots(season)
-        rows, stabilities = _m6_board(world, season, shots, xpts, variant)
-        done = world.complete[world.complete["season"] == season]
-        teams = {
-            (str(p), str(c)): str(t)
-            for p, c, t in zip(done["person_id"], done["competition"], done["team"], strict=True)
-        }
-        payloads[M6_BOARD] = board_report(rows, stabilities, season, names, teams)
         people = sorted({p["person_id"] for p in players})
         similar, pool, shot_features = _m6_similar(world, people, season, shots, xpts, variant)
         payloads[M6_SIMILARITY] = similarity_report(
@@ -347,6 +341,31 @@ def _predict_eloc(
         log.exception("ELOC skipped: its forecast failed; nothing appended to its log")
 
 
+def _predict_eloh(live: Live, comp: Competition, round_lead_hours: float) -> None:
+    """The ELOH shadow log: off unless ELOH_LIVE_ENABLED (config.py) is set, and then it needs
+    the frozen fit (reports/eloh_fit.json). A shadow model never blocks the Elo and M1 logs."""
+    if not ELOH_LIVE_ENABLED or comp.eloh_prediction_log is None:
+        return
+    eloh = load_eloh(ELOH_FIT, live.model, live.replay_from)
+    if eloh is None:
+        log.warning("ELOH skipped: %s is missing", ELOH_FIT)
+        return
+    try:
+        added = predict_upcoming_eloh(
+            live.games,
+            eloh,
+            log_path=comp.eloh_prediction_log,
+            season=live.season,
+            round_lead=timedelta(hours=round_lead_hours),
+            clock=utc_now,
+        )
+        typer.echo(f"{added} ELOH predictions appended to {comp.eloh_prediction_log}")
+    except LatePredictionError:
+        raise
+    except Exception:
+        log.exception("ELOH skipped: its forecast failed; nothing appended to its log")
+
+
 def _predict_pool(log_path: Path | None) -> None:
     """POOL: reads the four component logs only; off while POOL_LIVE_ENABLED is False."""
     if log_path is None:
@@ -440,6 +459,7 @@ def predict(
             round_lead_hours=round_lead_hours,
         )
         _predict_eloc(live.games, live.season, comp, round_lead_hours)
+        _predict_eloh(live, comp, round_lead_hours)
         _predict_pool(comp.pool_prediction_log)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
@@ -619,6 +639,7 @@ def score() -> None:
         m5_log_path=comp.m5_prediction_log,
         elor_log_path=comp.elor_prediction_log,
         m5inj_log_path=comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
+        eloh_log_path=comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))

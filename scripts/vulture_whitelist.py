@@ -22,23 +22,11 @@ from eurohoops.models.rapm_posterior import ridge_solution  # noqa: E402
 
 ridge_solution
 
-# weeks 12-14 I7: interval fields reach reports/m4_translation.json through fits_report's asdict
-from eurohoops.models.translation import StatFit  # noqa: E402
-
-StatFit.delta_lo90
-StatFit.delta_hi90
-
 # weeks 14-16 J3: called by eval/m5_backtest.py (J4, wave 2)
 from eurohoops.models.m5 import p_cover, p_over  # noqa: E402
 
 p_over
 p_cover
-
-# weeks 16-18 C: the over/under board (L3) is called by the report writer and the L9 live run
-from eurohoops.models.board import RetentionBacktest, retention_backtest  # noqa: E402
-
-retention_backtest
-RetentionBacktest.contrast_z  # read by the report writer and the board test
 
 # weeks 16-18 D: the "plays like" search; self_retrieval_rate is the embedding's own check
 from eurohoops.models.similarity import self_retrieval_rate  # noqa: E402
@@ -115,3 +103,40 @@ from eurohoops.eval.pool_c import apply_c, fit_c, paired_gap  # noqa: E402
 apply_c
 fit_c
 paired_gap
+
+# ELOH step A (scripts/fit_eloh.py, run once): the fit and its frozen file's writer; the live
+# forecaster reads only reports/eloh_fit.json. TeamEffect's fields are written by asdict.
+from eurohoops.config import ELOH_FIT_SEASONS  # noqa: E402
+from eurohoops.models.eloh import TeamEffect, fit_home_effects, fit_to_json  # noqa: E402
+
+ELOH_FIT_SEASONS
+fit_home_effects
+fit_to_json
+TeamEffect.mean_residual
+TeamEffect.sampling_var
+
+# Win Shares (stats/win_shares.py): the points-per-win fit and the team-sum check run from
+# scripts/fit_points_per_win.py and tests only.
+from eurohoops.stats.win_shares import (  # noqa: E402
+    fit_points_per_win,
+    team_check,
+    team_seasons_regular,
+)
+
+fit_points_per_win
+team_check
+team_seasons_regular
+
+# EuroLeague audit (scripts/data_audit.py), M5 rest and R1 power reports (scripts/r1_power.py)
+from eurohoops.audit import run_audit  # noqa: E402
+from eurohoops.audit_coaches import coach_findings  # noqa: E402
+from eurohoops.audit_standings import standings_findings  # noqa: E402
+from eurohoops.eval.m5_rest import rest_report  # noqa: E402
+from eurohoops.eval.r1_power import normal_cumulative_prob, simulate_promotion  # noqa: E402
+
+run_audit
+coach_findings
+standings_findings
+rest_report
+normal_cumulative_prob
+simulate_promotion

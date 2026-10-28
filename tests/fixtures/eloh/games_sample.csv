@@ -1,0 +1,13 @@
+game_id,season,tipoff_utc,home,away,home_score,away_score,played,forfeit,neutral
+G01,2007,2007-10-01T18:00:00Z,A,B,82,70,True,False,False
+G02,2007,2007-10-01T18:00:00Z,C,D,75,79,True,False,False
+G03,2007,2007-10-08T18:00:00Z,B,C,68,71,True,False,False
+G04,2007,2007-10-08T18:00:00Z,D,A,77,80,True,False,False
+G05,2007,2007-10-15T18:00:00Z,A,C,90,72,True,False,False
+G06,2007,2007-10-15T18:00:00Z,B,D,64,66,True,False,False
+G07,2007,2007-10-22T18:00:00Z,C,B,70,69,True,False,False
+G08,2007,2007-10-22T18:00:00Z,D,A,71,85,True,False,False
+G09,2007,2007-10-29T18:00:00Z,A,D,81,74,True,False,True
+G10,2007,2007-10-29T18:00:00Z,B,A,20,0,True,True,False
+G11,2007,2007-11-05T18:00:00Z,C,A,,,False,False,False
+G12,2007,2007-11-05T18:00:00Z,D,B,88,60,True,False,False

@@ -3,8 +3,9 @@
 Raw ``COORD_X``/``COORD_Y`` are centimetres from the basket centre, with every shot mirrored
 onto one basket: x runs across the court (sidelines at about +-750), y runs from the baseline
 (about -157) toward half court. Free throws carry the sentinel (-1, -1) and are not shots.
-Validated on 2011-12 onward against the FIBA line (reports/week3_closeout.md, 7a); earlier
-seasons fit neither the 6.75 m nor the old 6.25 m line and need care.
+Validated on 2011-12 onward against the FIBA line (reports/week3_closeout.md §7a, deleted in
+158aabf: `git show 158aabf^:reports/week3_closeout.md`); earlier seasons fit neither the 6.75 m
+nor the old 6.25 m line and need care.
 """
 
 import numpy as np

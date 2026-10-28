@@ -470,7 +470,7 @@ def test_player_payloads_carry_no_birth_date_or_age(store: rm.Store) -> None:
     assert "birth" not in text and '"age"' not in text
 
 
-def test_projection_similarity_and_scouting_serve_the_committed_reports(store: rm.Store) -> None:
+def test_projection_and_similarity_serve_the_committed_reports(store: rm.Store) -> None:
     projection = rm.player_projection(store, EL_PERSON)
     assert (projection["model"], projection["variant"], projection["season"]) == (
         "m6",
@@ -489,10 +489,6 @@ def test_projection_similarity_and_scouting_serve_the_committed_reports(store: r
     assert [(r["rank"], r["person_id"]) for r in similar["similar"]] == [(1, "P:P006835")]
     assert list(similar["features"]) == ["euroleague"]
     assert similar["pool_seasons"] == [2023, 2024, 2025]
-
-    board = rm.scouting_board(store)
-    assert board["rows"][0]["z"] == 1.5 and board["dimensions"]["shot_making"]["n_min"] == 100
-    assert {r["competition"] for r in board["rows"]} == {"euroleague"}
 
 
 def test_projection_and_similarity_not_found_say_why(store: rm.Store, fresh: Path) -> None:

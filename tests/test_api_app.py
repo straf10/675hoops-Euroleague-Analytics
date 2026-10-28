@@ -46,6 +46,7 @@ from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
 from eurohoops.stats.units import load_units
+from eurohoops.stats.win_shares import box_win_shares
 from tests.api_tree import EL_PERSON, NOW, UNPUBLISHED_PERSON, build_tree
 from tests.conftest import FIXTURES, REPO
 
@@ -92,7 +93,6 @@ OK_ROUTES = [
     f"/players/{EL_PERSON}/projection",
     f"/players/{EL_PERSON}/similar",
     "/rapm",
-    "/scouting/board",
     "/simulations/latest",
     "/metrics/live",
     "/openapi.json",
@@ -172,7 +172,6 @@ def test_route_values(client: TestClient) -> None:
     assert client.get(f"/players/{EL_PERSON}/projection").json()["projections"][0]["team"] == "TEL"
     similar = client.get(f"/players/{EL_PERSON}/similar").json()["similar"]
     assert [s["rank"] for s in similar] == [1]
-    assert client.get("/scouting/board").json()["rows"][0]["label"] == "within noise"
     metrics = client.get("/metrics/live").json()["competitions"]
     assert metrics[0]["scorecard"]["elo"]["log_loss"] == 0.61
     meta = client.get("/stats/meta.json").json()
@@ -202,18 +201,11 @@ def test_without_an_ungated_report_the_404_carries_the_verdict(tmp_path: Path) -
     assert body["gate"]["reason"] in body["detail"]
 
 
-def test_a_missing_report_is_a_404_naming_the_file(tmp_path: Path) -> None:
-    build_tree(tmp_path)
-    (tmp_path / "reports" / "m6_board.json").unlink()
-    response = make_client(tmp_path).get("/scouting/board")
-    assert response.status_code == 404
-    assert "m6_board.json not found: the M6 over/under board" in response.json()["detail"]
-
-
 def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dict[str, Any]]:
     """The payloads built the way ``cli export-stats --from-cache`` builds them."""
     games, teams = load_cached_games(raw)
     box = build_box_games(raw, games)
+    assists = game_assists(raw, games[games["played"]])
     return build_payloads(
         Inputs(
             games=games,
@@ -237,13 +229,8 @@ def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dic
                 site_window(box.players["season"].unique()),
                 DISPLAY_CODES["euroleague"],
             ),
-            assists=game_assists(
-                raw,
-                games[
-                    games["played"]
-                    & games["season"].isin(site_window(box.players["season"].unique()))
-                ],
-            ),
+            assists=assists,
+            win_shares=box_win_shares(box.players, box.teams),
             coaches=coach_games(raw, with_elo(games, load_tuned_model(history).params, 2007)),
             styles=game_styles(raw, games),
         ),
@@ -371,7 +358,6 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "games",
         "teams",
         "players",
-        "scouting",
         "simulations",
         "metrics",
     ]
@@ -388,7 +374,6 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "/players/{person_id}/projection": "players",
         "/players/{person_id}/similar": "players",
         "/rapm": "players",
-        "/scouting/board": "scouting",
         "/simulations/latest": "simulations",
         "/metrics/live": "metrics",
     }

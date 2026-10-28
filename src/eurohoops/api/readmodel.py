@@ -42,13 +42,13 @@ import pandera.pandas as pa
 
 from eurohoops.api import match_report as mr
 from eurohoops.config import (
+    ELOH_LIVE_ENABLED,
     EUROLEAGUE,
     INJURY_LOG,
     LIVE_SEASON,
     M2_PLAYERS_REPORT,
     M3_PLAYERS_REPORT,
     M5INJ_LIVE_ENABLED,
-    M6_BOARD,
     M6_PROJECTIONS,
     M6_SIMILARITY,
     M7,
@@ -66,7 +66,6 @@ from eurohoops.ingest.bios import el_people_path
 from eurohoops.live_m6 import person_names
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.marts import data_volume, read_games, read_table, read_teams
-from eurohoops.models.board import LABELS
 from eurohoops.models.elo import prepare, season_ratings, win_probability
 from eurohoops.models.player_seasons import (
     COUNT_COLUMNS,
@@ -98,6 +97,7 @@ from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
 from eurohoops.stats.units import load_units
+from eurohoops.stats.win_shares import box_win_shares
 from eurohoops.stats.wp import WpLines, logged_pre, wp_lines
 
 T = TypeVar("T")
@@ -155,19 +155,6 @@ PROJECTION_ROWS_SCHEMA = pa.DataFrameSchema(
         "n_seasons": pa.Column("int64", pa.Check.ge(0)),
     },
     strict=False,
-)
-BOARD_ROWS_SCHEMA = pa.DataFrameSchema(
-    {
-        "person_id": pa.Column(str),
-        "competition": pa.Column(str, pa.Check.isin([EUROLEAGUE.name])),
-        "season": pa.Column("int64"),
-        "dimension": pa.Column(str),
-        "n": pa.Column("float64", pa.Check.ge(0.0)),
-        "label": pa.Column(str, pa.Check.isin(LABELS), nullable=True),  # null: on/off has none
-        "name": pa.Column(str),
-        "team": pa.Column(str),
-    },
-    strict=False,  # observed, expected, gap, se, z, ... belong to models/board.py's schema
 )
 SIMILAR_ROWS_SCHEMA = pa.DataFrameSchema(
     {
@@ -373,6 +360,7 @@ FORECAST_MODELS = {
     "m5": "M5",
     "elor": "Roster Elo (trial)",
     "m5inj": "M5 + injuries (trial)",
+    "eloh": "Elo + team home court (trial)",
     "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line
 }
 
@@ -415,6 +403,9 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         "elor": _path_or_none(store, comp.elor_prediction_log),
                         "m5inj": _path_or_none(store, comp.m5inj_prediction_log)
                         if M5INJ_LIVE_ENABLED
+                        else None,
+                        "eloh": _path_or_none(store, comp.eloh_prediction_log)
+                        if ELOH_LIVE_ENABLED
                         else None,
                     },
                     FORECAST_MODELS,
@@ -464,6 +455,9 @@ def stats_inputs(store: Store) -> Inputs:
         raw = store.path(EUROLEAGUE.raw_dir)
         seasons = (int(s) for s in box.players["season"].unique())
         cached = [s for s in seasons if el_people_path(raw, s).exists()]
+        # Every played game's assists, not only the site window: the splits keep full careers, and
+        # Win Shares need the assisted field goals of every box score.
+        assists = game_assists(raw, games[games["played"]])
         return Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
@@ -476,7 +470,8 @@ def stats_inputs(store: Store) -> Inputs:
             runs=game_runs(raw, played),
             roster=read_rosters(raw, sorted(cached)),
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
-            assists=game_assists(raw, played),
+            assists=assists,
+            win_shares=box_win_shares(box.players, box.teams),
             wp=_wp_lines(store, games),
             coaches=_coach_games(store, games),
             styles=_coach_styles(store, games),
@@ -1076,16 +1071,6 @@ def player_similar(store: Store, person_id: str) -> dict[str, Any]:
         "pool_seasons": report["pool_seasons"],
         "similar": rows,
     }
-
-
-# ---- scouting ----
-
-
-def scouting_board(store: Store) -> dict[str, Any]:
-    report = _required(store, M6_BOARD, "the M6 over/under board")
-    _check(report["rows"], BOARD_ROWS_SCHEMA)
-    rows = [r for r in report["rows"] if r["competition"] == EUROLEAGUE.name]
-    return {**{k: report[k] for k in ("model", "season", "dimensions")}, "rows": rows}
 
 
 # ---- simulations, metrics ----

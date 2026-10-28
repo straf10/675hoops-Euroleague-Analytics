@@ -233,7 +233,7 @@ Weeks start Mon 28 Sep 2026. Target load is 20–25 h/week; at 30+ h/week, weeks
 
 Elo remains the published forecast until R1's promotion test is met. Gains come from new information (availability/injuries, preseason roster turnover) and the odds benchmark (§1.3), not from more tuning on the validation and test splits.
 
-- **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Still to build: the promotion test itself (paired bootstrap at the two looks), needed by EuroLeague round 19.
+- **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Built: the paired-bootstrap test (`src/eurohoops/eval/promotion.py`), `eurohoops promote-check` (`cli/backtest.py`), run manually by `.github/workflows/promotion-look.yml`. Not yet run: no `reports/promotion_*` look is committed. Look 1 (EuroLeague round 19) is still ahead.
 - **R2 Season scorecard**: done. Per model and season to date: games, picks right, log loss, Brier, margin MAE, % of margins within 5 and 10 pts, totals MAE. Live for both competitions.
 - **R3 Per-round view**: done. EuroLeague rounds, not calendar weeks.
 - **R4 All-games list**: done. Filterable by round and model; shadow-model start rounds are stated.
@@ -241,6 +241,7 @@ Elo remains the published forecast until R1's promotion test is met. Gains come 
 - **R6 Standings labels**: done. "Top 6" (Play-in kept), median place as the main figure, 80% range muted beside it.
 - **R7 Scouting thresholds**: done under rule v2. Uses `PERSIST_REAL` and `N_MIN` from EuroLeague rotation-player volume; the on/off label is dropped. No player is currently "likely real" on the 2025-26 board. Per-player shrinkage (`persist = n/(n+k)`) is in M6.
 - **R8 EuroLeague titles**: done. All-time titles since 1958 (seed of pre-2007-08 titles plus titles counted from our data since 2007-08), shown next to seasons for clubs with at least one title.
+- **R9 Win Shares per player**: done (added 2026-10-28; EuroLeague only; card `docs/models/win_shares.md`). Points per win follows Basketball-Reference: 0.32 × league PPG × (team pace / league pace), per season, not a fitted constant. That rule is what makes the league's WS sum to its wins: the replacement levels 0.92 and 1.08 leave 0.16 × points as marginal points, so WS sums to wins only when points per win = 0.32 × PPG. The fitted 35.5 (95% CI 33.92 to 37.11) is kept as a comparison only. Offense is Oliver's full PProd (field goals, assists, free throws, offensive rebounds, with the scoring-possession adjustment) over full possessions (scoring possessions, missed FGs and FTs, turnovers). Defense uses individual DRtg with Oliver's Stop% (fouls by the player's share of team fouls). WS = OWS + DWS, plus WS/40 (40-minute games). EuroLeague first, as a descriptive stat on player pages and Leaders; label DWS as the weakest part (box-score proxies). Optional: add WS/40 next to PIR as a baseline in M3's next-N-games test. Sources: [Basketball-Reference WS](https://www.basketball-reference.com/about/ws.html) and [ratings](https://www.basketball-reference.com/about/ratings.html); Oliver's book via [datafield.dev ch. 13](https://datafield.dev/professional-basketball-analytics/part-03/chapter-13/).
 
 Dropped: R7 v3 (a v3 rule to name real over-performers). Reason: the board feeds no game model, its useful part is already in M6, and Scouting is hidden on the site.
 
@@ -251,9 +252,10 @@ Logging: each daily run logs every unplayed, confirmed game of any round whose f
 ## 9. Open items
 
 1. BasketHotel PBP: endpoint, fields, substitutions present? Coordinates?
-2. EuroLeague shot coordinate system (origin, units, orientation): plot a season of shots.
-3. OddsPortal feasibility (one-day timebox).
-6. Stint validation pass rate on a sample of 50 EL games.
+2. ~~EuroLeague shot coordinate system (origin, units, orientation): plot a season of shots.~~ Resolved: raw centimetres from the basket centre, shots mirrored onto one basket, converted to metres with y toward half court. Validated against the FIBA line from 2011-12 (`src/eurohoops/parse/shots.py:1-7`, `docs/data/shots.md`, `reports/shots.json`). Season plot: `reports/el_shots_2024.png` (2024-25).
+3. 2026-27 formats and tiebreak rules (EuroLeague play-in).
+4. OddsPortal feasibility (one-day timebox). Open: no spike result is in the repo (no OddsPortal code, data or report). The forward-only fallback is in use: The Odds API (`src/eurohoops/odds.py:29`), recorded in `odds/euroleague_2026-27.csv`.
+5. ~~Stint validation pass rate on a sample of 50 EL games.~~ Resolved: 50 EuroLeague games (2015 to 2025), all checks pass 100% (`reports/stint_validation.json`, written by `eurohoops stints` in `src/eurohoops/cli/build.py`).
 
 ---
 

@@ -77,19 +77,6 @@ from eurohoops.eval.wp_backtest import run as run_wp_backtest
 from eurohoops.live_m6 import person_names, query_rows
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table
-from eurohoops.models.board import (
-    DIMENSIONS,
-    Stability,
-    board,
-    derive_n_min,
-    fg3_observations,
-    fg3_rotation_n,
-    on_off_observations,
-    rotation_n,
-    rotation_player_seasons,
-    shot_making_observations,
-    stability,
-)
 from eurohoops.models.box_impact import STAT_COLUMNS, BoxGrid, box_only_margins, pir_margins
 from eurohoops.models.elo import EloParams
 from eurohoops.models.elor import Appearances, NewcomerPrior, WalkForwardRatings, newcomer_priors
@@ -635,51 +622,6 @@ def _m2_shots(season: int) -> tuple[pd.DataFrame, pd.DataFrame, str]:
         raise typer.Exit(code=1)
     variant = str(json.loads(M2_REPORT.read_text(encoding="utf-8"))["gate"]["chosen"])
     return shots[shots["season"] <= season], xpts, variant
-
-
-def _m6_board(
-    world: World, season: int, shots: pd.DataFrame, xpts: pd.DataFrame, variant: str
-) -> tuple[pd.DataFrame, dict[str, Stability]]:
-    """The over/under board of ``season`` (D23), stabilities from the M6 tuning seasons."""
-    stints, checks = read_table(MART_PATH, "stints"), read_table(MART_PATH, "stint_game_checks")
-    if stints is None or checks is None:
-        log.error("no stints mart; run: eurohoops stints --mart")
-        raise typer.Exit(code=1)
-    xwalk = world.inputs.xwalk
-    seasons = json.loads(M3_PLAYERS_REPORT.read_text(encoding="utf-8"))["seasons"]
-    brapm = pd.concat(
-        [
-            pd.DataFrame(block["players"])[["player_id", "total", "sd_total"]].assign(season=int(s))
-            for s, block in seasons.items()
-        ],
-        ignore_index=True,
-    )
-    complete = world.complete[~world.complete["partial"]]
-    # N_MIN per dimension (rule v2): median n of EuroLeague rotation player-seasons, tuning only.
-    rotation = rotation_player_seasons(complete, M6.tuning)
-    tuned = {
-        "shot_making": pd.concat(
-            [shot_making_observations(shots, xpts, xwalk, s, variant) for s in M6.tuning]
-        ),
-        "on_off": pd.concat(
-            [on_off_observations(stints, checks, brapm, xwalk, s) for s in M6.tuning]
-        ),
-    }
-    n_min = {
-        "shot_making": derive_n_min(rotation_n(tuned["shot_making"], rotation)),
-        "fg3_pct": derive_n_min(fg3_rotation_n(complete, rotation)),
-        "on_off": derive_n_min(rotation_n(tuned["on_off"], rotation)),
-    }
-    found: dict[str, dict[int, pd.DataFrame]] = {d: {} for d in DIMENSIONS}
-    for s in (*M6.tuning, season):
-        found["shot_making"][s] = shot_making_observations(shots, xpts, xwalk, s, variant)
-        found["fg3_pct"][s] = fg3_observations(complete, s, n_min["fg3_pct"])
-        found["on_off"][s] = on_off_observations(stints, checks, brapm, xwalk, s)
-    stabilities = {
-        d: stability(pd.concat([found[d][s] for s in M6.tuning]), d, M6.tuning, n_min[d])
-        for d in DIMENSIONS
-    }
-    return board({d: found[d][season] for d in DIMENSIONS}, stabilities), stabilities
 
 
 def _m6_similar(  # noqa: PLR0917 -- the live inputs, passed through

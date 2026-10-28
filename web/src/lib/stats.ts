@@ -50,6 +50,8 @@ export interface PlayerRow {
   /** "G" | "F" | "C" from the EuroLeague people listing; absent when he has no listing (lib/position.ts). */
   pos?: string;
   totals: Record<string, number[]>; // "season", "last5", "last10", "last20"
+  /** Win Shares this season, summed over his clubs (absent without Win Shares; stats/win_shares.py). */
+  ws?: Record<string, number>;
   bands: Bands;
   pos?: "G" | "F" | "C"; // the EuroLeague listing's position that season (absent when unlisted)
 }

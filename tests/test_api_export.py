@@ -42,7 +42,6 @@ ROUTES = [
     "/openapi.json",
     "/stats/meta.json",
     "/stats/seasons/2024/players.json",
-    "/scouting/board",
     "/rapm",
     "/metrics/live",
     "/simulations/latest?competition=euroleague",
@@ -77,7 +76,6 @@ def test_the_files_of_the_routes() -> None:
     assert file_for("/stats/seasons/2024/players.json") == (
         STATS_PREFIX / "seasons" / "2024" / "players.json"
     )
-    assert file_for("/scouting/board") == API_PREFIX / "scouting" / "board.json"
     assert file_for("/players/P:003733/projection") == (
         API_PREFIX / "players" / "P_003733" / "projection.json"
     )
@@ -188,7 +186,6 @@ def test_publish_writes_the_new_route_files(tree: Path) -> None:
     assert {
         "src/data/site.json",
         "public/api/openapi.json",
-        "src/data/api/scouting/board.json",
         "src/data/api/metrics/live.json",
         "src/data/api/simulations/euroleague.json",
         f"src/data/api/players/{key}/projection.json",

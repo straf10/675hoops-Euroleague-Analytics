@@ -59,6 +59,7 @@ from eurohoops.stats.coach_style import StyleIndex
 from eurohoops.stats.coaches import coach_payloads
 from eurohoops.stats.runs import runs_payload
 from eurohoops.stats.shots import BANDS, HEX_RADIUS_M, Shots, band_counts, band_table, hexbins
+from eurohoops.stats.win_shares import MINUTES_PER_GAME, WS_FIELDS
 from eurohoops.stats.wp import WpLines, wp_payload
 
 STATS_DIR = Path("web/src/data/stats")  # read by the Astro build in web/
@@ -105,6 +106,8 @@ class Inputs:
     units: Mapping[int, Mapping[str, Any]] = field(default_factory=dict)
     # game id -> the assist rows of its play-by-play (stats/assists.py); no entry without one
     assists: Mapping[str, Sequence[AssistRow]] = field(default_factory=dict)
+    # Win Shares per player, season and club (stats/win_shares.py); None: no WS fields
+    win_shares: pd.DataFrame | None = None
     # in-game WP lines of the frozen v1 model (stats/wp.py); None: no seasons.wp files
     wp: WpLines | None = None
     # team-game coach rows (stats/coaches.py); None: no coach pages
@@ -216,11 +219,50 @@ def _windows(values: np.ndarray[Any, Any]) -> dict[str, list[int | float]]:
     return out
 
 
+def _ws_by_player(inputs: Inputs) -> dict[tuple[str, int], dict[str, float]]:
+    """(player id, season) -> his Win Shares that season, summed over his clubs; WS/40 re-derived
+    from the summed minutes. Empty without Win Shares."""
+    if inputs.win_shares is None:
+        return {}
+    grouped = inputs.win_shares.groupby(["player_id", "season"], as_index=False).agg(
+        ows=("ows", "sum"), dws=("dws", "sum"), ws=("ws", "sum"), minutes=("minutes", "sum")
+    )
+    out: dict[tuple[str, int], dict[str, float]] = {}
+    for row in grouped.to_dict("records"):
+        minutes = float(row["minutes"])
+        ws = float(row["ws"])
+        ws40 = ws / minutes * MINUTES_PER_GAME if minutes > 0 else 0.0
+        out[(str(row["player_id"]), int(row["season"]))] = {
+            "ows": round(float(row["ows"]), 3),
+            "dws": round(float(row["dws"]), 3),
+            "ws": round(ws, 3),
+            "ws40": round(ws40, 3),
+        }
+    return out
+
+
+def _ws_by_club(inputs: Inputs) -> dict[tuple[str, int, str], list[float]]:
+    """(player id, season, source team code) -> [OWS, DWS, WS, WS/40] of that club's box scores
+    (``WS_FIELDS`` order); zeros for a club without Win Shares."""
+    if inputs.win_shares is None:
+        return {}
+    return {
+        (str(r["player_id"]), int(r["season"]), str(r["team"])): [
+            round(float(r["ows"]), 3),
+            round(float(r["dws"]), 3),
+            round(float(r["ws"]), 3),
+            round(float(r["ws40"]), 3),
+        ]
+        for r in inputs.win_shares.to_dict("records")
+    }
+
+
 def _players_payload(
     season: int, frame: pd.DataFrame, shots: pd.DataFrame, inputs: Inputs, slugs: Mapping[str, str]
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     bands = band_table(shots, "player_id")
+    ws_players = _ws_by_player(inputs)
     for key, lines in frame.groupby("player_id", sort=False):
         pid = str(key)
         pos = inputs.positions.get(pid, {}).get(season)
@@ -234,6 +276,7 @@ def _players_payload(
                 "totals": _windows(lines[list(PLAYER_FIELDS)].to_numpy(dtype=float)),
                 "bands": bands.get(pid, {b: [0, 0] for b in BANDS}),
                 **({"pos": pos} if pos else {}),
+                **({"ws": ws_players[(pid, season)]} if (pid, season) in ws_players else {}),
             }
         )
     rows.sort(key=lambda r: (-r["totals"]["season"][PLAYER_FIELDS.index("pts")], r["id"]))
@@ -243,19 +286,22 @@ def _players_payload(
 def _splits_payload(frame: pd.DataFrame, inputs: Inputs) -> dict[str, Any]:
     """One row per player, season and club: the number he wore most there, and his totals."""
     rows: list[list[Any]] = []
+    clubs = _ws_by_club(inputs)
     for (pid, season, team), lines in frame.groupby(["player_id", "season", "team"], sort=False):
         worn = lines["dorsal"].value_counts(sort=False)  # first-worn order breaks ties
+        win = clubs.get((str(pid), int(str(season)), str(team)), [0.0] * len(WS_FIELDS))
         rows.append(
             [
                 str(pid),
                 int(str(season)),
                 inputs.codes.get(str(team), str(team)),
                 str(worn.idxmax()),
-                _row(lines[list(PLAYER_FIELDS)].to_numpy(dtype=float).sum(axis=0)),
+                [*_row(lines[list(PLAYER_FIELDS)].to_numpy(dtype=float).sum(axis=0)), *win],
             ]
         )
     rows.sort(key=lambda r: (r[0], r[1]))  # stable: clubs stay in the order he joined them
-    return {"fields": list(PLAYER_FIELDS), "rows": rows}
+    # Win Shares come after the box fields: a club's season total (WS_FIELDS), not per game
+    return {"fields": [*PLAYER_FIELDS, *WS_FIELDS], "rows": rows}
 
 
 RESULTS = (

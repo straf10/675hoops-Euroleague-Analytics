@@ -17,7 +17,6 @@ import duckdb
 
 # A player cannot play more than 40 regulation minutes plus 5 per overtime; four overtimes is
 # the longest game in the data. Anything above is a parse error, whatever the overtime count.
-MAX_PLAYER_SECONDS = 60 * 60
 
 # Season cancellations and removals (see the research notes); a row is explained only if its
 # tip-off falls inside the event, so an unplayed game outside every event stays unexplained.
