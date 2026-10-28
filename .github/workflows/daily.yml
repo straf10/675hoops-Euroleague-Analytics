@@ -197,6 +197,8 @@ jobs:
   # Cloudflare credentials; it runs no repo code, only the downloaded artifact and a pinned wrangler.
   deploy-page:
     needs: build-site
+    # Defence in depth: the site is built from the dispatched branch's code, so only main deploys.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # the Cloudflare secrets live in this environment, which only main can deploy from
