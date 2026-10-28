@@ -88,7 +88,7 @@ def page_updated(tree: LexborHTMLParser) -> str:
 def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
     """``(page_updated_utc, rows)`` with ``team`` left empty (mapped later).
 
-    Raises ``InjuryReportError`` if the injury table is missing.
+    Raises ``InjuryReportError`` if the injury table is missing or a player row has no link.
     """
     tree = LexborHTMLParser(html)
     table = tree.css_first("table.table_02")
@@ -97,6 +97,7 @@ def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
     updated = page_updated(tree)
     rows: list[dict[str, str]] = []
     team_name = ""
+    unlinked = 0
     for tr in table.css("tr"):
         classes = tr.attributes.get("class") or ""
         if "injury_reports__team-row" in classes:
@@ -104,7 +105,11 @@ def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
             continue
         cells = tr.css("td")
         link = tr.css_first("a[href*='/players/']")
-        if "injury_reports__head" in classes or len(cells) < 5 or link is None:
+        if "injury_reports__head" in classes or len(cells) < 5:
+            continue
+        if link is None:
+            # a player row whose link changed: skipping it would drop that player from the snapshot
+            unlinked += 1
             continue
         match = _PLAYER_ID.search(link.attributes.get("href") or "")
         rows.append(
@@ -120,6 +125,8 @@ def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
                 "comment": _text(cells[4]),
             }
         )
+    if unlinked:
+        raise InjuryReportError(f"{unlinked} player row(s) without a player link; nothing recorded")
     return updated, rows
 
 

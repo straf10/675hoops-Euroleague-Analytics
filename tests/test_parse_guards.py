@@ -3,9 +3,12 @@
 import copy
 import gzip
 import json
+import re
 
 import pytest
 
+from eurohoops.injuries import InjuryReportError, parse_report
+from eurohoops.parse import free_throws as FT
 from eurohoops.parse.games import parse_schedule
 from eurohoops.parse.schemas import box_count
 from eurohoops.parse.stints import box_facts
@@ -46,6 +49,10 @@ def test_a_padded_club_code_is_rejected(side: str) -> None:
         parse_schedule(2024, [game])
 
 
+def box_pbp() -> dict:
+    return json.loads(gzip.open(FIXTURES / "stats_raw/playbyplay/E2010/1.json.gz").read())
+
+
 def box_fixture() -> dict:
     return json.loads(gzip.open(FIXTURES / "stats_raw/boxscore/E2010/1.json.gz").read())
 
@@ -73,3 +80,24 @@ def test_a_fractional_points_total_is_rejected_by_both_box_readers() -> None:
 def test_the_committed_box_score_still_reads() -> None:
     lines, minutes = euroleague_lines(box_fixture())
     assert set(lines) == {"KHI", "SOP"} and minutes == 40.0
+
+
+def test_a_player_row_whose_link_changed_raises_instead_of_being_dropped() -> None:
+    html = (FIXTURES / "basketnews/injury_report.html").read_bytes().decode("utf-8")
+    _, rows = parse_report(html)
+    assert len(rows) == 5
+    link = re.search(r'href="[^"]*/players/[^"]*"', html)
+    assert link is not None
+    broken = html.replace(link.group(0), link.group(0).replace("/players/", "/p/"), 1)
+    with pytest.raises(InjuryReportError, match="without a player link"):
+        parse_report(broken)
+
+
+def test_a_repeated_free_throw_row_is_not_a_second_attempt() -> None:
+    rows = FT.pbp_rows(box_pbp())
+    before = {t.team: t.fta for t in FT.trips(rows)}
+    index = next(
+        i for i, r in enumerate(rows) if str(r.get("PLAYTYPE", "")).strip() in {"FTM", "FTA"}
+    )
+    duplicated = [*rows[: index + 1], copy.deepcopy(rows[index]), *rows[index + 1 :]]
+    assert {t.team: t.fta for t in FT.trips(duplicated)} == before
