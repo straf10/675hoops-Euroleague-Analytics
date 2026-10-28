@@ -77,11 +77,17 @@ def _team_games(games: pd.DataFrame, player_games: pd.DataFrame) -> pd.DataFrame
     return ordered
 
 
-def _shares(rows: pd.DataFrame, team_seconds: float) -> dict[str, float]:
-    by_player = rows.groupby("player_id")["sec"].sum().sort_index()
-    return {
-        str(p): min(1.0, ON_COURT * float(s) / team_seconds) for p, s in by_player.items() if s > 0
-    }
+_TeamGames = tuple[FloatArray, list[str], list[int]]  # tip-off times, game ids, team seconds
+_NO_GAMES: _TeamGames = (np.empty(0, dtype=np.float64), [], [])
+
+
+def _earlier(played: _TeamGames, cutoff: float, n_games: int) -> tuple[list[str], list[int]]:
+    """A team's last ``n_games`` games (ids, team seconds) tipped off before ``cutoff``. A NaN
+    cutoff admits none, as ``time < NaN`` does. ``played`` is in tip-off order."""
+    times, game_ids, team_secs = played
+    k = int(np.searchsorted(times, cutoff, side="left")) if math.isfinite(cutoff) else 0
+    lo = max(0, k - n_games)
+    return game_ids[lo:k], team_secs[lo:k]
 
 
 def projected_shares(
@@ -92,8 +98,22 @@ def projected_shares(
     ``player_games``: one row per player per game with ``game_id, team, player_id, sec``.
     """
     team_games = _team_games(games, player_games)
-    rows_by = {key: frame for key, frame in player_games.groupby(["game_id", "team"])}
-    by_team = {key: frame for key, frame in team_games.groupby(["team", "season"])}
+    rows_by: dict[tuple[str, str], list[tuple[str, int]]] = {}
+    for game_id, team, player, sec in zip(
+        player_games["game_id"],
+        player_games["team"],
+        player_games["player_id"],
+        player_games["sec"],
+        strict=True,
+    ):
+        rows_by.setdefault((game_id, team), []).append((player, sec))
+    by_team: dict[tuple[object, ...], _TeamGames] = {}
+    for key, frame in team_games.groupby(["team", "season"]):
+        by_team[key] = (
+            frame["time"].to_numpy(dtype=np.float64),
+            frame["game_id"].tolist(),
+            frame["team_sec"].tolist(),
+        )
     out: list[dict[str, object]] = []
     for game_id, season, home, away, cutoff in zip(
         games["game_id"],
@@ -104,22 +124,27 @@ def projected_shares(
         strict=True,
     ):
         for side, team in zip(SIDES, (str(home), str(away)), strict=True):
-            played = by_team.get((team, season))
-            earlier = played[played["time"] < cutoff].tail(n_games) if played is not None else None
-            if earlier is None or earlier.empty:
-                earlier = by_team.get((team, season - 1))
-            if earlier is None or earlier.empty:
+            ids, team_secs = _earlier(
+                by_team.get((team, season), _NO_GAMES), float(cutoff), n_games
+            )
+            if not ids:
+                # before the team's first such game: its whole previous season
+                ids, team_secs = by_team.get((team, season - 1), _NO_GAMES)[1:]
+            if not ids:
                 continue
-            seconds = float(earlier["team_sec"].sum())
-            rows = pd.concat([rows_by[(g, team)] for g in earlier["game_id"]])
-            for player, share in _shares(rows, seconds).items():
+            seconds = float(sum(team_secs))
+            totals: dict[str, int] = {}
+            for game in ids:
+                for player, sec in rows_by[(game, team)]:
+                    totals[player] = totals.get(player, 0) + sec
+            for player in sorted(p for p in totals if totals[p] > 0):
                 out.append(
                     {
                         "game_id": str(game_id),
                         "side": side,
                         "team": team,
-                        "player_id": player,
-                        "share": share,
+                        "player_id": str(player),
+                        "share": min(1.0, ON_COURT * float(totals[player]) / seconds),
                     }
                 )
     return validated(pd.DataFrame(out, columns=list(SHARES_SCHEMA.columns)), SHARES_SCHEMA)
