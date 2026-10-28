@@ -129,8 +129,9 @@ def test_load_eloh_reads_the_frozen_deltas_and_names_its_fit() -> None:
     assert model.version.split("+", 1)[1].startswith("eloh.")
 
 
-def test_the_shadow_log_is_off_by_default() -> None:
-    assert ELOH_LIVE_ENABLED is False
+def test_the_shadow_log_is_live() -> None:
+    # switched on at go-live (workflow.md step 5); logged from the merge onward
+    assert ELOH_LIVE_ENABLED is True
     assert EUROLEAGUE.eloh_prediction_log == Path("predictions/euroleague_eloh_2026-27.csv")
 
 
