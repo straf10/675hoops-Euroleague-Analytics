@@ -8,6 +8,10 @@ from eurohoops.models.elo import EloParams
 
 LIVE_SEASON = 2026
 SITE_SEASONS = 20  # site EuroLeague seasons, latest first (20 = all since 2007-08); not model input
+# A refetched live schedule that drops more games than this, or this share of the cached games,
+# is refused: the cached schedule stays and a warning is printed (ingest/euroleague.py).
+SCHEDULE_MAX_DROP_GAMES = 3
+SCHEDULE_MAX_DROP_SHARE = 0.10
 # EuroLeague seasons the data cannot treat as ordinary: season -> (kind, note shown on the site).
 # Checked against the cached schedules: 2019 has 252 of 306 regular-season games played, the
 # last on 2020-03-06, and no playoffs or Final Four; in 2020 251 of 328 played games report zero
