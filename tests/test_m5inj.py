@@ -356,3 +356,9 @@ def test_an_alias_never_crosses_clubs(roster: list[RosterPlayer]) -> None:
     matched = match_injuries(rows, roster, {("ULK", "6183"): "MILLS, PATTY"})
     assert matched["match"].tolist() == [NO_MATCH]
     assert matched["player_id"].tolist() == [""]
+
+
+def test_nothing_due_after_every_tip_off_logs_nothing(model: LiveM5, tmp_path: Path) -> None:
+    log = tmp_path / "m5inj.csv"
+    assert _run_m5inj(log, datetime(2030, 1, 1, tzinfo=UTC), model, _injury_log([])) == 0
+    assert not log.exists()

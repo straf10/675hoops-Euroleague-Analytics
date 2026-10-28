@@ -205,3 +205,8 @@ def test_refuses_to_log_at_or_after_tip_off(tmp_path: Path) -> None:
 def test_now_is_before_the_upcoming_round() -> None:
     assert NOW.tzinfo == UTC
     assert syn.round_start(SEASON, FIRST_UNPLAYED_ROUND).to_pydatetime() > NOW
+
+
+def test_a_season_with_no_earlier_history_has_no_newcomer_prior() -> None:
+    with pytest.raises(ValueError, match="no newcomer history before season 2023"):
+        elor_forecasts(full(), frozen_model(), 2023)
