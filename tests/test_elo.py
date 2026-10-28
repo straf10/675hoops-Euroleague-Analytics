@@ -111,7 +111,8 @@ def test_margin_scale_least_squares_through_origin() -> None:
 
 
 def test_forfeits_do_not_update_ratings() -> None:
-    games = make_games({2024: True}, gbl_like=True)
+    games = make_games({2024: True})
+    games.loc[games.index[::5], "forfeit"] = True
     assert games["forfeit"].any()
     without = games[~games["forfeit"]].reset_index(drop=True)
     diffs_all = replay(prepare(games), PARAMS)[~games["forfeit"].to_numpy()]

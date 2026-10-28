@@ -128,17 +128,10 @@ def _rotation_world() -> pd.DataFrame:
             {"person_id": "r2", "season": 2020, "games": 30, "minutes": 600.0, "fg3a": 200},
             {"person_id": "r3", "season": 2021, "games": 20, "minutes": 400.0, "fg3a": 301},
             {"person_id": "r4", "season": 2021, "games": 20, "minutes": 400.0, "fg3a": 0},
-            # not rotation: 14 games, 14.9 minutes a game, partial, other competition, not tuning
+            # not rotation: 14 games, 14.9 minutes a game, partial, not tuning
             {"person_id": "x1", "season": 2020, "games": 14, "minutes": 400.0, "fg3a": 900},
             {"person_id": "x2", "season": 2020, "games": 30, "minutes": 447.0, "fg3a": 900},
             {"person_id": "x3", "season": 2021, "games": 30, "minutes": 900.0, "partial": True},
-            {
-                "person_id": "x4",
-                "season": 2021,
-                "competition": "gbl",
-                "games": 30,
-                "minutes": 900.0,
-            },
             {"person_id": "x5", "season": 2022, "games": 30, "minutes": 900.0, "fg3a": 900},
         ]
     )
@@ -186,8 +179,6 @@ def test_n_min_is_derived_from_tuning_rotation_rows_only() -> None:
     n = b.rotation_n(obs, rot)
     assert sorted(n.tolist()) == [410.0, 500.0, 600.0]
     assert b.derive_n_min(n) == 500
-    gbl = obs.assign(competition="gbl")
-    assert b.rotation_n(gbl, rot).empty
 
 
 def test_persist_limits_and_board_schema() -> None:
@@ -234,7 +225,7 @@ def test_stability_pairs_consecutive_tuning_seasons_only() -> None:
 def _xwalk() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "competition": ["euroleague", "euroleague", "gbl"],
+            "competition": ["euroleague", "euroleague", "other"],
             "source_id": ["P1", "P2", "9"],
             "person_id": ["person_1", "person_2", "person_g"],
         }
@@ -363,7 +354,7 @@ def test_fg3_prior_uses_only_seasons_before_the_cutoff() -> None:
     )
 
 
-def test_fg3_few_ft_attempts_take_the_fitted_mean_and_gbl_without_history_is_skipped() -> None:
+def test_fg3_few_ft_attempts_take_the_fitted_mean_and_no_3pa_is_skipped() -> None:
     early = _fit_rows(2022, 0.20, 0.30)
     mean_ft = 0.55 + 0.4 / 2  # equal weights, evenly spaced FT%
     rows = _seasons(
@@ -377,16 +368,6 @@ def test_fg3_few_ft_attempts_take_the_fitted_mean_and_gbl_without_history_is_ski
                 "fta": 5,
                 "ftm": 5,
                 "debut_season": 2022,
-            },
-            {
-                "person_id": "gbl_new",
-                "season": 2023,
-                "competition": "gbl",
-                "fg3a": 80,
-                "fg3m": 30,
-                "fta": 50,
-                "ftm": 40,
-                "debut_season": 2023,
             },
             {
                 "person_id": "no_3pa",

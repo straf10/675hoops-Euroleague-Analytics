@@ -33,7 +33,7 @@ from eurohoops.api.readmodel import Store
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH
 from tests.api_check import load_script
-from tests.api_tree import EL_PERSON, GBL_ONLY_PERSON, NOW, build_tree
+from tests.api_tree import EL_PERSON, NOW, UNPUBLISHED_PERSON, build_tree
 
 runner = CliRunner()
 script = load_script()
@@ -46,12 +46,10 @@ ROUTES = [
     "/rapm",
     "/metrics/live",
     "/simulations/latest?competition=euroleague",
-    "/simulations/latest?competition=gbl",
     f"/players/{EL_PERSON}",
     f"/players/{EL_PERSON}/projection",
-    f"/players/{GBL_ONLY_PERSON}/similar",
+    f"/players/{UNPUBLISHED_PERSON}/similar",
     "/teams/euroleague/BAR/ratings",
-    f"/teams/gbl/AAAA0001/factors?season={LIVE_SEASON}",
 ]
 
 
@@ -80,7 +78,6 @@ def test_the_files_of_the_routes() -> None:
         STATS_PREFIX / "seasons" / "2024" / "players.json"
     )
     assert file_for("/scouting/board") == API_PREFIX / "scouting" / "board.json"
-    assert file_for("/simulations/latest?competition=gbl") == API_PREFIX / "simulations/gbl.json"
     assert file_for("/players/P:003733/projection") == (
         API_PREFIX / "players" / "P_003733" / "projection.json"
     )
@@ -131,14 +128,14 @@ def test_an_optional_404_writes_no_file_and_is_reported(tree: Path) -> None:
     files = export_files(
         client_for(tree),
         [
-            Route("/simulations/latest?competition=gbl", optional=True),
+            Route(f"/players/{UNPUBLISHED_PERSON}", optional=True),
             Route("/simulations/latest?competition=euroleague", optional=True),
         ],
         reasons.append,
     )
     assert list(files) == [API_PREFIX / "simulations" / "euroleague.json"]
-    assert len(reasons) == 1 and "skipped /simulations/latest?competition=gbl" in reasons[0]
-    assert "no ungated simulation report for gbl" in reasons[0]
+    assert len(reasons) == 1 and f"skipped /players/{UNPUBLISHED_PERSON}" in reasons[0]
+    assert "unknown person_id" in reasons[0]
 
 
 def test_an_optional_route_that_fails_otherwise_still_raises(tree: Path) -> None:

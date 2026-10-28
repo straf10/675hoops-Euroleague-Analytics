@@ -12,7 +12,6 @@ import pytest
 REPO = Path(__file__).parent.parent
 REPORTS = [
     (REPO / "reports" / "backtest_m5.json", REPO / "reports" / "backtest_m5_games.csv"),
-    (REPO / "reports" / "backtest_m5_gbl.json", REPO / "reports" / "backtest_m5_gbl_games.csv"),
 ]
 
 

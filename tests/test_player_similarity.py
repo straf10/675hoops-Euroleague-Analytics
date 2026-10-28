@@ -267,19 +267,13 @@ def test_shot_features_are_used_when_both_sides_have_them() -> None:
     assert same > draws / 3 + 4 * np.sqrt(draws * (1 / 3) * (2 / 3))
 
 
-def test_gbl_queries_use_box_features_over_the_whole_pool() -> None:
+def test_box_only_queries_fall_back_when_shots_are_missing() -> None:
     el = _league(31, 40, seasons=(2020, 2021))
-    gbl = _league(32, 40, seasons=(2020, 2021), competition="gbl")
-    both = pd.concat([el, gbl], ignore_index=True)
     shots = _shots(33, el)
-    with_shots = embed(both, shots, pool_seasons=(2020, 2021))
-    box_only = embed(both, None, pool_seasons=(2020, 2021))
+    with_shots = embed(el, shots, pool_seasons=(2020, 2021))
+    box_only = embed(el, None, pool_seasons=(2020, 2021))
     assert with_shots.features == (*BOX_FEATURES, *SHOT_FEATURES)
     assert box_only.features == BOX_FEATURES
-    gbl_query = raw_features(gbl, None)
-    mixed = neighbours(gbl_query, with_shots, k=10)
-    pd.testing.assert_frame_equal(mixed, neighbours(gbl_query, box_only, k=10))
-    assert {"euroleague", "gbl"} <= set(mixed["match_competition"])
     # a EuroLeague query with shot features only meets rows that have them
     el_out = neighbours(raw_features(el, shots), with_shots, k=10)
     assert (el_out["match_competition"] == "euroleague").all()

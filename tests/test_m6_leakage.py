@@ -3,16 +3,14 @@ function of may depend on a game at or after its cutoff (next-season targets: an
 target season or later; checkpoint targets: any game from the first tip-off of round
 floor(f * R) + 1, decisions D6, D11, D12, D13 and D15 in reports/week16-18_progress.md).
 
-What is guaranteed, for EuroLeague and GBL targets, next-season and at a checkpoint, in a tuning
-season (drift refitted for the target) and a test season (drift frozen at the first validation
-season):
+What is guaranteed, for EuroLeague targets, next-season and at a checkpoint, in a tuning season
+(drift refitted for the target) and a test season (drift frozen at the first validation season):
 
-* **Future edits** (the player lines at or after the cutoff get other counts or are deleted, in
-  the target competition and, whole seasons, in the other one; later seasons likewise; BRAPM
-  snapshots of the target season and later are moved or deleted; the ages and the M4 translations
-  of later seasons are moved or deleted): the target's history, ages, aging curve (every array),
-  drift, translation, impact rows, targets (exposure included), the projections of every cell
-  (four variants x every half-life), the baselines, the D11 standardisation (``loss_sds``) and the
+* **Future edits** (the player lines at or after the cutoff get other counts or are deleted;
+  later seasons likewise; BRAPM snapshots of the target season and later are moved or deleted;
+  the ages of later seasons are moved or deleted): the target's history, ages, aging curve (every
+  array), drift, impact rows, targets (exposure included), the projections of every cell
+  (two variants x every half-life), the baselines, the D11 standardisation (``loss_sds``) and the
   SPM noise unit are bit-identical. ``truth`` is the scoring side and must move, which proves the
   edit took effect.
 * **Deleting** the last round of the season and the playoffs: the scored set is a truth-side
@@ -69,22 +67,18 @@ pytestmark = pytest.mark.slow
 SPEC = replace(small_spec(), min_poss=1.0)
 INPUTS = build_inputs()
 SEASONS = (2016, 2018)  # a tuning season and a test season (frozen drift)
-# EuroLeague (the costly league, with the impact stats): a tuning next-season target and a test
-# checkpoint target; the GBL: all four.
+# A tuning next-season target and a test checkpoint target (the impact stats are EuroLeague's).
 CASES = [
     ("euroleague", 2016, 0.0),
     ("euroleague", 2018, 0.5),
-    *[("gbl", s, f) for s in SEASONS for f in (0.0, 0.5)],
 ]
 
 CELLS = cells(SPEC)
-# The sensitivity checks run a subset of the cases (each costs a full target block): both leagues,
-# both seasons, both kinds of target.
+# The sensitivity checks run a subset of the cases (each costs a full target block): both
+# seasons, both kinds of target.
 SENSITIVE = [
     ("euroleague", 2018, 0.0),
     ("euroleague", 2016, 0.5),
-    ("gbl", 2016, 0.0),
-    ("gbl", 2018, 0.5),
 ]
 
 Select = Callable[[str, "pd.Series[Any]", "pd.Series[Any]"], "pd.Series[bool]"]
@@ -152,7 +146,6 @@ def _snapshot(
         "impact": ti.impact,
         "curve": ti.curve,
         "drift": ti.drift,
-        "translation": ti.translation,
         "targets": ti.targets,
         "projections": {m6_backtest.cell_key(v, h): project_cell(ti, v, h) for v, h in CELLS},
         "baselines": baseline_predictions(ti),
@@ -266,24 +259,16 @@ def _edit_brapm(inputs: M6Inputs, *, since: int, until: int | None, delete: bool
 
 
 def _edit_meta(inputs: M6Inputs, season: int, *, delete: bool) -> M6Inputs:
-    """The ages and the M4 translations of the seasons after ``season`` (the ages of ``season``
-    itself are an input of a checkpoint's partial row, known before the season starts)."""
+    """The ages of the seasons after ``season`` (the ages of ``season`` itself are an input of a
+    checkpoint's partial row, known before the season starts)."""
     ages = inputs.ages
     late = ages["season"] > season
-    translations = dict(inputs.translations)
     if delete:
         ages = ages[~late].reset_index(drop=True)
-        translations = {s: t for s, t in translations.items() if s <= season}
     else:
         ages = ages.copy()
         ages.loc[late, "age"] = ages.loc[late, "age"] + 1.0
-        translations = {
-            s: replace(t, delta={k: v * 2.0 + 0.01 for k, v in t.delta.items()})
-            if s > season
-            else t
-            for s, t in translations.items()
-        }
-    return replace(inputs, ages=ages, translations=translations)
+    return replace(inputs, ages=ages)
 
 
 def _lines(inputs: M6Inputs, case: tuple[str, int, float], *, delete: bool) -> M6Inputs:
@@ -292,7 +277,7 @@ def _lines(inputs: M6Inputs, case: tuple[str, int, float], *, delete: bool) -> M
 
 def _everything(inputs: M6Inputs, case: tuple[str, int, float], *, delete: bool) -> M6Inputs:
     """Every kind of future edit at once: the lines, the BRAPM snapshots of the target season and
-    later, the later ages and translations."""
+    later, and the later ages."""
     edited = _lines(inputs, case, delete=delete)
     edited = _edit_brapm(edited, since=case[1], until=None, delete=delete)
     return _edit_meta(edited, case[1], delete=delete)
@@ -323,14 +308,12 @@ def test_a_future_edit_leaves_every_input_and_projection_bit_identical(
 
 def test_the_snapshot_covers_every_cell_and_part() -> None:
     snap = _base(("euroleague", 2016, 0.5))
-    assert len(snap.parts["projections"]) == len(CELLS) == 12
+    assert len(snap.parts["projections"]) == len(CELLS) == 6
     assert set(snap.parts["baselines"]) == set(m6_backtest.BASELINES)
-    assert {"history", "ages", "impact", "curve", "drift", "translation", "targets"} <= set(
-        snap.parts
-    )
+    assert {"history", "ages", "impact", "curve", "drift", "targets"} <= set(snap.parts)
     assert {"loss_sds", "spm_noise_unit"} <= set(snap.parts)
     assert all(len(f) for f in snap.parts["projections"].values())
-    assert snap.parts["curve"].delta and snap.parts["translation"] is not None
+    assert snap.parts["curve"].delta
 
 
 # --- Real code: an earlier edit does move them ---------------------------------------------------
@@ -376,7 +359,7 @@ def _sds(inputs: M6Inputs, competition: str) -> dict[str, float]:
     return loss_sds(m6_backtest.prepare(inputs), SPEC, competition)
 
 
-@pytest.mark.parametrize("competition", ["euroleague", "gbl"])
+@pytest.mark.parametrize("competition", ["euroleague"])
 def test_the_loss_sds_ignore_every_season_from_the_first_tuning_season(competition: str) -> None:
     first = min(SPEC.tuning)
     base = _sds(INPUTS, competition)

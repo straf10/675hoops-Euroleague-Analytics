@@ -12,13 +12,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
-import typer
 
-from eurohoops import cli
 from eurohoops.cli import backtest as backtest_mod
-from eurohoops.config import M3, M4
+from eurohoops.config import M3
 from eurohoops.eval import m6_backtest as module
-from eurohoops.eval.m3_gbl_backtest import ElSpm
+from eurohoops.eval.el_spm import ElSpm
 from eurohoops.eval.m6_backtest import (
     BASELINES,
     GATE_BASELINES,
@@ -103,12 +101,6 @@ def full_run(inputs: M6Inputs) -> Run:
 
 
 @pytest.fixture(scope="module")
-def gbl_run(inputs: M6Inputs) -> Run:
-    # the edge of the grid and the variant that is not the EuroLeague synthetic's choice
-    return _run(inputs, "gbl", score_test=True, fixed={"variant": "proj_age", "half_life": 3.0})
-
-
-@pytest.fixture(scope="module")
 def world(inputs: M6Inputs) -> Any:
     return prepare(inputs)
 
@@ -138,34 +130,16 @@ def test_end_to_end_tuning_then_validation_then_test(
     assert full_run.players["split"].nunique() == 3
 
 
-def test_the_gbl_scores_the_fixed_cell_and_has_no_impact_stats(gbl_run: Run) -> None:
-    report = gbl_run.report
-    assert report["competition"] == "gbl"
-    assert report["chosen"]["variant"] == "proj_age"
-    assert report["chosen"]["half_life"] == 3.0
-    assert report["chosen"]["on_edge"] is True
-    assert "fixed" in report["chosen"]
-    assert report["model_version"] == "m6-proj_age-h3-v1"
-    assert report["gate"]["gated"] is False
-    assert report["stats"] == ["pts", "fg3a", "fta", "ast", "tov", "oreb", "dreb", "stl", "blk",
-                               "ts", "fg3", "ft"]  # fmt: skip
-    assert "spm" not in report["sd"] and "brapm" not in report["sd"]
-    # the grid is still reported, and the fixed cell is the one scored after tuning
-    assert len(report["tuning"]["next_season"]) == len(cells(SPEC)) + len(BASELINES)
-    assert list(report["validation"]["next_season"]) == ["proj_age@3", *BASELINES]
-    assert set(gbl_run.players["model"]) == {"proj_age@3", *BASELINES}
-
-
 def test_a_fixed_cell_off_the_grid_is_an_error(inputs: M6Inputs) -> None:
     with pytest.raises(ValueError, match="not on the grid"):
-        _run(inputs, fixed={"variant": "proj_full", "half_life": 7.0})
+        _run(inputs, fixed={"variant": "proj_age", "half_life": 7.0})
 
 
 def test_report_keys_and_types(tuning_run: Run, full_run: Run) -> None:
     top = {
         "model", "model_version", "competition", "splits", "stats", "checkpoints", "min_poss",
         "interval", "sd", "grid", "tuning", "chosen", "data_sha256", "tuning_only",
-        "validation_scored", "test_scored", "movers", "differences", "calibration",
+        "validation_scored", "test_scored", "differences", "calibration",
     }  # fmt: skip
     assert set(tuning_run.report) == top
     assert set(full_run.report) == top | {"validation", "test", "gate"}
@@ -206,9 +180,6 @@ def test_report_keys_and_types(tuning_run: Run, full_run: Run) -> None:
             assert list(by_model) == [chosen, *BASELINES]
             assert by_model[chosen]["n"] > 0
     assert report["test"]["seasons"] == [2018, 2019]
-    assert set(report["movers"]) == {"tuning", "validation", "test"}
-    assert set(report["movers"]["tuning"]) == {chosen, *BASELINES}
-    assert set(report["movers"]["tuning"][chosen]) == {"n", "loss"}
     assert set(report["differences"]["validation"]) == {f"vs_{b}" for b in BASELINES}
     diff = report["differences"]["validation"]["vs_marcel"]
     assert set(diff) == {"mean", "ci95", "clusters", "resamples", "seed"}
@@ -327,7 +298,7 @@ def _gate(**kwargs: Any) -> dict[str, Any]:
         "differences": {},
         "gated": True,
     }
-    return gate_block("proj_full", 2.0, **{**values, **kwargs})
+    return gate_block("proj_age", 2.0, **{**values, **kwargs})
 
 
 def test_gate_block_passes_and_fails() -> None:
@@ -358,34 +329,34 @@ def _table(losses: dict[str, float]) -> list[tuple[str, float, float]]:
 def test_cells_are_in_simplicity_order() -> None:
     order = [cell_key(v, h) for v, h in cells(SPEC)]
     assert order[:3] == ["proj_shrunk@1", "proj_shrunk@2", "proj_shrunk@3"]
-    assert order[-1] == "proj_full_spm@3" and len(order) == 12
+    assert order[-1] == "proj_age@3" and len(order) == 6
 
 
 def test_choose_cell_takes_the_lowest_loss() -> None:
-    table = _table({"proj_age@3": 7.0, "proj_full@1": 7.2, "proj_shrunk@1": 8.0})
+    table = _table({"proj_age@3": 7.0, "proj_shrunk@2": 7.2, "proj_shrunk@1": 8.0})
     assert table[choose_cell(table, 0.005)][:2] == ("proj_age", 3.0)
 
 
 def test_choose_cell_ties_go_to_the_simpler_variant() -> None:
-    # 7.97 is 0.376% below 8.0: inside the 0.5% tolerance, so proj_full (simpler) wins
-    table = _table({"proj_full@2": 8.0, "proj_full_spm@2": 7.97})
-    assert table[choose_cell(table, 0.005)][:2] == ("proj_full", 2.0)
+    # 7.97 is 0.376% below 8.0: inside the 0.5% tolerance, so proj_shrunk (simpler) wins
+    table = _table({"proj_shrunk@2": 8.0, "proj_age@2": 7.97})
+    assert table[choose_cell(table, 0.005)][:2] == ("proj_shrunk", 2.0)
     # 7.9 is 1.27% below: outside it
-    table = _table({"proj_full@2": 8.0, "proj_full_spm@2": 7.9})
-    assert table[choose_cell(table, 0.005)][:2] == ("proj_full_spm", 2.0)
+    table = _table({"proj_shrunk@2": 8.0, "proj_age@2": 7.9})
+    assert table[choose_cell(table, 0.005)][:2] == ("proj_age", 2.0)
     # the simplicity order runs shrunk < age < full across variants and half-lives
-    table = _table({"proj_age@3": 7.99, "proj_shrunk@2": 8.0, "proj_full@1": 7.98})
+    table = _table({"proj_age@3": 7.99, "proj_shrunk@2": 8.0, "proj_age@1": 7.98})
     assert table[choose_cell(table, 0.005)][:2] == ("proj_shrunk", 2.0)
 
 
 def test_choose_cell_ties_go_to_the_smaller_half_life_within_a_variant() -> None:
-    table = _table({"proj_full@1": 8.0, "proj_full@2": 7.99, "proj_full@3": 7.98})
-    assert table[choose_cell(table, 0.005)][:2] == ("proj_full", 1.0)
+    table = _table({"proj_age@1": 8.0, "proj_age@2": 7.99, "proj_age@3": 7.98})
+    assert table[choose_cell(table, 0.005)][:2] == ("proj_age", 1.0)
     # an exact tie too, and a zero tolerance picks the strict minimum
-    table = _table({"proj_full@2": 7.0, "proj_full@3": 7.0})
-    assert table[choose_cell(table, 0.0)][:2] == ("proj_full", 2.0)
-    table = _table({"proj_full@1": 7.001, "proj_full@3": 7.0})
-    assert table[choose_cell(table, 0.0)][:2] == ("proj_full", 3.0)
+    table = _table({"proj_age@2": 7.0, "proj_age@3": 7.0})
+    assert table[choose_cell(table, 0.0)][:2] == ("proj_age", 2.0)
+    table = _table({"proj_age@1": 7.001, "proj_age@3": 7.0})
+    assert table[choose_cell(table, 0.0)][:2] == ("proj_age", 3.0)
 
 
 def test_choose_cell_skips_cells_without_a_loss() -> None:
@@ -395,10 +366,9 @@ def test_choose_cell_skips_cells_without_a_loss() -> None:
         choose_cell([("proj_age", 1.0, math.nan)], 0.005)
 
 
-def test_on_edge_flags_the_grid_edges(tuning_run: Run, gbl_run: Run) -> None:
+def test_on_edge_flags_the_grid_edges(tuning_run: Run) -> None:
     chosen = tuning_run.report["chosen"]
     assert chosen["on_edge"] == (chosen["half_life"] in (1.0, 3.0))
-    assert gbl_run.report["chosen"]["on_edge"] is True  # fixed at the grid's largest half-life
 
 
 # --- Discipline -----------------------------------------------------------------------------------
@@ -432,7 +402,7 @@ def test_tuning_only_holds_no_validation_or_test_number(tuning_run: Run) -> None
     ]
     assert not found, found
     assert set(report["splits"]) == {"tuning"}
-    assert set(report["movers"]) == set(report["differences"]) == {"tuning"}
+    assert set(report["differences"]) == {"tuning"}
     assert set(players["split"]) == {"tuning"}
     assert set(players["season"]) == set(SPEC.tuning)
     assert report["validation_scored"] is False and report["test_scored"] is False
@@ -490,7 +460,7 @@ def test_planted_aging_makes_the_aged_variants_better(tuning_run: Run) -> None:
     seasons; projecting with the fitted curve is not."""
     grid = tuning_run.report["tuning"]["next_season"]
     assert grid["proj_age@2"]["loss"] < grid["proj_shrunk@2"]["loss"]
-    assert grid["proj_full@2"]["loss"] < grid["marcel"]["loss"] < grid["league_mean"]["loss"]
+    assert grid["proj_age@2"]["loss"] < grid["marcel"]["loss"] < grid["league_mean"]["loss"]
 
 
 def test_cluster_bootstrap_resamples_whole_clusters() -> None:
@@ -515,7 +485,6 @@ def _truth_frame() -> TargetInputs:
         {
             "person_id": ["A", "X"],
             "poss": [1000.0, 500.0],
-            "mover": [False, True],
             "pts": [24.0, 20.0],
             "ft": [0.8, math.nan],
         }
@@ -523,7 +492,7 @@ def _truth_frame() -> TargetInputs:
     return TargetInputs(
         competition=COMPETITION, season=2020, checkpoint=0.0, cutoff=None, stats=("pts", "ft"),
         history=pd.DataFrame(), ages=pd.DataFrame(), impact=None, curve=None,  # type: ignore[arg-type]
-        drift={}, translation=None, targets=pd.DataFrame(), truth=truth,
+        drift={}, targets=pd.DataFrame(), truth=truth,
     )  # fmt: skip
 
 
@@ -626,7 +595,7 @@ def _marcel_inputs() -> TargetInputs:
     return TargetInputs(
         competition=COMPETITION, season=2020, checkpoint=0.0, cutoff=None, stats=("pts", "ft"),
         history=pd.DataFrame(rows), ages=ages, impact=None, curve=None,  # type: ignore[arg-type]
-        drift={}, translation=None, targets=targets, truth=pd.DataFrame(),
+        drift={}, targets=targets, truth=pd.DataFrame(),
     )  # fmt: skip
 
 
@@ -784,9 +753,7 @@ def test_a_checkpoint_cuts_the_season_at_the_first_tipoff_of_the_next_round(
     assert partial.to_dict() == pytest.approx(before.to_dict())
 
     # the scored set: at least 500 * (1 - f) possessions after the cutoff and a season before
-    earlier = [
-        _independent_lines(inputs, c, s) for c in ("euroleague", "gbl") for s in range(2010, season)
-    ]
+    earlier = [_independent_lines(inputs, "euroleague", s) for s in range(2010, season)]
     prior = set(pd.concat(earlier)["person_id"])
     expected = {p for p, poss in after.items() if poss >= 500 * (1 - fraction) and p in prior}
     assert set(ti.targets["person_id"]) == expected and expected
@@ -839,7 +806,7 @@ def test_a_next_season_target_reads_nothing_of_its_own_season(inputs: M6Inputs, 
     assert ti.cutoff is None
     assert ti.history["season"].max() == season - 1 and not ti.history["partial"].any()
     assert ti.impact is not None and ti.impact["season"].max() == season - 1
-    assert set(ti.stats) == set(ti.truth.columns) - {"person_id", "poss", "mover"}
+    assert set(ti.stats) == set(ti.truth.columns) - {"person_id", "poss"}
     assert "brapm" in ti.stats
     lines = _independent_lines(inputs, COMPETITION, season)
     total = lines.groupby("person_id")["poss"].sum()
@@ -847,14 +814,6 @@ def test_a_next_season_target_reads_nothing_of_its_own_season(inputs: M6Inputs, 
     assert (truth >= SPEC.min_poss).all()
     assert truth.to_dict() == pytest.approx({p: total[p] for p in truth.index})
     assert set(ti.targets["person_id"]) <= set(total[total >= SPEC.min_poss].index)
-    assert ti.truth["mover"].any()  # the synthetic league plants movers
-    assert ti.translation is not None and ti.translation.target_season == season
-
-
-def test_a_mover_without_a_translation_is_an_error(inputs: M6Inputs, world: Any) -> None:
-    bare = replace(inputs, translations={})
-    with pytest.raises(ValueError, match="no M4 translation"):
-        target_inputs(bare, COMPETITION, 2016, 0.0, spec=SPEC, world=world)
 
 
 # --- The CLI wiring on stubbed loaders and MLflow -------------------------------------------------
@@ -887,7 +846,6 @@ def _stub_loaders(monkeypatch: pytest.MonkeyPatch, inputs: M6Inputs, tmp_path: P
     games = inputs.games
     monkeypatch.setattr(backtest_mod, "read_games", lambda _path, name: games[name])
     tables = {
-        "team_games": pd.DataFrame({"game_id": games["gbl"]["game_id"]}),
         "player_xwalk": inputs.xwalk,
         "stints": pd.DataFrame(),
         "stint_game_checks": pd.DataFrame(),
@@ -900,11 +858,6 @@ def _stub_loaders(monkeypatch: pytest.MonkeyPatch, inputs: M6Inputs, tmp_path: P
 
     monkeypatch.setattr(
         backtest_mod, "build_box_games", lambda _raw, _games: Box(inputs.player_games["euroleague"])
-    )
-    monkeypatch.setattr(
-        backtest_mod,
-        "build_gbl_player_games",
-        lambda _raw, _games, _tg: Box(inputs.player_games["gbl"]),
     )
     # birth dates reproducing the synthetic ages
     ages = inputs.ages.drop_duplicates("person_id")
@@ -936,41 +889,27 @@ def _stub_loaders(monkeypatch: pytest.MonkeyPatch, inputs: M6Inputs, tmp_path: P
         json.dumps({"chosen": {"variant": "rapm_spm"}}), encoding="utf-8"
     )
     (tmp_path / "m3_players.json").write_text(json.dumps(players_json), encoding="utf-8")
-    fits = {
-        str(season): {"translate": {s: {"delta": t.delta[s], "c": t.c[s]} for s in t.delta}}
-        for season, t in inputs.translations.items()
-    }
-    (tmp_path / "m4.json").write_text(json.dumps({"fits_by_target_season": fits}), encoding="utf-8")
     monkeypatch.setattr(backtest_mod, "M3", replace(M3, report=tmp_path / "m3.json"))
     monkeypatch.setattr(backtest_mod, "M3_PLAYERS_REPORT", tmp_path / "m3_players.json")
-    monkeypatch.setattr(backtest_mod, "M4", replace(M4, translation_report=tmp_path / "m4.json"))
     spec = small_spec()
     monkeypatch.setattr(
         backtest_mod,
         "M6",
         replace(spec, report=tmp_path / "r.json", players_report=tmp_path / "p.csv"),
     )
-    monkeypatch.setattr(
-        backtest_mod,
-        "M6_GBL",
-        replace(spec, report=tmp_path / "rg.json", players_report=tmp_path / "pg.csv"),
-    )
     monkeypatch.setattr(backtest_mod, "log_m6_backtest", lambda *_args: None)
 
 
-def test_the_cli_wires_the_marts_into_a_run_and_gbl_scores_the_euroleague_verdict(
+def test_the_cli_wires_the_marts_into_a_run(
     inputs: M6Inputs, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _stub_loaders(monkeypatch, inputs, tmp_path)
-    # the GBL refuses a tuning-only run and a run without the EuroLeague verdict
-    with pytest.raises(typer.Exit):
-        backtest_mod._backtest_m6(cli.CompetitionName.gbl, False, False, "unused")
-    backtest_mod._backtest_m6(cli.CompetitionName.euroleague, False, True, "unused")
+    backtest_mod._backtest_m6(False, True, "unused")
     report = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))
     assert report["tuning_only"] and report["competition"] == "euroleague"
     assert report["stats"][-2:] == ["spm", "brapm"]
     assert list(pd.read_csv(tmp_path / "p.csv").columns) == list(PLAYER_COLUMNS)
-    # the GBL run scores the committed EuroLeague verdict as its fixed cell
+    # a run that scores the test seasons is wired to the same inputs
     seen: dict[str, Any] = {}
 
     class Stop(Exception):
@@ -982,12 +921,8 @@ def test_the_cli_wires_the_marts_into_a_run_and_gbl_scores_the_euroleague_verdic
 
     monkeypatch.setattr(backtest_mod, "run_m6_backtest", capture)
     with pytest.raises(Stop):
-        backtest_mod._backtest_m6(cli.CompetitionName.gbl, False, False, "unused")
-    assert seen["competition"] == "gbl" and seen["tuning_only"] is False
-    assert seen["fixed"] == {
-        "variant": report["chosen"]["variant"],
-        "half_life": report["chosen"]["half_life"],
-    }
+        backtest_mod._backtest_m6(False, False, "unused")
+    assert seen["competition"] == "euroleague" and seen["tuning_only"] is False
 
 
 def test_the_wired_spm_is_the_models_o_plus_d_on_lagged_league_rates() -> None:
@@ -1142,16 +1077,13 @@ def test_the_impact_noise_is_walk_forward_and_by_hand(inputs: M6Inputs, world: A
     none = target_inputs(bare, COMPETITION, season, 0.0, spec=SPEC, world=prepare(bare))
     assert none.impact_noise == {"spm": ti.impact_noise["spm"]}
     assert none.impact is not None and (none.impact["stat"] != "brapm").all()
-    # the GBL has no impact stats, so no noise
-    gbl = target_inputs(inputs, "gbl", SPEC.validation[0], 0.0, spec=SPEC, world=world)
-    assert gbl.impact_noise is None
 
 
 def test_brapm_weights_of_players_with_history_are_positive(inputs: M6Inputs, world: Any) -> None:
     """The D17 regression: the snapshot sd is the noise, not the posterior sd, so the
     between-player variance is positive and a player with snapshots keeps part of his own."""
     ti = target_inputs(inputs, COMPETITION, 2016, 0.0, spec=SPEC, world=world)
-    out = project_cell(ti, "proj_full_spm", 2.0)
+    out = project_cell(ti, "proj_age", 2.0)
     rows = out[(out["stat"] == "brapm") & (out["n_seasons"] > 0)]
     assert len(rows) > 20
     assert (rows["weight"] > 0).all()
@@ -1255,7 +1187,7 @@ def inflated(inputs: M6Inputs) -> dict[str, Run]:
         out["hi80"] = out["mean"] + Z80 * out["sd"]
         return out
 
-    fixed = {"variant": "proj_full_spm", "half_life": 2.0}
+    fixed = {"variant": "proj_age", "half_life": 2.0}
     patch = pytest.MonkeyPatch()
     patch.setattr(module, "project_cell", wide)
     try:

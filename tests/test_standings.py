@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from eurohoops.standings import EUROLEAGUE_2026, GBL_2026, Result, rank
+from eurohoops.standings import EUROLEAGUE_2026, Result, rank
 from tests.conftest import REPO
 
 OFFICIAL = json.loads((REPO / "tests/fixtures/standings.json").read_text(encoding="utf-8"))
@@ -87,12 +87,10 @@ def test_a_perfectly_symmetric_tie_stays_alphabetical() -> None:
 
 
 def test_2026_formats_are_consistent() -> None:
-    for fmt in (EUROLEAGUE_2026, GBL_2026):
+    for fmt in (EUROLEAGUE_2026,):
         positions = (*fmt.playoffs_direct, *fmt.play_in, *fmt.eliminated, *fmt.relegated)
         assert sorted(positions) == list(range(1, fmt.teams + 1))
         assert fmt.regular_season_rounds == 2 * (fmt.teams - 1)
         assert fmt.sources
     assert not EUROLEAGUE_2026.unverified
-    assert GBL_2026.unverified
     assert EUROLEAGUE_2026.deducted_wins() == {}
-    assert GBL_2026.deducted_wins() == {"00000002": 1, "00000001": 1}  # OLY, PAO: -2 points

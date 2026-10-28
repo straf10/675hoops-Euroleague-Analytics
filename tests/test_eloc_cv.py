@@ -187,9 +187,6 @@ def eloc(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ElocCv:
         ["backtest", "--model", "eloc"],
         ["backtest", "--model", "eloc", "--cv", "--cv-check"],
         ["backtest", "--cv"],
-        ["backtest", "--model", "eloc", "--competition", "gbl"],
-        ["backtest", "--model", "eloc", "--competition", "gbl", "--cv"],
-        ["backtest", "--model", "eloc", "--competition", "gbl", "--cv-check"],
     ],
 )
 def test_eloc_flags_refuse_bad_combinations(args: list[str]) -> None:

@@ -28,9 +28,9 @@ SPEC = M1Backtest(
 )
 
 
-@pytest.fixture(scope="module", params=[False, True], ids=["euroleague-like", "gbl-like"])
-def history(request: pytest.FixtureRequest) -> tuple[pd.DataFrame, pd.DataFrame]:
-    games = make_games({s: True for s in range(2016, 2024)}, gbl_like=request.param)
+@pytest.fixture(scope="module")
+def history() -> tuple[pd.DataFrame, pd.DataFrame]:
+    games = make_games({s: True for s in range(2016, 2024)})
     return games, make_team_games(games)
 
 

@@ -194,9 +194,9 @@ def test_mkt_absent_without_odds_or_without_its_label(tmp_path: Path) -> None:
         {"elo": log}, LABELS, games(), 2026, odds_log=tmp_path / "missing.csv"
     )
     assert [m["key"] for m in missing["models"]] == ["elo"]
-    # GBL has no odds log, so MKT never appears in its record.
-    gbl = build_forecasts({"elo": log}, LABELS, games(), 2026, odds_log=None)
-    assert all(m["model"] != "mkt" for m in gbl["season"])
+    # without an odds log, MKT never appears in the record.
+    without = build_forecasts({"elo": log}, LABELS, games(), 2026, odds_log=None)
+    assert all(m["model"] != "mkt" for m in without["season"])
 
 
 def test_mkt_does_not_lead_the_page_by_default(tmp_path: Path) -> None:

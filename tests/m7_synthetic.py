@@ -7,11 +7,9 @@ Reused by ``test_m7_backtest.py`` and the leakage suite: ``build_inputs`` return
 Twelve teams play seasons 2015-2021. Each regular season is a double round robin of 22 weekly
 rounds (6 games a round at 15-minute slots) with a hidden team effect, a home edge and normal
 noise; then two playoff games (phase ``PO``) and three Final Four games (phase ``FF``, neutral)
-among the four strongest teams, so both the EuroLeague (last ``FF`` game) and the GBL (last
-``PO`` game) champion rules find a winner. 2015-2016 only warm M1 up. The EuroLeague-shaped
-format has a play-in from 2019 (6 direct places, play-in 7-10) and 8 direct places before;
-T03 starts 2018 with 4 points (2 wins) deducted. The GBL-shaped format has 8 direct places
-and the quarterfinal / semifinal / final series.
+among the four strongest teams, so the champion rule finds a winner. 2015-2016 only warm M1 up.
+The format has a play-in from 2019 (6 direct places, play-in 7-10) and 8 direct places before;
+T03 starts 2018 with 4 points (2 wins) deducted.
 """
 
 import copy
@@ -39,10 +37,6 @@ TUNED_M1: dict[str, Any] = {
     "margin": {"variant": "student_t_const", "scale": 10.0, "df": 7.0, "ref_pace": None},
     "totals_sigma": 16.0,
 }
-TUNED_M1_GBL: dict[str, Any] = {
-    **TUNED_M1,
-    "margin": {"variant": "student_t_pace", "scale": 11.4, "df": 20.0, "ref_pace": 70.0},
-}
 ELO: dict[str, Any] = {
     "k": 20.0,
     "hca": 90.0,
@@ -65,16 +59,13 @@ def small_spec() -> M7Backtest:
 
 
 def synthetic_formats(competition: str, season: int) -> Format:
-    """The 12-team format of ``competition`` ("euroleague" or "gbl") in ``season``."""
+    """The format of ``competition`` in ``season``."""
     deduction = (
         ((DEDUCTION[1], DEDUCTION[2]),)
         if season == DEDUCTION[0] and competition == "euroleague"
         else ()
     )
-    if competition == "gbl":
-        direct, play_in = tuple(range(1, 9)), ()
-        series = (Series("quarterfinals", 3), Series("semifinals", 3), Series("final", 5))
-    elif season >= PLAY_IN_FROM:
+    if season >= PLAY_IN_FROM:
         direct, play_in = tuple(range(1, 7)), (7, 8, 9, 10)
         series = (Series("play-in", 1), Series("playoffs", 5), Series("final four", 1))
     else:
@@ -205,6 +196,6 @@ def build_inputs(competition: str = "euroleague", seed: int = 0) -> M7Inputs:
         games=table,
         team_games=make_team_games(table),
         regulation={},
-        tuned_m1=copy.deepcopy(TUNED_M1_GBL if competition == "gbl" else TUNED_M1),
+        tuned_m1=copy.deepcopy(TUNED_M1),
         elo=dict(ELO),
     )

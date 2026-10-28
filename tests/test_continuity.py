@@ -1,4 +1,4 @@
-"""Returning-minutes share (docs/IDEAS.md #17): pure functions, no cache needed."""
+"""Returning-minutes share: pure functions, no cache needed."""
 
 import pandas as pd
 import pytest

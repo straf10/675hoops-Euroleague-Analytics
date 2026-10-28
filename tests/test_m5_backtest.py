@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from eurohoops.eval import m5_backtest
 from eurohoops.eval.m3_backtest import m1_margins_for
 from eurohoops.eval.m5_backtest import (
     Choice,
@@ -24,7 +23,6 @@ from eurohoops.eval.m5_backtest import (
     _Option,
     _prepare,
     _projected,
-    _segments,
     candidate_key,
     choose_candidate,
     format_m5_table,
@@ -249,29 +247,10 @@ def test_the_synthetic_league_exercises_the_rest_and_segment_machinery(
     report, _ = full_run
     segments = report["segments"]["tuning"]
     assert segments["short_rest_any"]["n"] > 0
-    assert segments["other_comp_prev_any"]["n"] > 0
+    assert segments["other_comp_prev_any"]["n"] == 0  # EuroLeague only: no other competition
     assert segments["early_rounds"]["n"] > 0
     assert segments["pan_oly"]["n"] == 0  # no PAN or OLY in the synthetic league
     assert segments["greek_after_other"]["n"] == 0
-
-
-def test_greek_segments_follow_the_greek_club_set(
-    inputs: M5Inputs, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    ctx = _prepare(inputs, SPEC)
-    mask = ctx.split["tuning"] & np.isfinite(ctx.m1.margin)
-    monkeypatch.setattr(m5_backtest, "GREEK_CLUBS", frozenset({"GRE"}))
-    segments = _segments(ctx, ctx.m1, mask)
-    rounds = ctx.frame["round"].to_numpy()
-    gre = (ctx.frame["home"] == "GRE") | (ctx.frame["away"] == "GRE")
-    assert segments["pan_oly"]["n"] == int((mask & gre.to_numpy()).sum()) > 0
-    # GRE follows its other-competition game by about a day in every even round
-    assert (
-        0
-        < segments["greek_after_other"]["n"]
-        <= int((mask & gre.to_numpy() & (rounds % 2 == 0)).sum())
-    )
-    assert segments["greek_after_other"]["n"] < segments["pan_oly"]["n"]
 
 
 # --- The gate --------------------------------------------------------------------------------
@@ -449,7 +428,7 @@ def test_the_rest_features_reach_the_harness(inputs: M5Inputs) -> None:
     names = ["days_rest", "short_rest", "games_last_7d", "other_comp_prev"]
     home = pd.DataFrame(ctx.rest_home, columns=names)
     assert set(home["short_rest"]) == {0.0, 1.0}
-    assert home["other_comp_prev"].sum() > 0
+    assert not home["other_comp_prev"].any()
     assert (ctx.rest_diff == ctx.rest_home - ctx.rest_away).all()
 
 
@@ -506,8 +485,8 @@ def test_choose_candidate_breaks_ties_toward_the_simpler_candidate() -> None:
 def test_a_fixed_choice_is_scored_as_given(
     inputs: M5Inputs, tuning_run: tuple[dict[str, Any], pd.DataFrame]
 ) -> None:
-    """J-g: the GBL scores the EuroLeague verdict. Fix a candidate the tuning did not choose,
-    with the opposite Platt and totals decisions, and check it is scored exactly as given."""
+    """A fixed choice is scored as given: a candidate the tuning did not choose, with the opposite
+    Platt and totals decisions, is reported as fixed and not gated."""
     tuned, _ = tuning_run
     winner = _choice(tuned)
     other_key = next(
@@ -523,7 +502,7 @@ def test_a_fixed_choice_is_scored_as_given(
     assert _choice(report) == fixed
     assert "EuroLeague verdict" in report["chosen"]["fixed"]
     assert "fixed" not in tuned["chosen"]  # an unfixed report keeps its format
-    assert report["gate"]["gated"] is False  # J-g: the GBL comparison is reported, not gated
+    assert report["gate"]["gated"] is False
     expected = predict_games(inputs, spec=SPEC, player_part=fake_player_part, choice=fixed)
     m5 = frame[(frame["model"] == "m5") & (frame["split"] == "tuning")]
     by_id = expected.set_index("game_id").loc[m5["game_id"]]

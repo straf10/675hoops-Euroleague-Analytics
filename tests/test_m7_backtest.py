@@ -16,9 +16,7 @@ import pandas as pd
 import pandera.errors
 import pytest
 from scipy import stats
-from typer.testing import CliRunner
 
-from eurohoops import cli
 from eurohoops.eval.m7_backtest import (
     BASELINES,
     ROW_COLUMNS,
@@ -127,11 +125,6 @@ def test_run() -> Run:
     return run(score_test=True)
 
 
-@pytest.fixture(scope="module")
-def gbl_run() -> Run:
-    return run(build_inputs("gbl"), fixed="sim_net")
-
-
 def csv_text(rows: pd.DataFrame, path: Path) -> bytes:
     rows.to_csv(path, index=False, lineterminator="\n")
     return path.read_bytes()
@@ -170,15 +163,7 @@ def test_the_tuning_numbers_do_not_depend_on_the_other_splits(
         assert report["chosen"] == tuning_run[0]["chosen"]
 
 
-def test_a_fixed_choice_scores_that_variant_and_is_not_gated(gbl_run: Run) -> None:
-    report, rows = gbl_run
-    assert report["competition"] == "gbl"
-    assert report["chosen"]["key"] == "sim_net"
-    assert "fixed" in report["chosen"]
-    assert report["model_version"] == "m7-sim_net-v1"
-    assert report["gate"]["gated"] is False
-    assert rows["p_top10"].isna().all()  # the GBL has no play-in
-    assert report["metrics"]["validation"]["sim_net"]["brier_top10"] is None
+def test_an_unknown_fixed_variant_is_an_error() -> None:
     with pytest.raises(ValueError, match="fixed variant"):
         run(fixed="point_sim")
 
@@ -224,7 +209,7 @@ def _winner(game: pd.Series) -> str:
     return str(game["home"] if game["home_score"] > game["away_score"] else game["away"])
 
 
-def test_the_champion_rule_follows_the_competition() -> None:
+def test_the_champion_rule_reads_the_final_phases() -> None:
     games = INPUTS.games[INPUTS.games["season"] == 2018]
     final_four = games[games["phase"] == "FF"].sort_values("tipoff_utc").iloc[-1]
     playoffs = games[games["phase"] == "PO"].sort_values("tipoff_utc").iloc[-1]
@@ -822,11 +807,3 @@ def test_m7_backtest_is_one_run_with_the_choice_and_the_report(
     assert [a.path for a in mlflow.MlflowClient().list_artifacts(run_id)] == [
         "backtest_m7_euroleague.json"
     ]
-
-
-def test_the_cli_refuses_a_tuning_only_gbl_run() -> None:
-    """The GBL scores the committed EuroLeague verdict, so it has nothing to do when tuning only."""
-    result = CliRunner().invoke(
-        cli.app, ["backtest", "--model", "m7", "--competition", "gbl", "--tuning-only"]
-    )
-    assert result.exit_code == 1

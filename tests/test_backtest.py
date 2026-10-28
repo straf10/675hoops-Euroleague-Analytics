@@ -43,7 +43,7 @@ SPEC = Backtest(
 
 @pytest.fixture
 def seasons() -> pd.DataFrame:
-    return make_games({s: True for s in range(2017, 2024)} | {2024: False}, gbl_like=True)
+    return make_games({s: True for s in range(2017, 2024)} | {2024: False})
 
 
 def test_sigma_is_the_tuning_residual_rms(seasons: pd.DataFrame) -> None:
