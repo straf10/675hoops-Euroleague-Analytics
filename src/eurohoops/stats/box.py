@@ -19,6 +19,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parallel import map_ordered
 from eurohoops.parse.possessions import box_possessions
 from eurohoops.parse.schemas import validated
 from eurohoops.parse.team_box import euroleague_lines
@@ -173,19 +174,25 @@ def game_lines(
     return players, team_rows
 
 
+def _box_item(item: tuple[Path, dict[Hashable, Any]]) -> Any:
+    """A game's box-score rows for a worker process, or the reason it has none."""
+    raw_dir, game = item
+    path = raw_dir / "boxscore" / f"E{game['season']}" / f"{game['game_code']}.json.gz"
+    if not path.exists():
+        return "no cached box score (ingest --details)"
+    return game_lines(json.loads(read_cached(path)), game)
+
+
 def build_box_games(raw_dir: Path, games: pd.DataFrame) -> BoxGames:
     """Every played, non-forfeit game in ``games`` (a games table) with a cached box score."""
     players: list[dict[str, Any]] = []
     teams: list[dict[str, Any]] = []
     missing: list[dict[str, Any]] = []
     rated = games[games["played"] & ~games["forfeit"]]
-    for game in rated.to_dict("records"):
-        path = raw_dir / "boxscore" / f"E{game['season']}" / f"{game['game_code']}.json.gz"
-        found = (
-            game_lines(json.loads(read_cached(path)), game)
-            if path.exists()
-            else "no cached box score (ingest --details)"
-        )
+    records = rated.to_dict("records")
+    # each game's box score is read and parsed in a worker; the rows keep the games' order
+    found_per_game = map_ordered(_box_item, [(raw_dir, game) for game in records])
+    for game, found in zip(records, found_per_game, strict=True):
         if isinstance(found, str):
             missing.append(
                 {"season": int(game["season"]), "game_id": str(game["game_id"]), "reason": found}

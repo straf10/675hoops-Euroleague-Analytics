@@ -32,6 +32,7 @@ from typing import Any, NamedTuple
 import pandas as pd
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parallel import map_ordered
 from eurohoops.parse.stints import QUARTERS
 from eurohoops.stats.box import seconds as box_seconds
 
@@ -333,19 +334,27 @@ def game_style(raw_dir: Path, season: int, game_code: str) -> GameStyle | None:
     return GameStyle(season=season, clutch=clutch, teams=team_games)
 
 
+def _style_item(item: tuple[Path, int, str, str]) -> tuple[str, GameStyle | None]:
+    """One game's style for a worker process: (game id, style or None)."""
+    raw_dir, season, game_code, game_id = item
+    return game_id, game_style(raw_dir, season, game_code)
+
+
 def game_styles(raw_dir: Path, games: pd.DataFrame) -> StyleIndex:
     """Every played EuroLeague game's style (one read per game) and the league totals per season."""
     by_game: dict[str, GameStyle] = {}
     seasons: dict[int, Totals] = defaultdict(Totals)
     played = games[games["played"] & ~games["forfeit"]]
-    for game in played.itertuples(index=False):
-        season = int(str(game.season))
-        style = game_style(raw_dir, season, str(game.game_code))
+    items = [
+        (raw_dir, int(str(game.season)), str(game.game_code), str(game.game_id))
+        for game in played.itertuples(index=False)
+    ]
+    for game_id, style in map_ordered(_style_item, items):
         if style is None:
             continue
-        by_game[str(game.game_id)] = style
+        by_game[game_id] = style
         for team in style.teams.values():
-            seasons[season].add_team(season, style.clutch, team)
+            seasons[style.season].add_team(style.season, style.clutch, team)
     return StyleIndex(games=by_game, seasons=dict(seasons))
 
 

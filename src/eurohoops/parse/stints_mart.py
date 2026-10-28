@@ -23,6 +23,7 @@ from typing import Any
 import pandas as pd
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parallel import map_ordered
 from eurohoops.parse.possessions import FT_WEIGHT, PossessionEnd, box_possessions, possession_ends
 from eurohoops.parse.stints import (
     CHECKS,
@@ -183,25 +184,35 @@ class StintsMart:
     not_cached: list[str]  # rated games without cached play-by-play or box score
 
 
+def _game_result(item: tuple[Path, str, int, int, tuple[str, str]]) -> GameResult | None:
+    """One game's stints and checks for a worker process; None without both cached files."""
+    raw_dir, game_id, season, code, teams = item
+    name = f"{code}.json.gz"
+    pbp_path = raw_dir / "playbyplay" / f"E{season}" / name
+    box_path = raw_dir / "boxscore" / f"E{season}" / name
+    if not (pbp_path.exists() and box_path.exists()):
+        return None
+    return game_stints(
+        game_id,
+        season,
+        json.loads(read_cached(pbp_path)),
+        json.loads(read_cached(box_path)),
+        teams,
+    )
+
+
 def build_stints_mart(raw_dir: Path, games: pd.DataFrame) -> StintsMart:
     """Stints and per-game checks of every rated EuroLeague game from 2011-12 with both files."""
     stint_rows: list[dict[str, Any]] = []
     check_rows: list[dict[str, Any]] = []
     not_cached: list[str] = []
-    for game_id, season, code, teams in _games(raw_dir, games):
-        name = f"{code}.json.gz"
-        pbp_path = raw_dir / "playbyplay" / f"E{season}" / name
-        box_path = raw_dir / "boxscore" / f"E{season}" / name
-        if not (pbp_path.exists() and box_path.exists()):
+    listed = _games(raw_dir, games)
+    # each game's files are read and its stints computed in a worker; rows keep the games' order
+    results = map_ordered(_game_result, [(raw_dir, *game) for game in listed])
+    for (game_id, season, _code, teams), result in zip(listed, results, strict=True):
+        if result is None:
             not_cached.append(game_id)
             continue
-        result = game_stints(
-            game_id,
-            season,
-            json.loads(read_cached(pbp_path)),
-            json.loads(read_cached(box_path)),
-            teams,
-        )
         for stint in result.stints:
             stint_rows.append(
                 {

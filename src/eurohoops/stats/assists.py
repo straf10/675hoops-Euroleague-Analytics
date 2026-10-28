@@ -29,6 +29,7 @@ from pathlib import Path
 import pandas as pd
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parallel import map_ordered
 from eurohoops.parse.stints import POINTS, Event, events
 
 ASSIST = "AS"
@@ -195,18 +196,26 @@ def assist_rows(log: Sequence[Event]) -> list[AssistRow]:
     return rows
 
 
+def _assists_item(item: tuple[Path, str, int, int]) -> tuple[str, list[AssistRow] | None]:
+    """A game's assist rows for a worker process: (game id, rows or None without a cached file)."""
+    raw_dir, game_id, season, code = item
+    path = raw_dir / "playbyplay" / f"E{season}" / f"{code}.json.gz"
+    if not path.exists():
+        return game_id, None
+    return game_id, assist_rows(events(json.loads(read_cached(path))))
+
+
 def game_assists(raw_dir: Path, games: pd.DataFrame) -> dict[str, list[AssistRow]]:
     """Game id -> its assist rows, for every game of ``games`` (game_id, season, game_code) with a
     cached play-by-play. Other games have no entry."""
-    out: dict[str, list[AssistRow]] = {}
-    for game_id, season, code in zip(
-        games["game_id"], games["season"], games["game_code"], strict=True
-    ):
-        path = raw_dir / "playbyplay" / f"E{int(season)}" / f"{int(code)}.json.gz"
-        if not path.exists():
-            continue
-        out[str(game_id)] = assist_rows(events(json.loads(read_cached(path))))
-    return out
+    items = [
+        (raw_dir, str(game_id), int(season), int(code))
+        for game_id, season, code in zip(
+            games["game_id"], games["season"], games["game_code"], strict=True
+        )
+    ]
+    found = map_ordered(_assists_item, items)
+    return {game_id: rows for game_id, rows in found if rows is not None}
 
 
 def assists_payload(
