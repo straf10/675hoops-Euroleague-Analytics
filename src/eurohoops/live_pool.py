@@ -1,12 +1,13 @@
 """Live POOL (EuroLeague only): an append-only, pre-tip-off shadow log of the equal-weight
-logarithmic pool of the four live forecasts (docs/models/pool.md).
+logarithmic pool of the four live forecasts (docs/models/pool.md). POOL3 (docs/models/pool3.md)
+is the same pool over ELOR, M1 and M5, written by ``predict_pool3``.
 
-The pool reads only the four component logs, at their pinned ``model_version`` (config
-``POOL_COMPONENTS``). A game gets a pool row only when all four components logged it, the four
-rows agree on the fixtures, the game has not tipped off by the time the row is written, and the
+The pool reads only its component logs, at their pinned ``model_version`` (config
+``POOL_COMPONENTS``). A game gets a pool row only when every component logged it, the rows
+agree on the fixtures, the game has not tipped off by the time the row is written, and the
 latest component stamp is strictly before tip-off. The pool row is stamped with that latest
-component stamp, so it never postdates a component. Nothing is written while
-``config.POOL_LIVE_ENABLED`` is False.
+component stamp, so it never postdates a component. Nothing is written while the model's
+``*_LIVE_ENABLED`` flag in config is False.
 """
 
 import csv
@@ -33,10 +34,10 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def pool_version() -> str:
+def pool_version(members: tuple[str, ...] = COMPONENTS, model: str = "pool") -> str:
     """The pool's ``model_version``: the package version and a hash of the pinned components."""
-    key = ";".join(f"{name}={config.POOL_COMPONENTS[name][1]}" for name in COMPONENTS)
-    return tagged_version("pool", key)
+    key = ";".join(f"{name}={config.POOL_COMPONENTS[name][1]}" for name in members)
+    return tagged_version(model, key)
 
 
 def read_component(path: Path, version: str) -> tuple[Rows, list[dict[str, str]]]:
@@ -67,9 +68,17 @@ def _stamp(text: str) -> datetime:
 
 
 def pool_rows(
-    components: Mapping[str, Rows], logged: set[tuple[str, str]], version: str, now: datetime
+    components: Mapping[str, Rows],
+    logged: set[tuple[str, str]],
+    version: str,
+    now: datetime,
+    *,
+    members: tuple[str, ...] = COMPONENTS,
+    model: str = "pool",
 ) -> tuple[list[dict[str, Any]], int, int]:
-    """Pool rows for every game all four components logged, not yet logged at ``version``.
+    """Pool rows for every game all ``members`` logged, not yet logged at ``version``.
+
+    The first member's log gives the games and their fixtures.
 
     ``now`` is the time the rows are written. A game whose tip-off is not after ``now`` is never
     pooled; those games are counted separately from the games skipped for a fixture disagreement
@@ -77,19 +86,19 @@ def pool_rows(
     of games already tipped off. The probabilities are computed from the 4-decimal values in the
     logs, so a row can be reproduced from the logs alone.
     """
-    elo = components["elo"]
+    base_rows = components[members[0]]
     rows: list[dict[str, Any]] = []
     skipped = 0
     past = 0
-    for game_id, base in elo.items():
+    for game_id, base in base_rows.items():
         if (game_id, version) in logged:
             continue
         if _stamp(base["tipoff_utc"]) <= now:
             past += 1
             continue
-        if any(game_id not in components[name] for name in COMPONENTS):
+        if any(game_id not in components[name] for name in members):
             continue
-        parts = [components[name][game_id] for name in COMPONENTS]
+        parts = [components[name][game_id] for name in members]
         fixture = (base["home"], base["away"], base["tipoff_utc"])
         if any((p["home"], p["away"], p["tipoff_utc"]) != fixture for p in parts):
             log.error("POOL: component rows disagree on the fixture of %s: not pooled", game_id)
@@ -112,7 +121,7 @@ def pool_rows(
                 "away": base["away"],
                 "p_home": f"{float(p_home):.4f}",
                 "exp_margin": f"{float(margin):.2f}",
-                "model": "pool",
+                "model": model,
                 "model_version": version,
                 "predicted_at_utc": stamp.strftime(TIME_FORMAT),
             }
@@ -126,18 +135,56 @@ def predict_pool(
     components: Mapping[str, tuple[Path, str]] | None = None,
     clock: Callable[[], datetime] = _utc_now,
 ) -> int:
-    """Append the pool rows that are due; return how many were written.
+    """Append the POOL rows that are due; return how many were written.
 
     Off unless ``config.POOL_LIVE_ENABLED`` is True (read at call time). Reads only the four
     component logs, so it never blocks or alters them. ``clock`` gives the write time.
     """
     if not config.POOL_LIVE_ENABLED:
         return 0
-    pins = config.POOL_COMPONENTS if components is None else components
+    return _append(
+        log_path=log_path,
+        members=COMPONENTS,
+        model="pool",
+        pins=config.POOL_COMPONENTS if components is None else components,
+        clock=clock,
+    )
+
+
+def predict_pool3(
+    *,
+    log_path: Path,
+    components: Mapping[str, tuple[Path, str]] | None = None,
+    clock: Callable[[], datetime] = _utc_now,
+) -> int:
+    """Append the POOL3 rows that are due (the pool of ELOR, M1 and M5); return how many.
+
+    Off unless ``config.POOL3_LIVE_ENABLED`` is True (read at call time). The same code path as
+    ``predict_pool``, over ``config.POOL3_MEMBERS``.
+    """
+    if not config.POOL3_LIVE_ENABLED:
+        return 0
+    return _append(
+        log_path=log_path,
+        members=config.POOL3_MEMBERS,
+        model="pool3",
+        pins=config.POOL_COMPONENTS if components is None else components,
+        clock=clock,
+    )
+
+
+def _append(
+    *,
+    log_path: Path,
+    members: tuple[str, ...],
+    model: str,
+    pins: Mapping[str, tuple[Path, str]],
+    clock: Callable[[], datetime],
+) -> int:
     now = clock()
-    version = pool_version()
+    version = pool_version(members, model)
     loaded: dict[str, Rows] = {}
-    for name in COMPONENTS:
+    for name in members:
         path, pinned = pins[name]
         component_rows, others = read_component(path, pinned)
         loaded[name] = component_rows
@@ -150,7 +197,9 @@ def predict_pool(
                 ", ".join(upcoming),
                 pinned,
             )
-    rows, skipped, past = pool_rows(loaded, logged_keys(log_path), version, now)
+    rows, skipped, past = pool_rows(
+        loaded, logged_keys(log_path), version, now, members=members, model=model
+    )
     if past:
         log.info("POOL: %d games already tipped off at %s: not logged", past, now)
     if skipped:

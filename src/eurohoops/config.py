@@ -137,6 +137,9 @@ class Competition:
     eloh_prediction_log: Path | None = (
         None  # live ELOH shadow log (EuroLeague only; see ELOH_LIVE_ENABLED)
     )
+    pool3_prediction_log: Path | None = (
+        None  # live POOL3 shadow log (EuroLeague only; see POOL3_LIVE_ENABLED)
+    )
     # Elo model inputs per logged prediction (docs/match_report.md, section 1); append-only
     inputs_log: Path | None = None
 
@@ -197,6 +200,7 @@ EUROLEAGUE = Competition(
     pool_prediction_log=Path("predictions/euroleague_pool_2026-27.csv"),
     m5inj_prediction_log=Path("predictions/euroleague_m5inj_2026-27.csv"),
     eloh_prediction_log=Path("predictions/euroleague_eloh_2026-27.csv"),
+    pool3_prediction_log=Path("predictions/euroleague_pool3_2026-27.csv"),
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
 )
 
@@ -214,6 +218,10 @@ POOL_COMPONENTS: dict[str, tuple[Path, str]] = {
     "m5": (Path("predictions/euroleague_m5_2026-27.csv"), "0.2.0+m5.d4848a7e"),
     "elor": (Path("predictions/euroleague_elor_2026-27.csv"), "0.2.0+elor.59b43f20"),
 }
+# POOL3 (docs/models/pool3.md): the equal-weight logarithmic pool of ELOR, M1 and M5 (the pinned
+# components above), switched on at merge after the owner declared it on the 2026-10-28 screen.
+POOL3_LIVE_ENABLED = True
+POOL3_MEMBERS: tuple[str, ...] = ("elor", "m1", "m5")
 
 
 @dataclass(frozen=True)

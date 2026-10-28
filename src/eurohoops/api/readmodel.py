@@ -55,6 +55,7 @@ from eurohoops.config import (
     M7_V2,
     MART_PATH,
     PLAYER_XWALK_FILE,
+    POOL3_LIVE_ENABLED,
     SIM_UNGATED,
     SITE_FORECAST_MODEL,
     WP_REPORT,
@@ -361,6 +362,7 @@ FORECAST_MODELS = {
     "elor": "Roster Elo (trial)",
     "m5inj": "M5 + injuries (trial)",
     "eloh": "Elo + team home court (trial)",
+    "pool3": "Pool of ELOR, M1, M5 (trial)",
     "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line
 }
 
@@ -406,6 +408,9 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         else None,
                         "eloh": _path_or_none(store, comp.eloh_prediction_log)
                         if ELOH_LIVE_ENABLED
+                        else None,
+                        "pool3": _path_or_none(store, comp.pool3_prediction_log)
+                        if POOL3_LIVE_ENABLED
                         else None,
                     },
                     FORECAST_MODELS,

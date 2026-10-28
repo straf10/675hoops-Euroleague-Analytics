@@ -48,6 +48,7 @@ from eurohoops.config import (
     ODDS_CALLS,
     ODDS_RAW_DIR,
     ODDS_TEAMS,
+    POOL3_LIVE_ENABLED,
     SIM_LATEST,
     SIM_LOG,
     SIM_UNGATED,
@@ -78,7 +79,7 @@ from eurohoops.live_m6 import (
     projections_report,
     similarity_report,
 )
-from eurohoops.live_pool import predict_pool
+from eurohoops.live_pool import predict_pool, predict_pool3
 from eurohoops.live_sim import (
     LIVE_SIMS,
     latest_report,
@@ -378,6 +379,18 @@ def _predict_pool(log_path: Path | None) -> None:
         log.exception("POOL skipped: nothing appended to its log")
 
 
+def _predict_pool3(log_path: Path | None) -> None:
+    """POOL3: reads the ELOR, M1 and M5 logs only; off while POOL3_LIVE_ENABLED is False."""
+    if log_path is None:
+        return
+    try:
+        added = predict_pool3(log_path=log_path)
+        if added:
+            typer.echo(f"{added} POOL3 predictions appended to {log_path}")
+    except Exception:  # a shadow model never blocks the Elo, M1 or ELOR logs
+        log.exception("POOL3 skipped: nothing appended to its log")
+
+
 def predict(
     round_lead_hours: Annotated[
         float, typer.Option(help="Log every round whose first tip-off is within this many hours")
@@ -461,6 +474,7 @@ def predict(
         _predict_eloc(live.games, live.season, comp, round_lead_hours)
         _predict_eloh(live, comp, round_lead_hours)
         _predict_pool(comp.pool_prediction_log)
+        _predict_pool3(comp.pool3_prediction_log if POOL3_LIVE_ENABLED else None)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc
@@ -640,6 +654,7 @@ def score() -> None:
         elor_log_path=comp.elor_prediction_log,
         m5inj_log_path=comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
         eloh_log_path=comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
+        pool3_log_path=comp.pool3_prediction_log if POOL3_LIVE_ENABLED else None,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))

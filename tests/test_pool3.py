@@ -1,5 +1,6 @@
-"""POOL3 screen (experiments/pool3.md): member selection, the game set, the Elo-ELOR rule and the
-two matrices. Fixtures in tests/fixtures/pool3/ (games G1-G7, four member logs)."""
+"""POOL3 (experiments/pool3.md, docs/models/pool3.md): the screen's member selection, game set,
+Elo-ELOR rule and matrices (fixtures in tests/fixtures/pool3/), and the live shadow's pooling,
+gate, files and no-lookahead rule."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -8,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from eurohoops import config, live_pool
 from eurohoops.eval.pool3 import (
     MEMBERS,
     RULE_THRESHOLD,
@@ -17,7 +19,9 @@ from eurohoops.eval.pool3 import (
     screen,
 )
 from eurohoops.eval.scorecard import read_log
-from eurohoops.models.pool import logit
+from eurohoops.logs import append_rows
+from eurohoops.models.pool import logit, pool_probabilities
+from eurohoops.predict import LOG_COLUMNS
 
 FIXTURES = Path(__file__).parent / "fixtures" / "pool3"
 ELO_V = "0.2.0+425e6393"
@@ -122,3 +126,161 @@ def test_no_common_games_gives_no_rule_value() -> None:
     assert report["rule"]["value"] is None
     assert report["rule"]["declared"] is False
     assert report["mean_log_loss"] == {}
+
+
+# -- POOL3 live shadow (docs/models/pool3.md): the POOL code path over ELOR, M1 and M5 -----------
+
+LIVE_NOW = datetime(2026, 10, 18, 12, 0, tzinfo=UTC)  # the write time: before TIP, after stamps
+TIP = "2026-10-20T17:00:00Z"
+MEMBERS3 = ("elor", "m1", "m5")
+PROBS3 = {"elor": 0.6, "m1": 0.7, "m5": 0.8}
+
+
+def _live_row(
+    game_id: str, version: str, p: float, stamp: str, *, tip: str = TIP
+) -> dict[str, str]:
+    return {
+        "game_id": game_id,
+        "season": "2026",
+        "round": "7",
+        "phase": "RS",
+        "tipoff_utc": tip,
+        "home": "BAR",
+        "away": "MAD",
+        "p_home": f"{p:.4f}",
+        "exp_margin": "2.00",
+        "model": "x",
+        "model_version": version,
+        "predicted_at_utc": stamp,
+    }
+
+
+def _game(
+    game_id: str, stamp: str, probs: dict[str, float], tip: str = TIP
+) -> dict[str, list[dict[str, str]]]:
+    return {name: [_live_row(game_id, f"v-{name}", p, stamp, tip=tip)] for name, p in probs.items()}
+
+
+def _merge(*parts: dict[str, list[dict[str, str]]]) -> dict[str, list[dict[str, str]]]:
+    merged: dict[str, list[dict[str, str]]] = {}
+    for part in parts:
+        for name, rows in part.items():
+            merged.setdefault(name, []).extend(rows)
+    return merged
+
+
+def _components(rows_by_name: dict[str, list[dict[str, str]]]) -> dict[str, live_pool.Rows]:
+    return {name: {r["game_id"]: r for r in rows_by_name.get(name, [])} for name in MEMBERS3}
+
+
+def _pins(tmp_path: Path, rows_by_name: dict[str, list[dict[str, str]]]) -> dict:
+    pins = {}
+    for name in MEMBERS3:
+        path = tmp_path / f"{name}.csv"
+        append_rows(path, LOG_COLUMNS, rows_by_name.get(name, []))
+        pins[name] = (path, f"v-{name}")
+    return pins
+
+
+def test_pool3_is_declared_live_on_elor_m1_m5_with_its_own_log() -> None:
+    assert config.POOL3_LIVE_ENABLED is True
+    assert config.POOL3_MEMBERS == ("elor", "m1", "m5")
+    assert config.EUROLEAGUE.pool3_prediction_log == Path(
+        "predictions/euroleague_pool3_2026-27.csv"
+    )
+
+
+def test_pool3_is_the_equal_weight_pool_of_its_three_members_and_not_elo() -> None:
+    rows = _game("E1", "2026-10-19T10:00:00Z", {**PROBS3, "elo": 0.9})
+    out, skipped, _ = live_pool.pool_rows(
+        _components(rows), set(), "v-pool3", LIVE_NOW, members=MEMBERS3, model="pool3"
+    )
+    expected = pool_probabilities(np.array([[0.6, 0.7, 0.8]]))[0]
+    assert skipped == 0 and len(out) == 1
+    assert float(out[0]["p_home"]) == pytest.approx(round(expected, 4), abs=1e-4)
+    assert out[0]["model"] == "pool3"
+
+
+def test_pool3_needs_all_three_members() -> None:
+    rows = _game("E1", "2026-10-19T10:00:00Z", {"elor": 0.6, "m1": 0.7, "elo": 0.9})
+    out, _, _ = live_pool.pool_rows(
+        _components(rows), set(), "v-pool3", LIVE_NOW, members=MEMBERS3, model="pool3"
+    )
+    assert out == []  # no M5 row: the game is not pooled
+
+
+def test_pool3_component_stamped_at_or_after_tipoff_excludes_the_game() -> None:
+    rows = _merge(
+        _game("E1", "2026-10-19T10:00:00Z", {"elor": 0.6, "m1": 0.7}),
+        _game("E1", TIP, {"m5": 0.8}),  # M5 stamped exactly at tip-off
+    )
+    out, skipped, _ = live_pool.pool_rows(
+        _components(rows), set(), "v-pool3", LIVE_NOW, members=MEMBERS3, model="pool3"
+    )
+    assert out == [] and skipped == 1
+
+
+def test_pool3_version_is_tagged_pool3_and_depends_on_its_members() -> None:
+    version = live_pool.pool_version(MEMBERS3, "pool3")
+    assert "+pool3." in version
+    assert version != live_pool.pool_version()
+
+
+def test_pool3_disabled_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "POOL3_LIVE_ENABLED", False)
+    pins = _pins(tmp_path, _game("E1", "2026-10-19T10:00:00Z", PROBS3))
+    target = tmp_path / "pool3.csv"
+    assert live_pool.predict_pool3(log_path=target, components=pins, clock=lambda: LIVE_NOW) == 0
+    assert not target.exists()
+
+
+def test_pool3_enabled_appends_once_and_is_idempotent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config, "POOL3_LIVE_ENABLED", True)
+    pins = _pins(tmp_path, _game("E1", "2026-10-19T10:00:00Z", PROBS3))
+    target = tmp_path / "pool3.csv"
+
+    def run() -> int:
+        return live_pool.predict_pool3(log_path=target, components=pins, clock=lambda: LIVE_NOW)
+
+    assert run() == 1
+    assert run() == 0
+    written = pd.read_csv(target, dtype={"game_id": str})
+    assert list(written.columns) == list(LOG_COLUMNS)
+    assert written["model"].tolist() == ["pool3"]
+    assert written["model_version"].tolist() == [live_pool.pool_version(MEMBERS3, "pool3")]
+
+
+def test_pool3_no_lookahead_a_later_game_changes_no_earlier_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config, "POOL3_LIVE_ENABLED", True)
+    early = _game("E1", "2026-10-19T10:00:00Z", PROBS3)
+    pins = _pins(tmp_path, early)
+    target = tmp_path / "pool3.csv"
+    assert live_pool.predict_pool3(log_path=target, components=pins, clock=lambda: LIVE_NOW) == 1
+    before = target.read_bytes()
+    alone, _, _ = live_pool.pool_rows(
+        _components(early), set(), "v-pool3", LIVE_NOW, members=MEMBERS3, model="pool3"
+    )
+
+    # E2 (tip-off 2026-10-24) is logged by all three members later, with extreme probabilities.
+    later = _game(
+        "E2", "2026-10-22T10:00:00Z", {"elor": 0.99, "m1": 0.01, "m5": 0.95}, "2026-10-24T17:00:00Z"
+    )
+    both, _, _ = live_pool.pool_rows(
+        _components(_merge(early, later)),
+        set(),
+        "v-pool3",
+        LIVE_NOW,
+        members=MEMBERS3,
+        model="pool3",
+    )
+    assert [r for r in both if r["game_id"] == "E1"] == alone
+
+    for name in MEMBERS3:
+        append_rows(pins[name][0], LOG_COLUMNS, later[name])
+    clock = datetime(2026, 10, 22, 12, tzinfo=UTC)
+    assert live_pool.predict_pool3(log_path=target, components=pins, clock=lambda: clock) == 1
+    assert target.read_bytes().startswith(before)  # the earlier row is untouched on disk

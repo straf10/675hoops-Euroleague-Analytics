@@ -356,6 +356,7 @@ def build_scorecard(
     elor_log_path: Path | None = None,
     m5inj_log_path: Path | None = None,
     eloh_log_path: Path | None = None,
+    pool3_log_path: Path | None = None,
 ) -> dict[str, Any]:
     """Score logged games that have finished; a missing log or no finished games gives n=0.
 
@@ -400,5 +401,10 @@ def build_scorecard(
         ),
         **(
             {} if eloh_log_path is None else {"eloh": trial_section(eloh_log_path, games, headline)}
+        ),
+        **(
+            {}
+            if pool3_log_path is None
+            else {"pool3": trial_section(pool3_log_path, games, headline)}
         ),
     }
