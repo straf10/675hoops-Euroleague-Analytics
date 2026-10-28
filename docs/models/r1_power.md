@@ -49,19 +49,10 @@ Marginal = first promotion at that look. Cumulative = promotion by season end. N
 | 0 (null) | 0.013 | 0.010 / 0.022 | 0.016 | 0.018 / 0.034 |
 
 
-| True gap | Analytic: round 13 | Analytic: season end (marginal / cumulative) | Simulation: round 13 | Simulation: season end (marginal / cumulative) |
-|---|---|---|---|---|
-| −0.003 | 0.016 | 0.014 / 0.030 | 0.007 | 0.009 / 0.016 |
-| −0.005 | 0.019 | 0.017 / 0.037 | 0.010 | 0.013 / 0.022 |
-| −0.010 | 0.029 | 0.031 / 0.060 | 0.018 | 0.027 / 0.045 |
-| −0.020 | 0.062 | 0.080 / 0.142 | 0.054 | 0.085 / 0.139 |
-| 0 (null) | 0.013 | 0.009 / 0.022 | 0.007 | 0.004 / 0.011 |
-
 Sensitivity (analytic, cumulative by season end, true gap −0.01): EuroLeague with validation SD 0.1264 gives 0.270; pooled SD 0.1368 gives 0.235.
 
 **Reading the numbers.**
 - EuroLeague: a true gap of −0.01 gives about a 1-in-4 chance of promotion by season end. At −0.02 it is about 0.7.
-Round 13 has little power: 91 games give a mean SE of 0.028.
 - The analytic and simulated values agree for EuroLeague at gaps of −0.01 and −0.02, and differ at small gaps.
 
 **Simulation vs analytic.** The simulated null rate is above nominal, and the simulation promotes more often than the analytic at small gaps.
