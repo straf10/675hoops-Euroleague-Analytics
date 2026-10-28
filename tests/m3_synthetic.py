@@ -1,8 +1,8 @@
 """Synthetic EuroLeague-like seasons with known player RAPM ratings (week 9-12 H1).
 
-Used by the recovery test (``test_rapm.py``), the leakage tests and the benchmark script
-(``scripts/bench_m3_rapm.py``); kept general so subagents E and F (``rapm_dummy``, ``rapm_spm``)
-can reuse it for their own tests instead of writing a second generator.
+Used by the recovery test (``test_rapm.py``) and the leakage tests; kept general so subagents E
+and F (``rapm_dummy``, ``rapm_spm``) can reuse it for their own tests instead of writing a second
+generator.
 
 Each player keeps one true offensive and one true defensive rating for the player's whole
 synthetic career (whatever teams or seasons he appears in), so a recovered RAPM rating can be

@@ -285,8 +285,8 @@ def solve_dummy_cutoff(
     ``rapm.DecayedRidgeSparse`` and its own ``aggregated_system`` use) turned out faster here
     than relabelling ``base_gram``'s (row, col) triplets by ``col_map`` and letting ``coo_matrix``
     deduplicate them -- an equally correct alternative that looks like it should avoid the
-    matmul, but costs more in practice at this scale (measured with H6's own benchmark, ``scripts
-    /bench_m3_rapm_dummy.py``: ~1.6x slower, because ``base_gram`` accumulates several million
+    matmul, but costs more in practice at this scale (measured with H6's own benchmark, since
+    removed: ~1.6x slower, because ``base_gram`` accumulates several million
     nonzeros over a full walk-forward and deduplicating that many triplets by sort costs more
     than SciPy's CSR-CSR multiply does)."""
     col_map = threshold_map(dummy, decayed_minutes, threshold_minutes)
