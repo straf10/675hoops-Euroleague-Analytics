@@ -233,6 +233,48 @@ export const MEASURES: Measure[] = [
     },
     qualifies: TEN_A_GAME,
   },
+  // Win Shares: season totals (the rate does not apply). DWS rests on box-score proxies.
+  {
+    key: "ws",
+    head: "WS",
+    name: "Win Shares",
+    about: "Wins his box-score production adds to his team, a season total: OWS + DWS",
+    kind: "fixed",
+    digits: 1,
+    value: (t) => t.ws ?? null,
+    qualifies: TEN_A_GAME,
+  },
+  {
+    key: "ows",
+    head: "OWS",
+    name: "Offensive win shares",
+    about: "Wins from scoring and creating above a replacement player, a season total",
+    kind: "fixed",
+    digits: 1,
+    value: (t) => t.ows ?? null,
+    qualifies: TEN_A_GAME,
+  },
+  {
+    key: "dws",
+    head: "DWS",
+    name: "Defensive win shares",
+    about: "Wins from defence above a replacement player, a season total. Built from box-score stops, the weakest part of Win Shares.",
+    kind: "fixed",
+    digits: 1,
+    value: (t) => t.dws ?? null,
+    qualifies: TEN_A_GAME,
+  },
+  {
+    key: "ws40",
+    head: "WS/40",
+    name: "Win shares per 40 minutes",
+    about: "Win shares for every 40 minutes on court: WS / MIN × 40",
+    kind: "fixed",
+    digits: 2,
+    // Re-derived from the summed WS and minutes: a career's per-club WS/40 values do not add up.
+    value: (t) => (t.sec > 0 && t.ws !== undefined ? (2400 * t.ws) / t.sec : null),
+    qualifies: TEN_A_GAME,
+  },
   {
     key: "rapm",
     head: "RAPM",
@@ -266,7 +308,7 @@ export const BY_KEY = Object.fromEntries(MEASURES.map((m) => [m.key, m]));
 const SETS: Record<ColumnSet, string[]> = {
   box: ["gp", "min", "pts", "reb", "ast", "stl", "blk", "tov", "pir", "pm"],
   shooting: ["fga", "fg_pct", "fg2_pct", "fg3a", "fg3_pct", "fta", "ft_pct", "efg", "ts", "usg"],
-  advanced: ["net", "ast_tov", "ast_pct", "reb_pct", "rapm"],
+  advanced: ["net", "ast_tov", "ast_pct", "reb_pct", "ws", "ows", "dws", "ws40", "rapm"],
 };
 
 /** On a phone each set sheds into two groups (GROUPS.players in lib/cols.ts, same order). The

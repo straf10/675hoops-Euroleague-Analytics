@@ -148,3 +148,15 @@ fit_home_effects
 fit_to_json
 TeamEffect.mean_residual
 TeamEffect.sampling_var
+
+# Win Shares (stats/win_shares.py): the points-per-win fit and the team-sum check run from
+# scripts/fit_points_per_win.py and tests only.
+from eurohoops.stats.win_shares import (  # noqa: E402
+    fit_points_per_win,
+    team_check,
+    team_seasons_regular,
+)
+
+fit_points_per_win
+team_check
+team_seasons_regular
