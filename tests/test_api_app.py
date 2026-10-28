@@ -238,12 +238,11 @@ def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dic
     )
 
 
-@pytest.mark.parametrize("from_cache", [True, False], ids=["from-cache", "marts"])
-def test_stats_responses_are_the_bytes_write_stats_writes(
-    finished_root: Path, tmp_path: Path, from_cache: bool
-) -> None:
-    client = make_client(finished_root, from_cache=from_cache, now=STATS_NOW)
-    written = tmp_path / "written"
+@pytest.fixture(scope="module")
+def independent_written(finished_root: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The stats files the independent builder writes for the finished tree (both parameters
+    read them; neither writes into them)."""
+    written = tmp_path_factory.mktemp("independent") / "written"
     write_stats(
         written,
         _independent_stats(
@@ -252,6 +251,15 @@ def test_stats_responses_are_the_bytes_write_stats_writes(
             finished_root / "reports" / "backtest_elo_history.json",
         ),
     )
+    return written
+
+
+@pytest.mark.parametrize("from_cache", [True, False], ids=["from-cache", "marts"])
+def test_stats_responses_are_the_bytes_write_stats_writes(
+    finished_root: Path, independent_written: Path, from_cache: bool
+) -> None:
+    client = make_client(finished_root, from_cache=from_cache, now=STATS_NOW)
+    written = independent_written
     paths = sorted(p.relative_to(written).as_posix() for p in written.rglob("*.json"))
     assert "coaches/seasons.json" in paths
     assert client.get("/stats").json()["files"] == paths and len(paths) == 39
