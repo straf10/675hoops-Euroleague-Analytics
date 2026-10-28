@@ -265,9 +265,9 @@ Half court drawn in Axis hairlines on Chart Surface, basket at the top. Pointy-t
 
 Marks are clipped to the floor inside the sideline and baseline hairlines, and the backboard and rim are drawn above them so the basket stays legible under the busiest cells. On phones a distance table's range ("under 1.5 m") drops under the band name so Diff stays in view.
 
-Shared by the player, team and Shots pages (`lib/court.ts`, `styles/stats.css`), in three layers:
+Shared by the player and team pages (`lib/court.ts`, `styles/stats.css`), in three layers:
 - **FG% against the league** (above). On a team's **Allowed** chart the scale flips, so orange always means good for that club: orange where opponents shoot worse than the league. Its key is drawn in the flipped order.
-- **Frequency** (Shots explorer): the same hexes, coloured by how often the cell was used in five steps of one orange ramp (tokens `freq-1` to `freq-5`, validated as an ordinal ramp in both themes; on night the ramp brightens toward "most").
+- **Frequency**: the same hexes, coloured by how often the cell was used in five steps of one orange ramp (tokens `freq-1` to `freq-5`, validated as an ordinal ramp in both themes; on night the ramp brightens toward "most").
 - **Attempts**: one mark per shot, a filled Accent Orange dot for a make and a Counter Blue × for a miss, so shape carries the outcome too (the player page's default view; `lib/shotmarks.ts`).
 
 Seasons before 2011-12 carry a one-line caveat under the chart; they are never hidden.
