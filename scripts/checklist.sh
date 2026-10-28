@@ -166,8 +166,8 @@ skip 52 "simulate dry run" || {
   res $?
 }
 skip 54 "M6 units + facts" || {
-  item "54 M6 unit tests (player seasons, projection, aging, board, similarity, live), section 3 facts, Twin unchanged"
-  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m6_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_player_seasons.py tests/test_projection.py tests/test_aging.py tests/test_board.py tests/test_player_similarity.py tests/test_m6_backtest.py tests/test_live_m6.py tests/test_stats.py 2>&1 | tail -1
+  item "54 M6 unit tests (player seasons, projection, aging, similarity, live), section 3 facts, Twin unchanged"
+  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m6_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_player_seasons.py tests/test_projection.py tests/test_aging.py tests/test_player_similarity.py tests/test_m6_backtest.py tests/test_live_m6.py tests/test_stats.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
 skip 55 "M6 leakage" || {

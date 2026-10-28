@@ -34,12 +34,6 @@ from eurohoops.models.m5 import p_cover, p_over  # noqa: E402
 p_over
 p_cover
 
-# weeks 16-18 C: the over/under board (L3) is called by the report writer and the L9 live run
-from eurohoops.models.board import RetentionBacktest, retention_backtest  # noqa: E402
-
-retention_backtest
-RetentionBacktest.contrast_z  # read by the report writer and the board test
-
 # weeks 16-18 D: the "plays like" search; self_retrieval_rate is the embedding's own check
 from eurohoops.models.similarity import self_retrieval_rate  # noqa: E402
 

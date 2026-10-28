@@ -26,7 +26,6 @@ from eurohoops.cli.backtest import (
     _live_names,
     _m2_shots,
     _m5_inputs,
-    _m6_board,
     _m6_inputs,
     _m6_similar,
     _m6_translations,
@@ -45,7 +44,6 @@ from eurohoops.config import (
     M5,
     M5INJ_LIVE_ENABLED,
     M6,
-    M6_BOARD,
     M6_GBL,
     M6_PROJECTIONS,
     M6_SIMILARITY,
@@ -76,7 +74,6 @@ from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import LiveM5, live_spec, load_m5, predict_upcoming_m5
 from eurohoops.live_m5inj import predict_upcoming_m5inj
 from eurohoops.live_m6 import (
-    board_report,
     inputs_digest,
     live_checkpoint,
     live_people,
@@ -152,14 +149,14 @@ def project(
     projections_only: Annotated[
         bool,
         typer.Option(
-            help="Only reports/m6_projections.json: the board and the comparables need the local "
-            "M2 shot marts (the daily workflow)"
+            help="Only reports/m6_projections.json: the comparables need the local M2 shot marts "
+            "(the daily workflow)"
         ),
     ] = False,
 ) -> None:
     """Live M6 (weeks 16-18 L9): the 2026-27 projections and the GBL undervalued list
-    (reports/m6_projections.json), the over/under board (m6_board.json) and the "plays like"
-    lists (m6_similarity.json). Runs only when the EuroLeague M6 gate passed (L-l)."""
+    (reports/m6_projections.json) and the "plays like" lists (m6_similarity.json). Runs only
+    when the EuroLeague M6 gate passed (L-l)."""
     started = time.perf_counter()
     specs = ((EUROLEAGUE, M6), (GBL, M6_GBL))
     if not all(spec.report.exists() for _, spec in specs):
@@ -215,13 +212,6 @@ def project(
         m3_seasons = json.loads(M3_PLAYERS_REPORT.read_text(encoding="utf-8"))["seasons"]
         season = max(int(s) for s in m3_seasons)  # D23: the newest complete season
         shots, xpts, variant = _m2_shots(season)
-        rows, stabilities = _m6_board(world, season, shots, xpts, variant)
-        done = world.complete[world.complete["season"] == season]
-        teams = {
-            (str(p), str(c)): str(t)
-            for p, c, t in zip(done["person_id"], done["competition"], done["team"], strict=True)
-        }
-        payloads[M6_BOARD] = board_report(rows, stabilities, season, names, teams)
         people = sorted({p["person_id"] for p in players})
         similar, pool, shot_features = _m6_similar(world, people, season, shots, xpts, variant)
         payloads[M6_SIMILARITY] = similarity_report(

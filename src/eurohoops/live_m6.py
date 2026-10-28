@@ -48,7 +48,6 @@ from eurohoops.eval.m6_backtest import (
     scale_intervals,
 )
 from eurohoops.live_sim import completed_rounds
-from eurohoops.models.board import DIMENSIONS, LABELS, UNLABELLED, Stability
 from eurohoops.models.player_seasons import COUNT_STATS, PROJECTED_STATS, person_ids
 from eurohoops.models.projection import Translation
 from eurohoops.models.similarity import BOX_FEATURES, SHOT_FEATURES
@@ -314,60 +313,6 @@ def projections_report(
         "stats": list(PROJECTED_STATS),
         "players": players,
         "undervalued": undervalued_rows,
-    }
-
-
-def board_report(
-    rows: pd.DataFrame,
-    stabilities: Mapping[str, Stability],
-    season: int,
-    names: Mapping[str, str],
-    teams: Mapping[tuple[str, str], str],
-) -> dict[str, Any]:
-    """``reports/m6_board.json``: each dimension's stability, ``n_min`` and k, and the
-    ``BOARD_SCHEMA`` rows with name and team, and the number of rows per label (spaces in a
-    label become underscores; on/off has none)."""
-    dims = {}
-    for dim in DIMENSIONS:
-        if dim not in stabilities:
-            continue
-        stab = stabilities[dim]
-        k = None if not 0.0 < stab.r < 1.0 else stab.mean_n * (1.0 - stab.r) / stab.r
-        dims[dim] = {
-            "stability": round_finite(stab.r, DIGITS),
-            "pairs": stab.pairs,
-            "n_min": stab.n_min,
-            "labelled": dim not in UNLABELLED,
-            "k": None if k is None else round_finite(k, DIGITS),
-        }
-    out = []
-    for r in rows.to_dict("records"):
-        key = (str(r["person_id"]), str(r["competition"]))
-        out.append(
-            {
-                **{
-                    k: (round_finite(v, DIGITS) if isinstance(v, float) else v)
-                    for k, v in r.items()
-                },
-                "season": int(r["season"]),
-                "name": names.get(key[0], key[0]),
-                "team": teams.get(key, ""),
-            }
-        )
-    counts = {
-        dim: {
-            label.replace(" ", "_"): sum(r["dimension"] == dim and r["label"] == label for r in out)
-            for label in LABELS
-        }
-        for dim in dims
-        if dim not in UNLABELLED
-    }
-    return {
-        "model": "m6",
-        "season": season,
-        "dimensions": dims,
-        "label_counts": counts,
-        "rows": out,
     }
 
 
