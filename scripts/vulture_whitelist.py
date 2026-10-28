@@ -143,3 +143,9 @@ from eurohoops.eval.pool_c import apply_c, fit_c, paired_gap  # noqa: E402
 apply_c
 fit_c
 paired_gap
+
+# POOL3 screen (experiments/pool3.md): diagnostic, run by scripts/diag_pool3.py, not the pipeline
+from eurohoops.eval.pool3 import member_rows, screen  # noqa: E402
+
+member_rows
+screen
