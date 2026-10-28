@@ -156,9 +156,20 @@ def test_cross_origin_policy_per_path(rules: dict[str, dict[str, str]]) -> None:
 
 
 def test_existing_security_headers_are_unchanged(rules: dict[str, dict[str, str]]) -> None:
-    assert rules["/*"]["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
+    assert (
+        rules["/*"]["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains; preload"
+    )
     assert rules["/*"]["X-Content-Type-Options"] == "nosniff"
     assert rules["/*"]["X-Frame-Options"] == "DENY"
     assert rules["/*"]["Referrer-Policy"] == "strict-origin-when-cross-origin"
     assert rules["/data/*"]["X-Robots-Tag"] == "noindex"
     assert rules["/api/*"]["X-Robots-Tag"] == "noindex"
+
+
+def test_hsts_meets_the_preload_list_requirements(rules: dict[str, dict[str, str]]) -> None:
+    """hstspreload.org needs max-age of at least one year, includeSubDomains and preload."""
+    directives = [d.strip() for d in rules["/*"]["Strict-Transport-Security"].split(";")]
+    max_age = int(next(d for d in directives if d.startswith("max-age=")).split("=")[1])
+    assert max_age >= 31536000
+    assert "includeSubDomains" in directives
+    assert "preload" in directives
