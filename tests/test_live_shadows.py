@@ -3,13 +3,13 @@ their gates (flags, missing inputs), what they pass on, what they print, and tha
 shadow never blocks the run. ELOH and ELOC run their real forecast on the small synthetic league;
 M5-INJ, POOL and POOL3 are checked as wiring, since their row logic has its own tests.
 
-Every shadow log points at ``tmp_path``. The autouse guard below fails any test that changes a
-file under the repo's ``predictions/`` (rule 1: logs are append-only)."""
+Every shadow log points at ``tmp_path``. The autouse guard (tests/prediction_guard.py)
+fails any test that changes a file under the repo's ``predictions/`` (rule 1: append-only)."""
 
 import dataclasses
 import json
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -25,7 +25,7 @@ from eurohoops.config import ELOC_CV, EUROLEAGUE, Competition
 from eurohoops.models.elo_cal import Calibration
 from eurohoops.predict import LatePredictionError
 from tests import eloc_synthetic as syn
-from tests.conftest import REPO
+from tests.prediction_guard import real_prediction_logs_untouched  # noqa: F401
 
 SEASON = 2011
 LAST_ROUND = 14
@@ -36,24 +36,6 @@ ELOC_REPORT = {
     "live_fit": {"a": 0.25, "b": 0.7, "games": 1200, "iterations": 4},
     "shadow_criteria": {"all": False},
 }
-
-
-def _predictions_state() -> dict[str, tuple[int, int]]:
-    """Size and mtime of every file in the repo's predictions/ (stat only, nothing is read)."""
-    state = {}
-    for path in (REPO / "predictions").iterdir():
-        if path.is_file():
-            info = path.stat()
-            state[path.name] = (info.st_size, info.st_mtime_ns)
-    return state
-
-
-@pytest.fixture(autouse=True)
-def real_prediction_logs_untouched() -> Iterator[None]:
-    """Fails the test if any file under the repo's predictions/ is added, removed or changed."""
-    before = _predictions_state()
-    yield
-    assert _predictions_state() == before
 
 
 @pytest.fixture
