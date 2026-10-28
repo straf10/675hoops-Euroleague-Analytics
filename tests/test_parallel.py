@@ -27,3 +27,15 @@ def test_results_keep_the_input_order_in_worker_processes(monkeypatch: pytest.Mo
 def test_a_few_items_run_in_process(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(parallel.WORKERS_ENV, "4")
     assert parallel.map_ordered(operator.neg, [1, 2]) == [-1, -2]
+
+
+def test_both_pools_use_the_spawn_start_method() -> None:
+    # fork (Linux's default) can deadlock once numpy's BLAS or sklearn has started threads
+    own = parallel._new_pool(2)
+    try:
+        assert own._mp_context.get_start_method() == "spawn"
+    finally:
+        own.shutdown()
+    shared = parallel._shared_pool(2)
+    assert shared._mp_context.get_start_method() == "spawn"
+    assert parallel._SHARED is not None  # the shared pool is shut down at exit, once registered

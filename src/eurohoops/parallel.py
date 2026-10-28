@@ -10,6 +10,7 @@ state a worker needs (a fitted model) comes from ``initializer``, run once per w
 """
 
 import atexit
+import multiprocessing
 import os
 from collections.abc import Callable, Hashable, Iterable, Mapping
 from concurrent.futures import ProcessPoolExecutor
@@ -19,6 +20,9 @@ from typing import Any
 WORKERS_ENV = "EUROHOOPS_WORKERS"
 MAX_WORKERS = 4
 MIN_PARALLEL_ITEMS = 100  # a pool's start-up costs more than it saves on a few games
+# Always spawn: on Linux the default start method is fork, which can deadlock a process that
+# already runs threads (numpy's BLAS, sklearn), so every platform uses the one measured here.
+SPAWN = multiprocessing.get_context("spawn")
 
 
 def record(row: Mapping[Hashable, Any]) -> SimpleNamespace:
@@ -34,7 +38,21 @@ def workers() -> int:
     return max(1, min(MAX_WORKERS, os.cpu_count() or 1))
 
 
+def _new_pool(
+    count: int, initializer: Callable[..., None] | None = None, initargs: tuple[Any, ...] = ()
+) -> ProcessPoolExecutor:
+    """A spawn-context pool of ``count`` workers."""
+    return ProcessPoolExecutor(
+        max_workers=count, mp_context=SPAWN, initializer=initializer, initargs=initargs
+    )
+
+
 _SHARED: tuple[int, ProcessPoolExecutor] | None = None  # one pool for the whole export
+
+
+def _shutdown_shared() -> None:
+    if _SHARED is not None:
+        _SHARED[1].shutdown()
 
 
 def _shared_pool(count: int) -> ProcessPoolExecutor:
@@ -44,8 +62,9 @@ def _shared_pool(count: int) -> ProcessPoolExecutor:
     if _SHARED is None or _SHARED[0] != count:
         if _SHARED is not None:
             _SHARED[1].shutdown()
-        _SHARED = (count, ProcessPoolExecutor(max_workers=count))
-        atexit.register(_SHARED[1].shutdown)
+        else:
+            atexit.register(_shutdown_shared)
+        _SHARED = (count, _new_pool(count))
     return _SHARED[1]
 
 
@@ -69,5 +88,5 @@ def map_ordered[T, R](
     chunk = max(1, len(batch) // (count * 4))
     if initializer is None:
         return list(_shared_pool(count).map(fn, batch, chunksize=chunk))
-    with ProcessPoolExecutor(max_workers=count, initializer=initializer, initargs=initargs) as pool:
+    with _new_pool(count, initializer, initargs) as pool:
         return list(pool.map(fn, batch, chunksize=chunk))
