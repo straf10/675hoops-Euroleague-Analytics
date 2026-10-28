@@ -12,7 +12,9 @@ from eurohoops.cli.live import predict as live_predict
 from tests.conftest import REPO
 
 DAILY = (REPO / ".github/workflows/daily.yml").read_text(encoding="utf-8")
-BASH = shutil.which("bash") or "bash"
+# On Windows, bash on PATH is often the WSL launcher, which cannot run the step; prefer Git Bash.
+GIT_BASH = Path("C:/Program Files/Git/bin/bash.exe")
+BASH = str(GIT_BASH) if os.name == "nt" and GIT_BASH.exists() else shutil.which("bash") or "bash"
 
 
 def test_daily_workflow_runs_every_step() -> None:
@@ -248,6 +250,49 @@ def test_push_replays_the_run_on_a_main_that_moved(tmp_path: Path) -> None:
     git(other, "pull", "-q", "origin", "main")
     assert (other / "predictions/log.csv").read_text() == "game_id,p\nG1,0.5\nG2,0.6\n"
     assert (other / "README").exists()
+
+
+def move_remote_before_each_push(runner: Path, other: Path, times: int) -> None:
+    """A pre-push hook in the runner: the first `times` pushes find main moved by another commit."""
+    counter = runner / ".git/moves"
+    hook = runner / ".git/hooks/pre-push"
+    hook.write_text(
+        "#!/bin/sh\n"
+        f'n=$(cat "{counter.as_posix()}" 2>/dev/null || echo 0)\n'
+        f'if [ "$n" -lt {times} ]; then\n'
+        f'  echo $((n+1)) > "{counter.as_posix()}"\n'
+        f'  cd "{other.as_posix()}" && echo "owner $n" >> README && git add README'
+        ' && git -c user.name=t -c user.email=t@t commit -qm "owner $n"'
+        " && git push -q origin main || exit 1\n"
+        "fi\nexit 0\n",
+        newline="\n",
+    )
+    hook.chmod(0o755)
+
+
+def test_a_main_that_moves_once_during_the_push_is_replayed_once_more(tmp_path: Path) -> None:
+    other, runner, env = sandbox(tmp_path)
+    move_remote_before_each_push(runner, other, times=1)
+    with (runner / "predictions/log.csv").open("a", newline="\n") as fh:
+        fh.write("G2,0.6\n")
+    done = run_commit_step(runner, env)
+    assert done.returncode == 0, done.stdout + done.stderr
+    git(other, "pull", "-q", "origin", "main")
+    assert (other / "predictions/log.csv").read_text() == "game_id,p\nG1,0.5\nG2,0.6\n"
+    assert "owner 0" in (other / "README").read_text()
+
+
+def test_a_main_that_moves_twice_fails_the_job_without_a_loop_or_a_force(tmp_path: Path) -> None:
+    other, runner, env = sandbox(tmp_path)
+    move_remote_before_each_push(runner, other, times=2)
+    with (runner / "predictions/log.csv").open("a", newline="\n") as fh:
+        fh.write("G2,0.6\n")
+    done = run_commit_step(runner, env)
+    assert done.returncode != 0
+    assert (runner / ".git/moves").read_text().strip() == "2"  # exactly two pushes attempted
+    git(other, "pull", "-q", "origin", "main")
+    assert "G2" not in (other / "predictions/log.csv").read_text()  # nothing of ours was pushed
+    assert "owner 1" in (other / "README").read_text()  # the remote's commits were not overwritten
 
 
 def test_a_conflict_on_an_append_only_log_fails_without_rewriting_rows(tmp_path: Path) -> None:

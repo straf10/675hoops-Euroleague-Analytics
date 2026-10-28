@@ -163,7 +163,20 @@ jobs:
             echo "::error::could not replay onto $BRANCH (conflict or fetch failure); nothing pushed, merge by hand"
             exit 1
           fi
-          git push "$remote" "HEAD:$BRANCH"
+          if ! out=$(git push "$remote" "HEAD:$BRANCH" 2>&1); then
+            echo "$out"
+            # One retry, and only when the remote moved after our replay. Never forced; a second rejection fails the job.
+            if ! grep -qE 'rejected|fetch first|non-fast-forward' <<<"$out"; then exit 1; fi
+            echo "::warning::$BRANCH moved during the run; replaying once more"
+            if ! git pull --rebase "$remote" "$BRANCH"; then
+              git rebase --abort 2>/dev/null || true
+              echo "::error::could not replay onto $BRANCH on retry (conflict or fetch failure); nothing pushed, merge by hand"
+              exit 1
+            fi
+            git push "$remote" "HEAD:$BRANCH"
+          else
+            echo "$out"
+          fi
 
   build-site:
     needs: predict
