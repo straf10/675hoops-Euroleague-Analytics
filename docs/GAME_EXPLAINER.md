@@ -80,7 +80,7 @@ JSONL, not CSV, because the M5 player list is nested and varies per game.
    reconstruct for Elo only, where it is exact from logged ratings; label it.)
 2. Show all models' parts or only the published one by default? (Recommend: published by default.)
 3. Player-level detail for M5: top 3 per team plus absences, or the whole rotation?
-4. GBL: same section for M1 GBL once its gate passes.
+4.
 
 ## 6. Effort estimate
 

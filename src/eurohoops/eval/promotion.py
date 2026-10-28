@@ -1,6 +1,6 @@
 """Flagship promotion test (PLAN §8.1 R1; rule text in ``docs/models/m5.md`` and ``m1.md``).
 
-The flagship (M5 in the EuroLeague, M1 in the GBL) replaces Elo as the published forecast at
+The flagship (M5) replaces Elo as the published forecast at
 one of two pre-registered looks if its mean per-game log loss is clearly lower on the live games
 both models logged before tip-off: the two-sided 97.5% paired-bootstrap CI of the mean gap
 (flagship - Elo) lies below 0 **and** the mean gap is -0.01 or lower.
@@ -35,8 +35,8 @@ RESAMPLES = 10_000
 SEED = 20261009  # the date the rule was pre-registered
 CI_LEVEL = 0.975  # two-sided; the 5% error rate is split over the two looks (Bonferroni)
 MIN_GAP = -0.01  # the mean gap must be this or lower
-LOOK_ROUNDS = {"euroleague": 19, "gbl": 13}  # look 1: after this regular-season round
-FLAGSHIPS = {"euroleague": "M5", "gbl": "M1"}
+LOOK_ROUNDS = {"euroleague": 19}  # look 1: after this regular-season round
+FLAGSHIPS = {"euroleague": "M5"}
 
 
 @dataclass(frozen=True)

@@ -1,24 +1,15 @@
-"""Live M6 (weeks 16-18 L9): the 2026-27 player projections, the GBL undervalued list, the
-over/under board and the "plays like" lists.
+"""Live M6 (weeks 16-18 L9): the 2026-27 player projections, the over/under board and the
+"plays like" lists.
 
 Projections. The verdict's cell (``reports/backtest_m6.json`` ``chosen``) projects every player
-with a group-stage line in the live season, per competition, through the harness's own inputs
+with a group-stage line in the live season, through the harness's own inputs
 (``m6_backtest.live_inputs``: the same history, impact rows, drift and noise as a test target).
 The checkpoint is the largest declared one whose rounds are complete (D22): 0 (next-season,
 from every season before the live one) until k = floor(0.25 R) rounds are played, then 0.25,
 0.5, 0.75, so a projection changes four times a season and a day without a newly completed
 checkpoint leaves it unchanged. The intervals carry the D19 variance scale frozen at the verdict
-for that checkpoint (each competition's own report: the GBL's from its fixed-cell run). M4's
-newest fit translates (D5). Ages are not read: the chosen variant does not age (a variant that
-did would fit the curve from ``ages``, in memory only).
-
-Undervalued (GBL, L-e, D24): a GBL player of the live season with at most
-``UNDERVALUED_MAX_SEASONS`` seasons since his first senior appearance and fewer than
-``UNDERVALUED_MAX_MPG`` minutes per game in his newest complete GBL season, whose projected
-rates translated to the EuroLeague (M4's ``(rate + c) exp(delta) - c``, floored at 0; fg2a and pf,
-which M6 does not project, from that newest season) give a EuroLeague SPM in the top quarter of
-the GBL's rotation players (``min_poss`` possessions in their newest complete GBL season) by the
-same rule. Sorted by that SPM.
+for that checkpoint. Ages are not read: the chosen variant does not age (a variant that did
+would fit the curve from ``ages``, in memory only).
 
 Board (D23) and similarity: the newest complete season (``board_season``: the last season with a
 BRAPM snapshot and M2 xPTS), stabilities from the M6 tuning seasons; the "plays like" pool is
@@ -35,7 +26,6 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from eurohoops.eval.common import round_finite
@@ -48,31 +38,19 @@ from eurohoops.eval.m6_backtest import (
     scale_intervals,
 )
 from eurohoops.live_sim import completed_rounds
-from eurohoops.models.player_seasons import COUNT_STATS, PROJECTED_STATS, person_ids
-from eurohoops.models.projection import Translation
+from eurohoops.models.player_seasons import PROJECTED_STATS, person_ids
 from eurohoops.models.similarity import BOX_FEATURES, SHOT_FEATURES
 from eurohoops.stats.export import display_name
 
 AGE_KEYS = re.compile(r"(^age$|_age$|^age_|birth|born|dob)", re.IGNORECASE)
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-UNDERVALUED_MAX_SEASONS = 3  # L-e: seasons since the first senior appearance (no age bucket)
-UNDERVALUED_MAX_MPG = 20.0  # "low minutes" (declared)
-UNDERVALUED_QUANTILE = 0.75  # top quarter of the GBL rotation by translated EuroLeague SPM
 DIGITS = 4
 
 
-def person_names(
-    el_players: pd.DataFrame, gbl_names: pd.DataFrame, xwalk: pd.DataFrame
-) -> dict[str, str]:
+def person_names(el_players: pd.DataFrame, xwalk: pd.DataFrame) -> dict[str, str]:
     """Person id -> display name: the EuroLeague box-score spelling (``stats.box`` lines, the
-    last line of each id), else the GBL name table's (``parse.player_names`` rows, the newest
-    season of each id)."""
+    last line of each id)."""
     names: dict[str, str] = {}
-    if not gbl_names.empty:
-        last = gbl_names.sort_values("season").drop_duplicates("source_id", keep="last")
-        ids = person_ids(last["source_id"], "gbl", xwalk)["person_id"]
-        for pid, surname, first in zip(ids, last["surname_raw"], last["first_raw"], strict=True):
-            names[pid] = display_name(f"{surname}, {first}")
     if not el_players.empty:
         last_line = el_players.drop_duplicates("player_id", keep="last")
         ids = person_ids(last_line["player_id"], "euroleague", xwalk)["person_id"]
@@ -128,7 +106,6 @@ def live_projections(
     chosen: Mapping[str, Any],
     scale: Mapping[str, float],
     spec: Any,
-    translation: Translation | None,
     rounds: int,
     world: World,
 ) -> tuple[pd.DataFrame, TargetInputs]:
@@ -141,7 +118,6 @@ def live_projections(
         checkpoint,
         people,
         spec=spec,
-        translation=translation,
         rounds=lambda _c, _s: rounds,
         world=world,
         with_curve=False,
@@ -152,18 +128,13 @@ def live_projections(
 
 def inputs_digest(blocks: Sequence[TargetInputs]) -> str:
     """sha256 of what the projections are a function of: each block's history, targets, impact
-    rows, drift and translation (not the schedule: a newly scheduled game moves nothing)."""
+    rows and drift (not the schedule: a newly scheduled game moves nothing)."""
     h = hashlib.sha256()
     for ti in blocks:
         for frame in (ti.history, ti.targets, ti.impact):
             if frame is not None:
                 h.update(pd.util.hash_pandas_object(frame, index=False).to_numpy().tobytes())
-        extra = {
-            "drift": sorted(ti.drift.items()),
-            "translation": None
-            if ti.translation is None
-            else [sorted(ti.translation.delta.items()), sorted(ti.translation.c.items())],
-        }
+        extra = {"drift": sorted(ti.drift.items())}
         h.update(json.dumps(extra, sort_keys=True).encode())
     return h.hexdigest()
 
@@ -210,84 +181,6 @@ def player_rows(
     return out
 
 
-def translate_el(rates: pd.DataFrame, translation: Translation) -> pd.DataFrame:
-    """GBL per-100 rates as EuroLeague rates: ``(rate + c) exp(delta) - c`` per column M4
-    translates, floored at 0 (a rate is never negative)."""
-    out = rates.copy()
-    for stat in rates.columns:
-        delta, c = translation.delta[stat], translation.c[stat]
-        out[stat] = np.maximum((rates[stat] + c) * math.exp(delta) - c, 0.0)
-    return out
-
-
-def undervalued(
-    projections: pd.DataFrame,
-    complete: pd.DataFrame,
-    season: int,
-    *,
-    translation: Translation,
-    spm: Any,
-    names: Mapping[str, str],
-    teams: Mapping[str, str],
-    min_poss: float,
-) -> list[dict[str, Any]]:
-    """The GBL undervalued list (module docstring, D24). ``projections``: the GBL live block;
-    ``complete``: the I1 rows of every season; ``translation`` carries every SPM stat."""
-    gbl = complete[(complete["competition"] == "gbl") & (complete["season"] < season)]
-    newest = gbl.sort_values("season").drop_duplicates("person_id", keep="last")
-    newest = newest.set_index("person_id")
-    means = projections.pivot_table(index="person_id", columns="stat", values="mean")
-    people = means.index.intersection(newest.index)
-    if people.empty:
-        return []
-    last = newest.loc[people]
-    poss = last["poss"].to_numpy(dtype=np.float64)
-    rates = pd.DataFrame(
-        {stat: means.loc[people, stat].to_numpy(dtype=np.float64) for stat in COUNT_STATS},
-        index=people,
-    )
-    for stat in ("fg2a", "pf"):
-        rates[stat] = 100.0 * last[stat].to_numpy(dtype=np.float64) / np.maximum(poss, 1e-12)
-    el = translate_el(rates, translation)
-    frame = el.reset_index(drop=True).assign(competition="euroleague", season=season)
-    value = np.asarray(spm(frame, season), dtype=np.float64)
-    mpg = last["minutes"].to_numpy(dtype=np.float64) / np.maximum(
-        last["games"].to_numpy(dtype=np.float64), 1.0
-    )
-    since = season - last["debut_season"].to_numpy(dtype=np.int64)
-    rotation = poss >= min_poss
-    if not rotation.any():
-        return []
-    cut = float(np.quantile(value[rotation], UNDERVALUED_QUANTILE))
-    pick = (since <= UNDERVALUED_MAX_SEASONS) & (mpg < UNDERVALUED_MAX_MPG) & (value >= cut)
-    ids = [str(p) for p in people]
-    last_season = last["season"].to_numpy(dtype=np.int64)
-    last_team = [str(t) for t in last["team"]]
-    translated = el.to_numpy(dtype=np.float64)
-    columns = list(el.columns)
-    order = sorted(np.flatnonzero(pick), key=lambda i: (-value[i], ids[i]))
-    return [
-        {
-            "person_id": ids[i],
-            "team": teams.get(ids[i], last_team[i]),
-            "name": names.get(ids[i], ids[i]),
-            "seasons_since_debut": int(since[i]),
-            "minutes": round_finite(float(mpg[i]), DIGITS),
-            "projected_brapm": None,
-            "projected_spm": round_finite(float(value[i]), DIGITS),
-            "translated_el": {
-                s: round_finite(float(translated[i, columns.index(s)]), DIGITS) for s in COUNT_STATS
-            },
-            "reason": (
-                f"translated EuroLeague SPM {value[i]:+.1f} (GBL rotation top quarter: "
-                f">= {cut:+.1f}) at {mpg[i]:.1f} minutes per game in {last_season[i]}, "
-                f"{since[i]} season(s) since his debut"
-            ),
-        }
-        for i in order
-    ]
-
-
 def projections_report(
     *,
     chosen: Mapping[str, Any],
@@ -296,10 +189,8 @@ def projections_report(
     checkpoints: Mapping[str, float],
     digest: str,
     players: list[dict[str, Any]],
-    undervalued_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """``reports/m6_projections.json`` (the shape the read model serves): ``checkpoint`` is the
-    EuroLeague's, ``checkpoints`` each competition's (a player's is his competition's)."""
+    """``reports/m6_projections.json`` (the shape the read model serves)."""
     return {
         "model": "m6",
         "variant": str(chosen["variant"]),
@@ -312,7 +203,6 @@ def projections_report(
         "data_sha256": digest,
         "stats": list(PROJECTED_STATS),
         "players": players,
-        "undervalued": undervalued_rows,
     }
 
 
@@ -343,7 +233,7 @@ def similarity_report(
     return {
         "model": "m6",
         "season": season,
-        "features": {"euroleague": el, "gbl": list(BOX_FEATURES)},
+        "features": {"euroleague": el},
         "pool_seasons": sorted(int(s) for s in pool_seasons),
         "players": players,
     }

@@ -111,8 +111,8 @@ def odds_log(elo_log: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def section(tmp: Path, key: str, title: str, gbl_like: bool, seasons: tuple[int, ...]) -> Section:
-    games = make_games({s: True for s in range(2022, 2027)} | {2027: False}, gbl_like=gbl_like)
+def section(tmp: Path, key: str, title: str, seasons: tuple[int, ...]) -> Section:
+    games = make_games({s: True for s in range(2022, 2027)} | {2027: False})
     report = run_backtest(games, SPEC)
     report_path = tmp / f"{key}_report.json"
     report_path.write_text(json.dumps(report), encoding="utf-8")
@@ -121,11 +121,10 @@ def section(tmp: Path, key: str, title: str, gbl_like: bool, seasons: tuple[int,
     log.to_csv(log_path, index=False)
     model = load_tuned_model(report_path)
     m1_path = odds_path = None
-    if key == "euroleague":  # GBL keeps the no-M1-log, no-odds state
-        m1_path = tmp / f"{key}_m1_log.csv"
-        m1_log(log).to_csv(m1_path, index=False)
-        odds_path = tmp / f"{key}_odds.csv"
-        odds_log(log).to_csv(odds_path, index=False)
+    m1_path = tmp / f"{key}_m1_log.csv"
+    m1_log(log).to_csv(m1_path, index=False)
+    odds_path = tmp / f"{key}_odds.csv"
+    odds_log(log).to_csv(odds_path, index=False)
     card = build_scorecard(log_path, games, model, NOW, m1_log_path=m1_path)
     names = dict(teams_table(games).itertuples(index=False))
     # The synthetic 2027 season has no finished games, so the record is of 2026 (30 logged, 1 late).
@@ -156,9 +155,7 @@ def section(tmp: Path, key: str, title: str, gbl_like: bool, seasons: tuple[int,
 def fixture_data(tmp: Path) -> dict[str, Any]:
     sections = [
         # 59 scored games (60 logged, 1 late): the rolling-50 line has 10 points.
-        section(tmp, "euroleague", "EuroLeague", False, (2025, 2026)),
-        # 29 scored games: below the window, the honest empty state.
-        section(tmp, "gbl", "Greek Basket League", True, (2026,)),
+        section(tmp, "euroleague", "EuroLeague", (2025, 2026)),
     ]
     return site_data(sections, NOW, VOLUME)
 
@@ -171,36 +168,30 @@ def test_committed_site_fixture_matches_site_data(tmp_path: Path) -> None:
 
 
 def test_the_fixture_exercises_every_state_the_page_draws() -> None:
-    el, gbl = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
+    (el,) = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
     assert len(el["scorecard"]["rolling"]["series"]) == 59 - 50 + 1  # 60 logged, 1 late
-    assert gbl["scorecard"]["rolling"]["series"] == []
-    for comp in (el, gbl):
-        assert len(comp["upcoming"]) == 4
-        assert comp["results"]
-        assert len(comp["backtest"]["test"]["elo"]["reliability"]) == 10
-        assert comp["backtest"]["test"]["elo"]["margin_crps"] is not None
-        assert comp["scorecard"]["elo"]["ece"] is not None
-        assert comp["scorecard"]["late"] == 1
-        assert [r["late"] for r in comp["results"]].count(True) == 1
+    assert len(el["upcoming"]) == 4
+    assert el["results"]
+    assert len(el["backtest"]["test"]["elo"]["reliability"]) == 10
+    assert el["backtest"]["test"]["elo"]["margin_crps"] is not None
+    assert el["scorecard"]["elo"]["ece"] is not None
+    assert el["scorecard"]["late"] == 1
+    assert [r["late"] for r in el["results"]].count(True) == 1
     assert el["scorecard"]["m1"]["n"] == 59 and el["scorecard"]["m1"]["log_loss"] is not None
-    assert gbl["scorecard"]["m1"] is None
 
 
 def test_the_fixture_carries_the_forecast_record() -> None:
-    el, gbl = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
+    (el,) = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
     assert [m["key"] for m in el["forecasts"]["models"]] == ["elo", "m1"]
-    assert [m["key"] for m in gbl["forecasts"]["models"]] == ["elo"]
     assert el["forecasts"]["shared"]["n"] == 29 and el["forecasts"]["rounds"]
     assert len(el["forecasts"]["games"]) == 29  # the late row is never scored
-    assert gbl["forecasts"]["shared"] == {"n": 0, "rows": []} and gbl["forecasts"]["games"]
 
 
 def test_the_fixture_carries_the_bookmaker_comparison() -> None:
-    el, gbl = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
+    (el,) = json.loads(FIXTURE.read_text(encoding="utf-8"))["competitions"]
     fc = el["forecasts"]
     assert fc["published"] == "elo"
     assert fc["market"]["label"] == "Bookmakers"
     assert 0 < fc["market"]["season"]["n"] < 29  # every other game has a closing line
     assert fc["accuracy"] and fc["accuracy"][-1]["to_date"]["games"] == fc["market"]["season"]["n"]
     assert set(fc["accuracy"][-1]["to_date"]["model"]) >= {"right_pct", "brier", "log_loss"}
-    assert gbl["forecasts"]["market"] is None and gbl["forecasts"]["accuracy"] == []

@@ -5,11 +5,10 @@ from typing import Any
 
 import pytest
 
-from eurohoops.parse.esake import parse_box_score, parse_overtimes
 from eurohoops.parse.possessions import box_possessions, count_possessions, possession_ends
 from eurohoops.parse.stints import Event, events
 from eurohoops.parse.team_box import euroleague_lines
-from tests.conftest import FIXTURES, esake_fixture
+from tests.conftest import FIXTURES
 
 
 def test_box_formula_on_a_real_euroleague_box_score() -> None:
@@ -36,38 +35,6 @@ def test_team_rebounds_and_turnovers_are_in_the_euroleague_totals() -> None:
     players = sum(p["OffensiveRebounds"] for p in red["PlayersStats"])
     assert red["totr"]["OffensiveRebounds"] == players + red["tmr"]["OffensiveRebounds"] == 17
     assert red["tmr"]["OffensiveRebounds"] == 2
-
-
-def test_box_formula_on_a_real_esake_box_score_with_overtime() -> None:
-    """GBL2024_8FC479F6 (93-101, one overtime). Home: FGA 51 + 23 = 74, OREB 18, TOV 18,
-    FTA 27 -> 74 - 18 + 18 + 11.34 = 85.34. Away: 42 + 29 - 11 + 15 + 11.76 = 86.76."""
-    html = esake_fixture("box_8FC479F6.html")
-    boxes = parse_box_score(html)
-    assert boxes is not None
-    home, away = (box.totals for box in boxes)
-    assert (home.points, home.fg2a + home.fg3a, home.oreb, home.tov, home.fta) == (
-        93,
-        74,
-        18,
-        18,
-        27,
-    )
-    assert box_possessions(home.fg2a + home.fg3a, home.oreb, home.tov, home.fta) == pytest.approx(
-        85.34, abs=1e-12
-    )
-    assert box_possessions(away.fg2a + away.fg3a, away.oreb, away.tov, away.fta) == pytest.approx(
-        86.76, abs=1e-12
-    )
-    assert parse_overtimes(html) == 1
-    # The totals row includes the team row (team rebounds and team turnovers).
-    assert (boxes[0].team_row.oreb, boxes[0].team_row.dreb, boxes[0].team_row.tov) == (5, 2, 1)
-
-
-def test_old_esake_pages_have_an_empty_team_row() -> None:
-    boxes = parse_box_score(esake_fixture("box_F26689D1.html"))
-    assert boxes is not None
-    assert boxes[0].team_row.oreb == boxes[0].team_row.tov == 0
-    assert (boxes[0].totals.oreb, boxes[0].totals.dreb, boxes[0].totals.tov) == (13, 24, 11)
 
 
 def ev(kind: str, team: str = "", clock: int = 0, period: int = 1) -> Event:

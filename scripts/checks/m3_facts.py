@@ -6,27 +6,19 @@
    and a name has more than one id only in the known cases below.
 3. Box minutes and the stints' on-court seconds agree within 60 s for >= 99.9% of player-games
    of games passing the stint checks.
-4. Every cached GBL box score has the 17 columns H-e reads (O.REBS/D.REBS, AST, STL, BLK, TO,
-   FOULS M = personal fouls committed, RANK = PIR) in every season.
 """
 
 import sys
 
 import duckdb
 import pandas as pd
-from selectolax.lexbor import LexborHTMLParser
 
-from eurohoops.config import EUROLEAGUE, GBL, MART_PATH
-from eurohoops.ingest.cache import read_cached
+from eurohoops.config import EUROLEAGUE, MART_PATH
 from eurohoops.stats.box import build_box_games
 
 # Names with two ids: Omer Yurtseven (ULK 2014 and 2015, one player given a new id) and two
 # different players called Marko Simonovic (RED 2013, RED 2023).
 KNOWN_SPLIT_NAMES = {"YURTSEVEN, OMER", "SIMONOVIC, MARKO"}
-GBL_HEADER = [
-    "ΠΑΙΚΤΗΣ", "P", "2PM-A", "3PM-A", "FTM-A", "REBS", "D.REBS", "O.REBS", "AST", "BLK",
-    "BLK-A", "FOULS F", "FOULS M", "STL", "TO", "TIM.PL.", "RANK",
-]  # fmt: skip
 
 ok = True
 with duckdb.connect(str(MART_PATH), read_only=True) as con:
@@ -71,21 +63,5 @@ share = float(((both["stint"] - both["box"]).abs() <= 60).mean())
 print(f"3. player-games of passing games within 60 s: {share:.5f} of {len(both)} (>= 0.999)")
 ok &= share >= 0.999
 
-bad: list[str] = []
-for season_dir in sorted((GBL.raw_dir / "boxscore").iterdir()):
-    tables = 0
-    for path in sorted(season_dir.glob("*.html.gz")):
-        page = LexborHTMLParser(read_cached(path).decode("utf-8"))
-        for table in page.css("table"):
-            for row in table.css("tr"):
-                cells = [cell.text(strip=True) for cell in row.css("td, th")]
-                if cells[:1] == ["ΠΑΙΚΤΗΣ"]:
-                    tables += 1
-                    if cells != GBL_HEADER:
-                        bad.append(f"{path.name}: {cells}")
-    print(f"4. gbl {season_dir.name}: {tables} team box scores with the 17 H-e columns")
-    ok &= tables > 0
-print(f"4. gbl box headers that differ: {len(bad)}", *bad[:5], sep="\n   ")
-ok &= not bad
 print("m3 facts:", "hold" if ok else "BROKEN")
 sys.exit(0 if ok else 1)

@@ -2,8 +2,7 @@
 
 Overtime points count for no tie-break (EuroLeague Bylaws Art. 19.4), so a EuroLeague game that
 went to overtime carries its score after 40 minutes, read from ``EndOfQuarter`` in the cached
-box score (the home team first). The GBL's overtime rule is unverified and its quarter scores
-are not parsed, so GBL results use the final score (``GBL_2026.unverified``).
+box score (the home team first).
 """
 
 import json

@@ -81,7 +81,7 @@ svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" he
 <rect class="body" x="20" y="160" width="128" height="80" rx="6"/>
 <text x="84.0" y="183.0" class="t-name" text-anchor="middle" >Sources</text>
 <text x="84.0" y="198.0" class="t-sub" text-anchor="middle" >EuroLeague API</text>
-<text x="84.0" y="211.0" class="t-sub" text-anchor="middle" >esake.gr · odds</text>
+<text x="84.0" y="211.0" class="t-sub" text-anchor="middle" >odds</text>
 <text x="84.0" y="224.0" class="t-sub" text-anchor="middle" >injury report</text>
 </g>
 <g class="node n-store">

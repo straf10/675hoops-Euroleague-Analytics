@@ -25,10 +25,7 @@ def counts(row: "dict[str, object]") -> tuple[int, int]:
 
 
 ok = True
-for comp, path in (
-    ("euroleague", "reports/backtest_m1.json"),
-    ("gbl", "reports/backtest_m1_gbl.json"),
-):
+for comp, path in (("euroleague", "reports/backtest_m1.json"),):
     report = json.loads(Path(path).read_text(encoding="utf-8"))
     parents = runs[(runs["params.competition"] == comp) & runs["tags.mlflow.parentRunId"].isna()]
     parent = parents.iloc[0]

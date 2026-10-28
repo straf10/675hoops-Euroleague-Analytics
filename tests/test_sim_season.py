@@ -16,7 +16,7 @@ from eurohoops.sim.season import (
     _play_regular_season,
     simulate,
 )
-from eurohoops.standings import EUROLEAGUE_2026, GBL_2026, Format, Result, Series, rank
+from eurohoops.standings import EUROLEAGUE_2026, Format, Result, Series, rank
 from tests.test_rank_by_wins import random_deductions, random_games
 
 TINY = NoiseModel(scale=0.01, df=None)
@@ -32,22 +32,18 @@ NO_PLAY_IN = Format(
     series=(Series("playoffs", 5), Series("final four", 1)),
     sources=(),
 )
-GBL_PLAIN = replace(GBL_2026, points_deducted=())
+PLAIN_FORMAT = replace(NO_PLAY_IN, points_deducted=())
 
 
 def small_format(n_teams: int, best_of: int = 1) -> Format:
-    """GBL-shaped format on ``n_teams`` >= 8 teams, no deductions."""
+    """EuroLeague-shaped format on ``n_teams`` >= 8 teams, no deductions."""
     return replace(
-        GBL_PLAIN,
+        PLAIN_FORMAT,
         teams=n_teams,
         regular_season_rounds=2 * (n_teams - 1),
         eliminated=tuple(range(9, n_teams + 1)),
         relegated=(),
-        series=(
-            Series("quarterfinals", best_of),
-            Series("semifinals", best_of),
-            Series("final", best_of),
-        ),
+        series=(Series("playoffs", best_of), Series("final four", best_of)),
     )
 
 
@@ -173,21 +169,6 @@ def test_el_without_play_in_bracket() -> None:
     assert ones(out, "p_semis") == set(teams[:4])
     assert ones(out, "p_final") == {teams[0], teams[1]}
     assert ones(out, "p_title") == {teams[0]}
-
-
-def test_gbl_bracket_with_deductions_and_huge_gaps() -> None:
-    teams = codes(14)
-    teams[4], teams[9] = "00000002", "00000001"  # sanctioned teams (-1 win each)
-    out = run(teams, GBL_2026, fixed_sampler(strength_ladder(14)))
-    assert_deterministic_table(out)  # wins differ by 2, so a lost win never reorders
-    assert ones(out, "p_direct") == set(teams[:8])
-    assert ones(out, "p_play_in") == set()
-    assert ones(out, "p_top10") == set(teams[:10])
-    assert ones(out, "p_playoffs") == set(teams[:8])
-    assert ones(out, "p_semis") == set(teams[:4])
-    assert ones(out, "p_final") == {teams[0], teams[1]}
-    assert ones(out, "p_title") == {teams[0]}
-    assert out.wins[4] == 2 * (13 - 4)  # wins are reported before deductions
 
 
 def test_hand_built_ties_are_ranked_as_rank_does() -> None:
@@ -324,13 +305,13 @@ def test_best_of_five_matches_the_closed_form() -> None:
 
 
 def test_best_of_three_matches_the_closed_form() -> None:
-    teams = codes(14)
+    teams = codes(16)
     p_home, p_away, n_sims = 0.66, 0.38, 40000
     noise = NoiseModel(scale=9.0, df=6.0)
     out = run(
         teams,
-        GBL_PLAIN,
-        series_sampler(p_home, p_away, noise, 14),
+        small_format(16, best_of=3),
+        series_sampler(p_home, p_away, noise, 16),
         remaining=fixtures([]),
         played=ladder_results(teams),
         noise=noise,
@@ -401,14 +382,6 @@ def test_probabilities_sum_to_the_format_counts() -> None:
         assert out.p_top10.sum() == pytest.approx(min(10, n))
         assert out.rank_counts.sum(axis=0).tolist() == [300] * n
         assert out.rank_counts.sum(axis=1).tolist() == [300] * n
-
-
-def test_gbl_2026_with_random_strengths_runs_with_deductions() -> None:
-    teams = codes(14)
-    teams[0], teams[1] = "00000002", "00000001"
-    out = run(teams, GBL_2026, random_sampler(14), noise=NoiseModel(10.0, 5.0), n_sims=200)
-    assert out.p_playoffs.sum() == pytest.approx(8)
-    assert out.wins.sum() == pytest.approx(14 * 26 / 2)
 
 
 def test_a_zero_margin_becomes_plus_or_minus_one() -> None:

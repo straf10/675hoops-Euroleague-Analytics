@@ -7,7 +7,7 @@ check that only the site and the ingest history default read ``SITE_SEASONS``.
 
 from pathlib import Path
 
-from eurohoops.config import EUROLEAGUE, GBL, LIVE_SEASON, SITE_SEASONS, M2Seasons
+from eurohoops.config import EUROLEAGUE, LIVE_SEASON, SITE_SEASONS, M2Seasons
 from eurohoops.stats.export import site_window
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "eurohoops"
@@ -16,7 +16,6 @@ SRC = Path(__file__).resolve().parents[1] / "src" / "eurohoops"
 def test_model_seasons_are_unchanged_by_site_history() -> None:
     assert LIVE_SEASON == 2026
     assert EUROLEAGUE.default_seasons == tuple(range(2007, 2027))
-    assert GBL.default_seasons == tuple(range(2018, 2027))
     assert M2Seasons().development == tuple(range(2011, 2023))
 
 

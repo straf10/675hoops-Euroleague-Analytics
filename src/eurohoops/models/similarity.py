@@ -30,7 +30,7 @@ come from outside the pool, e.g. the live season) and ranks pool rows by Euclide
 (root mean square over the features used; equal feature weights), ties broken by the match's
 (season, competition, person_id). ``score`` is the cosine similarity. A query row uses the shot
 features only if it has them and the embedding carries them; then only pool rows that have
-them are candidates. Otherwise (a GBL query, or a pool without shots) only BOX_FEATURES are
+them are candidates. Otherwise (a query or pool without shots) only BOX_FEATURES are
 used, over the whole pool. A person never matches any of his own seasons.
 
 ``self_retrieval_rate`` exists only to check the embedding: it ranks the whole pool, own other

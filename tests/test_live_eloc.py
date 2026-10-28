@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from eurohoops import live_eloc
-from eurohoops.config import ELOC_CV, ELOC_LIVE_ENABLED, EUROLEAGUE, GBL
+from eurohoops.config import ELOC_CV, ELOC_LIVE_ENABLED, EUROLEAGUE
 from eurohoops.live_eloc import (
     LiveEloc,
     eloc_forecasts,
@@ -52,7 +52,6 @@ def test_the_shadow_log_is_off_by_default() -> None:
 def test_the_flag_needs_a_log_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(live_eloc, "ELOC_LIVE_ENABLED", True)
     assert eloc_logging_on(EUROLEAGUE) is True
-    assert eloc_logging_on(GBL) is False  # no ELOC log for the GBL
 
 
 def test_no_report_means_no_model(tmp_path: Path) -> None:

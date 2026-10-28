@@ -12,7 +12,7 @@ Team codes are the **source** codes (`ULK`, `PAN`, …). Person ids look like `P
 
 | Route | Read model | Source |
 |---|---|---|
-| `GET /site` | `site` | the forecasts, results, scorecards and Elo of both competitions (today's `site.json`) |
+| `GET /site` | `site` | the forecasts, results, scorecards and Elo of the EuroLeague (today's `site.json`) |
 | `GET /stats` | `stats_index` | the path of every stats file |
 | `GET /stats/{path}` | `stats_file` | one stats file, e.g. `meta.json`, `seasons/2025/players.json` |
 | `GET /games/upcoming?competition=` | `upcoming_games` | unplayed live-season games with their forecast |
@@ -22,7 +22,7 @@ Team codes are the **source** codes (`ULK`, `PAN`, …). Person ids look like `P
 | `GET /players/{person_id}` | `player` | the person's seasons, M3 impact (RAPM/SPM with intervals) and M2 shot-making |
 | `GET /players/{person_id}/projection` | `player_projection` | `reports/m6_projections.json` |
 | `GET /players/{person_id}/similar` | `player_similar` | `reports/m6_similarity.json` |
-| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, with `gated: true` for the EuroLeague once M7's gate passed (gate v2) and always `false` for the GBL, plus M7's verdict and reason |
+| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, with `gated: true` for the EuroLeague once M7's gate passed (gate v2), plus M7's verdict and reason |
 | `GET /metrics/live` | `metrics_live` | the live scorecards: Elo, the baseline, M1 and the M5 shadow |
 | `GET /openapi.json` | FastAPI | the schema; identical across runs |
 

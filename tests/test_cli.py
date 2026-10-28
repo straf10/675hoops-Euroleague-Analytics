@@ -16,11 +16,7 @@ from eurohoops.cli import ingest as ingest_mod
 from eurohoops.cli import live as live_mod
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import (
-    BOX_INVARIANTS_REPORT,
     EUROLEAGUE,
-    GBL,
-    GBL_BOX_FILL,
-    GBL_PBP,
     INJURY_LOG,
     M5,
     M5_RETUNE,
@@ -39,8 +35,6 @@ from eurohoops.ingest.cache import write_atomic
 from eurohoops.marts import read_games, write_tables
 from eurohoops.parse.games import write_table
 from tests.conftest import FIXTURES, make_games, make_team_games, write_pipeline
-from tests.test_gbl_ingest import FakeEsake
-from tests.test_gbl_pbp import GAME, FakeBasketHotel, export
 from tests.test_ingest import FakeApi
 from tests.test_m1_backtest import SPEC as M1_SPEC
 from tests.test_stints import game, write_game
@@ -58,11 +52,8 @@ def workdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture
 def pipeline(workdir: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Staged + built synthetic data covering every backtest split of both competitions."""
-    write_pipeline(
-        make_games({s: True for s in range(2007, 2026)} | {2026: False}),
-        make_games({s: True for s in range(2018, 2026)} | {2026: False}, gbl_like=True),
-    )
+    """Staged + built synthetic EuroLeague data covering every backtest split."""
+    write_pipeline(make_games({s: True for s in range(2007, 2026)} | {2026: False}))
     monkeypatch.setattr(live_mod, "utc_now", lambda: NOW)
     monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     return workdir
@@ -84,26 +75,20 @@ def seed_schedule(season: int) -> None:
 
 
 @pytest.mark.usefixtures("workdir", "no_sleep")
-def test_ingest_both_competitions_then_build(monkeypatch: pytest.MonkeyPatch) -> None:
-    el_api, esake = FakeApi(), FakeEsake()
-    transports = iter([httpx.MockTransport(el_api), httpx.MockTransport(esake)])
-    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=next(transports)))
+def test_ingest_then_build(monkeypatch: pytest.MonkeyPatch) -> None:
+    el_api = FakeApi()
+    transport = httpx.MockTransport(el_api)
+    monkeypatch.setattr(ingest_mod, "make_client", lambda: httpx.Client(transport=transport))
     seed_schedule(2024)
     invoke("ingest", "--seasons", "2024", "2026", "--details")
     # the finished season comes from the cache; only the live schedule is fetched
     schedules = [c for c in el_api.calls if c.endswith("/games")]
     assert len(schedules) == 1 and schedules[0].endswith("/seasons/E2026/games")
-    invoke("ingest", "--competition", "gbl", "--seasons", "2018", "--details")
-    assert len(esake.calls) == 4 + 4
-    output = invoke("build")
-    assert "gbl box scores 2018: 0/4 pass" in output  # one recorded box served for every game
-    report = json.loads(BOX_INVARIANTS_REPORT.read_text())
-    assert report["seasons"]["2018"]["games"] == 4
+    invoke("build")
     assert list(read_games(MART_PATH, "euroleague")["season"].unique()) == [2024, 2026]
-    assert read_games(MART_PATH, "gbl")["forfeit"].sum() == 1
     invoke("continuity")
     continuity = json.loads(TEAM_CONTINUITY_REPORT.read_text())
-    assert set(continuity) == {"euroleague", "gbl"}
+    assert set(continuity) == {"euroleague"}
     assert continuity["euroleague"]["seasons"]["2024"]["first_season_in_data"]
     assert "2026" in continuity["euroleague"]["seasons"]
 
@@ -173,6 +158,12 @@ def test_ingest_rejects_junk_arguments() -> None:
     assert result.exit_code != 0
 
 
+@pytest.mark.usefixtures("workdir")
+def test_the_competition_option_is_gone() -> None:
+    assert runner.invoke(cli.app, ["ingest", "--competition", "gbl"]).exit_code != 0
+    assert runner.invoke(cli.app, ["backtest", "--competition", "gbl"]).exit_code != 0
+
+
 @pytest.mark.usefixtures("pipeline")
 def test_backtest_predict_score_publish_end_to_end() -> None:
     output = invoke("backtest")
@@ -189,32 +180,13 @@ def test_backtest_predict_score_publish_end_to_end() -> None:
         assert report["grid"]["best_minus_tuned_log_loss"]["test"]["mean"] == 0.0
         assert report["seasons"]["test"] == list(spec.test)
         assert report["model_version"] == load_tuned_model(spec.report).version()
-    output = invoke("backtest", "--competition", "gbl")
-    assert "[frozen]" in output
-    gbl_report = json.loads(GBL.live_backtest.report.read_text())
-    assert GBL.live_backtest.frozen is not None
-    assert load_tuned_model(GBL.live_backtest.report).params == GBL.live_backtest.frozen
-    assert gbl_report["tuned"]["frozen"]
-    assert gbl_report["grid"]["size"] == 9 * 10 * 5
-    assert gbl_report["seasons"]["tuning"] == [2022, 2023]
-    ci = gbl_report["test_margin_abs_error_diff_elo_minus_b0"]
-    assert ci["ci95"][0] <= ci["mean"] <= ci["ci95"][1]
 
     invoke("predict")
-    el_log = EUROLEAGUE.prediction_log.read_bytes()
-    invoke("predict", "--competition", "gbl")
-    invoke("predict", "--competition", "gbl")
-    assert EUROLEAGUE.prediction_log.read_bytes() == el_log  # a GBL run never touches it
-    gbl_log = pd.read_csv(GBL.prediction_log)
-    assert len(gbl_log) == 3
-    assert gbl_log["game_id"].str.startswith("GBL2026_").all()
-
+    assert len(pd.read_csv(EUROLEAGUE.prediction_log)) > 0
     invoke("score")
-    invoke("score", "--competition", "gbl")
-    assert json.loads(GBL.scorecard.read_text())["rows_in_log"] == 3
     invoke("publish")
     data = json.loads(SITE_DATA.read_text(encoding="utf-8"))
-    (el,) = data["competitions"]  # the GBL is logged and scored, but not published
+    (el,) = data["competitions"]
     assert el["key"] == "euroleague"
     assert any(r["name"] == "Team AAA & Co" for r in el["ratings"])
 
@@ -299,11 +271,8 @@ def test_odds_records_a_consensus_row(monkeypatch: pytest.MonkeyPatch) -> None:
     [row] = pd.read_csv(EUROLEAGUE.odds_log).to_dict("records")
     assert (row["game_id"], row["p_home"]) == ("E2026_1", 0.625)
     invoke("backtest")
-    invoke("backtest", "--competition", "gbl")
     invoke("score")
     assert json.loads(EUROLEAGUE.scorecard.read_text())["market"]["n"] == 0  # not played yet
-    invoke("score", "--competition", "gbl")
-    assert json.loads(GBL.scorecard.read_text())["market"] is None
 
 
 @pytest.mark.usefixtures("pipeline")
@@ -360,10 +329,6 @@ def test_build_writes_team_games_and_possessions_validates_them() -> None:
     output = invoke("possessions")
     assert "0 points mismatches; no EuroLeague play-by-play cached" in output
     report = json.loads(POSSESSION_REPORT.read_text(encoding="utf-8"))
-    assert (
-        report["coverage"]["gbl"]["2025"]["missing"]
-        == report["coverage"]["gbl"]["2025"]["rated_games"]
-    )
     assert report["missing_games"][0]["reason"] == "no cached box score (ingest --details)"
 
 
@@ -402,63 +367,51 @@ def test_stints_mart_builds_tables_and_a_reproducible_report() -> None:
 
 @pytest.fixture
 def small_m1(pipeline: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The pipeline plus team_games, with the small test grids in both M1 specs."""
-    comps = {}
-    for comp in (EUROLEAGUE, GBL):
-        assert comp.m1 is not None
-        spec = dataclasses.replace(
-            comp.m1,
-            elo_grid=M1_SPEC.elo_grid,
-            rating_grid=M1_SPEC.rating_grid,
-            pace_grid=M1_SPEC.pace_grid,
-        )
-        comps[comp.name] = dataclasses.replace(comp, m1=spec)
-    monkeypatch.setattr(backtest_mod, "COMPETITIONS", comps)
-    monkeypatch.setattr(live_mod, "COMPETITIONS", comps)
+    """The pipeline with the small test grid in the EuroLeague M1 spec."""
+    assert EUROLEAGUE.m1 is not None
+    spec = dataclasses.replace(
+        EUROLEAGUE.m1,
+        elo_grid=M1_SPEC.elo_grid,
+        rating_grid=M1_SPEC.rating_grid,
+        pace_grid=M1_SPEC.pace_grid,
+    )
+    el = dataclasses.replace(EUROLEAGUE, m1=spec)
+    monkeypatch.setattr(backtest_mod, "EUROLEAGUE", el)
+    monkeypatch.setattr(live_mod, "EUROLEAGUE", el)
     return pipeline
 
 
-def test_backtest_m1_writes_reproducible_reports_for_both_competitions(small_m1: Path) -> None:
+def test_backtest_m1_writes_a_reproducible_report(small_m1: Path) -> None:
     failed = runner.invoke(cli.app, ["backtest", "--model", "m1"])
     assert failed.exit_code == 1  # no team_games in the marts yet
-    rows = pd.concat(
-        [make_team_games(read_games(MART_PATH, c)) for c in ("euroleague", "gbl")],
-        ignore_index=True,
-    )
+    rows = make_team_games(read_games(MART_PATH, "euroleague"))
     write_tables(MART_PATH, {"team_games": rows})
     output = invoke("backtest", "--model", "m1")
     assert "gate (" in output
     assert "MLflow parent run" in output
     assert (small_m1 / "mlruns" / "mlflow.db").exists()  # the working directory, not the repo
-    assert EUROLEAGUE.m1 is not None and GBL.m1 is not None
+    assert EUROLEAGUE.m1 is not None
     first = EUROLEAGUE.m1.report.read_bytes()
     invoke("backtest", "--model", "m1")
     assert EUROLEAGUE.m1.report.read_bytes() == first
     assert "test" not in json.loads(first)["metrics"]
-    invoke("backtest", "--model", "m1", "--competition", "gbl", "--score-test")
-    gbl = json.loads(GBL.m1.report.read_text(encoding="utf-8"))
-    assert gbl["test_scored"] and gbl["metrics"]["test"]["m1"]["n"] > 0
-    assert gbl["seasons"]["validation"] == [2023]
 
     # E7: predict appends M1 rows to its own log (for a passed gate) and never touches Elo's.
-    invoke("backtest", "--competition", "gbl")
     invoke("backtest")
-    for comp in (EUROLEAGUE, GBL):
-        assert comp.m1 is not None and comp.m1_prediction_log is not None
-        passed = json.loads(comp.m1.report.read_text(encoding="utf-8"))["gate"]["passed"]
-        name = [] if comp is EUROLEAGUE else ["--competition", "gbl"]
-        output = invoke("predict", *name)
-        elo_log = comp.prediction_log.read_bytes()
-        assert comp.m1_prediction_log.exists() == passed
-        if passed:
-            assert "3 M1 predictions appended" in output
-            m1_log = comp.m1_prediction_log.read_bytes()
-            assert "0 M1 predictions appended" in invoke("predict", *name)
-            assert comp.m1_prediction_log.read_bytes() == m1_log
-        assert comp.prediction_log.read_bytes() == elo_log
-        invoke("score", *name)
-        card = json.loads(comp.scorecard.read_text(encoding="utf-8"))
-        assert card["m1"]["rows_in_log"] == (3 if passed else 0)
+    assert EUROLEAGUE.m1_prediction_log is not None
+    passed = json.loads(EUROLEAGUE.m1.report.read_text(encoding="utf-8"))["gate"]["passed"]
+    output = invoke("predict")
+    elo_log = EUROLEAGUE.prediction_log.read_bytes()
+    assert EUROLEAGUE.m1_prediction_log.exists() == passed
+    if passed:
+        assert "3 M1 predictions appended" in output
+        m1_log = EUROLEAGUE.m1_prediction_log.read_bytes()
+        assert "0 M1 predictions appended" in invoke("predict")
+        assert EUROLEAGUE.m1_prediction_log.read_bytes() == m1_log
+    assert EUROLEAGUE.prediction_log.read_bytes() == elo_log
+    invoke("score")
+    card = json.loads(EUROLEAGUE.scorecard.read_text(encoding="utf-8"))
+    assert card["m1"]["rows_in_log"] == (3 if passed else 0)
     invoke("publish")
     site = json.loads(SITE_DATA.read_text(encoding="utf-8"))
     assert all(c["scorecard"]["m1"]["n"] == 0 for c in site["competitions"])
@@ -473,7 +426,7 @@ def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
 ) -> None:
     specs: list[M5Backtest] = []
 
-    def fake_inputs(comp: object, other: object, spec: M5Backtest, clubs: object) -> None:
+    def fake_inputs(comp: object, spec: M5Backtest) -> None:
         specs.append(spec)
         raise _Stop
 
@@ -486,54 +439,9 @@ def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
     assert spec != M5
 
 
-@pytest.mark.parametrize(
-    "args",
-    [
-        ["backtest", "--retune"],
-        ["backtest", "--model", "m5", "--competition", "gbl", "--retune-check"],
-    ],
-)
-def test_retune_flags_refuse_other_models_and_competitions(args: list[str]) -> None:
+@pytest.mark.parametrize("args", [["backtest", "--retune"]])
+def test_retune_flags_refuse_other_models(args: list[str]) -> None:
     assert runner.invoke(cli.app, args).exit_code == 1
-
-
-class AnyGameHotel(FakeBasketHotel):
-    """Serves the recorded export for any game id."""
-
-    def __call__(self, request: httpx.Request) -> httpx.Response:
-        self.calls.append(request.url)
-        if request.url.path.endswith("/show"):
-            return httpx.Response(200, text='url += "&game_id=" + 4453393;')
-        return httpx.Response(200, content=export(GAME))
-
-
-@pytest.mark.usefixtures("workdir", "no_sleep")
-def test_ingest_gbl_pbp_caches_exports_and_keeps_every_season(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    esake, hotel = FakeEsake(), AnyGameHotel()
-
-    def route(request: httpx.Request) -> httpx.Response:
-        return (hotel if request.url.host == "widgets.baskethotel.com" else esake)(request)
-
-    monkeypatch.setattr(
-        ingest_mod, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(route))
-    )
-    invoke("ingest", "--competition", "gbl", "--seasons", "2018", "--pbp")
-    assert len(hotel.calls) == 2 * 4  # widget + export for each played, non-forfeit game
-    staged = pd.read_parquet(GBL.staging_games)
-    assert set(staged["season"]) > {2018}  # --pbp never narrows the staging tables
-    assert GBL_PBP.exists()
-    fill = pd.read_parquet(GBL_BOX_FILL)
-    assert not fill.empty  # the fake's one box never matches the fake results
-    invoke("ingest", "--competition", "gbl", "--seasons", "2018", "--pbp")
-    assert len(hotel.calls) == 2 * 4  # all cached
-
-
-@pytest.mark.usefixtures("workdir")
-def test_pbp_flag_is_gbl_only() -> None:
-    result = runner.invoke(cli.app, ["ingest", "--pbp"])
-    assert result.exit_code != 0
 
 
 @pytest.mark.usefixtures("pipeline")
@@ -545,17 +453,12 @@ def test_build_reports_team_continuity() -> None:
         staged([(2025, "MCO", "AS Monaco"), (2025, "PAN", "Pana"), (2026, "PAN", "Pana")]),
         EUROLEAGUE.staging_team_seasons,
     )
-    write_table(
-        staged([(2025, "00000001", "PAO"), (2026, "00000001", "PAO"), (2026, "NEWID", "New")]),
-        GBL.staging_team_seasons,
-    )
     output = invoke("build")
     assert "euroleague 2026 teams: left MCO" in output
-    assert "gbl 2026 teams: new NEWID" in output
     assert not TEAM_CONTINUITY_REPORT.exists()  # build never writes the committed report
     assert "wrote" in invoke("continuity")
     report = json.loads(TEAM_CONTINUITY_REPORT.read_text())
-    assert report["gbl"]["seasons"]["2026"]["new"] == [{"team": "NEWID", "name": "New"}]
+    assert set(report) == {"euroleague"}
 
 
 @pytest.mark.usefixtures("pipeline")

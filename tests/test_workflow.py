@@ -15,10 +15,9 @@ DAILY = (REPO / ".github/workflows/daily.yml").read_text(encoding="utf-8")
 BASH = shutil.which("bash") or "bash"
 
 
-def test_daily_workflow_runs_every_step_for_both_competitions() -> None:
+def test_daily_workflow_runs_every_step() -> None:
     for command in ("ingest", "predict", "score"):
         assert re.search(rf"eurohoops {command}\s*$", DAILY, re.MULTILINE), command
-        assert f"eurohoops {command} --competition gbl" in DAILY, command
 
 
 def test_daily_caches_box_scores_before_build() -> None:
@@ -26,11 +25,7 @@ def test_daily_caches_box_scores_before_build() -> None:
     build = DAILY.index("eurohoops build")
     el_cache = DAILY.index("path: data/raw/euroleague")
     el_details = DAILY.index("eurohoops ingest --details")
-    gbl_details = DAILY.index(
-        "eurohoops ingest --competition gbl --details --pbp --seasons 2018 2019"
-    )
     assert el_cache < el_details < build
-    assert DAILY.index("path: data/raw/gbl") < gbl_details < build
     assert DAILY.index("eurohoops predict") > build
 
 

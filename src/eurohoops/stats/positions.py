@@ -1,7 +1,7 @@
 """Player positions from the cached EuroLeague people listing (``people/E{season}.json.gz``).
 
 Each listing row gives a player one of Guard, Forward or Center for a season and a club. The
-rules (owner-decided, SITE_FEEDBACK "Decided 2026-10-10"):
+rules (owner-decided, 2026-10-10):
 
 - a season uses its own listing;
 - two listings in one season: the club he played the most games for (the later-signed one on a tie);

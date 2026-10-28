@@ -31,7 +31,6 @@ SPECIAL_SEASONS: dict[int, tuple[str, str]] = {
 }
 MART_PATH = Path("data/marts/eurohoops.duckdb")
 SQL_DIR = Path(__file__).parent / "sql"  # shipped inside the package, found from any cwd
-BOX_INVARIANTS_REPORT = Path("reports/gbl_box_invariants.json")
 STINT_REPORT = Path("reports/stint_validation.json")
 POSSESSION_REPORT = Path("reports/possessions.json")
 STINTS_MART_REPORT = Path("reports/stints_mart.json")
@@ -123,10 +122,10 @@ class Competition:
     # A row first became public at the earliest such push at or after its stamp; later rows
     # are committed by the workflow in the run that stamps them.
     manual_pushes: tuple[datetime, ...] = ()
-    odds_log: Path | None = None  # forward-recorded market consensus (EuroLeague only)
+    odds_log: Path | None = None  # forward-recorded market consensus
     m1: M1Backtest | None = None
     m1_prediction_log: Path | None = None  # live M1 log (E-g), separate from the Elo log
-    m5_prediction_log: Path | None = None  # live M5 shadow log (EuroLeague only; not gated for GBL)
+    m5_prediction_log: Path | None = None  # live M5 shadow log (EuroLeague only)
     elor_prediction_log: Path | None = None  # live ELOR shadow log (EuroLeague only)
     eloc_prediction_log: Path | None = (
         None  # live ELOC shadow log (EuroLeague only; see ELOC_LIVE_ENABLED)
@@ -216,42 +215,6 @@ POOL_COMPONENTS: dict[str, tuple[Path, str]] = {
     "elor": (Path("predictions/euroleague_elor_2026-27.csv"), "0.2.0+elor.59b43f20"),
 }
 
-GBL_ELO_GRID = Grid(
-    k=(10.0, 15.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0),
-    hca=(0.0, 50.0, 90.0, 110.0, 130.0, 150.0, 170.0, 200.0, 230.0, 260.0),
-    reversion=(0.0, 0.1, 0.25, 0.5, 0.75),
-)
-
-GBL = Competition(
-    name="gbl",
-    default_seasons=_seasons(2018, LIVE_SEASON),
-    # Frozen for 2026-27 (2026-09-25): the wide grid's best (K50/HCA170/rev0) beat these on
-    # tuning but not on test (95% CI of the log-loss gap spans 0); see reports/week3_closeout.md.
-    live_backtest=Backtest(
-        Path("reports/backtest_elo_gbl.json"),
-        _seasons(2018, 2021),
-        (2022, 2023),
-        (2024, 2025),
-        grid=GBL_ELO_GRID,
-        frozen=EloParams(k=40.0, hca=130.0, reversion=0.25),
-    ),
-    history_backtests=(),
-    prediction_log=Path("predictions/gbl_2026-27.csv"),
-    scorecard=Path("reports/live_scorecard_gbl.json"),
-    m1=M1Backtest(
-        Path("reports/backtest_m1_gbl.json"),
-        warmup=_seasons(2018, 2020),
-        tuning=(2021, 2022),
-        validation=(2023,),
-        test=(2024, 2025),
-        elo_grid=GBL_ELO_GRID,
-    ),
-    m1_prediction_log=Path("predictions/gbl_m1_2026-27.csv"),
-    inputs_log=Path("predictions/gbl_inputs_2026-27.csv"),
-)
-
-COMPETITIONS = {c.name: c for c in (EUROLEAGUE, GBL)}
-
 
 @dataclass(frozen=True)
 class M2Seasons:
@@ -314,60 +277,21 @@ M3 = M3Backtest(
     validation=(2023,),
     test=(2024, 2025),
 )
-M3_GBL = M3Backtest(
-    Path("reports/backtest_m3_gbl.json"),
-    warmup=_seasons(2018, 2020),
-    tuning=(2021, 2022),
-    validation=(2023,),
-    test=(2024, 2025),
-)
 M3_PLAYERS_REPORT = Path("reports/m3_players.json")
-GBL_STINTS_REPORT = Path("reports/gbl_stints.json")
-GBL_PLAYER_BOX = Path("data/staging/gbl_player_box.parquet")
-GBL_TEAM_BOX = Path("data/staging/gbl_team_box.parquet")
-GBL_BOX_FILL = Path("data/staging/gbl_box_fill.parquet")
-# generated report of every minutes change made from PBP (one row per player or unapplied side)
-GBL_MINUTES_REPORT = Path("data/staging/gbl_minutes_from_pbp.csv")
-GBL_PBP = Path("data/staging/gbl_pbp.parquet")
 # weeks 12-14 I-c: birth dates for matching only; staging stays in data/ (never committed)
 PLAYER_BIOS = Path("data/staging/player_bios.parquet")
 BIO_EL_SEASONS = tuple(range(2007, 2026))
-# GBL team id -> EuroLeague code of the same club (the only GBL clubs in the EuroLeague 2007-2025)
-GREEK_EL_CLUBS = {"00000001": "PAN", "00000002": "OLY"}
-GBL_PLAYER_NAMES = Path("data/staging/gbl_player_names.parquet")
 EL_PLAYER_NAMES = Path("data/staging/euroleague_player_names.parquet")
 ENTITY_SEASONS = tuple(range(2007, 2026))  # I-a: the live season is not touched
 ENTITY_OVERRIDES = Path("entity/overrides.csv")
-ENTITY_LABELS = Path("entity/labels.csv")
-ENTITY_LABELS_TODO = Path("data/entity/labels_todo.csv")  # shows birth dates: never committed
-ENTITY_REPORT = Path("reports/entity_resolution.json")
 # The player_xwalk mart's ids (competition, source_id, person_id; no names, no dates), committed
 # so the daily workflow can run `eurohoops project` without the local `entity` step (owner,
 # 2026-10-08, weeks 16-18 D25). `entity` rewrites it with the mart.
 PLAYER_XWALK_FILE = Path("entity/player_xwalk.csv")
 # EuroLeague titles won before 2007-08 (frozen; later seasons come from the games table)
 EL_TITLES_SEED = Path("entity/el_titles_before_2007.csv")
-ENTITY_TUNING_REPORT = Path("reports/entity_tuning.json")
 
 
-@dataclass(frozen=True)
-class M4Backtest:
-    """M4 league translation (weeks 12-14 I-h): walk forward by EuroLeague target season."""
-
-    report: Path = Path("reports/backtest_m4.json")
-    translation_report: Path = Path("reports/m4_translation.json")
-    tuning: tuple[int, ...] = _seasons(2019, 2022)
-    validation: tuple[int, ...] = (2023,)
-    test: tuple[int, ...] = (2024, 2025)
-    min_validation_movers: int = 20  # below it the gate pools 2019-2023 with `translate` declared
-    shrink_minutes: float = 250.0  # `shrunk_same_stats` prior weight, fixed (not tuned)
-    sd_min_minutes: float = 300.0  # EL player-seasons that set each stat's sd
-    bootstrap_resamples: int = 1000
-    bootstrap_seed: int = 20261015
-
-
-M4 = M4Backtest()
-GBL_BOX_GAPS = Path("reports/gbl_box_gaps.csv")
 # The one model the Forecasts page leads with (PLAN 8.1 R1: Elo until M5 beats it at a look).
 SITE_FORECAST_MODEL = "elo"
 
@@ -419,7 +343,6 @@ M5 = M5Backtest(
     validation=(2023,),
     test=(2024, 2025),
 )
-M5_REST_REPORT = Path("reports/m5_rest.json")
 
 
 @dataclass(frozen=True)
@@ -523,16 +446,6 @@ ELOH_FIT = Path("reports/eloh_fit.json")
 ELOH_FIT_SEASONS = _seasons(2007, 2023)
 
 
-M5_GBL = M5Backtest(
-    Path("reports/backtest_m5_gbl.json"),
-    Path("reports/backtest_m5_gbl_games.csv"),
-    warmup=_seasons(2018, 2020),
-    tuning=(2021, 2022),
-    validation=(2023,),
-    test=(2024, 2025),
-)
-
-
 @dataclass(frozen=True)
 class M7Backtest:
     """M7 season simulator backtest (week 14-16 K4): replay past seasons at checkpoints."""
@@ -572,21 +485,9 @@ M7_V2 = M7Backtest(
     bootstrap_resamples=10000,
 )
 GATE_V2_MARGIN = 0.005  # non-inferiority margin of the Brier difference to point_sim
-# GBL: the seasons whose format section 3 can verify; reported only (it scores the EuroLeague
-# verdict as `fixed`).
-M7_GBL = M7Backtest(
-    Path("reports/backtest_m7_gbl.json"),
-    Path("reports/backtest_m7_gbl_teams.csv"),
-    tuning=(2020, 2021, 2022),
-    validation=(),
-    test=(2025,),
-)
 # Live M7 (K8): one append-only simulation log per competition, plus the latest run's report.
-SIM_LOGS = {
-    name: Path(f"predictions/{name}_sim_{LIVE_SEASON}-{(LIVE_SEASON + 1) % 100}.csv")
-    for name in ("euroleague", "gbl")
-}
-SIM_LATEST = {name: Path(f"reports/sim_latest_{name}.json") for name in ("euroleague", "gbl")}
+SIM_LOG = Path(f"predictions/euroleague_sim_{LIVE_SEASON}-{(LIVE_SEASON + 1) % 100}.csv")
+SIM_LATEST = Path("reports/sim_latest_euroleague.json")
 
 
 @dataclass(frozen=True)
@@ -617,19 +518,10 @@ M6 = M6Backtest(
     validation=(2023,),
     test=(2024, 2025),
 )
-# GBL box scores start in 2018-19, so the first target with a prior GBL season is 2019-20;
-# reported only (it scores the EuroLeague verdict as `fixed`).
-M6_GBL = M6Backtest(
-    Path("reports/backtest_m6_gbl.json"),
-    Path("reports/backtest_m6_gbl_players.csv"),
-    tuning=_seasons(2019, 2022),
-    validation=(2023,),
-    test=(2024, 2025),
-)
 # Live M6 (L9) and the ungated standings report (owner, 2026-10-07: decision D1).
 M6_PROJECTIONS = Path("reports/m6_projections.json")
 M6_SIMILARITY = Path("reports/m6_similarity.json")
-SIM_UNGATED = {name: Path(f"reports/sim_ungated_{name}.json") for name in ("euroleague", "gbl")}
+SIM_UNGATED = Path("reports/sim_ungated_euroleague.json")
 # In-game WP (docs/models/wp.md, protocol v1): the one-time gate report and its per-game rows.
 WP_REPORT = Path("reports/backtest_wp.json")
 # Candidate Elo + ridge margin blend (docs/models/candidate_elo_blend.md); not the live model.

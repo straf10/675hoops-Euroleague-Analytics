@@ -167,7 +167,7 @@ walk-forward fits, posterior intervals (M3 card). That is the same idea as the "
 prior" described on the other site, but our prior is fitted walk-forward, so it is leak-free.
 What is missing is exposure: M3 "feeds no live prediction and no site page" apart from the player
 projection block. Proposal: a RAPM leaderboard (O, D, total, interval, minutes) and a RAPM line on
-player pages. Note: no GBL RAPM — GBL stints fail the checks (M3 card).
+player pages.
 
 ## 10. MVP ladder — Later
 

@@ -5,12 +5,9 @@ from typing import Annotated
 import pandas as pd
 import typer
 
-from eurohoops.cli._shared import _both_games, _gbl_pbp, log
+from eurohoops.cli._shared import log
 from eurohoops.config import (
-    BOX_INVARIANTS_REPORT,
     EUROLEAGUE,
-    GBL,
-    GBL_BOX_GAPS,
     LIVE_SEASON,
     MART_PATH,
     POSSESSION_REPORT,
@@ -20,14 +17,7 @@ from eurohoops.config import (
     TEAM_CONTINUITY_REPORT,
 )
 from eurohoops.logs import write_json
-from eurohoops.marts import (
-    box_invariants,
-    build_marts,
-    read_games,
-    read_table,
-    refresh_box_gaps,
-    write_tables,
-)
+from eurohoops.marts import build_marts, read_games, read_table, write_tables
 from eurohoops.parse.continuity import continuity_report
 from eurohoops.parse.possession_report import possession_report
 from eurohoops.parse.stints import validate_sample
@@ -37,17 +27,9 @@ from eurohoops.publish import DISPLAY_CODES
 
 
 def build() -> None:
-    """Build the DuckDB marts from staging (and ``team_games`` from the raw box-score cache).
-
-    With GBL box scores staged, also write the invariant report.
-    """
-    has_box = build_marts(MART_PATH, SQL_DIR)
-    team_games = build_team_games(
-        read_games(MART_PATH, EUROLEAGUE.name),
-        read_games(MART_PATH, GBL.name),
-        (EUROLEAGUE.raw_dir, GBL.raw_dir),
-        _gbl_pbp(),
-    )
+    """Build the DuckDB marts from staging (and ``team_games`` from the raw box-score cache)."""
+    build_marts(MART_PATH, SQL_DIR)
+    team_games = build_team_games(read_games(MART_PATH, EUROLEAGUE.name), EUROLEAGUE.raw_dir)
     write_tables(
         MART_PATH, {"team_games": team_games.table, "team_games_missing": team_games.missing}
     )
@@ -55,12 +37,6 @@ def build() -> None:
         f"team_games: {team_games.table['game_id'].nunique()} games, "
         f"{len(team_games.missing)} played games without box lines"
     )
-    if has_box:
-        report = box_invariants(MART_PATH)
-        write_json(BOX_INVARIANTS_REPORT, report)
-        refresh_box_gaps(MART_PATH, GBL_BOX_GAPS)
-        for season, stats in report["seasons"].items():
-            typer.echo(f"gbl box scores {season}: {stats['passed']}/{stats['games']} pass")
     _team_continuity()
     typer.echo(f"marts written to {MART_PATH}")
 
@@ -69,12 +45,10 @@ def _team_continuity() -> None:
     """Stage-to-marts ``team_seasons`` and print the live season's team changes (skipped before
     the first ingest that stages team seasons). The report file is ``eurohoops continuity``:
     the daily workflow stages fewer seasons, so ``build`` never rewrites it."""
-    staged = [c for c in (EUROLEAGUE, GBL) if c.staging_team_seasons.exists()]
-    if not staged:
+    if not EUROLEAGUE.staging_team_seasons.exists():
         return
-    team_seasons = pd.concat(
-        [pd.read_parquet(c.staging_team_seasons).assign(competition=c.name) for c in staged],
-        ignore_index=True,
+    team_seasons = pd.read_parquet(EUROLEAGUE.staging_team_seasons).assign(
+        competition=EUROLEAGUE.name
     )
     write_tables(MART_PATH, {"team_seasons": team_seasons})
     report = continuity_report(team_seasons)
@@ -104,7 +78,7 @@ def continuity() -> None:
     report = continuity_report(team_seasons)
     write_json(TEAM_CONTINUITY_REPORT, report)
     for competition, block in report.items():
-        for item in block["review_name_changes"]:  # names (Greek for the GBL) are in the file
+        for item in block["review_name_changes"]:  # the names are in the file
             typer.echo(f"review: {competition} {item['season']} {item['team']} changed name")
     typer.echo(f"wrote {TEAM_CONTINUITY_REPORT}")
 
@@ -161,10 +135,8 @@ def possessions() -> None:
     report = possession_report(
         table,
         missing=missing,
-        games=_both_games(),
+        games=read_games(MART_PATH, EUROLEAGUE.name).assign(competition=EUROLEAGUE.name),
         euroleague_raw=EUROLEAGUE.raw_dir,
-        gbl_raw=GBL.raw_dir,
-        gbl_pbp=_gbl_pbp(),
     )
     write_json(POSSESSION_REPORT, report)
     sample = report["euroleague_pbp_sample"]

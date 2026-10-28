@@ -13,11 +13,11 @@ from eurohoops.models.player_seasons import (
 
 XWALK = pd.DataFrame(
     {
-        "person_id": ["P:PA", "P:PA", "P:PB"],
-        "competition": ["euroleague", "gbl", "euroleague"],
-        "source_id": ["PA", "G1", "PB"],
-        "method": ["none", "auto", "none"],
-        "score": [None, 0.9, None],
+        "person_id": ["P:PA", "P:PB"],
+        "competition": ["euroleague", "euroleague"],
+        "source_id": ["PA", "PB"],
+        "method": ["none", "none"],
+        "score": [None, None],
     }
 )
 
@@ -44,8 +44,7 @@ def _games() -> dict[str, pd.DataFrame]:
             _line(2021, "E3", "BAR", "PX", 300, ast=2),  # not in the crosswalk
         ]
     )
-    gbl = pd.DataFrame([_line(2019, "G9", "00000001", "G1", 900, dreb=5)])
-    return {"euroleague": el, "gbl": gbl}
+    return {"euroleague": el}
 
 
 def test_sums_teams_debut_and_ids() -> None:
@@ -57,8 +56,7 @@ def test_sums_teams_debut_and_ids() -> None:
     assert a20["team"] == "MAD"
     assert (a20["pts"], a20["fta"], a20["ftm"], a20["fg3a"], a20["games"]) == (14, 6, 5, 3, 2)
     assert a20["poss"] == pytest.approx(30.0 * 1.8)
-    # The GBL 2019 season is the same person's first: debut 2019 on both rows.
-    assert set(table.loc[table["person_id"] == "P:PA", "debut_season"]) == {2019}
+    assert set(table.loc[table["person_id"] == "P:PA", "debut_season"]) == {2020}
     assert "P:PB" not in set(table["person_id"])  # no seconds played
     x = table[table["person_id"] == "P:PX"].iloc[0]
     assert not x["mapped"] and x["debut_season"] == 2021
@@ -75,26 +73,21 @@ def test_unmapped_ids_keep_the_crosswalk_scheme() -> None:
     ids = person_ids(pd.Series(["PA", "Q7"]), "euroleague", XWALK)
     assert ids["person_id"].tolist() == ["P:PA", "P:Q7"]
     assert ids["mapped"].tolist() == [True, False]
-    assert person_ids(pd.Series(["Z"]), "gbl", XWALK)["person_id"].tolist() == ["G:Z"]
 
 
 def test_ages_at_first_october() -> None:
     bios = pd.DataFrame(
         {
-            "competition": ["euroleague", "gbl", "euroleague"],
-            "source_id": ["PA", "G1", "PB"],
-            "birth_date": [
-                pd.Timestamp("2000-10-01").date(),
-                pd.Timestamp("1990-01-01").date(),
-                None,
-            ],
-            "country": ["GRE", "GRE", None],
+            "competition": ["euroleague", "euroleague"],
+            "source_id": ["PA", "PB"],
+            "birth_date": [pd.Timestamp("2000-10-01").date(), None],
+            "country": ["GRE", None],
         }
     )
     seasons = pd.DataFrame({"person_id": ["P:PA", "P:PA", "P:PB"], "season": [2020, 2021, 2020]})
     ages = player_ages(bios, XWALK, seasons)
-    # Born 1 Oct 2000: exactly 20 on 1 Oct 2020 (7,305 days / 365.2425); the EuroLeague date
-    # wins over the GBL one; PB has no date and is left out.
+    # Born 1 Oct 2000: exactly 20 on 1 Oct 2020 (7,305 days / 365.2425); PB has no date and is
+    # left out.
     assert ages["person_id"].tolist() == ["P:PA", "P:PA"]
     assert ages["age"].tolist() == pytest.approx([7305 / 365.2425, 7670 / 365.2425])
 

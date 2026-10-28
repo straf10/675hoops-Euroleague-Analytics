@@ -18,10 +18,8 @@ import pandas as pd
 from eurohoops.audit import Finding, run_audit
 from eurohoops.audit_coaches import coach_findings
 from eurohoops.audit_standings import Standing, standings_findings
-from eurohoops.audit_status import POSTPONED_REASON, is_postponed
-from eurohoops.config import EUROLEAGUE, GBL, MART_PATH
+from eurohoops.config import EUROLEAGUE, MART_PATH
 from eurohoops.ingest.cache import read_cached
-from eurohoops.parse.box import load_box_corrections
 from eurohoops.stats.coaches import coach_games
 
 STANDINGS_DIR = EUROLEAGUE.raw_dir / "standings"
@@ -99,8 +97,6 @@ def _overtime(games: pd.DataFrame, seasons: list[int]) -> dict[tuple[int, str], 
 
 
 REPO = Path(__file__).resolve().parents[1]
-CORRECTIONS = REPO / "corrections" / "gbl_box.csv"  # repo files: read from the checkout
-SCHEDULE = REPO / "corrections" / "gbl_schedule.csv"  # documented source schedule items
 OVERRIDES = REPO / "entity" / "overrides.csv"
 
 
@@ -140,29 +136,6 @@ def _raw_coaches(games: pd.DataFrame) -> dict[tuple[str, str], str]:
     return out
 
 
-def _schedule() -> dict[str, str]:
-    """game_id -> reason, for source schedule items documented in corrections/gbl_schedule.csv."""
-    frame = pd.read_csv(SCHEDULE, dtype=str, keep_default_na=False)
-    return dict(zip(frame["game_id"], frame["reason"], strict=True))
-
-
-def _postponed(path: str) -> dict[str, str]:
-    """game_id -> reason, for unplayed GBL games whose cached ESAKE schedule says postponed."""
-    with duckdb.connect(path, read_only=True) as con:
-        unplayed = con.execute(
-            "SELECT game_id, game_code FROM games WHERE competition = 'gbl' AND NOT played "
-            "AND NOT forfeit AND tipoff_utc < now()"
-        ).fetchall()
-    codes = {f"{int(code):08X}": game_id for game_id, code in unplayed}
-    out: dict[str, str] = {}
-    for page in sorted((GBL.raw_dir / "results").rglob("*.html.gz")):
-        text = read_cached(page).decode("utf-8", "replace")
-        for code, game_id in codes.items():
-            if is_postponed(text, code):
-                out[game_id] = POSTPONED_REASON
-    return out
-
-
 def _coach(path: str) -> list[Finding]:
     with duckdb.connect(path, read_only=True) as con:
         games = con.execute("SELECT * FROM games WHERE competition = 'euroleague'").df()
@@ -183,12 +156,7 @@ def _print(findings: list[Finding]) -> None:
 
 def main(argv: list[str]) -> int:
     path = Path(argv[1]) if len(argv) > 1 else MART_PATH
-    corrections = {
-        " ".join(key): fix.reason for key, fix in load_box_corrections(CORRECTIONS).items()
-    }
-    corrections.update(_documented_matches(str(path)))
-    corrections.update(_postponed(str(path)))
-    corrections.update(_schedule())
+    corrections = _documented_matches(str(path))
     findings = run_audit(str(path), corrections) + _coach(str(path)) + _standings(str(path))
     print(f"UNEXPLAINED FAILURES: {sum(f.unexplained for f in findings)}")
     _print(findings)

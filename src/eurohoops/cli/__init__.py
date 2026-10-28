@@ -6,9 +6,9 @@ import typer
 
 from eurohoops import research
 from eurohoops.cli import backtest, build, ingest, live, publish
-from eurohoops.cli._shared import CompetitionName, ModelName
+from eurohoops.cli._shared import ModelName
 
-__all__ = ["CompetitionName", "ModelName", "app", "main"]
+__all__ = ["ModelName", "app", "main"]
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -30,7 +30,6 @@ app.command()(build.continuity)
 app.command()(build.stints)
 app.command()(research.shots)
 app.command(name="free-throws")(research.free_throws)
-app.command(name="gbl-stints")(research.gbl_stints)
 app.command(name="entity")(research.entity)
 app.command()(build.possessions)
 app.command()(live.project)
@@ -38,7 +37,6 @@ app.command("sim-ungated")(live.sim_ungated)
 app.command()(backtest.backtest)
 app.command(name="shot-quality")(research.shot_quality)
 app.command(name="m3-players")(research.m3_players)
-app.command(name="m5-rest")(research.m5_rest)
 app.command(name="shot-charts")(research.shot_charts)
 app.command()(live.predict)
 app.command(name="backfill-inputs")(live.backfill_inputs)

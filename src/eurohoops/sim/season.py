@@ -6,13 +6,13 @@ whole season and the knockouts. Games are drawn as ``margin = round(pace·(ORtg_
 1/2 (overtime is not modelled and overtime points count for no tie-break, Art. 19.4). Each final
 table is ranked as ``standings.rank`` does: by wins, and only the tied groups go through the
 Art. 19 procedure (``standings.rank_by_wins``) with just the games of their own teams.
-Knockouts follow the format's ``series`` (EuroLeague Art. 18.2-18.4, GBL as ``GBL_2026``).
+Knockouts follow the format's ``series`` (EuroLeague Art. 18.2-18.4).
 
 Random draws come from one ``np.random.default_rng(seed)`` in a fixed order, so the output is a
 pure function of the inputs and the seed: strengths, regular-season noise (sims, games),
 regular-season coin flips (sims, games), then per knockout stage one noise array
 (sims, series, games) in bracket order (play-in A and B, C, playoffs, Final Four semifinals,
-final; GBL: quarterfinals, semifinals, final).
+final).
 """
 
 from collections.abc import Callable, Sequence
@@ -39,7 +39,6 @@ _HIGHER_SEED_HOSTS = {
 }
 _EL_PLAY_IN = ("play-in", "playoffs", "final four")
 _EL_PLAIN = ("playoffs", "final four")
-_GBL = ("quarterfinals", "semifinals", "final")
 _COLUMNS = ("home", "away", "neutral")
 
 
@@ -65,8 +64,8 @@ class SimOutput:
     p_direct: FloatArray  # (teams,) P(final place in fmt.playoffs_direct)
     p_play_in: FloatArray  # (teams,) P(place in fmt.play_in); zeros without a play-in
     p_top10: FloatArray  # (teams,) P(place <= 10)
-    p_playoffs: FloatArray  # (teams,) P(in the playoff bracket: EL playoffs / GBL quarterfinals)
-    p_semis: FloatArray  # (teams,) EL: P(Final Four); GBL: P(semifinals)
+    p_playoffs: FloatArray  # (teams,) P(in the playoff bracket)
+    p_semis: FloatArray  # (teams,) P(Final Four)
     p_final: FloatArray  # (teams,) P(reached the final)
     p_title: FloatArray  # (teams,) P(won the title)
 
@@ -217,14 +216,6 @@ def _knockouts(
     """Teams (sims, k) in the bracket, the last four, the finalists and the champion."""
     n_sims = len(court.home)
     best_of = {s.name: s.best_of for s in fmt.series}
-    if kind == _GBL:
-        seeds = _places(n_sims, *range(8))
-        quarters = court.series(seeds[:, :4], seeds[:, [7, 6, 5, 4]], best_of["quarterfinals"])
-        semis = court.series(
-            quarters[:, [0, 1]], quarters[:, [3, 2]], best_of["semifinals"]
-        )  # 1/8 v 4/5, 2/7 v 3/6
-        final = court.series(semis[:, :1], semis[:, 1:], best_of["final"])
-        return court.team(seeds), court.team(quarters), court.team(semis), court.team(final)
     if kind == _EL_PLAY_IN:
         ahead = court.series(  # play-in A (7 v 8) and B (9 v 10)
             _places(n_sims, 6, 8), _places(n_sims, 7, 9), best_of["play-in"]
@@ -246,7 +237,7 @@ def _knockouts(
 
 def _knockout_kind(fmt: Format) -> tuple[str, ...]:
     kind = tuple(s.name for s in fmt.series)
-    if kind not in (_EL_PLAY_IN, _EL_PLAIN, _GBL):
+    if kind not in (_EL_PLAY_IN, _EL_PLAIN):
         raise ValueError(f"unsupported knockout structure {kind}")
     if kind == _EL_PLAY_IN:
         shape_ok = fmt.playoffs_direct == tuple(range(1, 7)) and fmt.play_in == (7, 8, 9, 10)

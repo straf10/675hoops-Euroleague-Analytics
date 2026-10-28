@@ -8,10 +8,9 @@ Numbers table.
 - **EuroLeague:** box-score lines (`Player_ID` `P` + 6 digits, space-padded; `Player`
   `SURNAME, NAME`; `Dorsal`), every rated game 2007–2025. Birth dates from the v2 API
   (`/v2/competitions/E/seasons/E{YYYY}/people?limit=2000`, one call per season).
-- **GBL (ESAKE):** the box-table cell of each cached game page,
   `#<jersey><photo><span>SURNAME</span> FIRST`, mostly in Greek capitals with Latin look-alike
   letters inside Greek words (`ΚΩΝΣΤAΝΤΙΝΟΣ` has a Latin A). `##` and `#0` mean no jersey
-  (ESAKE's placeholder). Birth dates from each player's `EsakeplayerView` page
+Birth dates from each player's bio page
   (`ΗΜ. ΓΕΝΝΗΣΗΣ`), fetched once at ≥ 2 s per page (`eurohoops ingest-bios`, local only).
 - Birth dates are a matching feature only. They stay in `data/` and are not committed.
 
@@ -36,7 +35,6 @@ Ogkast→Auguste stay below.
   teammates share birthdays (the Kalaitzakis twins), which is why a date alone is not enough.
 
 ## Tuning: the silver set
-Built without names: a GBL id and a EuroLeague id on PAO (`00000001` ↔ `PAN`) or OLY
 (`00000002` ↔ `OLY`) in the same season with equal or near birth dates are positives, other
 pairs of that club-season are negatives. The missing-date rule was tuned on it with dates hidden
 (precision 1.0, recall 0.864286). With dates visible the matcher scores precision 1.0 and recall
@@ -45,19 +43,15 @@ other, each matched to his own EuroLeague id), and 5 are true misses (Vezenkov, 
 Papas, Moses Wright, Thomas Walkup).
 
 ## Result
-The crosswalk holds 2,997 persons: 191 GBL ids matched to a EuroLeague id, 4 ids linked by
-override (Omer Yurtseven's two EuroLeague ids, and Vezenkov's GBL and EuroLeague ids), and every
-other id its own person. The 8 `pbp:` keys of the 2018–20 fill found no ESAKE id with their
+other id its own person.
 jersey and name.
 
-**Precision and recall on the owner-labelled sample.** The owner labelled 186 GBL ids in
 4 strata (`entity/labels.csv`: 87 matched to a EuroLeague id, 99 with none), after the matcher
 commit. Matcher, frozen configuration: precision 1.0 (95% CI 0.957242 to 1.0), recall 0.988506 (95% CI
 0.937728 to 0.997968), recall weighted by stratum size 0.993377. Every match the matcher made on
 the sample is right (86 of 86), in the Greek-script and the Latin-only strata alike; the strata
 it left unmatched hold 100 ids, one of them a true match. That one is a known miss:
 
-- **Alexander (Sasha) Vezenkov** (GBL `00000069`, EuroLeague `P003469`): same birth date, same
   Olympiacos #14 career; the name score is 0.77, under the 0.78 threshold for equal birth dates.
 
 An override from the labels (reason starting `label:`, excluded from the frozen run) fixes
@@ -70,7 +64,6 @@ crosswalk frozen (`player_xwalk_frozen`, no `label:` overrides), so its scores d
 | Value | Shown | Source |
 |---|---|---|
 | persons | 2984 | `entity_resolution.json:persons` |
-| matched GBL ids | 206 | `entity_resolution.json:matched_gbl_ids` |
 | candidate pairs | 93444 | `entity_resolution.json:candidate_pairs` |
 | accepted pairs | 197 | `entity_resolution.json:accepted_pairs` |
 | override ids | 36 | `entity_resolution.json:by_method.override` |
@@ -87,7 +80,6 @@ crosswalk frozen (`player_xwalk_frozen`, no `label:` overrides), so its scores d
 | label recall, weighted | 0.993377 | `entity_resolution.json:labels.as_frozen.recall_weighted` |
 | label recall, after overrides | 1.0 | `entity_resolution.json:labels.after_overrides.recall` |
 | label recall CI low, after overrides | 0.957712 | `entity_resolution.json:labels.after_overrides.recall_ci95.0` |
-| GBL birth dates | 993 | `entity_resolution.json:bios.gbl` |
 | EuroLeague birth dates | 2665 | `entity_resolution.json:bios.euroleague` |
 | tuning recall, dates hidden | 0.864286 | `entity_tuning.json:chosen_silver_hidden_dates.recall` |
 | tuning precision, dates hidden | 1.0 | `entity_tuning.json:chosen_silver_hidden_dates.precision` |

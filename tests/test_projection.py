@@ -1,6 +1,6 @@
 """M6 projections (weeks 16-18 L1): calibration on synthetic leagues with known true rates,
-shrinkage limits, the prior-only limit, the leakage rule, and hand examples for translation,
-aging, impact and the variants. Synthetic data only; ages are synthetic."""
+shrinkage limits, the prior-only limit, the leakage rule, and hand examples for aging, impact
+and the variants. Synthetic data only; ages are synthetic."""
 
 from __future__ import annotations
 
@@ -26,9 +26,6 @@ from eurohoops.models.projection import (
     IMPACT_SCHEMA,
     PROJECTIONS_SCHEMA,
     TARGET_SCHEMA,
-    VARIANTS,
-    ProjectionParams,
-    Translation,
     fit_drift,
     project,
     variant_params,
@@ -356,14 +353,13 @@ def project_with(history, target, **kwargs):
 
 
 def future_rows() -> pd.DataFrame:
-    """Rows a 2024 target may not use: 2025-26, the whole 2024 season, a partial 2024 season of
-    the other competition, for known players and for new ones."""
+    """Rows a 2024 target may not use: 2025-26 and the whole 2024 season, for known players and
+    for new ones."""
     return pd.concat(
         [
             hand_rows("bg00003", "euroleague", 2025, 2500, pts=900),
             hand_rows("bg00003", "euroleague", 2026, 2500, pts=1000),
             hand_rows("bg00003", "euroleague", 2024, 2500, pts=800),
-            hand_rows("bg00004", "gbl", 2024, 900, partial=True, pts=400),
             hand_rows("newcomer", "euroleague", 2024, 2500, pts=700),
             hand_rows("newcomer", "euroleague", 2025, 2500, pts=700),
         ],
@@ -441,78 +437,6 @@ def test_rows_at_or_after_the_cutoff_change_nothing():
 
 
 # --- hooks and hand examples -------------------------------------------------------------------
-
-
-def translation_for(season: int = 2024) -> Translation:
-    return Translation(
-        delta=dict.fromkeys(COUNT_STATS, 0.2) | {"ast": -0.1},
-        c=dict.fromkeys(COUNT_STATS, 2.0) | {"ast": 1.0},
-        target_season=season,
-    )
-
-
-@pytest.mark.parametrize(
-    ("target_comp", "other_comp", "sign"), [("euroleague", "gbl", 1.0), ("gbl", "euroleague", -1.0)]
-)
-def test_translation_moves_only_other_league_rows_and_only_when_asked(
-    target_comp, other_comp, sign
-):
-    """Hand example: rows in the other league (2023, 2000 poss, 25 pts per 100) and the
-    target's league (2022, 3000 poss, 18); half-life 1 gives decay 0.5 and 0.25, so the weights
-    are 1000 and 750. M4's form: to EuroLeague (r + c) exp(delta) - c, to GBL exp(-delta)."""
-    league = background(target_comp)
-    history = concat(
-        league,
-        hand_rows("mover", other_comp, 2023, 2000, pts=500, ast=100),
-        hand_rows("mover", target_comp, 2022, 3000, pts=540, ast=300),
-    )
-    target = targets_for(["mover"], target_comp, 2024)
-    t = translation_for()
-    full = project(
-        history, target, variant_params("proj_full", 1.0), drift=zero_drift(),
-        aging=lambda s, a, b: np.zeros_like(a), translation=t,
-    )  # fmt: skip
-    plain = project(
-        history, target, variant_params("proj_shrunk", 1.0), drift=zero_drift(), translation=t
-    )
-    shifted = max((25.0 + 2.0) * math.exp(sign * 0.2) - 2.0, 0.0)
-    assert recovered_blend(full, "mover", "pts") == pytest.approx(
-        (1000 * shifted + 750 * 18.0) / 1750, rel=1e-9
-    )
-    assert recovered_blend(plain, "mover", "pts") == pytest.approx(
-        (1000 * 25.0 + 750 * 18.0) / 1750, rel=1e-9
-    )
-    shifted_ast = max((5.0 + 1.0) * math.exp(sign * -0.1) - 1.0, 0.0)
-    assert recovered_blend(full, "mover", "ast") == pytest.approx(
-        (1000 * shifted_ast + 750 * 10.0) / 1750, rel=1e-9
-    )
-    flags = lambda out, stat: out[(out["stat"] == stat)].iloc[-1]["flags"]  # noqa: E731
-    assert "translated" in flags(full, "pts").split("|")
-    assert "translated" not in flags(plain, "pts").split("|")
-    # percentages are not translated
-    assert recovered_blend(full, "mover", "ft") == pytest.approx(
-        recovered_blend(plain, "mover", "ft"), rel=1e-12
-    )
-    assert "translated" not in flags(full, "ft").split("|")
-
-
-def test_translation_is_required_for_other_league_rows_and_may_not_be_from_the_future():
-    history = concat(background(), hand_rows("mover", "gbl", 2023, 2000))
-    target = targets_for(["mover"], "euroleague", 2024)
-    params = variant_params("proj_full", 2.0)
-    zero_age = lambda s, a, b: np.zeros_like(a)  # noqa: E731
-    with pytest.raises(ValueError, match="M4"):
-        project(history, target, params, drift=zero_drift(), aging=zero_age)
-    with pytest.raises(ValueError, match="walk-forward"):
-        project(
-            history, target, params, drift=zero_drift(), aging=zero_age,
-            translation=translation_for(2025),
-        )  # fmt: skip
-    # no other-league row, no factors needed
-    league_only = targets_for(["bg00001"], "euroleague", 2024)
-    project(history, league_only, params, drift=zero_drift(), aging=zero_age)
-    with pytest.raises(ValueError, match="aging"):
-        project(history, league_only, params, drift=zero_drift())
 
 
 def test_aging_moves_every_row_to_the_target_age_through_the_callable():
@@ -625,55 +549,16 @@ def test_impact_rows_blend_by_inverse_variance_and_a_missing_one_gives_the_prior
     assert "no_impact_input" in blank["flags"].split("|")
     # impact has no sampling term: the predictive sd of a blank is the prior sd
     assert blank["sd"] > 0
-    # a GBL target has no impact prior: the impact stats are simply not projected
-    gbl_history = concat(background("gbl"), hand_rows("g", "gbl", 2023, 2000))
-    gbl = project(
-        gbl_history,
-        targets_for(["g"], "gbl", 2024),
-        variant_params("proj_shrunk", 2.0),
-        drift=zero_drift(),
-        impact=impact,
-    )
-    assert set(gbl["stat"]) == set(COUNT_STATS + PCT_STATS)
-
-
-def test_the_spm_prior_replaces_the_league_mean_of_brapm_by_the_projected_spm():
-    league = background()
-    history = concat(league, hand_rows("star", "euroleague", 2023, 2000))
-    impact = impact_league(history)
-    target = targets_for(["star", "bg00001"], "euroleague", 2024)
-    league_prior = project(
-        history, target, variant_params("proj_full", 2.0), drift=zero_drift(), impact=impact,
-        aging=lambda s, a, b: np.zeros_like(a), translation=translation_for(),
-    )  # fmt: skip
-    spm_prior = project(
-        history, target, variant_params("proj_full_spm", 2.0), drift=zero_drift(), impact=impact,
-        aging=lambda s, a, b: np.zeros_like(a), translation=translation_for(),
-    )  # fmt: skip
-    for who in ("star", "bg00001"):
-        spm = row_of(spm_prior, who, "spm")
-        assert row_of(spm_prior, who, "brapm")["prior_mean"] == spm["mean"]
-        assert row_of(league_prior, who, "brapm")["prior_mean"] != spm["mean"]
-        assert row_of(league_prior, who, "spm")["mean"] == spm["mean"]
 
 
 # --- variants and schemas ----------------------------------------------------------------------
 
 
-def test_variant_params_for_all_four_variants():
-    assert variant_params("proj_shrunk", 1.0) == ProjectionParams(1.0, False, False, "league")
-    assert variant_params("proj_age", 2.0) == ProjectionParams(2.0, True, False, "league")
-    assert variant_params("proj_full", 3.0) == ProjectionParams(3.0, True, True, "league")
-    assert variant_params("proj_full_spm", 2.0) == ProjectionParams(2.0, True, True, "spm")
-    assert variant_params("proj_full", 2.0).interval == 0.8
-    assert set(VARIANTS) == {"proj_shrunk", "proj_age", "proj_full", "proj_full_spm"}
-    with pytest.raises(ValueError, match="unknown"):
-        variant_params("proj_magic", 1.0)
-
-
 def test_output_follows_the_projections_schema():
     history = concat(
-        background(), hand_rows("a", "euroleague", 2023, 2000), hand_rows("b", "gbl", 2023, 800)
+        background(),
+        hand_rows("a", "euroleague", 2023, 2000),
+        hand_rows("b", "euroleague", 2023, 800),
     )
     impact = impact_league(history)
     target = pd.concat(

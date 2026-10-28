@@ -4,7 +4,6 @@
 - Points: every team row's points equal the ``games`` score (build refuses others; re-checked).
 - EuroLeague: box-formula possessions vs the play-by-play count on the stint sample (seed
   20260925), per team; the target is agreement within 2 possessions (PLAN §4.4).
-- GBL: play-by-play counts vs ESAKE totals on the 2018-20 games that have both.
 
 JSON-ready and free of timestamps, so reruns are byte-identical.
 """
@@ -17,8 +16,6 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.ingest.cache import read_cached
-from eurohoops.parse.esake import parse_box_score
-from eurohoops.parse.gbl_pbp import TEAM_COUNTS, team_counts
 from eurohoops.parse.possessions import FT_WEIGHT, box_possessions, count_possessions
 from eurohoops.parse.stints import SAMPLE_SEED, events, sample_games
 from eurohoops.parse.team_box import euroleague_lines
@@ -121,52 +118,12 @@ def euroleague_sample(raw_dir: Path) -> dict[str, Any]:
     }
 
 
-def gbl_pbp_vs_esake(raw_dir: Path, gbl_games: pd.DataFrame, pbp: pd.DataFrame) -> dict[str, Any]:
-    """Play-by-play team counts vs ESAKE totals on games that have both."""
-    counts = team_counts(pbp)
-    where = {
-        str(game_id): (int(season), int(code))
-        for game_id, season, code in zip(
-            gbl_games["game_id"], gbl_games["season"], gbl_games["game_code"], strict=True
-        )
-    }
-    gaps: dict[str, list[int]] = {column: [] for column in TEAM_COUNTS}
-    games = 0
-    for game_id, rows in counts.groupby("game_id"):
-        season, code = where[str(game_id)]
-        path = raw_dir / "boxscore" / str(season) / f"{code:08X}.html.gz"
-        boxes = parse_box_score(read_cached(path).decode()) if path.exists() else None
-        if boxes is None:
-            continue
-        games += 1
-        by_side = {str(r["side"]): r for r in rows.to_dict("records")}
-        for side, box in zip(("home", "away"), boxes, strict=True):
-            t = box.totals
-            esake = {
-                "points": t.points,
-                "fga": t.fg2a + t.fg3a,
-                "fta": t.fta,
-                "oreb": t.oreb,
-                "dreb": t.dreb,
-                "tov": t.tov,
-            }
-            for column in TEAM_COUNTS:
-                gaps[column].append(int(by_side[side][column]) - esake[column])
-    return {
-        "games": games,
-        "exact_share": {c: _round(np.mean(np.array(v) == 0)) for c, v in gaps.items()},
-        "mean_gap_pbp_minus_esake": {c: _round(np.mean(v)) for c, v in gaps.items()},
-    }
-
-
 def possession_report(
     team_games: pd.DataFrame,
     *,
     missing: pd.DataFrame,
     games: pd.DataFrame,
     euroleague_raw: Path,
-    gbl_raw: Path,
-    gbl_pbp: pd.DataFrame | None,
 ) -> dict[str, Any]:
     has_sample = any((euroleague_raw / "playbyplay").glob("E*/*.json.gz"))
     return {
@@ -174,9 +131,4 @@ def possession_report(
         "missing_games": missing.to_dict("records"),
         "points_mismatches": points_mismatches(team_games, games),
         "euroleague_pbp_sample": euroleague_sample(euroleague_raw) if has_sample else None,
-        "gbl_pbp_vs_esake": (
-            None
-            if gbl_pbp is None
-            else gbl_pbp_vs_esake(gbl_raw, games[games["competition"] == "gbl"], gbl_pbp)
-        ),
     }

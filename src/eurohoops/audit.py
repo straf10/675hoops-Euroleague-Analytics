@@ -6,8 +6,8 @@ missing box, a documented correction, a cancelled season). Every failing row is 
 EXPLAINED (with its reason) or UNEXPLAINED. The number to drive to zero is the unexplained count.
 
 Checks never change data: ``scripts/data_audit.py`` prints the report, and the regression tests
-build a small mart with known faults. ``corrections/gbl_box.csv`` documents the per-player box
-corrections; its rows are passed in as ``corrections`` and explain the matching ``minutes`` keys.
+build a small mart with known faults. Documented corrections are passed in as ``corrections``
+and explain the matching keys.
 """
 
 from collections.abc import Mapping
@@ -17,16 +17,11 @@ import duckdb
 
 # A player cannot play more than 40 regulation minutes plus 5 per overtime; four overtimes is
 # the longest game in the data. Anything above is a parse error, whatever the overtime count.
-MAX_PLAYER_SECONDS = 60 * 60
 
 # Season cancellations and removals (see the research notes); a row is explained only if its
 # tip-off falls inside the event, so an unplayed game outside every event stays unexplained.
 COVID_EL_2019 = "2019-20 EuroLeague cancelled (COVID, from 12 March 2020)"
-COVID_GBL_2019 = "2019-20 GBL cancelled (COVID; no game played after 8 March 2020)"
 RUSSIA_EL_2021 = "2021-22 EuroLeague: Russian clubs removed, games from 24 Feb 2022 not played"
-LIVE_BOX = "live season 2026-27: box score not yet ingested (no cached ESAKE page)"
-PBP_FILL = "PBP fill: one missing player added, filled points equal the result"
-PBP_TOTALS = "PBP fill: team total from PBP events (no ESAKE box cached)"
 
 RUSSIAN_CLUBS = "('CSK', 'UNK', 'DYR', 'KHI')"
 
@@ -41,40 +36,6 @@ class Check:
 
 CHECKS: tuple[Check, ...] = (
     Check(
-        "negative_stat",
-        """SELECT game_id || ' ' || player_id FROM player_box
-        WHERE points < 0 OR fg2m < 0 OR fg2a < 0 OR fg3m < 0 OR fg3a < 0
-           OR ftm < 0 OR fta < 0 OR seconds < 0""",
-    ),
-    Check(
-        "made_above_attempted",
-        """SELECT game_id || ' ' || player_id FROM player_box
-        WHERE fg2m > fg2a OR fg3m > fg3a OR ftm > fta""",
-    ),
-    Check(
-        "points_not_from_shots",
-        """SELECT game_id || ' ' || player_id FROM player_box
-        WHERE points <> 2 * fg2m + 3 * fg3m + ftm""",
-    ),
-    Check(
-        "minutes_above_longest_game",
-        f"""SELECT game_id || ' ' || team || ' ' || player_id FROM player_box
-        WHERE seconds > {MAX_PLAYER_SECONDS}""",
-        note="explained only by corrections/gbl_box.csv (passed in, not read from the mart)",
-    ),
-    Check(
-        "official_box_total_not_score",
-        """SELECT t.game_id || ' ' || t.team FROM team_box t JOIN games g USING (game_id)
-        WHERE t.source = 'esake' AND g.played
-          AND ((t.team = g.home AND t.total_points <> g.home_score)
-            OR (t.team = g.away AND t.total_points <> g.away_score))""",
-        explain=f"""SELECT f.game_id || ' ' || f.team,
-          CASE f.fill WHEN 'missing_player_from_pbp' THEN '{PBP_FILL}'
-                      WHEN 'team_totals_from_pbp' THEN '{PBP_TOTALS}' END
-        FROM box_fill f""",
-        note="ESAKE's printed total vs the result; explained when the PBP fill log covers it",
-    ),
-    Check(
         "team_points_not_score",
         """SELECT g.game_id || ' ' || t.team FROM team_games t JOIN games g USING (game_id)
         WHERE g.played AND t.team = g.home AND t.points <> g.home_score
@@ -88,11 +49,6 @@ CHECKS: tuple[Check, ...] = (
     Check(
         "duplicate_game",
         "SELECT game_id FROM games GROUP BY 1 HAVING count(*) > 1",
-    ),
-    Check(
-        "duplicate_player_box_row",
-        """SELECT game_id || ' ' || team || ' ' || player_id FROM player_box
-        GROUP BY 1 HAVING count(*) > 1""",
     ),
     Check(
         "null_key",
@@ -115,10 +71,7 @@ CHECKS: tuple[Check, ...] = (
         """SELECT g.game_id FROM games g
         WHERE g.played AND NOT g.forfeit
           AND NOT EXISTS (SELECT 1 FROM team_games t WHERE t.game_id = g.game_id)""",
-        explain=f"""SELECT g.game_id,
-          CASE WHEN g.season = 2026 AND m.reason LIKE 'no cached ESAKE box score%'
-               THEN '{LIVE_BOX}'
-               ELSE m.reason END
+        explain="""SELECT g.game_id, m.reason
         FROM games g LEFT JOIN team_games_missing m ON m.game_id = g.game_id""",
         note="every played game without team rows must be logged in team_games_missing",
     ),
@@ -129,8 +82,6 @@ CHECKS: tuple[Check, ...] = (
         explain=f"""SELECT game_id, CASE
           WHEN competition = 'euroleague' AND season = 2019
                AND tipoff_utc >= TIMESTAMPTZ '2020-03-12 00:00:00+03' THEN '{COVID_EL_2019}'
-          WHEN competition = 'gbl' AND season = 2019
-               AND tipoff_utc >= TIMESTAMPTZ '2020-03-09 00:00:00+03' THEN '{COVID_GBL_2019}'
           WHEN competition = 'euroleague' AND season = 2021
                AND (home IN {RUSSIAN_CLUBS} OR away IN {RUSSIAN_CLUBS})
                AND tipoff_utc >= TIMESTAMPTZ '2022-02-24 00:00:00+03' THEN '{RUSSIA_EL_2021}'
@@ -147,12 +98,6 @@ CHECKS: tuple[Check, ...] = (
         "source_id_with_two_persons",
         """SELECT competition || ' ' || source_id FROM player_xwalk
         GROUP BY competition, source_id HAVING count(DISTINCT person_id) > 1""",
-    ),
-    Check(
-        "player_id_without_person",
-        """SELECT DISTINCT p.player_id FROM player_box p
-        WHERE p.source = 'esake' AND p.game_id NOT LIKE 'GBL2026%'
-          AND NOT EXISTS (SELECT 1 FROM player_xwalk x WHERE x.source_id = p.player_id)""",
     ),
 )
 

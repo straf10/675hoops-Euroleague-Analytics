@@ -77,8 +77,8 @@ svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" he
 <g class="node n-input">
 <rect class="mask" x="20" y="96" width="204" height="60" rx="6"/>
 <rect class="body" x="20" y="96" width="204" height="60" rx="6"/>
-<text x="122.0" y="116.0" class="t-name" text-anchor="middle" >esake.gr + BasketHotel</text>
-<text x="122.0" y="131.0" class="t-sub" text-anchor="middle" >GBL results · box HTML · PBP</text>
+<text x="122.0" y="116.0" class="t-name" text-anchor="middle" >EuroLeague API</text>
+<text x="122.0" y="131.0" class="t-sub" text-anchor="middle" ></text>
 <text x="122.0" y="144.0" class="t-sub" text-anchor="middle" >≥2 s between requests</text>
 </g>
 <g class="node n-input">
