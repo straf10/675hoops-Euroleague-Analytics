@@ -94,7 +94,6 @@ OK_ROUTES = [
     f"/players/{EL_PERSON}/projection",
     f"/players/{EL_PERSON}/similar",
     "/rapm",
-    "/scouting/board",
     "/simulations/latest",
     "/metrics/live",
     "/openapi.json",
@@ -177,7 +176,6 @@ def test_route_values(client: TestClient) -> None:
     assert client.get(f"/players/{EL_PERSON}/projection").json()["projections"][0]["team"] == "TEL"
     similar = client.get(f"/players/{EL_PERSON}/similar").json()["similar"]
     assert [s["rank"] for s in similar] == [1]  # the GBL row is not published
-    assert client.get("/scouting/board").json()["rows"][0]["label"] == "within noise"
     metrics = client.get("/metrics/live").json()["competitions"]
     assert metrics[0]["scorecard"]["elo"]["log_loss"] == 0.61
     meta = client.get("/stats/meta.json").json()
@@ -205,14 +203,6 @@ def test_without_an_ungated_report_the_404_carries_the_verdict(tmp_path: Path) -
         "validation Brier 0.0920 is not below the point rule's 0.0883"
     )
     assert body["gate"]["reason"] in body["detail"]
-
-
-def test_a_missing_report_is_a_404_naming_the_file(tmp_path: Path) -> None:
-    build_tree(tmp_path)
-    (tmp_path / "reports" / "m6_board.json").unlink()
-    response = make_client(tmp_path).get("/scouting/board")
-    assert response.status_code == 404
-    assert "m6_board.json not found: the M6 over/under board" in response.json()["detail"]
 
 
 def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dict[str, Any]]:
@@ -376,7 +366,6 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "games",
         "teams",
         "players",
-        "scouting",
         "simulations",
         "metrics",
     ]
@@ -393,7 +382,6 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "/players/{person_id}/projection": "players",
         "/players/{person_id}/similar": "players",
         "/rapm": "players",
-        "/scouting/board": "scouting",
         "/simulations/latest": "simulations",
         "/metrics/live": "metrics",
     }
