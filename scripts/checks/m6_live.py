@@ -2,7 +2,7 @@
 
 `eurohoops project --dry-run` twice: both runs print the same sha256 for each report (the build
 is deterministic) and leave predictions/, reports/ and entity/ untouched; the committed reports
-(m6_projections, m6_board, m6_similarity, sim_ungated_*) hold no age and no birth date
+(m6_projections, m6_similarity, sim_ungated_*) hold no age and no birth date
 (`live_m6.personal_fields`); `daily.yml` runs `eurohoops project` iff the EuroLeague M6 gate
 passed (L-l) and `sim-ungated` for both competitions (D1); actionlint is clean. Says whether the
 committed reports equal today's rebuild (they differ once new games are in the marts; reported,
@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from eurohoops.config import M6, M6_BOARD, M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
+from eurohoops.config import M6, M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
 from eurohoops.live_m6 import personal_fields
 
 SHA = re.compile(r"^(?P<path>\S+): sha256 (?P<sha>[0-9a-f]{64})$")
@@ -61,11 +61,11 @@ untouched = tree_state() == before
 print(f"predictions/, reports/ and entity/ untouched: {untouched}")
 ok &= same and untouched and len(first) == 3
 
-for path in (M6_PROJECTIONS, M6_BOARD, M6_SIMILARITY, *SIM_UNGATED.values()):
+for path in (M6_PROJECTIONS, M6_SIMILARITY, *SIM_UNGATED.values()):
     found = personal_fields(json.loads(path.read_text(encoding="utf-8")))
     print(f"{path.as_posix()}: age or birth-date fields {found[:3] or 'none'}")
     ok &= not found
-for path in (M6_PROJECTIONS, M6_BOARD, M6_SIMILARITY):
+for path in (M6_PROJECTIONS, M6_SIMILARITY):
     committed = hashlib.sha256(path.read_bytes()).hexdigest()
     print(f"{path.as_posix()} equals today's rebuild: {committed == first.get(path.as_posix())}")
 

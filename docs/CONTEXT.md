@@ -97,9 +97,6 @@ _Avoid_: prediction (a game forecast in the log)
 **Aging curve**:
 The expected year-over-year change of a rate at each age, from players with 500+ possessions in consecutive seasons (delta method on regressed rates, survivor corrected). Ages stay inside the pipeline; no age is published.
 
-**Over/under board**:
-Players doing better or worse than expected on shot-making, 3P% or on/off, with a z score and the share of the gap expected to last (from that dimension's year-to-year stability).
-
 **Comparable**:
 A past player-season nearest to a player's newest season in standardised box rates (and EuroLeague shot zones). The player's own seasons are excluded. Shown as "plays like".
 _Avoid_: twin (the Shot Profile Twin, shot profile only)

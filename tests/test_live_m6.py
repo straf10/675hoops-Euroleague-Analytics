@@ -14,12 +14,11 @@ import pytest
 from scipy import special
 
 from eurohoops.api.readmodel import (
-    BOARD_ROWS_SCHEMA,
     PROJECTION_ROWS_SCHEMA,
     SIMILAR_ROWS_SCHEMA,
     UNDERVALUED_ROWS_SCHEMA,
 )
-from eurohoops.config import M6_BOARD, M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
+from eurohoops.config import M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
 from eurohoops.eval.m6_backtest import (
     M6Inputs,
     World,
@@ -319,7 +318,7 @@ def test_the_scan_finds_a_planted_age_and_birth_date() -> None:
     assert personal_fields({"note": ["1999-04-02"]}) == ["$.note[0] = 1999-04-02"]
 
 
-@pytest.mark.parametrize("path", [M6_PROJECTIONS, M6_BOARD, M6_SIMILARITY])
+@pytest.mark.parametrize("path", [M6_PROJECTIONS, M6_SIMILARITY])
 def test_the_committed_m6_reports_hold_no_age_and_no_birth_date(path: Path) -> None:
     assert personal_fields(json.loads((ROOT / path).read_text(encoding="utf-8"))) == []
 
@@ -338,8 +337,6 @@ def test_the_committed_report_rows_match_the_read_models_schemas() -> None:
     validated(pd.DataFrame(projections["players"]), PROJECTION_ROWS_SCHEMA)
     if projections["undervalued"]:
         validated(pd.DataFrame(projections["undervalued"]), UNDERVALUED_ROWS_SCHEMA)
-    board = json.loads((ROOT / M6_BOARD).read_text(encoding="utf-8"))
-    validated(pd.DataFrame(board["rows"]), BOARD_ROWS_SCHEMA)
     similar = json.loads((ROOT / M6_SIMILARITY).read_text(encoding="utf-8"))
     for rows in similar["players"].values():
         validated(pd.DataFrame(rows), SIMILAR_ROWS_SCHEMA)

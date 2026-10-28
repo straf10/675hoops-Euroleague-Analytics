@@ -617,7 +617,6 @@ M6_GBL = M6Backtest(
 )
 # Live M6 (L9) and the ungated standings report (owner, 2026-10-07: decision D1).
 M6_PROJECTIONS = Path("reports/m6_projections.json")
-M6_BOARD = Path("reports/m6_board.json")
 M6_SIMILARITY = Path("reports/m6_similarity.json")
 SIM_UNGATED = {name: Path(f"reports/sim_ungated_{name}.json") for name in ("euroleague", "gbl")}
 # In-game WP (docs/models/wp.md, protocol v1): the one-time gate report and its per-game rows.

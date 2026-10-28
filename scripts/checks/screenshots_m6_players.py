@@ -1,5 +1,5 @@
-"""Weeks 16-18 L11 (I): screenshots of the player page of a projected fixture player and the
-Scouting page at 1440 and 390 px, light and dark, plus three checks on every page: no horizontal
+"""Weeks 16-18 L11 (I): screenshots of two player pages (a projected fixture player and a sparse
+one) at 1440 and 390 px, light and dark, plus three checks on every page: no horizontal
 overflow, no console error, and every displayed model number ([data-num]) sits in a [data-figure]
 that shows its interval or sample ([data-interval] or [data-sample]).
 Usage: screenshots_m6_players.py <built site dir> <out dir>.
@@ -19,10 +19,7 @@ from playwright.sync_api import Page, sync_playwright
 PAGES = {
     "player": "players/levi-randolph/",  # projection, impact, shot-making and comparables
     "player_sparse": "players/saben-lee/",  # a projection with no history; nothing else published
-    "scouting": "scouting/",
 }
-# Controls whose every option shows other numbers: each option is clicked and checked in turn.
-CHOICES = {"scouting": ["dim", "league"]}
 
 LABELLED = """() => {
   const shown = (el) => {
@@ -49,22 +46,10 @@ LABELLED = """() => {
 }"""
 
 
-def unlabelled(page: Page, name: str) -> tuple[int, list[str]]:
-    """Count the shown [data-num] and list those without a label, for every control option."""
-    seen, bad = 0, []
-    options: list[tuple[str, str]] = [("", "")]
-    for control in CHOICES.get(name, []):
-        values = page.locator(f'input[name="{control}"]').evaluate_all(
-            "els => els.map(e => e.value)"
-        )
-        options += [(control, v) for v in values]
-    for control, value in options:
-        if control:
-            page.locator(f'input[name="{control}"][value="{value}"]').evaluate("e => e.click()")
-        result = page.evaluate(LABELLED)
-        seen += result["count"]
-        bad += [f"{control}={value} {line}" if control else line for line in result["bad"]]
-    return seen, bad
+def unlabelled(page: Page) -> tuple[int, list[str]]:
+    """Count the shown [data-num] and list those without a label."""
+    result = page.evaluate(LABELLED)
+    return result["count"], result["bad"]
 
 
 def main() -> int:
@@ -103,7 +88,7 @@ def main() -> int:
                     page.screenshot(
                         path=str(out / f"m6_{name}_{width}_{scheme}.png"), full_page=True
                     )
-                    numbers, bad = unlabelled(page, name)
+                    numbers, bad = unlabelled(page)
                     # the fixture publishes numbers on every page here: zero would be a vacuous pass
                     problems = overflow != 0 or bool(bad) or bool(errors) or numbers == 0
                     print(

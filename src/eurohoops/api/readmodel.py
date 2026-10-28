@@ -53,7 +53,6 @@ from eurohoops.config import (
     M2_PLAYERS_REPORT,
     M3_PLAYERS_REPORT,
     M5INJ_LIVE_ENABLED,
-    M6_BOARD,
     M6_PROJECTIONS,
     M6_SIMILARITY,
     M7,
@@ -71,7 +70,6 @@ from eurohoops.ingest.bios import el_people_path
 from eurohoops.live_m6 import person_names
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.marts import data_volume, read_games, read_table, read_teams
-from eurohoops.models.board import LABELS
 from eurohoops.models.elo import prepare, season_ratings, win_probability
 from eurohoops.models.player_seasons import (
     COUNT_COLUMNS,
@@ -173,19 +171,6 @@ UNDERVALUED_ROWS_SCHEMA = pa.DataFrameSchema(
         "reason": pa.Column(str),
     },
     strict=False,
-)
-BOARD_ROWS_SCHEMA = pa.DataFrameSchema(
-    {
-        "person_id": pa.Column(str),
-        "competition": pa.Column(str, pa.Check.isin(list(COMPETITIONS))),
-        "season": pa.Column("int64"),
-        "dimension": pa.Column(str),
-        "n": pa.Column("float64", pa.Check.ge(0.0)),
-        "label": pa.Column(str, pa.Check.isin(LABELS), nullable=True),  # null: on/off has none
-        "name": pa.Column(str),
-        "team": pa.Column(str),
-    },
-    strict=False,  # observed, expected, gap, se, z, ... belong to models/board.py's schema
 )
 SIMILAR_ROWS_SCHEMA = pa.DataFrameSchema(
     {
@@ -1130,16 +1115,6 @@ def player_similar(store: Store, person_id: str) -> dict[str, Any]:
         "pool_seasons": report["pool_seasons"],
         "similar": rows,
     }
-
-
-# ---- scouting ----
-
-
-def scouting_board(store: Store) -> dict[str, Any]:
-    report = _required(store, M6_BOARD, "the M6 over/under board")
-    _check(report["rows"], BOARD_ROWS_SCHEMA)
-    rows = [r for r in report["rows"] if r["competition"] == EUROLEAGUE.name]
-    return {**{k: report[k] for k in ("model", "season", "dimensions")}, "rows": rows}
 
 
 # ---- simulations, metrics ----
