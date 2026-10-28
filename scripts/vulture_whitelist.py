@@ -137,3 +137,14 @@ from eurohoops.eval.pool_c import apply_c, fit_c, paired_gap  # noqa: E402
 apply_c
 fit_c
 paired_gap
+
+# ELOH step A (scripts/fit_eloh.py, run once): the fit and its frozen file's writer; the live
+# forecaster reads only reports/eloh_fit.json. TeamEffect's fields are written by asdict.
+from eurohoops.config import ELOH_FIT_SEASONS  # noqa: E402
+from eurohoops.models.eloh import TeamEffect, fit_home_effects, fit_to_json  # noqa: E402
+
+ELOH_FIT_SEASONS
+fit_home_effects
+fit_to_json
+TeamEffect.mean_residual
+TeamEffect.sampling_var
