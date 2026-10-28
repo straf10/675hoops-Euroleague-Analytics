@@ -275,3 +275,16 @@ def test_an_unreachable_remote_fails_with_the_error_annotation(tmp_path: Path) -
     done = run_commit_step(runner, env)
     assert done.returncode != 0
     assert "::error::" in done.stdout
+
+
+def test_deploy_site_takes_only_a_daily_run_of_this_repo_on_main() -> None:
+    """Artifact poisoning: the site data must come from this repository's daily-predictions run on
+    main. A fork's run on a branch named main, or any other workflow, must be refused."""
+    deploy = (REPO / ".github/workflows/deploy-site.yml").read_text(encoding="utf-8")
+    find = deploy[deploy.index("- name: Find the latest site data") :]
+    find = find[: find.index("- uses: actions/download-artifact")]
+    assert ".workflow_run.head_repository_id == $REPO_ID" in find
+    assert "REPO_ID: ${{ github.repository_id }}" in find
+    assert "actions/runs/$run_id" in find
+    assert ".github/workflows/daily.yml schedule" in find
+    assert ".github/workflows/daily.yml workflow_dispatch" in find

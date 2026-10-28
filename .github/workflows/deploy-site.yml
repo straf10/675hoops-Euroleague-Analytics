@@ -22,18 +22,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Newest unexpired site-data artifact built from main (only daily-predictions uploads one;
-      # kept 7 days). Runs from other branches are skipped so they never reach production.
+      # Newest unexpired site-data artifact from a run of daily-predictions (the only workflow that
+      # uploads one; kept 7 days). The artifact must come from this repository (not a fork's run
+      # on a branch called main) and its run must be the scheduled or manual daily job on main.
       - name: Find the latest site data
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          REPO_ID: ${{ github.repository_id }}
         run: |
           run_id=$(gh api "repos/$REPO/actions/artifacts?name=site-data&per_page=20" \
-            -q '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main")][0].workflow_run.id // empty')
+            -q "[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == \"main\" and .workflow_run.head_repository_id == $REPO_ID)][0].workflow_run.id // empty")
           if [ -z "$run_id" ]; then
-            echo "::error::no unexpired site-data artifact; run daily-predictions instead"
+            echo "::error::no unexpired site-data artifact from this repository's main; run daily-predictions instead"
+            exit 1
+          fi
+          run=$(gh api "repos/$REPO/actions/runs/$run_id" \
+            -q '[.path, .event, (.head_repository.id | tostring), .head_branch] | join(" ")')
+          if [ "$run" != ".github/workflows/daily.yml schedule $REPO_ID main" ] \
+            && [ "$run" != ".github/workflows/daily.yml workflow_dispatch $REPO_ID main" ]; then
+            echo "::error::run $run_id is not a daily-predictions run on main of this repository ($run)"
             exit 1
           fi
           echo "Using site data from run $run_id"
