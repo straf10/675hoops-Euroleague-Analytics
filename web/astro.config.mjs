@@ -24,7 +24,6 @@ export default defineConfig({
       },
     }),
   ],
-  // The removed Scouting and Shots pages redirect with real 301s in public/_redirects.
   build: { inlineStylesheets: "auto" },
   // Start loading a linked page on hover or tap, so the next page opens almost at once.
   prefetch: { prefetchAll: true, defaultStrategy: "hover" },
