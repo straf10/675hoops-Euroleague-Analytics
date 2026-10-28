@@ -477,13 +477,6 @@ def _tuning_only_after_later_outcomes() -> tuple[str, pd.DataFrame]:
     return _tuning_only_report(_rescore(base, later))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "open finding 2026-10-28: tuning-only details.blend_weights lists every season, so a "
-        "blend-chosen tuning-only report carries weights fit on later outcomes"
-    ),
-)
 def test_tuning_only_verdict_cannot_see_validation_or_test() -> None:
     report_before, frame_before = _base_tuning_only()
     report_after, frame_after = _tuning_only_after_later_outcomes()
