@@ -277,6 +277,7 @@ Flagship model: **M5 for the EuroLeague, M1 for the GBL.** M5 failed its GBL che
 - **R6 Standings labels**: done. "Top 6" (Play-in kept), median place as the main figure, 80% range muted beside it.
 - **R7 Scouting thresholds**: done under rule v2. Uses `PERSIST_REAL` and `N_MIN` from EuroLeague rotation-player volume; the on/off label is dropped. No player is currently "likely real" on the 2025-26 board. Per-player shrinkage (`persist = n/(n+k)`) is in M6.
 - **R8 EuroLeague titles**: done. All-time titles since 1958 (seed of pre-2007-08 titles plus titles counted from our data since 2007-08), shown next to seasons for clubs with at least one title.
+- **R9 Win Shares per player**: open (added 2026-10-28). Offensive WS = (points produced − 0.92 × league pts/poss × possessions used) / points per win; defensive WS from individual DRtg vs 1.08 × league pts/poss; WS = OWS + DWS, plus WS/40 (40-minute games). Fit points per win on EuroLeague seasons rather than copying the NBA's 0.32 × league PPG. Split assisted FGs into 2P/3P using the PBP assist links. EuroLeague first, as a descriptive stat on player pages and Leaders; label DWS as the weakest part (box-score proxies). Optional: add WS/40 next to PIR as a baseline in M3's next-N-games test. Source: [datafield.dev ch. 13](https://datafield.dev/professional-basketball-analytics/part-03/chapter-13/).
 
 Dropped: R7 v3 (a v3 rule to name real over-performers). Reason: the board feeds no game model, its useful part is already in M6, and Scouting is hidden on the site.
 
