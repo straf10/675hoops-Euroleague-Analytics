@@ -23,7 +23,7 @@ Team codes are the **source** codes (`ULK`, `PAN`, …). Person ids look like `P
 | `GET /players/{person_id}/projection` | `player_projection` | `reports/m6_projections.json` |
 | `GET /players/{person_id}/similar` | `player_similar` | `reports/m6_similarity.json` |
 | `GET /scouting/board` | `scouting_board` | `reports/m6_board.json` (the over/under board) |
-| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, always `gated: false`, with M7's verdict and reason |
+| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, with `gated: true` for the EuroLeague once M7's gate passed (gate v2) and always `false` for the GBL, plus M7's verdict and reason |
 | `GET /metrics/live` | `metrics_live` | the live scorecards: Elo, the baseline, M1 and the M5 shadow |
 | `GET /openapi.json` | FastAPI | the schema; identical across runs |
 
