@@ -133,6 +133,11 @@ jobs:
             web/public/downloads/
           if-no-files-found: error
           retention-days: 7
+      # Rule 1 (CLAUDE.md): the logs only grow. Fails the run before anything is committed if a row
+      # of the checked-out commit was edited or removed, or a log file vanished.
+      - name: Check the logs are append-only
+        if: success() || steps.export.outcome == 'failure'
+        run: uv run --no-dev python scripts/checks/append_only.py HEAD
       # main may have moved during the run: replay the run's commit on top of it. A conflict (an
       # append-only log changed on both sides) is never resolved here: abort, fail, merge by hand.
       - name: Commit predictions and reports if changed
