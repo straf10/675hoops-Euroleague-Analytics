@@ -10,20 +10,20 @@ Effort: S (≤ 1 day), M (2–4 days), L (a week or more). Verdict: **Do**, **La
 
 | # | Idea | Status | Effort | Verdict |
 |---|------|--------|--------|---------|
-| 5 | Show the number of simulations | Partial | S | **Do** |
-| 4 | Data-volume strip (games, PBP events, shots, seasons) | New | S | **Do** |
+| 5 | Show the number of simulations | Have | S | **Do** |
+| 4 | Data-volume strip (games, PBP events, shots, seasons) | Partial | S | **Do** |
 | 15 | Overtime counts as clutch time | Have | S (copy) | **Do** (say so) |
-| 6 | ORtg vs DRtg scatter | New | S | **Do** |
-| 14 | Pace vs net rating scatter | New | S | **Do** |
-| 2 | Last matchday: predicted vs happened | Partial | S | **Do** (add a summary line) |
+| 6 | ORtg vs DRtg scatter | Have | S | **Do** |
+| 14 | Pace vs net rating scatter | Have | S | **Do** |
+| 2 | Last matchday: predicted vs happened | Have | S | **Do** (add a summary line) |
 | 3 | Strength of schedule: played, remaining, next 5, home/away, rest, travel | Partial | M | **Do** |
-| 17 | Minutes-weighted roster continuity | New (inputs exist) | S–M | **Do** |
-| 12 | Best duos and five-man units, minimum minutes | New (stints exist) | M | **Do** |
-| 11 | Assist network per team | New | M | **Do** |
-| 7 | Game pages: in-game win probability, swings, runs, box score | New | L | **Do** (flagship) |
+| 17 | Minutes-weighted roster continuity | Have | S–M | **Do** |
+| 12 | Best duos and five-man units, minimum minutes | Have | M | **Do** |
+| 11 | Assist network per team | Partial | M | **Do** |
+| 7 | Game pages: in-game win probability, swings, runs, box score | Partial | L | **Do** (flagship) |
 | 13 | Metric list (RAPM, WPA, GCI, …) | Mixed | — | See §13 |
 | 9 | RAPM | Have | — | Expose on site |
-| 1 | Coach pages | New | M–L | **Later** (trim scope) |
+| 1 | Coach pages | Have | M–L | **Later** (trim scope) |
 | 10 | MVP ladder | New | M | **Later** (after 7) |
 | 16 | Referee metrics | New | M | **Later** (careful framing) |
 | 18 | Elo carried over + home/away net ratings | Partial | M | Test as a shadow model |
@@ -50,7 +50,7 @@ referees.
   (`models/team_eff.py`), projected minute shares (`models/minutes.py`, `rotation.py`), M7 season
   simulator (`sim/season.py`, 10,000 simulations live).
 
-## 1. Coach pages — Later, trimmed
+## 1. Coach pages — Done, trimmed
 
 | Part | Feasible? | Notes |
 |------|-----------|-------|
@@ -65,7 +65,7 @@ referees.
 
 Verdict: Later. Build it after team pages; start with W/L, H2H, wins above expectation and ATO.
 
-## 2. Last matchday recap — Do (small)
+## 2. Last matchday recap — Done (small)
 
 The Forecast record page already has a "Latest round" block (each forecast beside the result) and
 a round recap share card (`lib/cards/site`). Missing: a one-line headline above it, e.g. "Round 5:
@@ -90,18 +90,18 @@ Proposal:
 - Show on team pages; add **SoS played** and **SoS remaining** as two sortable columns in the
   Teams "By net rating" table (beside ORtg, DRtg). Also usable on the Season projection table.
 
-## 4. Data-volume strip — Do (trivial)
+## 4. Data-volume strip — Partial (no shot count)
 
 A single line on the home or About page: games analysed, play-by-play events, shots with
 coordinates, seasons. Count at publish time from the marts; no new data needed.
 
-## 5. Number of simulations — Do (trivial)
+## 5. Number of simulations — Done (trivial)
 
 `live_sim.LIVE_SIMS = 10_000`, and `sim.n_sims` is already in the payload, but it is only shown
 inside column tooltips on the Season projection page. Put it in the lede: "Based on 10,000
 simulated seasons, updated daily."
 
-## 6 and 14. ORtg/DRtg and Pace/Net scatters — Do
+## 6 and 14. ORtg/DRtg and Pace/Net scatters — Done
 
 Both use the team factors already published for the Teams page. One chart each on the Teams index,
 season selector shared with the table. Design rules: neutral marks, colour only on the data,
@@ -109,7 +109,7 @@ labels by display code; DRtg axis reversed so "up and right" is good on both axe
 as quadrant lines. Consider M1's **adjusted** ratings (schedule-adjusted, decayed) as a toggle:
 that is the KenPom-style rating from §13, already built.
 
-## 7. Game pages with in-game win probability — Do (flagship, large)
+## 7. Game pages with in-game win probability — Partial, no per-player WPA (flagship, large)
 
 What is needed:
 1. **In-game win probability model** (new). Features: score margin, seconds remaining, pre-game
@@ -178,7 +178,7 @@ played, team win% or team rating, availability — and **backtest it against pas
 "not a forecast of the vote" unless the backtest supports that. Over/under-performing team = actual
 wins minus Elo-expected wins (same as §1).
 
-## 11. Assist network — Do
+## 11. Assist network — Partial, no xPTS weighting
 
 Pair each `AS` row with the made shot it belongs to (same team, same clock, adjacent row) to get
 passer → scorer counts and the points they produced. Chart: an arc or chord diagram per team-season,
@@ -186,7 +186,7 @@ arc width = assists between the pair, minimum threshold to keep it readable. Val
 against box-score assist totals (target ≥ 98% matched). Extra layer from §8: weight each assist by
 the M2 xPTS of the shot it set up, giving "expected points created" per passer and per pair.
 
-## 12. Best duos and units — Do
+## 12. Best duos and units — Done
 
 From the stints mart: net rating per 100 possessions for every pair and five-man unit, with a
 minimum (e.g. 100 minutes for pairs, 50 for units) and the sample shown. Raw lineup net ratings are
@@ -227,7 +227,7 @@ challenges in their games. Adjust for the teams playing (a ridge with team and r
 otherwise a crew that works Olympiacos games looks strict. Show samples; describe tendencies, never
 "bias". Referees are not modelled anywhere today.
 
-## 17. Roster continuity, minutes-weighted — Do
+## 17. Roster continuity, minutes-weighted — Done
 
 Returning-minutes share: of last season's minutes for the club, the share played by players on
 this season's roster (roster from `people/E{season}`). A
