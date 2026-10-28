@@ -2,6 +2,7 @@ import gzip
 import json
 from pathlib import Path
 
+import duckdb
 import pandas as pd
 import pytest
 
@@ -11,6 +12,7 @@ from eurohoops.marts import (
     data_volume,
     playbyplay_actions,
     read_games,
+    read_table,
     read_teams,
     write_tables,
 )
@@ -90,3 +92,31 @@ def test_data_volume_adds_actions_only_with_a_playbyplay_directory(tmp_path: Pat
     assert data_volume(mart) == {"games": 1, "seasons": 1}
     assert "actions" not in data_volume(mart)
     assert data_volume(mart, pbp)["actions"] == 2
+
+
+def test_write_tables_normal_path_writes_every_frame(tmp_path: Path) -> None:
+    mart = tmp_path / "m.duckdb"
+    stints = pd.DataFrame({"game_id": ["g1", "g2"], "seconds": [60, 40]})
+    checks = pd.DataFrame({"game_id": ["g1"], "ok": [True]})
+    write_tables(mart, {"stints": stints, "stint_game_checks": checks})
+    pd.testing.assert_frame_equal(read_table(mart, "stints"), stints)
+    pd.testing.assert_frame_equal(read_table(mart, "stint_game_checks"), checks)
+
+
+def test_a_failure_part_way_rolls_every_table_back(tmp_path: Path) -> None:
+    mart = tmp_path / "m.duckdb"
+    old_stints = pd.DataFrame({"game_id": ["g1", "g2"], "seconds": [60, 40]})
+    old_checks = pd.DataFrame({"game_id": ["g1"], "ok": [True]})
+    write_tables(mart, {"stints": old_stints, "stint_game_checks": old_checks})
+    new_stints = pd.DataFrame({"game_id": ["g9"] * 3, "seconds": [1, 2, 3]})
+    new_extra = pd.DataFrame({"x": [1]})
+    # The second table cannot be registered (not a frame): the failure comes after stints
+    # was already replaced in the same call, which is the half-built state of F-21.
+    with pytest.raises(duckdb.Error):
+        write_tables(
+            mart,
+            {"stints": new_stints, "extra": new_extra, "stint_game_checks": None},
+        )
+    pd.testing.assert_frame_equal(read_table(mart, "stints"), old_stints)
+    pd.testing.assert_frame_equal(read_table(mart, "stint_game_checks"), old_checks)
+    assert read_table(mart, "extra") is None  # a table new in the failed call is not left behind

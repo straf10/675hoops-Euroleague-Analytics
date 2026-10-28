@@ -77,12 +77,22 @@ def playbyplay_actions(playbyplay_dir: Path) -> int:
 
 
 def write_tables(mart_path: Path, tables: dict[str, pd.DataFrame]) -> None:
-    """Create or replace mart tables from frames (names come from code, never from users)."""
+    """Create or replace mart tables from frames (names come from code, never from users).
+
+    All tables go in one transaction: a failure part-way rolls every table back, so readers never
+    see a new table next to an old one (e.g. stints built but stint_game_checks still stale).
+    """
     with duckdb.connect(str(mart_path)) as con:
-        for name, frame in tables.items():
-            con.register("frame", frame)
-            con.execute(f"CREATE OR REPLACE TABLE {name} AS SELECT * FROM frame")
-            con.unregister("frame")
+        con.execute("BEGIN TRANSACTION")
+        try:
+            for name, frame in tables.items():
+                con.register("frame", frame)
+                con.execute(f"CREATE OR REPLACE TABLE {name} AS SELECT * FROM frame")
+                con.unregister("frame")
+            con.execute("COMMIT")
+        except BaseException:
+            con.execute("ROLLBACK")
+            raise
 
 
 def read_table(mart_path: Path, name: str, competition: str | None = None) -> pd.DataFrame | None:
