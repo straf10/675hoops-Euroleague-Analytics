@@ -9,6 +9,7 @@ is the CPU count, capped at four so a GitHub runner and a laptop use the same fe
 state a worker needs (a fitted model) comes from ``initializer``, run once per worker process.
 """
 
+import atexit
 import os
 from collections.abc import Callable, Hashable, Iterable, Mapping
 from concurrent.futures import ProcessPoolExecutor
@@ -33,13 +34,32 @@ def workers() -> int:
     return max(1, min(MAX_WORKERS, os.cpu_count() or 1))
 
 
+_SHARED: tuple[int, ProcessPoolExecutor] | None = None  # one pool for the whole export
+
+
+def _shared_pool(count: int) -> ProcessPoolExecutor:
+    """The one worker pool plain calls share: a pool start costs about two seconds (each worker
+    imports the package), so the export pays it once, not once per stage."""
+    global _SHARED  # noqa: PLW0603
+    if _SHARED is None or _SHARED[0] != count:
+        if _SHARED is not None:
+            _SHARED[1].shutdown()
+        _SHARED = (count, ProcessPoolExecutor(max_workers=count))
+        atexit.register(_SHARED[1].shutdown)
+    return _SHARED[1]
+
+
 def map_ordered[T, R](
     fn: Callable[[T], R],
     items: Iterable[T],
     initializer: Callable[..., None] | None = None,
     initargs: tuple[Any, ...] = (),
 ) -> list[R]:
-    """``[fn(item) for item in items]``, computed in worker processes when there are enough."""
+    """``[fn(item) for item in items]``, computed in worker processes when there are enough.
+
+    A call with an ``initializer`` (per-worker state, such as a fitted model) gets its own pool,
+    shut down when the call returns; the others share the export's pool.
+    """
     batch = list(items)
     count = min(workers(), len(batch) // MIN_PARALLEL_ITEMS)
     if count <= 1:
@@ -47,5 +67,7 @@ def map_ordered[T, R](
             initializer(*initargs)
         return [fn(item) for item in batch]
     chunk = max(1, len(batch) // (count * 4))
+    if initializer is None:
+        return list(_shared_pool(count).map(fn, batch, chunksize=chunk))
     with ProcessPoolExecutor(max_workers=count, initializer=initializer, initargs=initargs) as pool:
         return list(pool.map(fn, batch, chunksize=chunk))
