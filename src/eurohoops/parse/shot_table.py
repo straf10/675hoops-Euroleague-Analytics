@@ -30,6 +30,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parse.schemas import box_count
 from eurohoops.parse.schemas import validated as cast_and_validate
 from eurohoops.parse.shots import (
     FIRST_VALIDATED_SEASON,
@@ -374,8 +375,8 @@ def box_shooting(box: dict[str, Any]) -> dict[str, tuple[int, int]] | str:
     out = {}
     for side in box["Stats"]:
         totals = side["totr"]
-        fga = int(totals["FieldGoalsAttempted2"]) + int(totals["FieldGoalsAttempted3"])
-        points = 2 * int(totals["FieldGoalsMade2"]) + 3 * int(totals["FieldGoalsMade3"])
+        fga = box_count(totals["FieldGoalsAttempted2"]) + box_count(totals["FieldGoalsAttempted3"])
+        points = 2 * box_count(totals["FieldGoalsMade2"]) + 3 * box_count(totals["FieldGoalsMade3"])
         out[side["PlayersStats"][0]["Team"].strip()] = (fga, points)
     return out
 

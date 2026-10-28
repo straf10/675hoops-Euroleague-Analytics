@@ -1,5 +1,7 @@
 """Helpers shared by the pandera contracts."""
 
+from typing import Any
+
 import pandas as pd
 import pandera.pandas as pa
 
@@ -13,6 +15,19 @@ def schema_dtypes(schema: pa.DataFrameSchema) -> dict[str, str]:
         name: "str" if str(column.dtype).startswith("string") else str(column.dtype)
         for name, column in schema.columns.items()
     }
+
+
+def box_count(value: Any) -> int:
+    """A box-score count. A fraction (80.5) or a boolean raises; it is never truncated to an int."""
+    if isinstance(value, bool):
+        raise ValueError(f"box count {value!r} is a boolean")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    raise ValueError(f"box count {value!r} is not a whole number")
 
 
 def validated(frame: pd.DataFrame, schema: pa.DataFrameSchema) -> pd.DataFrame:
