@@ -523,10 +523,14 @@ def _m6_spm(el: ElSpm, league: pd.DataFrame) -> SpmFn:
         if model is None:
             raise ValueError(f"no EuroLeague SPM model for season {before_season}")
         base = []
+        cache: dict[tuple[str, int], np.ndarray] = {}  # the base row depends on this pair only
         for competition, season in zip(frame["competition"], frame["season"], strict=True):
-            rates = league.loc[competition]
-            earlier = rates.loc[: int(season) - 1]
-            base.append((earlier if len(earlier) else rates).iloc[-1].to_numpy(dtype="float64"))
+            key = (competition, int(season))
+            if key not in cache:
+                rates = league.loc[competition]
+                earlier = rates.loc[: key[1] - 1]
+                cache[key] = (earlier if len(earlier) else rates).iloc[-1].to_numpy(dtype="float64")
+            base.append(cache[key])
         features = frame[list(model.stats)].to_numpy(dtype="float64") - np.array(base)
         o, d = model.predict(features)
         return pd.Series(o + d, index=frame.index)
