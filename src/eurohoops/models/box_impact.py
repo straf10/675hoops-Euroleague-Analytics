@@ -31,6 +31,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from eurohoops.eval.common import round6
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.minutes import round_cutoffs
 
@@ -81,12 +82,8 @@ def _epoch(times: pd.Series) -> FloatArray:
     return seconds
 
 
-def _round(value: float) -> float:
-    return round(float(value), 6)
-
-
 def _round_dict(values: dict[str, float]) -> dict[str, float]:
-    return {name: _round(v) for name, v in values.items()}
+    return {name: round6(v) for name, v in values.items()}
 
 
 class _Accumulator:
@@ -363,7 +360,7 @@ def box_only_margins(  # noqa: PLR0917 -- the harness calls this exact signature
                         "half_life_days": half_life,
                         "k": k,
                         "ridge": ridge,
-                        "cv_rmse": _round(cv_rmse),
+                        "cv_rmse": round6(cv_rmse),
                     }
                 )
                 if not fold_rmse:
@@ -387,7 +384,7 @@ def box_only_margins(  # noqa: PLR0917 -- the harness calls this exact signature
         "k": k,
         "ridge": ridge,
         "beta": _round_dict(dict(zip(STAT_COLUMNS, beta.tolist(), strict=True))),
-        "h": _round(h),
+        "h": round6(h),
         "cv_grid": grid_results,
     }
     return BaselineResult(margin.astype(np.float64), params)
@@ -441,7 +438,7 @@ def pir_margins(
     params = {
         "half_life_days": PIR_HALF_LIFE_DAYS,
         "k": PIR_K_MINUTES,
-        "a": _round(a),
-        "c": _round(c),
+        "a": round6(a),
+        "c": round6(c),
     }
     return BaselineResult(margin.astype(np.float64), params)

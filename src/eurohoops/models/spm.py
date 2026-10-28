@@ -54,6 +54,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from eurohoops.eval.common import round6
 from eurohoops.models import box_impact as bi
 from eurohoops.models.box_impact import STAT_COLUMNS, UNPENALISED
 from eurohoops.models.elo import FloatArray
@@ -80,12 +81,8 @@ SPM_K_MINUTES = 250.0
 SPM_ALPHA = 1.0
 
 
-def _round6(value: float) -> float:
-    return round(float(value), 6)
-
-
 def _round_dict(values: dict[str, float]) -> dict[str, float]:
-    return {name: _round6(v) for name, v in values.items()}
+    return {name: round6(v) for name, v in values.items()}
 
 
 BoolArray = npt.NDArray[np.bool_]
@@ -129,9 +126,9 @@ class SpmModel:
         """JSON-ready, rounded to 6 decimals (H6: "coefficients reported")."""
         return {
             "n": self.n_players,
-            "alpha": _round6(self.alpha),
-            "o_intercept": _round6(self.o_intercept),
-            "d_intercept": _round6(self.d_intercept),
+            "alpha": round6(self.alpha),
+            "o_intercept": round6(self.o_intercept),
+            "d_intercept": round6(self.d_intercept),
             "o_coefficients": _round_dict(dict(zip(self.stats, self.o_coef.tolist(), strict=True))),
             "d_coefficients": _round_dict(dict(zip(self.stats, self.d_coef.tolist(), strict=True))),
             "mean": _round_dict(dict(zip(self.stats, self.mean.tolist(), strict=True))),
@@ -396,7 +393,7 @@ def tune_spm(
         "half_life_days": rapm.half_life_days,  # fixed at rapm's chosen value (H6 design)
         "ridge": list(spec.grid.ridge),
         "size": len(candidates),
-        "results": [{"ridge": r, "tuning_rmse": _round6(v)} for r, v in candidates],
+        "results": [{"ridge": r, "tuning_rmse": round6(v)} for r, v in candidates],
     }
     extra = {
         "ridge": best_ridge,
