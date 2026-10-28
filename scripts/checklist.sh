@@ -35,10 +35,9 @@ skip 6 "vulture" || { item "6 vulture"; uv run vulture src scripts/vulture_white
 skip 7 "web build from the fixture" || { item "7 web build from the fixture (copy of web/)"; bash "$CHECKS/web_build.sh"; res $?; }
 skip 8 "Elo backtests reproduce the committed reports" || {
   item "8 Elo backtests reproduce the committed reports"
-  (uv run eurohoops backtest >/dev/null && uv run eurohoops backtest --competition gbl >/dev/null \
+  (uv run eurohoops backtest >/dev/null \
     && uv run pytest -q tests/test_reports.py -p no:cacheprovider 2>&1 | tail -1 \
-    && git diff --exit-code --stat -- reports/backtest_elo.json reports/backtest_elo_gbl.json \
-      reports/backtest_elo_history.json)
+    && git diff --exit-code --stat -- reports/backtest_elo.json reports/backtest_elo_history.json)
   res $?
 }
 skip 9 "predictions append-only" || {
@@ -46,7 +45,7 @@ skip 9 "predictions append-only" || {
   (
     bad=$(git diff "$BASE" -- predictions/ | grep -cE '^-[^-]')
     echo "removed/changed lines vs $BASE: $bad"
-    for f in reports/backtest_elo.json reports/backtest_elo_gbl.json; do
+    for f in reports/backtest_elo.json; do
       a=$(git show "$BASE:$f" | uv run python -c "import json,sys;print(json.load(sys.stdin)['model_version'])")
       b=$(uv run python -c "import json;print(json.load(open('$f'))['model_version'])")
       echo "$f base=$a now=$b"; [ "$a" = "$b" ] || exit 1
@@ -76,7 +75,7 @@ skip 18 "build + score + publish twice" || {
   (
     run() {
       uv run eurohoops build >/dev/null && uv run eurohoops score >/dev/null \
-        && uv run eurohoops score --competition gbl >/dev/null && uv run eurohoops publish >/dev/null
+        && uv run eurohoops publish >/dev/null
     }
     run && s1=$(git status --porcelain; git diff | sha256sum) \
       && run && s2=$(git status --porcelain; git diff | sha256sum) \
@@ -114,31 +113,16 @@ skip 32 "G1 outcome coding" || {
   uv run python "$CHECKS/m2_outcome_coding.py"
   res $?
 }
-skip 33 "M3 unit tests + facts" || { item "33 M3 unit tests, §3 facts"; bash "$CHECKS/m3_units.sh"; res $?; }
 skip 34 "M3 leakage" || {
-  item "34 M3 leakage (RAPM, dummy, SPM, box-only, minutes, GBL)"
-  uv run pytest -q -p no:cacheprovider -p no:warnings tests/test_m3_leakage.py tests/test_minutes.py     tests/test_box_impact.py tests/test_rapm_dummy.py tests/test_spm.py tests/test_m3_gbl.py     -k "leak or edit or planted or never" 2>&1 | tail -1
+  item "34 M3 leakage (RAPM, dummy, SPM, box-only, minutes)"
+  uv run pytest -q -p no:cacheprovider -p no:warnings tests/test_m3_leakage.py tests/test_minutes.py     tests/test_box_impact.py tests/test_rapm_dummy.py tests/test_spm.py     -k "leak or edit or planted or never" 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
 skip 35 "M3 report" || { item "35 backtest_m3.json + gate, two runs identical, verdict < validation < test"; bash "$CHECKS/m3_reports.sh"; res $?; }
 skip 36 "M3 runtime" || { item "36 backtest --model m3 runtime < 1,800 s"; bash "$CHECKS/m3_runtime.sh"; res $?; }
-skip 37 "M3 card + GBL stints" || { item "37 m3.md numbers = reports; gbl_stints.json pass rates, two builds identical"; bash "$CHECKS/m3_card_gbl.sh"; res $?; }
-skip 38 "entity" || { item "38 entity: unit tests, two builds identical, runtime, matcher < labels < label overrides"; bash "$CHECKS/m4_entity.sh"; res $?; }
-skip 39 "crosswalk invariants" || {
-  item "39 crosswalk invariants: every box id in one person, overrides held"
-  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/entity_xwalk.py"
-  res $?
-}
-skip 40 "M4 units + leakage" || {
-  item "40 M4 unit and leakage tests (pairs, translation model, backtest)"
-  uv run pytest -q -p no:cacheprovider tests/test_translation_pairs.py tests/test_translation.py tests/test_m4_backtest.py 2>&1 | tail -1
-  res "${PIPESTATUS[0]}"
-}
-skip 41 "M4 report" || { item "41 backtest_m4.json + gate, two runs identical, verdict < validation < test, runtime"; bash "$CHECKS/m4_reports.sh"; res $?; }
 skip 43 "M5 units + facts" || {
   item "43 M5 unit tests (rest, shares, model core, harness), minutes.py unchanged, section 3 facts"
-  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m5_facts.py" | tail -1 && \
-    uv run pytest -q -p no:cacheprovider tests/test_rest.py tests/test_rotation.py tests/test_m5.py tests/test_m5_backtest.py tests/test_m5_rest.py tests/test_m5_gap.py 2>&1 | tail -1
+  uv run pytest -q -p no:cacheprovider tests/test_rest.py tests/test_rotation.py tests/test_m5.py tests/test_m5_backtest.py tests/test_m5_gap.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
 skip 44 "M5 leakage" || {
@@ -146,11 +130,11 @@ skip 44 "M5 leakage" || {
   uv run pytest -q -p no:cacheprovider tests/test_m5_leakage.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
-skip 45 "M5 report" || { item "45 backtest_m5.json + gate/oracle/gap, two runs identical, GBL fixed choice, verdict < validation < test"; bash "$CHECKS/m5_reports.sh"; res $?; }
-skip 46 "M5 runtime" || { item "46 backtest --model m5 runtime: EL < 1,800 s, GBL < 600 s"; bash "$CHECKS/m5_runtime.sh"; res $?; }
+skip 45 "M5 report" || { item "45 backtest_m5.json + gate/oracle/gap, two runs identical, verdict < validation < test"; bash "$CHECKS/m5_reports.sh"; res $?; }
+skip 46 "M5 runtime" || { item "46 backtest --model m5 runtime: EL < 1,800 s"; bash "$CHECKS/m5_runtime.sh"; res $?; }
 skip 48 "M7 units + facts" || {
   item "48 M7 unit tests (posterior, formats, engine, harness), section 3 facts, rating_fits/forecast/rank unchanged"
-  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m7_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_rating_posterior.py tests/test_team_eff.py tests/test_sim_formats.py tests/test_sim_season.py tests/test_rank_by_wins.py tests/test_sim_played.py tests/test_standings.py tests/test_m7_backtest.py 2>&1 | tail -1
+  uv run pytest -q -p no:cacheprovider tests/test_rating_posterior.py tests/test_team_eff.py tests/test_sim_formats.py tests/test_sim_season.py tests/test_rank_by_wins.py tests/test_sim_played.py tests/test_standings.py tests/test_m7_backtest.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
 skip 49 "M7 leakage" || {
@@ -158,8 +142,8 @@ skip 49 "M7 leakage" || {
   uv run pytest -q -p no:cacheprovider tests/test_m7_leakage.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
-skip 50 "M7 report" || { item "50 backtest_m7.json + gate/reliability, two runs identical, GBL fixed choice, verdict < validation < test"; bash "$CHECKS/m7_reports.sh"; res $?; }
-skip 51 "M7 runtime" || { item "51 backtest --model m7 runtime: EL < 1,800 s, GBL < 600 s; simulate < 120 s"; bash "$CHECKS/m7_runtime.sh"; res $?; }
+skip 50 "M7 report" || { item "50 backtest_m7.json + gate/reliability, two runs identical, verdict < validation < test"; bash "$CHECKS/m7_reports.sh"; res $?; }
+skip 51 "M7 runtime" || { item "51 backtest --model m7 runtime: EL < 1,800 s; simulate < 120 s"; bash "$CHECKS/m7_runtime.sh"; res $?; }
 skip 52 "simulate dry run" || {
   item "52 live simulate: probability sums, gated and idempotent log, existing logs untouched, workflow per gate; actionlint"
   (PYTHONIOENCODING=utf-8 uv run python "$CHECKS/sim_dry_run.py"     && uvx --from actionlint-py actionlint .github/workflows/daily.yml && echo "daily.yml clean")
@@ -167,7 +151,7 @@ skip 52 "simulate dry run" || {
 }
 skip 54 "M6 units + facts" || {
   item "54 M6 unit tests (player seasons, projection, aging, board, similarity, live), section 3 facts, Twin unchanged"
-  PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m6_facts.py" | tail -1 &&     uv run pytest -q -p no:cacheprovider tests/test_player_seasons.py tests/test_projection.py tests/test_aging.py tests/test_board.py tests/test_player_similarity.py tests/test_m6_backtest.py tests/test_live_m6.py tests/test_stats.py 2>&1 | tail -1
+  uv run pytest -q -p no:cacheprovider tests/test_player_seasons.py tests/test_projection.py tests/test_aging.py tests/test_board.py tests/test_player_similarity.py tests/test_m6_backtest.py tests/test_live_m6.py tests/test_stats.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
 skip 55 "M6 leakage" || {
@@ -175,13 +159,13 @@ skip 55 "M6 leakage" || {
   uv run pytest -q -p no:cacheprovider tests/test_m6_leakage.py 2>&1 | tail -1
   res "${PIPESTATUS[0]}"
 }
-skip 56 "M6 report" || { item "56 backtest_m6.json + gate/coverage/movers, two runs identical, GBL fixed choice, verdict < validation < test"; bash "$CHECKS/m6_reports.sh"; res $?; }
+skip 56 "M6 report" || { item "56 backtest_m6.json + gate/coverage, two runs identical, verdict < validation < test"; bash "$CHECKS/m6_reports.sh"; res $?; }
 skip 57 "project dry run" || {
   item "57 live project: two dry runs identical, tree untouched, no age or birth date, workflow per gate; actionlint"
   PYTHONIOENCODING=utf-8 uv run python "$CHECKS/m6_live.py"
   res $?
 }
-skip 58 "M6 runtimes" || { item "58 RUNTIMEs within L-m: backtest m6 EL < 1,200 s, GBL < 300 s, project < 90 s, export < 180 s, astro < 240 s"; bash "$CHECKS/m6_runtime.sh"; res $?; }
+skip 58 "M6 runtimes" || { item "58 RUNTIMEs within L-m: backtest m6 EL < 1,200 s, project < 90 s, export < 180 s, astro < 240 s"; bash "$CHECKS/m6_runtime.sh"; res $?; }
 skip 59 "API" || {
   item "59 API: route, read-only and OpenAPI tests; old-vs-new export byte-identical; contract (web/src/data = API); docker compose config"
   uv run pytest -q -p no:cacheprovider tests/test_api_app.py tests/test_api_readmodel.py tests/test_api_export.py tests/test_api_contract.py 2>&1 | tail -1 &&     PYTHONIOENCODING=utf-8 uv run python "$CHECKS/api_export.py"

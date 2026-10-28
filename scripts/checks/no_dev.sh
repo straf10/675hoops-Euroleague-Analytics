@@ -15,7 +15,6 @@ print('no-dev env without', absent)
 assert len(absent) == 4" || exit 1
 uv run --no-dev eurohoops build >/dev/null || exit 1
 uv run --no-dev eurohoops predict --window-hours 0 || exit 1
-uv run --no-dev eurohoops predict --competition gbl --window-hours 0 || exit 1
 for f in predictions/*; do
   name=$(basename "$f")
   if ! grep -qx "$name" <<<"$existing"; then

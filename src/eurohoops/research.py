@@ -1,33 +1,21 @@
 """The local M2 and M3 research commands (``eurohoops shots``, ``free-throws``, ``shot-quality``,
-``shot-charts``, ``backtest --model m2`` and ``gbl-stints``): the daily workflow never runs them.
+``shot-charts``, ``backtest --model m2``, ``m3-players`` and ``entity``): the daily workflow runs
+only ``entity``'s marts when asked.
 ``eurohoops.cli`` registers them under their names; nothing here is fetched, everything reads the
 marts and the raw cache."""
 
-import hashlib
 import json
 import logging
 import time
-from typing import Annotated
 
-import pandas as pd
 import typer
 
 from eurohoops.config import (
     EL_PLAYER_NAMES,
-    ENTITY_LABELS,
-    ENTITY_LABELS_TODO,
     ENTITY_OVERRIDES,
-    ENTITY_REPORT,
     ENTITY_SEASONS,
-    ENTITY_TUNING_REPORT,
     EUROLEAGUE,
     FREE_THROWS_REPORT,
-    GBL,
-    GBL_PBP,
-    GBL_PLAYER_BOX,
-    GBL_PLAYER_NAMES,
-    GBL_STINTS_REPORT,
-    GREEK_EL_CLUBS,
     M2_CHART_PLAYERS,
     M2_CHART_TEAMS,
     M2_CHARTS_DIR,
@@ -37,10 +25,6 @@ from eurohoops.config import (
     M2_TEAMS_REPORT,
     M3,
     M3_PLAYERS_REPORT,
-    M4,
-    M5,
-    M5_GBL,
-    M5_REST_REPORT,
     MART_PATH,
     PLAYER_XWALK_FILE,
     SHOTS_REPORT,
@@ -283,32 +267,6 @@ def m3_players() -> None:
     )
 
 
-def m5_rest() -> None:
-    """Rest beyond M5 (week 14-16 J7): residual on rest differences, rest-day distribution and
-    the Greek clubs' two-competition weeks, from the committed per-game M5 predictions."""
-    from eurohoops.eval.m5_rest import rest_report  # noqa: PLC0415
-
-    missing = [p for p in (M5.games_report, M5_GBL.games_report) if not p.is_file()]
-    if missing:
-        log.error("missing %s; run: eurohoops backtest --model m5 (both competitions)", missing)
-        raise typer.Exit(code=1)
-    el = read_games(MART_PATH, EUROLEAGUE.name)
-    gbl = read_games(MART_PATH, GBL.name)
-    el, gbl = (g[g["season"] <= M5.test[-1]].reset_index(drop=True) for g in (el, gbl))
-    to_gbl = {code: gbl_id for gbl_id, code in GREEK_EL_CLUBS.items()}
-    blocks = {}
-    for name, games, other, club_map, spec, greek in (
-        ("euroleague", el, gbl, dict(GREEK_EL_CLUBS), M5, tuple(GREEK_EL_CLUBS.values())),
-        ("gbl", gbl, el, to_gbl, M5_GBL, tuple(GREEK_EL_CLUBS)),
-    ):
-        predictions = pd.read_csv(spec.games_report, dtype={"game_id": str})
-        blocks[name] = rest_report(
-            games, other, club_map, predictions, tuning=spec.tuning, greek=greek
-        )
-    write_json(M5_REST_REPORT, blocks)
-    typer.echo(f"{M5_REST_REPORT}: euroleague, gbl")
-
-
 def shot_charts() -> None:
     """Static M2 shot charts (F8) in docs/models/m2/ for the validation season: the league xPTS
     surface, and actual minus expected for the declared teams and the top-FGA players."""
@@ -350,191 +308,28 @@ def shot_charts() -> None:
     typer.echo(f"wrote charts to {M2_CHARTS_DIR}")
 
 
-def entity(
-    tune_params: Annotated[
-        bool, typer.Option("--tune", help="D3 search on the silver set (entity_tuning.json)")
-    ] = False,
-    draft: Annotated[
-        bool, typer.Option("--draft-labels", help="Write the owner's label sheet (I5) to data/")
-    ] = False,
-) -> None:
-    """Weeks 12-14 I3-I5: player names of both competitions (``player_names`` mart and staging),
-    the cross-league matcher and the ``player_xwalk`` mart, and reports/entity_resolution.json
-    (counts, silver-set metrics, and precision/recall on entity/labels.csv once it exists).
+def entity() -> None:
+    """Weeks 12-14 I3 (EuroLeague only): the ``player_names`` and ``player_xwalk`` marts from the
+    EuroLeague box scores and ``entity/overrides.csv``, and the committed crosswalk file.
 
-    ``--tune`` runs the D3 search on the silver set and writes reports/entity_tuning.json
-    instead; ``--draft-labels`` writes the label sheet. Local only: reads the marts, the raw
-    cache and the cached bios (``ingest-bios``).
+    Local only: reads the marts and the raw cache.
     """
-    from eurohoops.entity.pipeline import (  # noqa: PLC0415
-        draft_labels,
-        label_metrics,
-        read_overrides,
-        run_entity,
-        silver_metrics,
-        silver_set,
-        tune,
-    )
-    from eurohoops.ingest.bios import build_bios  # noqa: PLC0415
+    from eurohoops.entity.pipeline import read_overrides  # noqa: PLC0415
+    from eurohoops.entity.xwalk import build_xwalk  # noqa: PLC0415
     from eurohoops.models.player_seasons import xwalk_file  # noqa: PLC0415
     from eurohoops.parse.games import write_table  # noqa: PLC0415
-    from eurohoops.parse.player_names import euroleague_names, gbl_names  # noqa: PLC0415
+    from eurohoops.parse.player_names import euroleague_names  # noqa: PLC0415
     from eurohoops.stats.box import build_box_games  # noqa: PLC0415
 
     start = time.monotonic()
-    player_box = pd.read_parquet(GBL_PLAYER_BOX)
-    player_box = player_box[player_box["game_id"].str.slice(3, 7).astype(int).isin(ENTITY_SEASONS)]
     games = read_games(MART_PATH, EUROLEAGUE.name)
     games = games[games["season"].isin(ENTITY_SEASONS)]
-    gbl = gbl_names(GBL.raw_dir, player_box)
-    el = euroleague_names(build_box_games(EUROLEAGUE.raw_dir, games).players)
-    write_table(gbl, GBL_PLAYER_NAMES)
-    write_table(el, EL_PLAYER_NAMES)
-    names = pd.concat([el, gbl], ignore_index=True)
-    bios = build_bios(GBL.raw_dir, EUROLEAGUE.raw_dir)
-    if tune_params:
-        result = tune(names, bios, GREEK_EL_CLUBS)
-        write_json(ENTITY_TUNING_REPORT, result)
-        typer.echo(
-            f"silver {result['silver']}; chosen {result['chosen']} "
-            f"(dates hidden: {result['chosen_silver_hidden_dates']}); wrote {ENTITY_TUNING_REPORT}"
-        )
-        return
-    overrides = read_overrides(ENTITY_OVERRIDES)
-    if draft:
-        teams = read_table(MART_PATH, "teams")
-        team_names = {} if teams is None else dict(zip(teams["team"], teams["name"], strict=True))
-        sheet = draft_labels(names, bios, overrides, GREEK_EL_CLUBS, team_names=team_names)
-        ENTITY_LABELS_TODO.parent.mkdir(parents=True, exist_ok=True)
-        sheet.to_csv(ENTITY_LABELS_TODO, index=False, encoding="utf-8-sig")
-        typer.echo(f"{len(sheet)} ids {sheet['stratum'].value_counts().to_dict()}")
-        typer.echo(f"wrote {ENTITY_LABELS_TODO}")
-        return
-    run = run_entity(names, bios, overrides, GREEK_EL_CLUBS)
-    write_tables(
-        MART_PATH,
-        {"player_names": names, "player_xwalk": run.xwalk, "player_xwalk_frozen": run.xwalk_frozen},
-    )
-    xwalk_file(run.xwalk).to_csv(PLAYER_XWALK_FILE, index=False, lineterminator="\n")
-    report = run.report
-    pos, neg = silver_set(names, bios, GREEK_EL_CLUBS)
-    report["silver"] = silver_metrics(run.matches, pos, neg)
-    report["bios"] = {
-        c: int(group["birth_date"].notna().sum()) for c, group in bios.groupby("competition")
-    }
-    if ENTITY_LABELS.exists():
-        report["labels"] = label_metrics(run, overrides, pd.read_csv(ENTITY_LABELS, dtype=str))
-    write_json(ENTITY_REPORT, report)
+    names = euroleague_names(build_box_games(EUROLEAGUE.raw_dir, games).players)
+    write_table(names, EL_PLAYER_NAMES)
+    xwalk = build_xwalk(names, read_overrides(ENTITY_OVERRIDES))
+    write_tables(MART_PATH, {"player_names": names, "player_xwalk": xwalk})
+    xwalk_file(xwalk).to_csv(PLAYER_XWALK_FILE, index=False, lineterminator="\n")
     typer.echo(
-        f"{len(run.matches)} cross-league matches, {run.xwalk['person_id'].nunique()} persons; "
-        f"silver precision {report['silver']['precision']} recall {report['silver']['recall']}; "
-        f"wrote {ENTITY_REPORT}\nRUNTIME {time.monotonic() - start:.0f} s"
-    )
-
-
-def backtest_m4(*, score_test: bool, tuning_only: bool) -> None:
-    """``backtest --model m4`` (weeks 12-14 I8): GBL->EL translation on the movers, walk
-    forward by EuroLeague target season; writes reports/backtest_m4.json and
-    reports/m4_translation.json. Needs ``eurohoops entity`` first. Reads ``player_xwalk_frozen``
-    (the crosswalk without the overrides added from the owner's labels), so the pre-registered
-    M4 scores do not move when labels fix the matcher's misses."""
-    from eurohoops.eval.m4_backtest import net_offset, run_m4_backtest  # noqa: PLC0415
-    from eurohoops.models.translation_pairs import (  # noqa: PLC0415
-        build_pairs,
-        season_rates,
-        team_net,
-    )
-    from eurohoops.parse.gbl_box_lines import build_gbl_player_games  # noqa: PLC0415
-    from eurohoops.stats.box import build_box_games  # noqa: PLC0415
-
-    start = time.monotonic()
-    xwalk = read_table(MART_PATH, "player_xwalk_frozen")
-    team_games = read_table(MART_PATH, "team_games")
-    if xwalk is None or team_games is None:
-        log.error(
-            "player_xwalk_frozen/team_games missing; run: eurohoops build, then eurohoops entity"
-        )
-        raise typer.Exit(code=1)
-    team_games = team_games[team_games["season"].isin(ENTITY_SEASONS)]
-    el_games = read_games(MART_PATH, EUROLEAGUE.name)
-    el_games = el_games[el_games["season"].isin(ENTITY_SEASONS)]
-    gbl_games = read_games(MART_PATH, GBL.name)
-    gbl_games = gbl_games[gbl_games["season"].isin(ENTITY_SEASONS)]
-    player_games = {
-        "euroleague": build_box_games(EUROLEAGUE.raw_dir, el_games).players,
-        "gbl": build_gbl_player_games(
-            GBL.raw_dir, gbl_games, team_games[team_games["competition"] == GBL.name]
-        ).table,
-    }
-    rates = pd.concat(
-        [season_rates(games, comp, xwalk) for comp, games in player_games.items()],
-        ignore_index=True,
-    )
-    net = team_net(team_games)
-    pairs = build_pairs(rates, net)
-    report, translation = run_m4_backtest(
-        pairs,
-        rates,
-        player_games,
-        spec=M4,
-        clubs=GREEK_EL_CLUBS,
-        tuning_only=tuning_only,
-        score_test=score_test,
-    )
-    report["data_sha256"] = hashlib.sha256(pairs.to_csv(index=False).encode()).hexdigest()
-    translation["team_offset"] = net_offset(
-        net, GREEK_EL_CLUBS, M4.bootstrap_resamples, M4.bootstrap_seed
-    )
-    write_json(M4.report, report)
-    write_json(M4.translation_report, translation)
-    for split, block in report["metrics"].items():
-        losses = " ".join(f"{m} {v}" for m, v in block["loss"].items())
-        typer.echo(f"{split} ({block['n']} movers): {losses}")
-    gate = report["gate"]
-    if gate is not None:
-        verdict = "PASS" if gate["passed"] else "FAIL"
-        typer.echo(f"gate {gate['variant']} vs same_stats: {verdict} {gate['loss_diff']}")
-    typer.echo(
-        f"wrote {M4.report}, {M4.translation_report}\nRUNTIME {time.monotonic() - start:.0f} s"
-    )
-
-
-def gbl_stints() -> None:
-    """Build the GBL ``gbl_stints``/``gbl_stint_game_checks`` marts (H3, weeks 9-12) from the
-    staged GBL play-by-play (``config.GBL_PBP``) and write reports/gbl_stints.json: pass rates
-    per check and season, and whether the H-i rule (>= 95% of games pass) holds.
-
-    Local only, like ``possessions`` and ``stints --mart``: the daily workflow never runs it.
-    Play-by-play is cached for 2018 and 2019 only (D4, reports/week9-12_progress.md), so only
-    those seasons get stints; GBL RAPM (H-i) is attempted only if the H-i rule holds.
-    """
-    from eurohoops.parse.gbl_stints import (  # noqa: PLC0415
-        H_I_THRESHOLD,
-        build_gbl_stints_mart,
-    )
-    from eurohoops.parse.gbl_stints import (  # noqa: PLC0415
-        mart_report as gbl_stints_report,
-    )
-
-    if not GBL_PBP.exists():
-        log.error("no staged GBL play-by-play; run: eurohoops ingest --competition gbl --pbp")
-        raise typer.Exit(code=1)
-    team_games = read_table(MART_PATH, "team_games", GBL.name)
-    if team_games is None:
-        log.error("no team_games in the marts; run: eurohoops build")
-        raise typer.Exit(code=1)
-    pbp = pd.read_parquet(GBL_PBP)
-    games = read_games(MART_PATH, GBL.name)
-    mart = build_gbl_stints_mart(pbp, games, team_games)
-    write_tables(MART_PATH, {"gbl_stints": mart.stints, "gbl_stint_game_checks": mart.checks})
-    report = gbl_stints_report(mart)
-    write_json(GBL_STINTS_REPORT, report)
-    for season, block in sorted(report["seasons"].items()):
-        typer.echo(
-            f"{season}: {block['passed']}/{block['games']} games passed "
-            f"({block['pass_rate']:.2%}); by check {block['pass_rate_by_check']}"
-        )
-    typer.echo(
-        f"overall pass rate {report['overall_pass_rate']}; H-i (>= {H_I_THRESHOLD:.0%}) holds: "
-        f"{report['h_i_rule_holds']}; wrote {GBL_STINTS_REPORT}"
+        f"{xwalk['person_id'].nunique()} persons from {len(xwalk)} EuroLeague ids; "
+        f"wrote {PLAYER_XWALK_FILE}\nRUNTIME {time.monotonic() - start:.0f} s"
     )

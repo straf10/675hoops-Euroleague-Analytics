@@ -4,7 +4,7 @@
 is deterministic) and leave predictions/, reports/ and entity/ untouched; the committed reports
 (m6_projections, m6_board, m6_similarity, sim_ungated_*) hold no age and no birth date
 (`live_m6.personal_fields`); `daily.yml` runs `eurohoops project` iff the EuroLeague M6 gate
-passed (L-l) and `sim-ungated` for both competitions (D1); actionlint is clean. Says whether the
+passed (L-l) and `sim-ungated` (D1); actionlint is clean. Says whether the
 committed reports equal today's rebuild (they differ once new games are in the marts; reported,
 not failed). Prints `RUNTIME project N` (the slower run).
 """
@@ -72,10 +72,7 @@ for path in (M6_PROJECTIONS, M6_BOARD, M6_SIMILARITY):
 passed = bool(json.loads(M6.report.read_text(encoding="utf-8"))["gate"]["passed"])
 workflow = Path(".github/workflows/daily.yml").read_text(encoding="utf-8")
 scheduled = "eurohoops project" in workflow
-ungated = all(
-    line in workflow
-    for line in ("eurohoops sim-ungated\n", "eurohoops sim-ungated --competition gbl\n")
-)
+ungated = all(line in workflow for line in ("eurohoops sim-ungated\n",))
 print(f"daily.yml runs project: {scheduled} (gate passed: {passed}); sim-ungated both: {ungated}")
 ok &= scheduled == passed and ungated
 lint = subprocess.run(

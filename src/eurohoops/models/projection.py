@@ -9,13 +9,13 @@ seasons before the target, 0 for the partial current season; exposure is possess
 attempts for percentages) and shrunk to a position-free league prior::
 
     m    = sum(w_i r_i) / sum(w_i)                        # the player's decayed rate
-    S    = u(mu) * sum(w_i^2 f_i^2 / n_i) / sum(w_i)^2    # its sampling variance
+    S    = u(mu) * sum(w_i^2 / n_i) / sum(w_i)^2         # its sampling variance
     w    = tau2 / (tau2 + S)                              # empirical-Bayes weight on his own data
     mean = w * m + (1 - w) * mu0
 
 ``u(mu)`` is the variance of one unit of exposure, Poisson-style for counts (``100 * mu``) and
 binomial-style for percentages (``mu * (1 - mu)``), taken at the shrunk rate (one fixed-point
-step from the league mean); ``f_i`` is the translation scale of a translated row (1 otherwise).
+step from the league mean).
 ``mu0`` is the exposure-weighted mean of the target competition's rows in seasons ``t-3 .. t-1``
 and ``tau2`` the between-player variance of the same rows by method of moments (observed
 variance minus mean sampling variance, exact for unequal weights). No grid: the prior strength
@@ -29,19 +29,17 @@ target-season rate at the reference ``exposure``. A player with no usable row ge
 mean and ``tau2 + T``. The interval is the Normal quantile, clipped at 0 below.
 
 Hooks, never fitted here: ``aging`` (``AgeAdjust``: change in a rate between two ages, from the
-aging curve) moves every row to the target age; ``translation`` (M4's delta and pseudocount)
-moves other-league rows to the target league as ``(r + c) * exp(+-delta) - c``, floored at 0.
-Percentages are not translated. Ages are inputs only: they are held in memory, never stored.
+aging curve) moves every row to the target age. Ages are inputs only: they are held in memory,
+never stored.
 
 Impact stats (``spm``, ``brapm``) are measurements with a known ``sd``: rows blend with weights
 ``decay / sd^2``, the prior is the possession-weighted mean of the competition's impact rows in
-``t-3 .. t-1`` (or, for ``brapm`` with ``impact_prior="spm"``, the target's own projected SPM,
-its spread being the BRAPM-minus-SPM second moment plus the SPM projection variance), and there
+``t-3 .. t-1``, and there
 is no sampling term unless the caller names one (``impact_noise``: the truth of an impact
 stat is itself a noisy measurement, so ``a + b / exposure`` is added to its predictive variance,
 ``exposure`` the target's reference possessions; the SPM that centres the BRAPM prior does not
 carry it). A stat whose league prior cannot be formed (fewer than two impact rows with
-possessions in the window, e.g. BRAPM for GBL) is left out for those targets.
+possessions in the window) is left out for those targets.
 
 Drift (``fit_drift``) is estimated by the caller's choice of ``before_season`` (walk-forward on
 tuning targets, frozen for validation and test, D6); it uses complete seasons strictly before it.
@@ -52,7 +50,6 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -71,8 +68,8 @@ from eurohoops.models.player_seasons import (
 from eurohoops.parse.schemas import schema_dtypes, validated
 
 AgeAdjust = Callable[[str, FloatArray, FloatArray], FloatArray]
-FLAGS = ("no_history", "no_age", "translated", "partial_season", "no_impact_input")
-VARIANTS = ("proj_shrunk", "proj_age", "proj_full", "proj_full_spm")
+FLAGS = ("no_history", "no_age", "partial_season", "no_impact_input")
+VARIANTS = ("proj_shrunk", "proj_age")
 PRIOR_SEASONS = 3  # the league prior reads seasons t-3 .. t-1
 _OUTPUT_COLUMNS = (
     "tid",
@@ -147,29 +144,16 @@ class ProjectionParams:
 
     half_life: float
     aging: bool
-    translation: bool
-    impact_prior: Literal["league", "spm"]
     interval: float = 0.8
 
 
-@dataclass(frozen=True)
-class Translation:
-    """M4's translation factors for one target season (passed in, never fitted here)."""
-
-    delta: Mapping[str, float]
-    c: Mapping[str, float]
-    target_season: int
-
-
 def variant_params(variant: str, half_life: float) -> ProjectionParams:
-    """The parameters of ``proj_shrunk`` / ``proj_age`` / ``proj_full`` / ``proj_full_spm``."""
+    """The parameters of ``proj_shrunk`` / ``proj_age``."""
     if variant not in VARIANTS:
         raise ValueError(f"unknown projection variant {variant!r}; expected one of {VARIANTS}")
     return ProjectionParams(
         half_life=half_life,
         aging=variant != "proj_shrunk",
-        translation=variant in ("proj_full", "proj_full_spm"),
-        impact_prior="spm" if variant == "proj_full_spm" else "league",
     )
 
 
@@ -236,7 +220,7 @@ def fit_drift(
                 np.maximum(pairs["sd"], _SD_FLOOR) ** 2 + np.maximum(pairs["sd_b"], _SD_FLOOR) ** 2
             )
             if len(pairs) < 2:
-                continue  # no such ratings (e.g. BRAPM for GBL): not an error, no drift
+                continue  # no such ratings (e.g. BRAPM with no ratings): not an error, no drift
             out[stat] = _drift_of(
                 stat,
                 (pairs["value_b"] - pairs["value"]).to_numpy(),
@@ -280,7 +264,6 @@ class _Stat:
     weight: FloatArray
     exposure: FloatArray
     n_seasons: np.ndarray
-    translated: np.ndarray
     partial: np.ndarray
     no_input: np.ndarray
     present: np.ndarray
@@ -290,9 +273,7 @@ def _empty(n_targets: int) -> _Stat:
     """A stat that is projected for no target."""
     zeros = np.zeros(n_targets)
     flags = np.zeros(n_targets, dtype=bool)
-    return _Stat(
-        zeros, zeros, zeros, zeros, zeros, flags.astype("int64"), flags, flags, flags, flags
-    )
+    return _Stat(zeros, zeros, zeros, zeros, zeros, flags.astype("int64"), flags, flags, flags)
 
 
 def _shrink(
@@ -357,20 +338,10 @@ def _box_stat(
     *,
     drift: float,
     aging: AgeAdjust | None,
-    translation: Translation | None,
 ) -> _Stat:
     n_targets, t = targets.n, targets.t
     rate = rows[stat].copy()
     n = rows[f"{stat}_n"]
-    factor = np.ones(len(rate))
-    moved = np.zeros(len(rate), dtype=bool)
-    if params.translation and translation is not None and stat in COUNT_STATS:
-        moved = rows["other"]
-        sign = np.where(rows["t_comp"] == "euroleague", 1.0, -1.0)
-        scale = np.exp(sign * translation.delta[stat])
-        c = translation.c[stat]
-        rate = np.where(moved, np.maximum((rate + c) * scale - c, 0.0), rate)
-        factor = np.where(moved, scale, 1.0)
     if params.aging and aging is not None:
         aged = np.isfinite(rows["age_from"]) & np.isfinite(rows["age_to"])
         if aged.any():
@@ -378,14 +349,14 @@ def _box_stat(
         rate = np.clip(rate, 0.0, 1.0 if stat in PCT_STATS else None)
     ok = np.isfinite(rate) & (n > 0)
     tid = rows["tid"][ok]
-    rate, n, factor, moved = rate[ok], n[ok], factor[ok], moved[ok]
+    rate, n = rate[ok], n[ok]
     decay = rows["decay"][ok]
     w = decay * n
     total = np.bincount(tid, weights=w, minlength=n_targets)
     has = total > 0
     safe = np.where(has, total, 1.0)
     m = np.bincount(tid, weights=w * rate, minlength=n_targets) / safe
-    spread = np.bincount(tid, weights=w**2 * factor**2 / n, minlength=n_targets) / safe**2
+    spread = np.bincount(tid, weights=w**2 / n, minlength=n_targets) / safe**2
     stale = _staleness(tid, rows["season"][ok], w / safe[tid], t, n_targets)
     keys = targets.keys
     priors = {key: _league_prior(stat, targets.windows[key]) for key in set(keys)}
@@ -414,7 +385,6 @@ def _box_stat(
         weight=weight,
         exposure=np.bincount(tid, weights=decay * n, minlength=n_targets),
         n_seasons=np.bincount(tid, minlength=n_targets),
-        translated=np.bincount(tid, weights=moved, minlength=n_targets) > 0,
         partial=np.bincount(tid, weights=rows["current"][ok], minlength=n_targets) > 0,
         no_input=np.zeros(n_targets, dtype=bool),
         present=np.ones(n_targets, dtype=bool),
@@ -438,27 +408,12 @@ def _impact_prior(
     stat: str,
     impact: pd.DataFrame,
     poss: pd.DataFrame,
-    params: ProjectionParams,
     *,
     competition: str,
     season: int,
 ) -> tuple[float, float] | None:
-    """The league mean and spread of ``stat``; with ``impact_prior="spm"`` for BRAPM, the
-    second moment of BRAPM minus SPM about 0 instead (its mean is the target's own SPM). None
-    when fewer than two rows can form it."""
+    """The league mean and spread of ``stat``. None when fewer than two rows can form it."""
     window = _impact_window(impact[impact["stat"] == stat], poss, competition, season)
-    if params.impact_prior == "spm" and stat == "brapm":
-        spm = _impact_window(impact[impact["stat"] == "spm"], poss, competition, season)
-        both = window.merge(spm, on=["person_id", "competition", "season"], suffixes=("", "_s"))
-        if len(both) < 2:
-            return None
-        v = np.maximum(both["sd"], _SD_FLOOR) ** 2 + np.maximum(both["sd_s"], _SD_FLOOR) ** 2
-        return _moment_variance(
-            (both["value"] - both["value_s"]).to_numpy(),
-            v.to_numpy(),
-            both["poss"].to_numpy(),
-            centered=False,
-        )
     if len(window) < 2:
         return None
     return _moment_variance(
@@ -478,7 +433,6 @@ def _impact_stat(
     drift: float,
     aging: AgeAdjust | None,
     offsets: pd.Series,
-    spm: _Stat | None,
 ) -> _Stat:
     n_targets = len(keys)
     if impact is None:
@@ -516,15 +470,10 @@ def _impact_stat(
     cache = {}
     for i, key in enumerate(zip(keys["t_comp"], t, strict=True)):
         if key not in cache:
-            cache[key] = _impact_prior(
-                stat, impact, poss, params, competition=key[0], season=key[1]
-            )
+            cache[key] = _impact_prior(stat, impact, poss, competition=key[0], season=key[1])
         found = cache[key]
         if found is not None:
             mu0[i], tau2[i], present[i] = found[0], found[1], True
-    if params.impact_prior == "spm" and stat == "brapm" and spm is not None:
-        present &= spm.present
-        mu0, tau2 = spm.mean, tau2 + spm.var
     mean, weight, var = _shrink(
         m, has, sampling, stale, drift=drift, prior_mean=mu0, prior_var=tau2
     )
@@ -535,7 +484,6 @@ def _impact_stat(
         weight=weight,
         exposure=np.bincount(tid, weights=decay * rows["poss"].to_numpy(), minlength=n_targets),
         n_seasons=np.bincount(tid, minlength=n_targets),
-        translated=np.zeros(n_targets, dtype=bool),
         partial=np.bincount(tid, weights=rows["current"].to_numpy(), minlength=n_targets) > 0,
         no_input=~has,
         present=present,
@@ -560,7 +508,6 @@ def _usable_rows(
     rows = rows[(rows["season"] < rows["t"]) | current].assign(current=current)
     rows = rows.sort_values(["tid", "season"], kind="stable").reset_index(drop=True)
     rows["decay"] = 0.5 ** ((rows["t"] - rows["season"]) / params.half_life)
-    rows["other"] = rows["competition"] != rows["t_comp"]
     offset = rows["person_id"].map(offsets)
     rows["age_from"] = offset + rows["season"]
     rows["age_to"] = offset + rows["t"]
@@ -576,15 +523,12 @@ def project(
     impact: pd.DataFrame | None = None,
     ages: pd.DataFrame | None = None,
     aging: AgeAdjust | None = None,
-    translation: Translation | None = None,
     impact_noise: Mapping[str, tuple[float, float]] | None = None,
 ) -> pd.DataFrame:
     """Projections (``PROJECTIONS_SCHEMA``) for every target, from the rows it may use.
 
     ``drift`` is ``fit_drift`` (box stats required; an impact stat missing from it has drift 0).
-    ``aging`` is required when ``params.aging``; ``translation`` when ``params.translation`` and a
-    target has a usable row of the other competition, and its ``target_season`` may not be after
-    any such target's season (walk-forward). ``impact_noise`` maps an impact stat to ``(a, b)``,
+    ``aging`` is required when ``params.aging``. ``impact_noise`` maps an impact stat to ``(a, b)``,
     both >= 0 (an absent stat or ``None``: no term). A target with no age is not aged
     (flag ``no_age``).
     """
@@ -609,11 +553,6 @@ def project(
         else pd.Series(dtype="float64")
     )
     keys, rows = _usable_rows(targets, rates, params, offsets)
-    if params.translation and rows["other"].any():
-        if translation is None:
-            raise ValueError("params.translation needs M4's factors for other-league rows")
-        if (rows.loc[rows["other"], "t"] < translation.target_season).any():
-            raise ValueError("translation fitted for a season after the target (walk-forward)")
     n_targets = len(targets)
     z = float(special.ndtri(0.5 + params.interval / 2.0))
     pairs = list(zip(targets["competition"], targets["season"].astype(int), strict=True))
@@ -628,13 +567,13 @@ def project(
     for stat in COUNT_STATS + PCT_STATS:
         results[stat] = _box_stat(
             stat, columns, arrays, params,
-            drift=drift[stat], aging=aging, translation=translation,
+            drift=drift[stat], aging=aging,
         )  # fmt: skip
     poss = rates[["person_id", "competition", "season", "poss"]]
     for stat in IMPACT_STATS:
         results[stat] = _impact_stat(
             stat, keys, impact, poss, params,
-            drift=drift.get(stat, 0.0), aging=aging, offsets=offsets, spm=results.get("spm"),
+            drift=drift.get(stat, 0.0), aging=aging, offsets=offsets,
         )  # fmt: skip
     has_rows = np.isin(np.arange(n_targets), columns["tid"])
     known_age = targets["person_id"].isin(offsets.index).to_numpy()
@@ -649,7 +588,6 @@ def project(
         picked = {
             "no_history": ~has_rows,
             "no_age": has_rows & ~known_age & params.aging & (res.n_seasons > 0),
-            "translated": res.translated,
             "partial_season": res.partial,
             "no_impact_input": res.no_input,
         }

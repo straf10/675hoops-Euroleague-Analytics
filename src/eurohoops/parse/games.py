@@ -1,13 +1,10 @@
-"""Raw EuroLeague schedules and GBL round pages -> validated ``games`` and ``teams`` tables.
+"""Raw EuroLeague schedules -> validated ``games`` and ``teams`` tables.
 
-Both competitions share one schema so the Elo backtest, predictor and scorecard are
-competition-agnostic. GBL-driven additions: ``round_label`` (ESAKE round titles such as "QF1"
-are not numbers) and ``forfeit`` (a forfeit is played, scored 20-0, but carries no rating
-information). EuroLeague adds phase ``TS`` (Top 16, 2007-08 to 2015-16).
+``forfeit`` marks a played game scored 20-0 that carries no rating information. Phase ``TS``
+is the Top 16 (2007-08 to 2015-16).
 """
 
 from collections.abc import Iterable
-from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -15,11 +12,8 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.ingest.euroleague import RawGame
-from eurohoops.ingest.gbl import PHASES as GBL_PHASES
-from eurohoops.ingest.gbl import RoundPage
 
 PHASES = ("RS", "TS", "PI", "PO", "FF")
-ATHENS = "Europe/Athens"
 DTYPES: dict[str, Any] = {
     "game_id": str,
     "season": "int64",
@@ -40,6 +34,9 @@ DTYPES: dict[str, Any] = {
 
 # Columns that may be absent from a frame handed to conform(); they are added as nulls.
 OPTIONAL_COLUMNS = ("venue", "venue_address")
+
+
+ATHENS = "Europe/Athens"  # EuroLeague tip-offs are published in Athens local time
 
 
 def _scores_match_played(df: pd.DataFrame) -> pd.Series:
@@ -69,7 +66,7 @@ GAMES_SCHEMA = pa.DataFrameSchema(
         "neutral": pa.Column(bool),
         "confirmed_date": pa.Column(bool),
         # The arena the game is played at, as the schedule names it; the address only when the
-        # schedule has one (about 1 game in 9 has none). Both null for GBL games (no venue feed).
+        # schedule has one (about 1 game in 9 has none).
         "venue": pa.Column(str, nullable=True),
         "venue_address": pa.Column(str, nullable=True),
     },
@@ -116,20 +113,11 @@ def build_team_seasons(schedules: dict[int, list[RawGame]]) -> pd.DataFrame:
     )
 
 
-def build_gbl_team_seasons(rounds: list[RoundPage]) -> pd.DataFrame:
-    return _team_seasons(
-        (r.season, team, name)
-        for r in rounds
-        for game in r.page.games
-        for team, name in ((game.home, game.home_name), (game.away, game.away_name))
-    )
-
-
 def conform(df: pd.DataFrame) -> pd.DataFrame:
     """Cast to the schema dtypes, sort chronologically and validate.
 
-    The venue columns are optional: a frame without them (GBL, staging written before they
-    existed, test builders) gets them as nulls.
+    The venue columns are optional: a frame without them (staging written before they existed,
+    test builders) gets them as nulls.
     """
     df = df.assign(**{c: None for c in OPTIONAL_COLUMNS if c not in df.columns})
     # An all-null column comes back from DuckDB as an integer type: cast to text, keeping nulls.
@@ -209,41 +197,6 @@ def build_teams_table(schedules: dict[int, list[RawGame]]) -> pd.DataFrame:
 def _teams(names: dict[str, str]) -> pd.DataFrame:
     df = pd.DataFrame({"team": list(names), "name": list(names.values())}, dtype=str)
     return TEAMS_SCHEMA.validate(df.sort_values("team", ignore_index=True))
-
-
-def build_gbl_tables(rounds: list[RoundPage]) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """GBL ``games`` (tip-offs converted from Athens time to UTC) and ``teams`` tables."""
-    rows = [
-        {
-            "game_id": f"GBL{r.season}_{game.idgame}",
-            "season": r.season,
-            "game_code": int(game.idgame, 16),
-            "phase": GBL_PHASES[r.phase],
-            "round": int(r.code),
-            "round_label": game.round_label,
-            "tipoff_utc": pd.Timestamp(game.tipoff_local).tz_localize(ATHENS).tz_convert(UTC),
-            "home": game.home,
-            "away": game.away,
-            "home_score": game.home_score,
-            "away_score": game.away_score,
-            "played": game.home_score is not None,
-            "forfeit": game.forfeit,
-            "neutral": False,
-            "confirmed_date": game.confirmed_date,
-            "venue": None,
-            "venue_address": None,
-        }
-        for r in sorted(rounds, key=lambda r: r.season)
-        for game in r.page.games
-    ]
-    names = {
-        team: name
-        for r in sorted(rounds, key=lambda r: r.season)
-        for game in r.page.games
-        for team, name in ((game.home, game.home_name), (game.away, game.away_name))
-    }
-    games = conform(pd.DataFrame(rows, columns=list(GAMES_SCHEMA.columns)))
-    return games, _teams(names)
 
 
 def write_table(df: pd.DataFrame, path: Path) -> None:

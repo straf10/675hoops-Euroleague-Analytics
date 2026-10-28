@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-from eurohoops.config import COMPETITIONS, LIVE_SEASON, M7, M7_GBL, MART_PATH
+from eurohoops.config import EUROLEAGUE, LIVE_SEASON, M7, MART_PATH
 from eurohoops.live_sim import load_sim, run_live_sim, write_live_sim
 from eurohoops.marts import read_games, read_table
 from eurohoops.sim.formats import season_format
@@ -45,7 +45,7 @@ model = load_sim(M7.report)
 assert model is not None, "no committed M7 report"
 before = tree_state()
 slowest = 0.0
-for comp in COMPETITIONS.values():
+for comp in (EUROLEAGUE,):
     assert comp.m1 is not None
     tuned = json.loads(comp.m1.report.read_text(encoding="utf-8"))["tuned"]
     fmt = season_format(comp.name, LIVE_SEASON)
@@ -60,7 +60,7 @@ for comp in COMPETITIONS.values():
         model,
         fmt=fmt,
         season=LIVE_SEASON,
-        spec=M7 if comp.name == "euroleague" else M7_GBL,
+        spec=M7,
     )
     slowest = max(slowest, time.perf_counter() - started)
     if run is None:

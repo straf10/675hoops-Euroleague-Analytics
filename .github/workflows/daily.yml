@@ -107,7 +107,7 @@ jobs:
             || echo "::warning::M6 projections failed; the committed report stays"
       # Live M7: gate v2 passed (docs/models/m7.md, PLAN 8.1 R5), so the EuroLeague run is appended
       # to the pre-registered log predictions/euroleague_sim_2026-27.csv once per completed round.
-      # The GBL is not gated and has no log. A failure is a warning, as for M6.
+      # A failure is a warning, as for M6.
       - name: Season simulation log (M7, EuroLeague)
         run: |
           uv run --no-dev eurohoops simulate || echo "::warning::M7 simulation failed; no row logged"

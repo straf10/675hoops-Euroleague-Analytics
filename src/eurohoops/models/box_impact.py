@@ -39,7 +39,7 @@ SECONDS_PER_DAY = 86_400.0
 UNPENALISED = 1e-8  # h (box-only) and the PIR OLS carry no ridge penalty
 
 # H-e's 11 box-score inputs, in the order the task lists them (PTS, 2PA, 3PA, FTA, OREB, DREB,
-# AST, STL, BLK, TOV, PF); `pf` here is fouls committed (ESAKE's "FOULS M").
+# AST, STL, BLK, TOV, PF); `pf` here is fouls committed.
 STAT_COLUMNS = ("pts", "fg2a", "fg3a", "fta", "oreb", "dreb", "ast", "stl", "blk", "tov", "pf")
 
 # PIR baseline: fixed decay/shrinkage (no grid parameter on `pir_margins`), the midpoints of

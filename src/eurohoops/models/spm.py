@@ -36,10 +36,6 @@ feature 0 because his weight is 0) predicts through ``SpmModel.predict`` at a 0 
 is exactly the SPM of league-average rates (no special case needed: standardisation and the
 fitted intercept do this correctly on their own).
 
-**Reuse for GBL (H8, out of scope here).** ``SpmModel.predict`` takes a bare ``(n, n_stats)``
-feature matrix, not a EuroLeague-specific frame, so H8 can build a GBL feature matrix in the same
-11-stat order and reuse a fitted ``SpmModel`` directly.
-
 **Why ``fit`` needs ``player_games`` (an ambiguity the task flagged and resolved here).**
 ``Variant.fit``'s call shape is ``(games, inputs, tuned)`` -- no ``Data``, so no
 ``Data.player_games`` -- yet rebuilding each round's box features needs the raw box lines. Rather
@@ -107,7 +103,7 @@ def _finite_rmse(pred: FloatArray, actual: FloatArray, mask: BoolArray) -> float
 class SpmModel:
     """A season's fitted SPM: two weighted ridge regressions (O, D) of plain-rapm ratings on
     standardised ``box_impact`` per-100 rate features, with an intercept each and a shared ridge
-    ``alpha``. ``predict`` takes any matching feature matrix (module docstring: GBL reuse)."""
+    ``alpha``. ``predict`` takes any matching feature matrix."""
 
     season: int
     stats: tuple[str, ...]

@@ -64,16 +64,11 @@ from eurohoops.stats.export import write_stats  # noqa: E402
 route_for
 write_stats
 
-# Phase A (GBL off the site): the Undervalued list is no longer published, but live_m6 still
-# writes it and tests validate it against this schema
-from eurohoops.api.readmodel import UNDERVALUED_ROWS_SCHEMA  # noqa: E402
-
-UNDERVALUED_ROWS_SCHEMA
-
 # validation.json keys: TypedDict fields the site reads, never this package
-from eurohoops.stats.validate import SeasonReport  # noqa: E402
+from eurohoops.stats.validate import SeasonReport, Special  # noqa: E402
 
 SeasonReport.games_scheduled
+Special.note
 
 # playoff result strings: the exporter writes them, tests and docs list them
 from eurohoops.stats.export import OTHER_RESULTS, RESULTS  # noqa: E402
@@ -102,34 +97,11 @@ ZipInfo.compress_type
 ZipInfo.create_system
 ZipInfo.external_attr
 
-# Data audit (scripts/data_audit.py, a read-only CLI over the marts)
-from eurohoops.audit import run_audit  # noqa: E402
-
-run_audit
-
-# Data audit: the coach and standings checks (scripts/data_audit.py)
-from eurohoops.audit_coaches import coach_findings  # noqa: E402
-from eurohoops.audit_standings import standings_findings  # noqa: E402
-
-coach_findings
-standings_findings
-
-# Audit: postponed-game reader (scripts/data_audit.py)
-from eurohoops.audit_status import POSTPONED_REASON, is_postponed  # noqa: E402
-
-POSTPONED_REASON
-is_postponed
-
 # B1 MKT benchmark: the live report entry point (scripts/checks/mkt_benchmark.py), tests only today
 from eurohoops.eval.benchmark import benchmark  # noqa: E402
 
 benchmark
 
-# E1: power of the R1 looks, reporting only (scripts/r1_power.py)
-from eurohoops.eval.r1_power import normal_cumulative_prob, simulate_promotion  # noqa: E402
-
-normal_cumulative_prob
-simulate_promotion
 
 # B2 early-season totals diagnostic (scripts/diag_early_totals.py, research only)
 from eurohoops.eval.early_totals import build_report  # noqa: E402

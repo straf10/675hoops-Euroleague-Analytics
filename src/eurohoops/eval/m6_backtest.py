@@ -17,10 +17,11 @@ an attempt) over the target window. EuroLeague only: ``brapm`` = the target seas
 snapshot (next-season targets only, no snapshot exists at a cutoff) and ``spm`` = the injected
 ``M6Inputs.spm`` (``spm(rates_frame, before_season) -> Series``, a model fitted on data before
 ``before_season``) applied to the target window's box rates. ``rates_frame`` is ``spm_frame`` of
-player-season rows: ``rate_table`` plus ``poss`` and the per-100 rates ``fg2a`` and ``pf``. The GBL
-has no impact stats (D13). A stat whose truth is NaN for a player (no attempt) is left out of that
-player's loss and the stat weights are renormalised over the stats present: with K stats scored
-in the block and n present, the player's loss is ``K / n * sum of the present squared errors``.
+player-season rows: ``rate_table`` plus ``poss`` and the per-100 rates ``fg2a`` and ``pf``.
+Only EuroLeague has impact stats (D13). A stat whose truth is NaN for a player (no attempt) is
+left out of that player's loss and the stat weights are renormalised over the stats present:
+with K stats scored in the block and n present, the player's loss is
+``K / n * sum of the present squared errors``.
 A stat any compared model cannot project for a player (e.g. no league impact mean) is left out
 the same way, for all models of the block, so the losses stay comparable (on the tuning seasons'
 next-season targets the models of a block are every cell and baseline, elsewhere the chosen cell
@@ -62,8 +63,7 @@ Walk-forward. ``target_inputs`` is the one place that touches the data of a targ
 the history rows, the impact rows, the aging curve (``aging_curve(history, ages, t)``), the drift
 (D6: ``fit_drift(history, t)`` for a tuning target, frozen at ``fit_drift(history, first
 validation season)`` for a validation or test target; its BRAPM entry is the snapshots' D of
-``snapshot_noise`` for the same season, D17), the translation (D5: M4's fit for ``t``;
-a target without a fit may have no mover, asserted) and the truth. Nothing else reads a table.
+``snapshot_noise`` for the same season, D17) and the truth. Nothing else reads a table.
 
 Calibration (D19). After the choice, the chosen cell's predictive sd is multiplied by
 ``sqrt(c)`` per (stat, checkpoint), ``c`` the mean squared standardised error of its raw tuning
@@ -74,8 +74,8 @@ seasons before ``t`` (the first: ``c = 1``); validation and test use all tuning 
 Choice (L-i). On the tuning seasons' next-season targets only: the lowest loss over every
 (variant, half-life) cell; a relative difference below ``tie_tolerance`` goes to the simpler
 variant (``VARIANTS`` order) and within a variant to the smaller half-life. ``on_edge`` says
-whether the chosen half-life is the grid's smallest or largest. ``fixed`` skips the choice (the
-GBL scores the EuroLeague verdict, ``gated: false``). Rest-of-season and the splits after tuning
+whether the chosen half-life is the grid's smallest or largest. ``fixed`` skips the choice (a
+fixed cell is not gated). Rest-of-season and the splits after tuning
 score only the chosen cell and the baselines.
 
 Gate (L-h), EuroLeague validation next-season targets: the chosen cell's loss is below
@@ -116,7 +116,6 @@ from eurohoops.models.projection import (
     IMPACT_SCHEMA,
     TARGET_SCHEMA,
     VARIANTS,
-    Translation,
     fit_drift,
     project,
     variant_params,
@@ -186,11 +185,10 @@ SpmFn = Callable[[pd.DataFrame, int], "pd.Series[float]"]
 class M6Inputs:
     """Everything a run reads. ``games`` / ``player_games`` map a competition to its games mart
     frame (season, round, phase, tipoff_utc, ...) and its player-game frame (``stats.box`` /
-    ``parse.gbl_box_lines``: season, game_id, team, player_id, sec, poss and the counts);
+    ``stats.box``: season, game_id, team, player_id, sec, poss and the counts);
     ``xwalk`` is ``player_xwalk``; ``ages`` (``AGES_SCHEMA``) lives in memory only; ``brapm`` holds
     the season-end snapshots as ``IMPACT_SCHEMA`` rows (``stat == "brapm"``, ``sd`` = the
-    snapshot's ``sd_total``; may be empty); ``spm`` is the injected SPM (module docstring);
-    ``translations`` maps a target season to M4's fit for it."""
+    snapshot's ``sd_total``; may be empty); ``spm`` is the injected SPM (module docstring)."""
 
     games: Mapping[str, pd.DataFrame]
     player_games: Mapping[str, pd.DataFrame]
@@ -198,7 +196,6 @@ class M6Inputs:
     ages: pd.DataFrame
     brapm: pd.DataFrame
     spm: SpmFn
-    translations: Mapping[int, Translation]
 
 
 def cell_key(variant: str, half_life: float) -> str:
@@ -436,7 +433,7 @@ class TargetInputs:
     """Everything the projections of one (competition, season, checkpoint) are a function of: the
     walk-forward rule says none of it may depend on a game at or after the cutoff (a season
     before ``season`` for a next-season target). ``truth`` is the scoring side: one row per
-    scored player with ``poss`` (the target window's possessions), ``mover`` and the truth of
+    scored player with ``poss`` (the target window's possessions) and the truth of
     each stat in ``stats``."""
 
     competition: str
@@ -449,7 +446,6 @@ class TargetInputs:
     impact: pd.DataFrame | None
     curve: AgingCurve | None  # None: not fitted (a live variant that does not age)
     drift: dict[str, float]
-    translation: Translation | None
     targets: pd.DataFrame
     truth: pd.DataFrame
     impact_noise: dict[str, tuple[float, float]] | None = None
@@ -487,14 +483,6 @@ def _target_rows(
     lines = world.lines[competition]
     after = lines[(lines["season"] == season) & (lines["tipoff_utc"] >= cutoff)]
     return build_player_seasons({competition: after}, world.inputs.xwalk)
-
-
-def _newest(history: pd.DataFrame, competition: str) -> pd.DataFrame:
-    """Per person the newest usable row (the partial season-``t`` one included; a tie goes to
-    ``competition``'s)."""
-    usable = history.assign(mine=history["competition"] == competition)
-    usable = usable.sort_values(["person_id", "season", "mine"], kind="stable")
-    return usable.drop_duplicates("person_id", keep="last").set_index("person_id")
 
 
 def _impact_rows(
@@ -623,7 +611,7 @@ def _truth(
 def _played_rounds(regular: pd.DataFrame) -> int:
     """R: the season's last played regular-season round. It is the format's R of M7 except in a
     season cut short (EuroLeague 2019-20); ``season_format`` does not cover every season M6
-    scores (it excludes 2019, 2021 and the GBL's 2023-24)."""
+    scores (it excludes 2019 and 2021)."""
     return int(regular.loc[regular["played"], "round"].max())
 
 
@@ -671,12 +659,7 @@ def target_inputs(
         raise ValueError(f"no scored players in {competition} {season} at checkpoint {checkpoint}")
 
     people = scored["person_id"]
-    movers = (_newest(history, competition).loc[people, "competition"] != competition).to_numpy()
-    translation = inputs.translations.get(season)
-    if translation is None and movers.any():
-        raise ValueError(f"a mover in {competition} {season} but no M4 translation for it (D5)")
     truth = _truth(inputs, scored, competition, season, checkpoint)
-    truth.insert(2, "mover", movers)
     return _block(
         world,
         competition,
@@ -687,7 +670,6 @@ def target_inputs(
         people=people,
         exposure=_exposure(history, people, season, checkpoint),
         truth=truth,
-        translation=translation,
         spec=spec,
         with_curve=True,
     )
@@ -701,7 +683,6 @@ def live_inputs(
     people: Sequence[str],
     *,
     spec: M6Backtest,
-    translation: Translation | None,
     rounds: Callable[[str, int], int] | None = None,
     world: World | None = None,
     with_curve: bool = False,
@@ -709,7 +690,7 @@ def live_inputs(
     """``target_inputs`` for a live target (weeks 16-18 L9): the same history, impact rows, drift
     and noise for the given ``people`` instead of a scored set, and no truth. A person without
     a usable season gets ``spec.min_poss`` as the interval's reference exposure (the scored-set
-    floor; ``project`` flags him ``no_history``). ``translation`` is M4's newest fit (D5);
+    floor; ``project`` flags him ``no_history``);
     ``with_curve`` fits the aging curve (only a variant that ages needs it, and with it the
     ages)."""
     cutoff = _cutoff(inputs, competition, season, checkpoint, rounds)
@@ -729,7 +710,6 @@ def live_inputs(
         people=ids,
         exposure=np.where(np.isfinite(exposure), exposure, spec.min_poss),
         truth=pd.DataFrame({"person_id": ids.to_numpy()}),
-        translation=translation,
         spec=spec,
         with_curve=with_curve,
     )
@@ -746,7 +726,6 @@ def _block(
     people: pd.Series,
     exposure: FloatArray,
     truth: pd.DataFrame,
-    translation: Translation | None,
     spec: M6Backtest,
     with_curve: bool,
 ) -> TargetInputs:
@@ -798,7 +777,6 @@ def _block(
         impact=impact,
         curve=memo.get(("curve", competition, season)),
         drift=memo["drift", competition, season, drift_before],
-        translation=translation,
         targets=targets,
         truth=truth,
         impact_noise=impact_noise,
@@ -819,7 +797,6 @@ def project_cell(ti: TargetInputs, variant: str, half_life: float) -> pd.DataFra
         impact=ti.impact,
         ages=ti.ages,
         aging=_aging(ti) if params.aging else None,
-        translation=ti.translation,
         impact_noise=ti.impact_noise,
     )
 
@@ -965,12 +942,12 @@ def baseline_predictions(ti: TargetInputs) -> dict[str, pd.DataFrame]:
 def score_block(
     ti: TargetInputs, predictions: Mapping[str, pd.DataFrame], sds: Mapping[str, float]
 ) -> dict[str, pd.DataFrame]:
-    """One long frame per model: person_id, stat, truth, mean, lo80, hi80, sd, weight, mover, k,
+    """One long frame per model: person_id, stat, truth, mean, lo80, hi80, sd, weight, k,
     sq_err_std, abs_err, covered, crps, ordered by person then stat. The stats of a player are
     those with a finite truth and a finite prediction from every model (module docstring)."""
     stats = [s for s in ti.stats if s in sds]
     long = ti.truth.melt(
-        id_vars=["person_id", "poss", "mover"],
+        id_vars=["person_id", "poss"],
         value_vars=stats,
         var_name="stat",
         value_name="truth",
@@ -1042,14 +1019,13 @@ def rescale(rows: pd.DataFrame, scale: Mapping[str, float], interval: float) -> 
 
 def player_losses(rows: pd.DataFrame) -> pd.DataFrame:
     """One model's rows -> one row per (season, checkpoint, person): the projection loss
-    ``K / n * sum of the present squared errors``, the weight and the mover flag."""
+    ``K / n * sum of the present squared errors`` and the weight."""
     grouped = rows.groupby(["season", "checkpoint", "person_id"], sort=True)
     out = grouped.agg(
         total=("sq_err_std", "sum"),
         n=("sq_err_std", "size"),
         k=("k", "first"),
         weight=("weight", "first"),
-        mover=("mover", "first"),
     )
     out["loss"] = out["total"] * out["k"] / out["n"]
     return out
@@ -1168,18 +1144,10 @@ def _block_metrics(
 
 
 def _data_hash(inputs: M6Inputs) -> str:
-    translations = pd.DataFrame(
-        [
-            (season, stat, t.delta[stat], t.c[stat])
-            for season, t in sorted(inputs.translations.items())
-            for stat in sorted(t.delta)
-        ],
-        columns=["season", "stat", "delta", "c"],
-    )
     frames = [
         f for comp in sorted(inputs.games) for f in (inputs.games[comp], inputs.player_games[comp])
     ]
-    return data_sha256(*frames, inputs.xwalk, inputs.ages, inputs.brapm, translations)
+    return data_sha256(*frames, inputs.xwalk, inputs.ages, inputs.brapm)
 
 
 def run_m6_backtest(
@@ -1196,7 +1164,7 @@ def run_m6_backtest(
     seasons are scored, so no validation or test number exists anywhere (the verdict must be
     committed before validation is scored). ``score_test``: also the test seasons (only after
     the validation commit). ``fixed``: ``{"variant", "half_life"}``, the cell to score instead of
-    choosing one (the GBL scores the EuroLeague verdict; the gate is then not binding)."""
+    choosing one (a fixed cell is not gated)."""
     split_of = scored_splits(spec, tuning_only, score_test)
     grid = cells(spec)
     if fixed is not None and (fixed["variant"], float(fixed["half_life"])) not in grid:
@@ -1392,10 +1360,6 @@ def _report(
         "of them",
         "scale": {f"{f:g}": {k: round_finite(v) for k, v in c.items()} for f, c in scales.items()},
     }
-    report["movers"] = {
-        name: {m: _mover_slice(nxt[(nxt["split"] == name) & (nxt["model"] == m)]) for m in models}
-        for name in splits
-    }
     report["differences"] = {
         name: {
             f"vs_{b}": loss_difference(
@@ -1410,15 +1374,6 @@ def _report(
     if not tuning_only:
         report["gate"] = _gate(report, nxt, chosen, spec, stats, gated=fixed is None)
     return report
-
-
-def _mover_slice(rows: pd.DataFrame) -> dict[str, Any]:
-    movers = player_losses(rows)
-    movers = movers[movers["mover"].astype(bool)]
-    return {
-        "n": len(movers),
-        "loss": round_finite(_weighted_mean(movers["loss"], movers["weight"])),
-    }
 
 
 def _gate(

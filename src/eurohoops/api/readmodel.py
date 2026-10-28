@@ -20,10 +20,8 @@ Rules
 Team factors (``team_factors``)
 -------------------------------
 Per season, from the team's box-score sums: eFG% = (fg2m + 1.5 fg3m) / fga, TOV% = tov / poss,
-ORB% = oreb / (oreb + opponent dreb), FT rate = fta / fga. EuroLeague sums the cached box scores'
-team totals rows. GBL takes fga, fta, oreb, dreb, tov and possessions from the ``team_games`` mart
-and the made field goals from the player lines (player rows sum to the totals row for shots, not
-for team rebounds and turnovers). Schedule strength is the mean opponent rating over the team's
+ORB% = oreb / (oreb + opponent dreb), FT rate = fta / fga. The sums are the cached box scores'
+team totals rows. Schedule strength is the mean opponent rating over the team's
 scheduled games of the season (played and remaining), the rating being Elo as published (the
 live backtest's frozen parameters, replayed from its first warm-up season) at the end of the
 replay through that season. An input that is missing gives ``value: null`` and a ``reason``.
@@ -44,10 +42,7 @@ import pandera.pandas as pa
 
 from eurohoops.api import match_report as mr
 from eurohoops.config import (
-    COMPETITIONS,
     EUROLEAGUE,
-    GBL,
-    GREEK_EL_CLUBS,
     INJURY_LOG,
     LIVE_SEASON,
     M2_PLAYERS_REPORT,
@@ -84,7 +79,6 @@ from eurohoops.models.player_seasons import (
 )
 from eurohoops.models.rest import rest_features
 from eurohoops.models.roster import read_rosters
-from eurohoops.parse.gbl_box_lines import build_gbl_player_games
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, short_name, site_data
 from eurohoops.stats.assists import game_assists
@@ -153,7 +147,7 @@ M2_ROWS_SCHEMA = pa.DataFrameSchema(
 PROJECTION_ROWS_SCHEMA = pa.DataFrameSchema(
     {
         "person_id": pa.Column(str),
-        "competition": pa.Column(str, pa.Check.isin(list(COMPETITIONS))),
+        "competition": pa.Column(str, pa.Check.isin([EUROLEAGUE.name])),
         "team": pa.Column(str),
         "name": pa.Column(str),
         "debut_season": pa.Column("int64"),
@@ -162,22 +156,10 @@ PROJECTION_ROWS_SCHEMA = pa.DataFrameSchema(
     },
     strict=False,
 )
-UNDERVALUED_ROWS_SCHEMA = pa.DataFrameSchema(
-    {
-        "person_id": pa.Column(str),
-        "team": pa.Column(str),
-        "name": pa.Column(str),
-        "seasons_since_debut": pa.Column("int64", pa.Check.ge(0)),
-        "minutes": pa.Column("float64", pa.Check.ge(0.0)),
-        "projected_spm": pa.Column("float64"),
-        "reason": pa.Column(str),
-    },
-    strict=False,
-)
 BOARD_ROWS_SCHEMA = pa.DataFrameSchema(
     {
         "person_id": pa.Column(str),
-        "competition": pa.Column(str, pa.Check.isin(list(COMPETITIONS))),
+        "competition": pa.Column(str, pa.Check.isin([EUROLEAGUE.name])),
         "season": pa.Column("int64"),
         "dimension": pa.Column(str),
         "n": pa.Column("float64", pa.Check.ge(0.0)),
@@ -191,7 +173,7 @@ SIMILAR_ROWS_SCHEMA = pa.DataFrameSchema(
     {
         "rank": pa.Column("int64", pa.Check.ge(1)),
         "person_id": pa.Column(str),
-        "competition": pa.Column(str, pa.Check.isin(list(COMPETITIONS))),
+        "competition": pa.Column(str, pa.Check.isin([EUROLEAGUE.name])),
         "season": pa.Column("int64"),
         "name": pa.Column(str),
         "score": pa.Column("float64"),
@@ -267,9 +249,9 @@ def _stamp(moment: datetime) -> str:
 
 
 def _competition(name: str) -> Competition:
-    if name not in COMPETITIONS:
-        raise NotFound(f"unknown competition '{name}'; expected one of {', '.join(COMPETITIONS)}")
-    return COMPETITIONS[name]
+    if name != EUROLEAGUE.name:
+        raise NotFound(f"unknown competition '{name}'; expected '{EUROLEAGUE.name}'")
+    return EUROLEAGUE
 
 
 def _mart(store: Store) -> Path:
@@ -391,7 +373,7 @@ FORECAST_MODELS = {
     "m5": "M5",
     "elor": "Roster Elo (trial)",
     "m5inj": "M5 + injuries (trial)",
-    "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line; EuroLeague only (no odds for GBL)
+    "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line
 }
 
 
@@ -593,7 +575,7 @@ def upcoming_games(store: Store, competition: str, now: datetime) -> dict[str, A
 def prediction(store: Store, game_id: str) -> dict[str, Any]:
     """Every logged forecast of one game, per model: the pre-registered row (the first stamped
     before tip-off; ``late`` when none was) and the rows logged after it."""
-    for comp in COMPETITIONS.values():
+    for comp in (EUROLEAGUE,):
         logs = {
             "elo": comp.prediction_log,
             "m1": comp.m1_prediction_log,
@@ -683,41 +665,12 @@ def team_ratings(store: Store, competition: str, team: str) -> dict[str, Any]:
     }
 
 
-def _gbl_player_games(store: Store) -> pd.DataFrame | None:
-    """GBL player games from the cached box pages; None without the marts or the cache."""
-
-    def make() -> pd.DataFrame | None:
-        raw = store.path(GBL.raw_dir)
-        if not store.path(MART_PATH).exists() or not (raw / "boxscore").exists():
-            return None
-        team_games = read_table(_mart(store), "team_games", GBL.name)
-        if team_games is None:
-            return None
-        return build_gbl_player_games(raw, _games(store, GBL), team_games).table
-
-    return store.memo("gbl_player_games", make)
-
-
 def _team_lines(store: Store, comp: Competition) -> tuple[pd.DataFrame | None, str]:
-    """Team box lines (``TEAM_LINES_SCHEMA``) of a competition, or None and why not."""
+    """Team box lines (``TEAM_LINES_SCHEMA``) of the EuroLeague, or None and why not."""
 
     def make() -> tuple[pd.DataFrame | None, str]:
-        if comp is EUROLEAGUE:
-            teams = _el_box(store).teams
-            lines = teams.assign(fga=teams["fg2a"] + teams["fg3a"])
-            return validated(lines[list(TEAM_LINES_SCHEMA.columns)], TEAM_LINES_SCHEMA), ""
-        players = _gbl_player_games(store)
-        team_games = (
-            read_table(_mart(store), "team_games", comp.name)
-            if store.path(MART_PATH).exists()
-            else None
-        )
-        if players is None or team_games is None or team_games.empty:
-            return None, f"no {comp.name} box-score lines are cached"
-        made = players.groupby(["game_id", "team"], as_index=False)[["fg2m", "fg3m"]].sum()
-        lines = team_games.merge(made, on=["game_id", "team"], validate="one_to_one").rename(
-            columns={"poss_raw": "poss"}
-        )
+        teams = _el_box(store).teams
+        lines = teams.assign(fga=teams["fg2a"] + teams["fg3a"])
         return validated(lines[list(TEAM_LINES_SCHEMA.columns)], TEAM_LINES_SCHEMA), ""
 
     return store.memo(f"team_lines:{comp.name}", make)
@@ -768,20 +721,13 @@ SCHEDULE_RATING = (
 
 
 def _schedule_rest(store: Store, comp: Competition) -> dict[tuple[str, str], float]:
-    """Days of rest (``rest.py``) of each side of every game in the mart, both competitions.
+    """Days of rest (``rest.py``) of each side of every EuroLeague game in the mart.
 
     The schedule counts as history here (every row is treated as played), so a fixture's rest is
     the days since the previous fixture, whether or not that game has been played yet."""
 
     def make() -> dict[tuple[str, str], float]:
-        games = _games(store, comp)
-        if comp.name == "euroleague":
-            club_map = dict(GREEK_EL_CLUBS)
-            other = _games(store, COMPETITIONS["gbl"])
-        else:
-            club_map = {el: gbl for gbl, el in GREEK_EL_CLUBS.items()}
-            other = _games(store, EUROLEAGUE)
-        long = rest_features(games.assign(played=True), other.assign(played=True), club_map)
+        long = rest_features(_games(store, comp).assign(played=True))
         return {
             (str(g), str(t)): float(d)
             for g, t, d in zip(long["game_id"], long["team"], long["days_rest"], strict=True)
@@ -917,7 +863,7 @@ def _person_names(store: Store) -> dict[str, str]:
     """Person id -> display name: the EuroLeague box-score spelling."""
 
     def make() -> dict[str, str]:
-        return person_names(_el_box(store).players, pd.DataFrame(), _xwalk(store))
+        return person_names(_el_box(store).players, _xwalk(store))
 
     return store.memo("person_names", make)
 
@@ -970,9 +916,9 @@ RAPM_MIN_MINUTES = 500.0
 
 
 def rapm_board(store: Store) -> dict[str, Any]:
-    """The latest M3 season's EuroLeague ratings (the M3 report holds no GBL, so there is no GBL
-    board): every player the stints rated, by total, with his 90% intervals and his rank among
-    the players at ``RAPM_MIN_MINUTES`` (``rank`` null below it). Nothing is fitted here."""
+    """The latest M3 season's EuroLeague ratings: every player the stints rated, by total, with his
+    90% intervals and his rank among the players at ``RAPM_MIN_MINUTES`` (``rank`` null below
+    it). Nothing is fitted here."""
     report = _required(store, M3_PLAYERS_REPORT, "the M3 player ratings")
     season = max(int(s) for s in report["seasons"])
     records = [
@@ -1185,16 +1131,11 @@ def m7_verdict(store: Store) -> dict[str, Any]:
 
 
 def simulation_latest(store: Store, competition: str) -> dict[str, Any]:
-    """The latest season simulation with M7's verdict; ``gated`` only for the EuroLeague once a gate
-    passed (gate v2, docs/models/m7.md), never for the GBL."""
+    """The latest season simulation with M7's verdict; ``gated`` once a gate passed (gate v2,
+    docs/models/m7.md)."""
     comp = _competition(competition)
     verdict = m7_verdict(store)
-    if comp.name != "euroleague":
-        verdict = {
-            "passed": False,
-            "reason": "the GBL is not gated (M7 gate v2): EuroLeague verdict, GBL rules unverified",
-        }
-    report = _report(store, SIM_UNGATED[comp.name])
+    report = _report(store, SIM_UNGATED)
     if report is None:
         raise NotFound(
             f"no ungated simulation report for {comp.name}: {verdict['reason']}",

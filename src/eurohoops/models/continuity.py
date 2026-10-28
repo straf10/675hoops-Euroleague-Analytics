@@ -1,4 +1,4 @@
-"""Roster continuity, minutes-weighted (docs/IDEAS.md #17).
+"""Roster continuity, minutes-weighted.
 
 A club's returning-minutes share for a season: of last season's minutes for the club, the share
 played by players on this season's roster. Roster membership is the ELOR protocol's

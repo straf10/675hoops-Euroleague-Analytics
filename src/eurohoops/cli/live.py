@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import time
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
@@ -14,8 +13,6 @@ import pandas as pd
 import typer
 
 from eurohoops.cli._shared import (
-    CompetitionName,
-    CompetitionOption,
     _live,
     _team_games,
     log,
@@ -29,15 +26,11 @@ from eurohoops.cli.backtest import (
     _m6_board,
     _m6_inputs,
     _m6_similar,
-    _m6_translations,
 )
 from eurohoops.config import (
-    COMPETITIONS,
     ELOC_CV,
     ELOR_CV,
     EUROLEAGUE,
-    GBL,
-    GREEK_EL_CLUBS,
     INJURY_LOG,
     INJURY_RAW_DIR,
     LIVE_SEASON,
@@ -46,18 +39,16 @@ from eurohoops.config import (
     M5INJ_LIVE_ENABLED,
     M6,
     M6_BOARD,
-    M6_GBL,
     M6_PROJECTIONS,
     M6_SIMILARITY,
     M7,
-    M7_GBL,
     M7_V2,
     MART_PATH,
     ODDS_CALLS,
     ODDS_RAW_DIR,
     ODDS_TEAMS,
     SIM_LATEST,
-    SIM_LOGS,
+    SIM_LOG,
     SIM_UNGATED,
     Competition,
     M6Backtest,
@@ -85,7 +76,6 @@ from eurohoops.live_m6 import (
     player_rows,
     projections_report,
     similarity_report,
-    undervalued,
 )
 from eurohoops.live_pool import predict_pool
 from eurohoops.live_sim import (
@@ -99,10 +89,8 @@ from eurohoops.live_sim import (
 from eurohoops.logs import append_rows, write_json
 from eurohoops.marts import read_games, read_table, read_teams
 from eurohoops.models.availability import read_injuries, read_roster_names
-from eurohoops.models.box_impact import STAT_COLUMNS
 from eurohoops.models.elor import WalkForwardRatings
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
-from eurohoops.models.projection import Translation
 from eurohoops.models.roster import RosterCacheError, read_rosters
 from eurohoops.odds import OddsApiError, OddsPaths, api_key, record_odds
 from eurohoops.predict import LatePredictionError, logged_keys, predict_upcoming
@@ -121,7 +109,6 @@ def _live_block(  # noqa: PLR0917 -- one competition's live inputs
     spec: M6Backtest,
     report: dict[str, Any],
     chosen: dict[str, Any],
-    translation: Translation,
 ) -> tuple[float, pd.DataFrame, TargetInputs]:
     """One competition's live checkpoint, projections and inputs."""
     games = inputs.games[comp.name]
@@ -137,7 +124,6 @@ def _live_block(  # noqa: PLR0917 -- one competition's live inputs
         chosen=chosen,
         scale=report["calibration"]["scale"][f"{checkpoint:g}"],
         spec=spec,
-        translation=translation,
         rounds=rounds,
         world=world,
     )
@@ -157,58 +143,36 @@ def project(
         ),
     ] = False,
 ) -> None:
-    """Live M6 (weeks 16-18 L9): the 2026-27 projections and the GBL undervalued list
-    (reports/m6_projections.json), the over/under board (m6_board.json) and the "plays like"
-    lists (m6_similarity.json). Runs only when the EuroLeague M6 gate passed (L-l)."""
+    """Live M6 (weeks 16-18 L9): the 2026-27 projections (reports/m6_projections.json), the
+    over/under board (m6_board.json) and the "plays like" lists (m6_similarity.json). Runs only
+    when the EuroLeague M6 gate passed (L-l)."""
     started = time.perf_counter()
-    specs = ((EUROLEAGUE, M6), (GBL, M6_GBL))
-    if not all(spec.report.exists() for _, spec in specs):
-        log.error("no committed M6 reports; run: eurohoops backtest --model m6")
+    if not M6.report.exists():
+        log.error("no committed M6 report; run: eurohoops backtest --model m6")
         raise typer.Exit(code=1)
-    reports = {c.name: json.loads(s.report.read_text(encoding="utf-8")) for c, s in specs}
-    if not reports[EUROLEAGUE.name]["gate"]["passed"]:
+    report = json.loads(M6.report.read_text(encoding="utf-8"))
+    if not report["gate"]["passed"]:
         typer.echo("M6 did not pass its validation gate: the committed reports stay (L-l)")
         return
-    chosen = reports[EUROLEAGUE.name]["chosen"]
+    chosen = report["chosen"]
     inputs = _m6_inputs(M6, live=True)
     world = prepare(inputs)
-    newest = max(inputs.translations)  # D5: M4's newest fit, pairs strictly before it
     names = _live_names(inputs)
-    checkpoints, blocks, players = {}, [], []
-    projected = {}
-    for comp, spec in specs:
-        checkpoint, rows, ti = _live_block(
-            inputs, world, comp, spec, reports[comp.name], chosen, inputs.translations[newest]
-        )
-        checkpoints[comp.name] = checkpoint
-        projected[comp.name] = rows
-        blocks.append(ti)
-        live = world.complete[
-            (world.complete["season"] == LIVE_SEASON) & (world.complete["competition"] == comp.name)
-        ]
-        players += player_rows(rows, live, names)
-    gbl = world.complete[
-        (world.complete["season"] == LIVE_SEASON) & (world.complete["competition"] == GBL.name)
+    checkpoint, rows, ti = _live_block(inputs, world, EUROLEAGUE, M6, report, chosen)
+    live = world.complete[
+        (world.complete["season"] == LIVE_SEASON)
+        & (world.complete["competition"] == EUROLEAGUE.name)
     ]
-    cheap = undervalued(
-        projected[GBL.name],
-        world.complete,
-        LIVE_SEASON,
-        translation=_m6_translations(STAT_COLUMNS)[newest],
-        spm=inputs.spm,
-        names=names,
-        teams=dict(zip(gbl["person_id"], gbl["team"], strict=True)),
-        min_poss=M6.min_poss,
-    )
+    players = player_rows(rows, live, names)
+    checkpoints = {EUROLEAGUE.name: checkpoint}
     payloads = {
         M6_PROJECTIONS: projections_report(
             chosen=chosen,
             gate_passed=True,
             season=LIVE_SEASON,
             checkpoints=checkpoints,
-            digest=inputs_digest(blocks),
+            digest=inputs_digest([ti]),
             players=players,
-            undervalued_rows=cheap,
         )
     }
     if not projections_only:
@@ -235,60 +199,56 @@ def project(
         if not dry_run:
             write_json(path, payload)
     typer.echo(
-        f"{len(players)} projections (checkpoints {checkpoints}), {len(cheap)} undervalued"
+        f"{len(players)} projections (checkpoints {checkpoints})"
         + ("; dry run, nothing written" if dry_run else "")
     )
     typer.echo(f"RUNTIME project: {time.perf_counter() - started:.0f} s")
 
 
-def sim_ungated(competition: CompetitionOption = CompetitionName.euroleague) -> None:
+def sim_ungated() -> None:
     """The live season simulation for the Standings page (owner, D1): ``simulate``'s run written
-    to reports/sim_ungated_{competition}.json whatever M7's gate says; labelled gated only for the
-    EuroLeague once a gate passed (gate v2 did, 2026-10-09), never for the GBL. Never appends to
-    the simulation log; rewritten only when the number of completed rounds changed (its time
-    stamp is the cutoff), so a day without a completed round changes nothing."""
-    comp = COMPETITIONS[competition]
+    to reports/sim_ungated_euroleague.json whatever M7's gate says; labelled gated once a gate
+    passed (gate v2 did, 2026-10-09). Never appends to the simulation log; rewritten only when the
+    number of completed rounds changed (its time stamp is the cutoff), so a day without a completed
+    round changes nothing."""
     model = load_sim(M7.report, M7_V2.report)
-    if comp.m1 is None or model is None or not comp.m1.report.exists():
+    if EUROLEAGUE.m1 is None or model is None or not EUROLEAGUE.m1.report.exists():
         log.error("no committed M7 or M1 report; run: eurohoops backtest --model m7")
         raise typer.Exit(code=1)
     started = time.perf_counter()
-    games = read_games(MART_PATH, comp.name)
+    games = read_games(MART_PATH, EUROLEAGUE.name)
     games = games[games["season"] <= LIVE_SEASON].reset_index(drop=True)
-    team_games = read_table(MART_PATH, "team_games", comp.name)
+    team_games = read_table(MART_PATH, "team_games", EUROLEAGUE.name)
     if team_games is None:
         log.error("no team_games in the marts; run: eurohoops build")
         raise typer.Exit(code=1)
-    fmt = season_format(comp.name, LIVE_SEASON)
-    tuned = json.loads(comp.m1.report.read_text(encoding="utf-8"))["tuned"]
-    spec = M7 if comp is EUROLEAGUE else M7_GBL
+    fmt = season_format(EUROLEAGUE.name, LIVE_SEASON)
+    tuned = json.loads(EUROLEAGUE.m1.report.read_text(encoding="utf-8"))["tuned"]
     run = run_live_sim(
-        games, team_games, tuned, model, fmt=fmt, season=LIVE_SEASON, spec=spec, n_sims=LIVE_SIMS
+        games, team_games, tuned, model, fmt=fmt, season=LIVE_SEASON, spec=M7, n_sims=LIVE_SIMS
     )
-    path = SIM_UNGATED[comp.name]
+    path = SIM_UNGATED
     if run is None:
-        typer.echo(f"{comp.name}: the {LIVE_SEASON} regular season is over; {path} stays")
+        typer.echo(f"{EUROLEAGUE.name}: the {LIVE_SEASON} regular season is over; {path} stays")
         return
-    gated = model.gate_passed and comp is EUROLEAGUE
+    gated = model.gate_passed
     old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     if old is not None and (old["season"], old["after_round"], old.get("gated")) == (
         LIVE_SEASON,
         run.after_round,
         gated,
     ):
-        typer.echo(f"{comp.name}: after round {run.after_round} already in {path}")
+        typer.echo(f"{EUROLEAGUE.name}: after round {run.after_round} already in {path}")
         return
     report = latest_report(run, model, fmt, LIVE_SEASON, run.cutoff.to_pydatetime())
-    if comp is not EUROLEAGUE:
-        reason = "the GBL is not gated (M7 gate v2): EuroLeague verdict, GBL rules unverified"
-    elif model.gate_passed:
+    if model.gate_passed:
         reason = f"M7 passed its validation gate (gate v2, {M7_V2.report.as_posix()})"
     else:
         reason = f"M7 failed its validation gate ({M7.report.as_posix()}): this run is not gated"
     write_json(path, {**report, "gated": gated, "gate": {"passed": gated, "reason": reason}})
     label = "gated" if gated else "not gated"
     typer.echo(f"wrote {path}: after round {run.after_round}, seed {run.seed} ({label})")
-    typer.echo(f"RUNTIME sim-ungated {comp.name}: {time.perf_counter() - started:.0f} s")
+    typer.echo(f"RUNTIME sim-ungated {EUROLEAGUE.name}: {time.perf_counter() - started:.0f} s")
 
 
 class _LiveFrame:
@@ -302,7 +262,7 @@ class _LiveFrame:
     def get(self) -> tuple[M5Inputs, ElPlayerRatings]:
         if self._built is None:
             spec = live_spec(M5, LIVE_SEASON)
-            inputs, frame = _m5_inputs(self._comp, GBL, spec, dict(GREEK_EL_CLUBS))
+            inputs, frame = _m5_inputs(self._comp, spec)
             self._built = (inputs, _el_player_ratings(inputs, frame))
         return self._built
 
@@ -400,13 +360,12 @@ def _predict_pool(log_path: Path | None) -> None:
 
 
 def predict(
-    competition: CompetitionOption = CompetitionName.euroleague,
     round_lead_hours: Annotated[
         float, typer.Option(help="Log every round whose first tip-off is within this many hours")
     ] = 48.0,
 ) -> None:
     """Append pre-tip-off predictions for upcoming live-season games to the public log."""
-    comp = COMPETITIONS[competition]
+    comp = EUROLEAGUE
     live = _live(comp)
     try:
         added = predict_upcoming(
@@ -487,40 +446,33 @@ def predict(
         raise typer.Exit(code=1) from exc
 
 
-def backfill_inputs(
-    competition: Annotated[
-        CompetitionName | None,
-        typer.Option("--competition", help="Only this competition (default: all)"),
-    ] = None,
-) -> None:
+def backfill_inputs() -> None:
     """Backfill the model-input snapshots (docs/match_report.md, section 1) for Elo rows logged
     before they existed: Elo is replayed over the games known at each row's predicted_at_utc, and
     a snapshot is appended only where the recomputed p_home and exp_margin equal the logged ones.
     Rows already in the inputs log are left alone; nothing else is written."""
-    names = [competition] if competition is not None else list(CompetitionName)
-    for name in names:
-        comp = COMPETITIONS[name]
-        if comp.inputs_log is None or comp.prediction_log is None:
-            continue
-        if not comp.prediction_log.exists():
-            typer.echo(f"{comp.name}: no Elo log at {comp.prediction_log}; nothing to backfill")
-            continue
-        live = _live(comp)
-        with comp.prediction_log.open(newline="", encoding="utf-8") as fh:
-            elo_rows = list(csv.DictReader(fh))
-        rows, report = backfill_rows(
-            live.games,
-            elo_rows,
-            logged_keys(comp.inputs_log),
-            live.model,
-            live.replay_from,
-        )
-        append_rows(comp.inputs_log, INPUT_COLUMNS, rows)
-        typer.echo(
-            f"{comp.name}: {report.matched} matched and appended to {comp.inputs_log}, "
-            f"{report.already} already present, {len(report.skipped)} skipped "
-            f"(see warnings above)"
-        )
+    comp = EUROLEAGUE
+    if comp.inputs_log is None or comp.prediction_log is None:
+        return
+    if not comp.prediction_log.exists():
+        typer.echo(f"{comp.name}: no Elo log at {comp.prediction_log}; nothing to backfill")
+        return
+    live = _live(comp)
+    with comp.prediction_log.open(newline="", encoding="utf-8") as fh:
+        elo_rows = list(csv.DictReader(fh))
+    rows, report = backfill_rows(
+        live.games,
+        elo_rows,
+        logged_keys(comp.inputs_log),
+        live.model,
+        live.replay_from,
+    )
+    append_rows(comp.inputs_log, INPUT_COLUMNS, rows)
+    typer.echo(
+        f"{comp.name}: {report.matched} matched and appended to {comp.inputs_log}, "
+        f"{report.already} already present, {len(report.skipped)} skipped "
+        f"(see warnings above)"
+    )
 
 
 def odds() -> None:
@@ -602,36 +554,33 @@ def first_tipoff(
 
 def simulate(
     *,
-    competition: CompetitionOption = CompetitionName.euroleague,
     dry_run: Annotated[
         bool, typer.Option(help="Compute and print the simulation; write nothing")
     ] = False,
 ) -> None:
     """Simulate the rest of the live regular season (M7, K8) after the completed rounds; the log
     is appended only when the EuroLeague M7 gate (v1 or v2) passed and the round is not logged
-    yet. The GBL is not gated (gate v2, docs/models/m7.md): its log is never appended."""
-    comp = COMPETITIONS[competition]
+    yet."""
     model = load_sim(M7.report, M7_V2.report)
-    if model is not None and comp is not EUROLEAGUE:
-        model = replace(model, gate_passed=False)
-    if comp.m1 is None or model is None or not comp.m1.report.exists():
+    if EUROLEAGUE.m1 is None or model is None or not EUROLEAGUE.m1.report.exists():
         log.error("no committed M7 or M1 report; run: eurohoops backtest --model m7")
         raise typer.Exit(code=1)
     started = time.perf_counter()
-    games = read_games(MART_PATH, comp.name)
+    games = read_games(MART_PATH, EUROLEAGUE.name)
     games = games[games["season"] <= LIVE_SEASON].reset_index(drop=True)
-    team_games = read_table(MART_PATH, "team_games", comp.name)
+    team_games = read_table(MART_PATH, "team_games", EUROLEAGUE.name)
     if team_games is None:
         log.error("no team_games in the marts; run: eurohoops build")
         raise typer.Exit(code=1)
-    fmt = season_format(comp.name, LIVE_SEASON)
-    tuned = json.loads(comp.m1.report.read_text(encoding="utf-8"))["tuned"]
-    spec = M7 if comp is EUROLEAGUE else M7_GBL
+    fmt = season_format(EUROLEAGUE.name, LIVE_SEASON)
+    tuned = json.loads(EUROLEAGUE.m1.report.read_text(encoding="utf-8"))["tuned"]
     run = run_live_sim(
-        games, team_games, tuned, model, fmt=fmt, season=LIVE_SEASON, spec=spec, n_sims=LIVE_SIMS
+        games, team_games, tuned, model, fmt=fmt, season=LIVE_SEASON, spec=M7, n_sims=LIVE_SIMS
     )
     if run is None:
-        typer.echo(f"{comp.name}: the {LIVE_SEASON} regular season is over; nothing to simulate")
+        typer.echo(
+            f"{EUROLEAGUE.name}: the {LIVE_SEASON} regular season is over; nothing to simulate"
+        )
         return
     now = datetime.now(UTC)
     for row in log_rows(run, model, LIVE_SEASON, now):
@@ -648,16 +597,16 @@ def simulate(
             fmt=fmt,
             season=LIVE_SEASON,
             at=now,
-            log_path=SIM_LOGS[comp.name],
-            report_path=SIM_LATEST[comp.name],
+            log_path=SIM_LOG,
+            report_path=SIM_LATEST,
         )
-        typer.echo(f"{n} rows appended to {SIM_LOGS[comp.name]}")
-    typer.echo(f"RUNTIME simulate {comp.name}: {time.perf_counter() - started:.0f} s")
+        typer.echo(f"{n} rows appended to {SIM_LOG}")
+    typer.echo(f"RUNTIME simulate {EUROLEAGUE.name}: {time.perf_counter() - started:.0f} s")
 
 
-def score(competition: CompetitionOption = CompetitionName.euroleague) -> None:
+def score() -> None:
     """Score the prediction log against results and write the competition's scorecard."""
-    comp = COMPETITIONS[competition]
+    comp = EUROLEAGUE
     live = _live(comp)
     card = build_scorecard(
         comp.prediction_log,

@@ -22,7 +22,7 @@ FloatArray = np.ndarray[Any, np.dtype[np.float64]]
 
 GAME_SECONDS = 2400.0
 FLOOR_SECONDS = 60.0  # t is floored at 60 s in every formula that divides by t
-NOISE_CONSTANT = 11.0  # IDEAS.md section 7, not tuned
+NOISE_CONSTANT = 11.0  # not tuned
 PROB_CLIP = 1e-6  # log-loss clip
 LINE_CLIP = (0.001, 0.999)  # displayed WP line clip (section 7)
 

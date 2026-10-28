@@ -1,7 +1,7 @@
 [project]
 name = "eurohoops"
 version = "0.2.0"
-description = "EuroLeague + Greek Basket League analytics and live, pre-registered game predictions."
+description = "EuroLeague analytics and live, pre-registered game predictions."
 readme = "README.md"
 license = "LicenseRef-All-Rights-Reserved"
 license-files = ["LICENSE"]
@@ -58,7 +58,6 @@ ignore = ["PLR0913", "PLR2004"]
 
 [tool.ruff.lint.per-file-ignores]
 # Greek text is data here (month names, table labels), not a confusable typo.
-"src/eurohoops/parse/esake.py" = ["RUF001", "RUF002", "RUF003"]
 "src/eurohoops/ingest/bios.py" = ["RUF001", "RUF002", "RUF003"]
 "src/eurohoops/parse/player_names.py" = ["RUF001", "RUF002", "RUF003"]
 "src/eurohoops/entity/*.py" = ["RUF001", "RUF002", "RUF003"]
