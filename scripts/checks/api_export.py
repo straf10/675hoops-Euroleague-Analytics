@@ -50,6 +50,7 @@ from eurohoops.api.readmodel import FORECAST_MODELS, Store
 from eurohoops.cli._shared import _live
 from eurohoops.cli.publish import utc_now
 from eurohoops.config import (
+    ELOH_LIVE_ENABLED,
     EUROLEAGUE,
     LIVE_SEASON,
     M5INJ_LIVE_ENABLED,
@@ -105,6 +106,7 @@ def legacy_site(out: Path, now: datetime) -> None:
                         "m5": comp.m5_prediction_log,
                         "elor": comp.elor_prediction_log,
                         "m5inj": comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
+                        "eloh": comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
                     },
                     FORECAST_MODELS,
                     live.games,

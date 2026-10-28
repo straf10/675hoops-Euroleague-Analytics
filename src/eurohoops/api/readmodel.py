@@ -45,6 +45,7 @@ import pandera.pandas as pa
 from eurohoops.api import match_report as mr
 from eurohoops.config import (
     COMPETITIONS,
+    ELOH_LIVE_ENABLED,
     EUROLEAGUE,
     GBL,
     GREEK_EL_CLUBS,
@@ -391,6 +392,7 @@ FORECAST_MODELS = {
     "m5": "M5",
     "elor": "Roster Elo (trial)",
     "m5inj": "M5 + injuries (trial)",
+    "eloh": "Elo + team home court (trial)",
     "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line; EuroLeague only (no odds for GBL)
 }
 
@@ -433,6 +435,9 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         "elor": _path_or_none(store, comp.elor_prediction_log),
                         "m5inj": _path_or_none(store, comp.m5inj_prediction_log)
                         if M5INJ_LIVE_ENABLED
+                        else None,
+                        "eloh": _path_or_none(store, comp.eloh_prediction_log)
+                        if ELOH_LIVE_ENABLED
                         else None,
                     },
                     FORECAST_MODELS,

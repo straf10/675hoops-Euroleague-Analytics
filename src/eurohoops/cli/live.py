@@ -16,6 +16,7 @@ import typer
 from eurohoops.cli._shared import (
     CompetitionName,
     CompetitionOption,
+    Live,
     _live,
     _team_games,
     log,
@@ -34,6 +35,8 @@ from eurohoops.cli.backtest import (
 from eurohoops.config import (
     COMPETITIONS,
     ELOC_CV,
+    ELOH_FIT,
+    ELOH_LIVE_ENABLED,
     ELOR_CV,
     EUROLEAGUE,
     GBL,
@@ -71,6 +74,7 @@ from eurohoops.ingest.http import make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
 from eurohoops.inputs import INPUT_COLUMNS, backfill_rows
 from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
+from eurohoops.live_eloh import load_eloh, predict_upcoming_eloh
 from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import LiveM5, live_spec, load_m5, predict_upcoming_m5
@@ -387,6 +391,31 @@ def _predict_eloc(
         log.exception("ELOC skipped: its forecast failed; nothing appended to its log")
 
 
+def _predict_eloh(live: Live, comp: Competition, round_lead_hours: float) -> None:
+    """The ELOH shadow log: off unless ELOH_LIVE_ENABLED (config.py) is set, and then it needs
+    the frozen fit (reports/eloh_fit.json). A shadow model never blocks the Elo and M1 logs."""
+    if not ELOH_LIVE_ENABLED or comp.eloh_prediction_log is None:
+        return
+    eloh = load_eloh(ELOH_FIT, live.model, live.replay_from)
+    if eloh is None:
+        log.warning("ELOH skipped: %s is missing", ELOH_FIT)
+        return
+    try:
+        added = predict_upcoming_eloh(
+            live.games,
+            eloh,
+            log_path=comp.eloh_prediction_log,
+            season=live.season,
+            round_lead=timedelta(hours=round_lead_hours),
+            clock=utc_now,
+        )
+        typer.echo(f"{added} ELOH predictions appended to {comp.eloh_prediction_log}")
+    except LatePredictionError:
+        raise
+    except Exception:
+        log.exception("ELOH skipped: its forecast failed; nothing appended to its log")
+
+
 def _predict_pool(log_path: Path | None) -> None:
     """POOL: reads the four component logs only; off while POOL_LIVE_ENABLED is False."""
     if log_path is None:
@@ -481,6 +510,7 @@ def predict(
             round_lead_hours=round_lead_hours,
         )
         _predict_eloc(live.games, live.season, comp, round_lead_hours)
+        _predict_eloh(live, comp, round_lead_hours)
         _predict_pool(comp.pool_prediction_log)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
@@ -670,6 +700,7 @@ def score(competition: CompetitionOption = CompetitionName.euroleague) -> None:
         m5_log_path=comp.m5_prediction_log,
         elor_log_path=comp.elor_prediction_log,
         m5inj_log_path=comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
+        eloh_log_path=comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))
