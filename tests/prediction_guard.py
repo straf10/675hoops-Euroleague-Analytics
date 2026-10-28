@@ -2,19 +2,20 @@
 module that calls live-path code, and point every prediction log of that test at tmp_path."""
 
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 from tests.conftest import REPO
 
 
-def _predictions_state() -> dict[str, tuple[int, int]]:
-    """Size and mtime of every file under the repo predictions/, subfolders included."""
+def _predictions_state(root: Path = REPO / "predictions") -> dict[str, tuple[int, int]]:
+    """Size and mtime of every file under ``root``, subfolders included."""
     state = {}
-    for path in (REPO / "predictions").rglob("*"):
+    for path in root.rglob("*"):
         if path.is_file():
             info = path.stat()
-            state[path.relative_to(REPO).as_posix()] = (info.st_size, info.st_mtime_ns)
+            state[path.relative_to(root).as_posix()] = (info.st_size, info.st_mtime_ns)
     return state
 
 
