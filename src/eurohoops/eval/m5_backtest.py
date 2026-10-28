@@ -655,9 +655,13 @@ def _segments(
     greek_home = frame["home"].astype(str).isin(GREEK_CLUBS).to_numpy()
     greek_away = frame["away"].astype(str).isin(GREEK_CLUBS).to_numpy()
     short = REST_COLUMNS.index("short_rest")
+    other = REST_COLUMNS.index("other_comp_prev")
     groups = {
         "pan_oly": greek_home | greek_away,
         "short_rest_any": (ctx.rest_home[:, short] > 0.0) | (ctx.rest_away[:, short] > 0.0),
+        # EuroLeague only: no other competition, so these two stay empty (kept for the format).
+        "other_comp_prev_any": (ctx.rest_home[:, other] > 0.0) | (ctx.rest_away[:, other] > 0.0),
+        "greek_after_other": np.zeros(len(frame), dtype=bool),
         "early_rounds": (frame["phase"] == "RS").to_numpy()
         & (frame["round"] <= EARLY_ROUNDS).to_numpy(),
     }
