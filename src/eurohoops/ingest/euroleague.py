@@ -25,6 +25,12 @@ log = logging.getLogger(__name__)
 RawGame = dict[str, Any]
 
 
+class ScheduleRejectedError(RuntimeError):
+    """The live schedule response is not a schedule, or has no games. It is never cached: the
+    previous good schedule stays, so a bad response cannot replace it (a past season is read
+    from the cache after rollover, and would then stay wrong)."""
+
+
 class PastSeasonNotCachedError(RuntimeError):
     """A finished season's schedule is not in the raw cache. Past seasons are read from the cache
     only, so the cache must be restored (the seed workflow) instead of refetched."""
@@ -58,6 +64,22 @@ def _schedule_games(payload: bytes) -> list[RawGame]:
     return games
 
 
+def _checked_schedule(payload: bytes, season: int) -> list[RawGame]:
+    """The games of a live-season response; ``ScheduleRejectedError`` before anything is cached."""
+    try:
+        games = _schedule_games(payload)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ScheduleRejectedError(
+            f"EuroLeague {season} schedule response is not a schedule ({type(exc).__name__}); "
+            "the cached schedule is kept"
+        ) from exc
+    if not isinstance(games, list) or not games:
+        raise ScheduleRejectedError(
+            f"EuroLeague {season} schedule response has no games; the cached schedule is kept"
+        )
+    return games
+
+
 def _load_schedule(
     fetcher: Fetcher, root: Path, season: int, live_season: int, stats: CacheStats
 ) -> list[RawGame]:
@@ -75,9 +97,10 @@ def _load_schedule(
         stats.schedule_hits += 1
         return _schedule_games(read_cached(path))
     payload = fetcher.get(SCHEDULE_URL.format(season=season))
+    games = _checked_schedule(payload, season)
     stats.schedule_fetches += 1
     write_atomic(path, payload)
-    return _schedule_games(payload)
+    return games
 
 
 def _fetch_details(
