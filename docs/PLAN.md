@@ -287,11 +287,11 @@ Logging: each daily run logs every unplayed, confirmed game of any round whose f
 ## 9. Open items
 
 1. BasketHotel PBP: endpoint, fields, substitutions present? Coordinates?
-2. EuroLeague shot coordinate system (origin, units, orientation): plot a season of shots.
+2. ~~EuroLeague shot coordinate system (origin, units, orientation): plot a season of shots.~~ Resolved: raw centimetres from the basket centre, shots mirrored onto one basket, converted to metres with y toward half court. Validated against the FIBA line from 2011-12 (`src/eurohoops/parse/shots.py:1-7`, `docs/data/shots.md`, `reports/shots.json`). Season plot: `reports/el_shots_2024.png` (2024-25).
 3. GBL old-season box-score availability (spot-check 2018-19, 2014-15).
 4. 2026-27 formats and tiebreak rules (EuroLeague play-in, GBL phases).
-5. OddsPortal feasibility (one-day timebox).
-6. Stint validation pass rate on a sample of 50 EL games.
+5. OddsPortal feasibility (one-day timebox). Open: no spike result is in the repo (no OddsPortal code, data or report). The forward-only fallback is in use: The Odds API (`src/eurohoops/odds.py:29`), recorded in `odds/euroleague_2026-27.csv`.
+6. ~~Stint validation pass rate on a sample of 50 EL games.~~ Resolved: 50 EuroLeague games (2015 to 2025), all checks pass 100% (`reports/stint_validation.json`, written by `eurohoops stints` in `src/eurohoops/cli/build.py`).
 
 ---
 
