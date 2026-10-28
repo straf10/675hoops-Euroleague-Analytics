@@ -27,7 +27,6 @@ PAGES = [
     ("team_fbt", "teams/fbt/", None, 4, "Four factors"),
     ("team_asv", "teams/asv/", None, 0, "no box-score games"),
     ("forecasts", "", None, 10, "Elo beside the team models"),
-    ("forecasts_gbl", "", "gbl", 5, "Elo beside the team models"),
 ]
 
 # The numbers on show, and those without a visible sample or interval label inside their

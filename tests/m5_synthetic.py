@@ -1,16 +1,15 @@
-"""A small synthetic two-competition league for the M5 harness (week 14-16 J4).
+"""A small synthetic EuroLeague league for the M5 harness (week 14-16 J4).
 
 Reused by ``test_m5_backtest.py`` and the leakage suite: ``build_inputs`` returns an ``M5Inputs``
 and ``small_spec`` the matching ``M5Backtest`` (tiny grid, a short warmup/tuning/validation/test
 split), so a full run takes a few seconds.
 
-The target competition has 8 teams (``GRE`` among them) and the other one 6 (``G01`` is the same
-club as ``GRE``). Seasons 2015-2022: 2015 only warms M1 and Elo up (the frame starts at 2016). A
+The league has 8 teams (``GRE`` among them). Seasons 2015-2022: 2015 only warms M1 and Elo up
+(the frame starts at 2016). A
 game's margin is a fixed per-player rating table (``PLAYER_RATING``) applied to the game's actual
 minutes shares, plus a hidden team effect, a home edge and noise; ``fake_player_part`` applies the
 same table to any shares frame, so it is deterministic and reads nothing but its arguments.
-Target rounds alternate 2 and 5 days apart (short and normal rest), and the other competition's
-rounds fall one day before every second target round (``other_comp_prev`` fires for ``GRE``).
+Rounds alternate 2 and 5 days apart (short and normal rest); ``other_comp_prev`` is always False.
 One 2019 game is a forfeit and one 2021 game is unplayed.
 """
 
@@ -31,8 +30,6 @@ from eurohoops.parse.games import conform
 from tests.conftest import make_team_games
 
 TARGET_TEAMS = ("GRE", "T01", "T02", "T03", "T04", "T05", "T06", "T07")
-OTHER_TEAMS = ("G01", "O02", "O03", "O04", "O05", "O06")
-CLUB_MAP = {"G01": "GRE"}
 SEASONS = tuple(range(2015, 2023))
 PLAYERS_PER_TEAM = 9
 POINTS_PER_RATING = 1.5  # one rating unit of share-weighted player value is 1.5 points
@@ -186,36 +183,6 @@ def _target_season(
     return games, players
 
 
-def _other_season(rng: np.random.Generator, season: int) -> list[dict[str, Any]]:
-    games = []
-    code = 0
-    for j, pairs in enumerate(_legs(OTHER_TEAMS), start=1):
-        for slot, (home, away) in enumerate(pairs):
-            code += 1
-            diff = round(rng.normal(3.0, 10.0)) or 1
-            base = 72 + int(rng.integers(0, 10))
-            games.append(
-                {
-                    "game_id": f"G{season}_{code}",
-                    "season": season,
-                    "game_code": code,
-                    "phase": "RS",
-                    "round": j,
-                    "round_label": f"Round {j}",
-                    "tipoff_utc": _tipoff(season, 7 * (j - 1) + 1, 20, slot),
-                    "home": home,
-                    "away": away,
-                    "home_score": base + max(diff, 0),
-                    "away_score": base + max(-diff, 0),
-                    "played": True,
-                    "forfeit": False,
-                    "neutral": False,
-                    "confirmed_date": True,
-                }
-            )
-    return games
-
-
 @cache
 def _default_run(tuning_only: bool, score_test: bool) -> tuple[dict[str, Any], pd.DataFrame]:
     return run_m5_backtest(
@@ -246,19 +213,15 @@ def build_inputs(seed: int = 0) -> M5Inputs:
     effect = {team: float(rng.normal(0.0, 2.0)) for team in TARGET_TEAMS}
     games: list[dict[str, Any]] = []
     players: list[dict[str, Any]] = []
-    other: list[dict[str, Any]] = []
     for season in SEASONS:
         season_games, season_players = _target_season(rng, season, effect)
         games += season_games
         players += season_players
-        other += _other_season(rng, season)
     target = conform(pd.DataFrame(games))
     return M5Inputs(
         games=target,
         team_games=make_team_games(target),
         player_games=pd.DataFrame(players).astype({"sec": "int64"}),
-        other_games=conform(pd.DataFrame(other)),
-        club_map=CLUB_MAP,
         tuned_m1=copy.deepcopy(TUNED_M1),
         elo=dict(ELO),
     )

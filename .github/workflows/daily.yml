@@ -26,18 +26,9 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --no-dev
-      # GBL history lives only in ESAKE HTML; keep the raw page cache between runs so a
-      # run fetches just the live season's unfinished rounds (a cold cache refetches ~350 pages).
-      # Restore and save are separate steps so a failed run still saves what it fetched: with
-      # actions/cache a failure dropped it, and every retry started cold and hit the rate limit.
-      - name: Restore GBL raw cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: data/raw/gbl
-          key: gbl-raw-${{ github.run_id }}
-          restore-keys: gbl-raw-
       # The team model (M1) needs box scores: keep the EuroLeague raw cache between runs too, so
       # only games finished since the last run are fetched (the first run fills 2023-24 on).
+      # Restore and save are separate steps so a failed run still saves what it fetched.
       - name: Restore EuroLeague raw cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -47,12 +38,10 @@ jobs:
       - name: Ingest schedules and results
         run: |
           uv run --no-dev eurohoops ingest
-      # Box scores of every default season (cached ones are never refetched); GBL also caches
-      # the 2018-20 play-by-play the box-score fill uses, as the local build does.
+      # Box scores of every default season (cached ones are never refetched).
       - name: Cache box scores for the team model
         run: |
           uv run --no-dev eurohoops ingest --details
-          uv run --no-dev eurohoops ingest --competition gbl --details --pbp --seasons 2018 2019
       # Positions on the Players filter and player pages: the live season's people listing is
       # refetched once a day (one call; owner, Phase C) so new signings get one. A failure keeps
       # the cached listing and is only a warning.
@@ -60,12 +49,6 @@ jobs:
         run: |
           uv run --no-dev eurohoops people \
             || echo "::warning::people refresh failed; the cached listing stays"
-      - name: Save GBL raw cache
-        if: always()
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: data/raw/gbl
-          key: gbl-raw-${{ github.run_id }}
       - name: Save EuroLeague raw cache
         if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -110,15 +93,11 @@ jobs:
             *) echo "::warning::injury report not recorded (see log)" ;;
           esac
       - name: Predict upcoming games
-        run: |
-          uv run --no-dev eurohoops predict
-          uv run --no-dev eurohoops predict --competition gbl
+        run: uv run --no-dev eurohoops predict
       - name: Score the live logs
-        run: |
-          uv run --no-dev eurohoops score
-          uv run --no-dev eurohoops score --competition gbl
-      # Live M6 (its gate passed, weeks 16-18 L-l): the 2026-27 projections and the GBL
-      # undervalued list, from the committed crosswalk (entity/player_xwalk.csv). They change
+        run: uv run --no-dev eurohoops score
+      # Live M6 (its gate passed, weeks 16-18 L-l): the 2026-27 projections, from the committed
+      # crosswalk (entity/player_xwalk.csv). They change
       # only at a checkpoint (25/50/75% of the rounds). The board and the comparables need the
       # local M2 shot marts and stay as committed. A failure is a warning: the pages keep the
       # last committed report.
@@ -128,16 +107,14 @@ jobs:
             || echo "::warning::M6 projections failed; the committed report stays"
       # Live M7: gate v2 passed (docs/models/m7.md, PLAN 8.1 R5), so the EuroLeague run is appended
       # to the pre-registered log predictions/euroleague_sim_2026-27.csv once per completed round.
-      # The GBL is not gated and has no log. A failure is a warning, as for M6.
+      # A failure is a warning, as for M6.
       - name: Season simulation log (M7, EuroLeague)
         run: |
           uv run --no-dev eurohoops simulate || echo "::warning::M7 simulation failed; no row logged"
       # The Standings page (owner, weeks 16-18 D1): M7's run, rewritten only after a newly
-      # completed round; labelled gated for the EuroLeague, not gated for the GBL.
+      # completed round; labelled gated.
       - name: Standings season simulation
-        run: |
-          uv run --no-dev eurohoops sim-ungated
-          uv run --no-dev eurohoops sim-ungated --competition gbl
+        run: uv run --no-dev eurohoops sim-ungated
       # export-stats fails on a validation error (a published season with no games, or a schema
       # break): the site is then not rebuilt, but the day's logs below are still committed.
       - name: Export the site data

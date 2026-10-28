@@ -1,6 +1,5 @@
 # EuroHoops
 
-Forecasts every EuroLeague and Greek Basket League (GBL) game of the live season, logs each forecast publicly before tip-off, and scores it against a home-win baseline.
 
 ## Forecasts and the log
 
@@ -9,7 +8,7 @@ The public CSV of forecasts (`predictions/*.csv`). Rows are added, never edited 
 _Avoid_: prediction file, history
 
 **Pre-registered row**:
-A game's earliest log row stamped before its tip-off. One row per game is scored.
+A game's latest log row stamped before its tip-off, from the earliest model version that logged the game. One row per game is scored.
 
 **Provable row**:
 A row stamped before tip-off that also reached the public log before tip-off.
@@ -49,7 +48,7 @@ A played game that is not a forfeit. Only rated games update ratings or are scor
 A game awarded 20-0 by decision. It counts as played but carries no rating information.
 
 **Source code**:
-The team code the data source uses (EuroLeague API `ULK`, ESAKE id `00000001`). Every table, log and report uses it.
+The team code the data source uses (EuroLeague API `ULK`). Every table, log and report uses it.
 _Avoid_: team id
 
 **Display code**:
@@ -58,7 +57,7 @@ The real-life abbreviation the site shows in place of a source code (`FBT`, `PAO
 ## Players across leagues
 
 **Person id**:
-One player across the EuroLeague and the GBL (`P:<EuroLeague id>`, else `G:<ESAKE id>`), from the `player_xwalk` mart. Source ids remain the keys of every other table.
+Source ids remain the keys of every other table.
 _Avoid_: player id (that is a source id)
 
 **Dual season**:
@@ -68,10 +67,10 @@ A season a player played at least 300 minutes in both leagues (in practice for P
 A player with at least 300 minutes in one league in a season, under 100 in the other, and at least 300 in the other the next season.
 
 **Silver pair**:
-A GBL id and a EuroLeague id on the same Greek club in the same season, with equal or near birth dates. Used as matcher tuning data, not as a label.
+Used as matcher tuning data, not as a label.
 
 **Confirmed time**:
-A tip-off time the source has published. A GBL game without one sits at local midnight of its date and shows as "time TBC" until its time is published.
+A tip-off time the source has published.
 
 ## Season simulation (M7)
 
@@ -96,9 +95,6 @@ _Avoid_: prediction (a game forecast in the log)
 
 **Aging curve**:
 The expected year-over-year change of a rate at each age, from players with 500+ possessions in consecutive seasons (delta method on regressed rates, survivor corrected). Ages stay inside the pipeline; no age is published.
-
-**Over/under board**:
-Players doing better or worse than expected on shot-making, 3P% or on/off, with a z score and the share of the gap expected to last (from that dimension's year-to-year stability).
 
 **Comparable**:
 A past player-season nearest to a player's newest season in standardised box rates (and EuroLeague shot zones). The player's own seasons are excluded. Shown as "plays like".

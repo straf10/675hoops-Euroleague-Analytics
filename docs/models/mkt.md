@@ -16,7 +16,6 @@ Season labels are start years: `2026` is 2026-27.
 - `p_home` is the median over bookmakers of the proportionally de-vigged two-way home probability (`src/eurohoops/odds.py`, `devig_two_way`).
 - A snapshot fetched at or after tip-off is ignored. A game with no pre-tip snapshot has no MKT row and is not scored.
 - MKT is computed at read time from `odds/euroleague_2026-27.csv`. It is never written to `predictions/`, and no model imports it (`tests/test_benchmark.py`).
-- GBL has no odds, so MKT is absent there.
 
 **Metric.** On games where both MKT and the model have a pre-tip row:
 - mean per-game log loss and mean Brier score of each forecaster;

@@ -100,5 +100,5 @@ def test_tracking_is_skipped_without_mlflow(
 ) -> None:
     monkeypatch.setitem(sys.modules, "mlflow", None)
     with caplog.at_level(logging.WARNING):
-        assert log_backtest(report, "gbl", "hash", "sqlite:///unused.db") is None
+        assert log_backtest(report, "euroleague", "hash", "sqlite:///unused.db") is None
     assert "not installed" in caplog.text

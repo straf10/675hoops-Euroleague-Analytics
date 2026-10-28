@@ -3,7 +3,6 @@ season's own games change nothing at checkpoint 0, newcomers, the frozen interva
 undervalued rule, the report shapes the read model checks, and no age or birth date anywhere."""
 
 import json
-import math
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -14,12 +13,10 @@ import pytest
 from scipy import special
 
 from eurohoops.api.readmodel import (
-    BOARD_ROWS_SCHEMA,
     PROJECTION_ROWS_SCHEMA,
     SIMILAR_ROWS_SCHEMA,
-    UNDERVALUED_ROWS_SCHEMA,
 )
-from eurohoops.config import M6_BOARD, M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
+from eurohoops.config import M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
 from eurohoops.eval.m6_backtest import (
     M6Inputs,
     World,
@@ -29,8 +26,6 @@ from eurohoops.eval.m6_backtest import (
     target_inputs,
 )
 from eurohoops.live_m6 import (
-    UNDERVALUED_MAX_MPG,
-    UNDERVALUED_MAX_SEASONS,
     inputs_digest,
     live_checkpoint,
     live_people,
@@ -40,11 +35,8 @@ from eurohoops.live_m6 import (
     player_rows,
     projections_report,
     query_rows,
-    translate_el,
-    undervalued,
 )
-from eurohoops.models.player_seasons import COUNT_STATS, PROJECTED_STATS
-from eurohoops.models.projection import Translation
+from eurohoops.models.player_seasons import PROJECTED_STATS
 from eurohoops.parse.schemas import validated
 from tests.m6_synthetic import build_inputs, small_spec, synthetic_rounds
 
@@ -74,7 +66,6 @@ def _live(inputs: M6Inputs, world: World, people: list[str], scale: dict[str, fl
         chosen=CHOSEN,
         scale=scale,
         spec=SPEC,
-        translation=inputs.translations.get(LIVE),
         rounds=synthetic_rounds("euroleague", LIVE),
         world=world,
     )
@@ -201,10 +192,9 @@ def test_player_rows_match_the_read_models_schema(inputs: M6Inputs, world: World
         chosen=CHOSEN,
         gate_passed=True,
         season=LIVE,
-        checkpoints={"euroleague": 0.0, "gbl": 0.25},
+        checkpoints={"euroleague": 0.0},
         digest="x",
         players=out,
-        undervalued_rows=[],
     )
     assert report["checkpoint"] == 0.0
     assert report["stats"] == list(PROJECTED_STATS)
@@ -222,93 +212,10 @@ def test_query_rows_take_each_persons_newest_qualifying_complete_season(world: W
 
 def test_person_names_prefer_the_euroleague_spelling() -> None:
     xwalk = pd.DataFrame(
-        {"competition": ["gbl", "euroleague"], "source_id": ["G1", "E1"], "person_id": ["P:E1"] * 2}
+        {"competition": ["euroleague"], "source_id": ["E1"], "person_id": ["P:E1"]}
     )
     el = pd.DataFrame({"player_id": ["E1"], "player": ["DOE, JOHN"]})
-    gbl = pd.DataFrame(
-        {
-            "source_id": ["G1", "G2"],
-            "season": [2024, 2025],
-            "surname_raw": ["DOE", "ROE"],
-            "first_raw": ["JON", "RICHARD"],
-        }
-    )
-    assert person_names(el, gbl, xwalk) == {"P:E1": "John Doe", "G:G2": "Richard Roe"}
-
-
-# --- The undervalued list -------------------------------------------------------------------------
-
-
-def test_translate_el_is_m4s_formula_floored_at_0() -> None:
-    t = Translation(
-        delta={"pts": math.log(2.0), "tov": -5.0}, c={"pts": 1.0, "tov": 3.0}, target_season=1
-    )
-    out = translate_el(pd.DataFrame({"pts": [9.0], "tov": [1.0]}), t)
-    assert out.loc[0, "pts"] == pytest.approx(19.0)  # (9 + 1) * 2 - 1
-    assert out.loc[0, "tov"] == 0.0  # (1 + 3) * exp(-5) - 3 < 0
-
-
-def _gbl_case() -> tuple[pd.DataFrame, pd.DataFrame, Translation]:
-    """Five GBL players, newest complete season 2025: a (young, low minutes, high), b (young,
-    high minutes), c (old), d (young, low minutes, low), e (rotation reference only)."""
-    people = ["G:a", "G:b", "G:c", "G:d", "G:e"]
-    level = {"G:a": 30.0, "G:b": 30.0, "G:c": 30.0, "G:d": 5.0, "G:e": 10.0}
-    complete = pd.DataFrame(
-        {
-            "person_id": people,
-            "competition": "gbl",
-            "season": 2025,
-            "team": "T",
-            "games": 20,
-            "minutes": [15.0 * 20, 30.0 * 20, 15.0 * 20, 15.0 * 20, 30.0 * 20],
-            "poss": 600.0,
-            "fg2a": 60,
-            "pf": 18,
-            "debut_season": [2024, 2023, 2015, 2024, 2020],
-        }
-    )
-    projections = pd.DataFrame(
-        [
-            {"person_id": p, "stat": s, "mean": level[p] if s == "pts" else 1.0}
-            for p in people
-            for s in COUNT_STATS
-        ]
-    )
-    stats = (*COUNT_STATS, "fg2a", "pf")
-    identity = Translation(
-        delta=dict.fromkeys(stats, 0.0), c=dict.fromkeys(stats, 0.0), target_season=2025
-    )
-    return complete, projections, identity
-
-
-def test_the_undervalued_rule_needs_young_low_minutes_and_the_top_quarter() -> None:
-    complete, projections, identity = _gbl_case()
-
-    def spm(frame: pd.DataFrame, before: int) -> pd.Series:
-        assert before == 2026 and (frame["competition"] == "euroleague").all()
-        return frame["pts"] / 10.0  # 3.0 for a, b, c; 0.5 for d; 1.0 for e
-
-    rows = undervalued(
-        projections,
-        complete,
-        2026,
-        translation=identity,
-        spm=spm,
-        names={"G:a": "A"},
-        teams={},
-        min_poss=500.0,
-    )
-    validated(pd.DataFrame(rows), UNDERVALUED_ROWS_SCHEMA)
-    # the top-quarter cut of (3, 3, 3, 0.5, 1) is 3: only a is young, below the minutes and in it
-    assert [r["person_id"] for r in rows] == ["G:a"]
-    a = rows[0]
-    assert a["name"] == "A" and a["seasons_since_debut"] == 2
-    assert a["seasons_since_debut"] <= UNDERVALUED_MAX_SEASONS
-    assert a["minutes"] == 15.0 < UNDERVALUED_MAX_MPG
-    assert a["projected_spm"] == 3.0 and a["projected_brapm"] is None
-
-
-# --- Privacy and the committed reports ------------------------------------------------------------
+    assert person_names(el, xwalk) == {"P:E1": "John Doe"}
 
 
 def test_the_scan_finds_a_planted_age_and_birth_date() -> None:
@@ -319,27 +226,22 @@ def test_the_scan_finds_a_planted_age_and_birth_date() -> None:
     assert personal_fields({"note": ["1999-04-02"]}) == ["$.note[0] = 1999-04-02"]
 
 
-@pytest.mark.parametrize("path", [M6_PROJECTIONS, M6_BOARD, M6_SIMILARITY])
+@pytest.mark.parametrize("path", [M6_PROJECTIONS, M6_SIMILARITY])
 def test_the_committed_m6_reports_hold_no_age_and_no_birth_date(path: Path) -> None:
     assert personal_fields(json.loads((ROOT / path).read_text(encoding="utf-8"))) == []
 
 
-@pytest.mark.parametrize(("name", "gated"), [("euroleague", True), ("gbl", False)])
-def test_the_standings_reports_carry_the_gate_v2_label(name: str, gated: bool) -> None:
-    """M7 gate v2 passed (docs/models/m7.md): the EuroLeague run is gated, the GBL never is."""
-    report = json.loads((ROOT / SIM_UNGATED[name]).read_text(encoding="utf-8"))
-    assert report["gated"] is gated and report["gate"]["passed"] is gated
-    assert ("gate v2" if gated else "not gated") in report["gate"]["reason"]
+def test_the_standings_reports_carry_the_gate_v2_label() -> None:
+    """M7 gate v2 passed (docs/models/m7.md): the EuroLeague run is gated."""
+    report = json.loads((ROOT / SIM_UNGATED).read_text(encoding="utf-8"))
+    assert report["gated"] is True and report["gate"]["passed"] is True
+    assert "gate v2" in report["gate"]["reason"]
     assert report["simulated_at_utc"] == report["cutoff_utc"]  # deterministic: no wall clock
 
 
 def test_the_committed_report_rows_match_the_read_models_schemas() -> None:
     projections = json.loads((ROOT / M6_PROJECTIONS).read_text(encoding="utf-8"))
     validated(pd.DataFrame(projections["players"]), PROJECTION_ROWS_SCHEMA)
-    if projections["undervalued"]:
-        validated(pd.DataFrame(projections["undervalued"]), UNDERVALUED_ROWS_SCHEMA)
-    board = json.loads((ROOT / M6_BOARD).read_text(encoding="utf-8"))
-    validated(pd.DataFrame(board["rows"]), BOARD_ROWS_SCHEMA)
     similar = json.loads((ROOT / M6_SIMILARITY).read_text(encoding="utf-8"))
     for rows in similar["players"].values():
         validated(pd.DataFrame(rows), SIMILAR_ROWS_SCHEMA)

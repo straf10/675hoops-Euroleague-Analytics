@@ -3,10 +3,9 @@
 Writes reports/r1_power.json.
 
 Reporting only. Nothing here feeds a promotion verdict. Inputs (read only): the per-game backtest
-files ``reports/backtest_m5_games.csv`` (EuroLeague: M5, M1, Elo) and
-``reports/backtest_m5_gbl_games.csv`` (GBL: M5, M1, Elo), plus the gate and comparison blocks of
-``reports/backtest_*.json`` for cross-checks. Game counts come from the games mart (read only,
-2026-10-22) and are written in ``LOOKS`` below with their derivation.
+file ``reports/backtest_m5_games.csv`` (EuroLeague: M5, M1, Elo), plus the gate and
+comparison blocks of ``reports/backtest_*.json`` for cross-checks. Game counts come from the
+games mart (read only, 2026-10-22) and are written in ``LOOKS`` below with their derivation.
 
 Run: ``uv run python scripts/r1_power.py``
 """
@@ -42,31 +41,20 @@ TRUE_GAPS = (-0.003, -0.005, -0.01, -0.02)
 REFERENCE_GAPS = (0.0,)  # no gap: how often the rule fires by chance
 
 # The schedule counts (games mart, read 2026-10-22). Season 2026-27: EuroLeague 38 regular-season
-# rounds of 10 games; GBL 26 rounds of 7. Look 1 counts the flagship's logged rounds up to the
+# rounds of 10 games. Look 1 counts the flagship's logged rounds up to the
 # look round (M5 from round 4, M1 from round 1). Look 2 counts the whole logged season: the
 # regular season plus the playoffs. Playoff game counts are not scheduled yet: they take the
-# 2025-26 counts (EuroLeague play-in 3 + playoffs 16 + Final Four 3 = 22; GBL playoffs 18).
+# 2025-26 counts (EuroLeague play-in 3 + playoffs 16 + Final Four 3 = 22).
 EL_GAMES_PER_ROUND = 10
-GBL_GAMES_PER_ROUND = 7
 LOOKS = {
     "euroleague": (
         Look("round 19", 16 * EL_GAMES_PER_ROUND),  # rounds 4-19
         Look("season end", 35 * EL_GAMES_PER_ROUND + 22),  # rounds 4-38 + playoffs
     ),
-    "gbl": (
-        Look("round 13", 13 * GBL_GAMES_PER_ROUND),  # rounds 1-13
-        Look("season end", 26 * GBL_GAMES_PER_ROUND + 18),  # rounds 1-26 + playoffs
-    ),
 }
-PAIR = {"euroleague": ("m5", "elo"), "gbl": ("m1", "elo")}  # the R1 statistic: flagship - Elo
-FILES = {
-    "euroleague": "backtest_m5_games.csv",
-    "gbl": "backtest_m5_gbl_games.csv",
-}
-GATE_JSON = {
-    "euroleague": ("backtest_m5.json", "backtest_m1.json"),
-    "gbl": ("backtest_m5_gbl.json", "backtest_m1_gbl.json"),
-}
+PAIR = {"euroleague": ("m5", "elo")}  # the R1 statistic: flagship - Elo
+FILES = {"euroleague": "backtest_m5_games.csv"}
+GATE_JSON = {"euroleague": ("backtest_m5.json", "backtest_m1.json")}
 
 
 def _variant(json_name: str) -> str:
@@ -219,7 +207,6 @@ def main() -> None:
         "simulation": {},
         "bootstrap_check": {},
     }
-    gbl_test_sd = 0.0
     for competition in LOOKS:
         m_a, m_b = PAIR[competition]
         frame = per_game[competition]
@@ -228,8 +215,6 @@ def main() -> None:
         }
         diffs = {s: losses[s][m_a] - losses[s][m_b] for s in losses}
         test_diff = diffs["test"]
-        if competition == "gbl":
-            gbl_test_sd = float(test_diff.std(ddof=1))
         report["analytic"][competition] = analytic(
             competition, float(test_diff.std(ddof=1)), f"test split, {len(test_diff)} games"
         )
@@ -249,17 +234,6 @@ def main() -> None:
             "excess_kurtosis": round(float(stats.kurtosis(test_diff)), 4),
             "source": f"test split, {len(test_diff)} games",
         }
-    # GBL R1 v2 (draft, applies from 2027-28): pools the 2026-27 season with 2027-28.
-    # Looks: 2027-28 round 13 (200 + 91 games) and 2027-28 season end (200 + 200 games).
-    report["gbl_v2_analytic"] = analytic(
-        "gbl",
-        float(gbl_test_sd),
-        "GBL M1 - Elo test SD (same as v1; no 2026-27 live rows used)",
-        looks=[
-            Look("2027-28 round 13 (pooled)", 200 + 91),
-            Look("2027-28 season end (pooled)", 400),
-        ],
-    )
     write_json(OUT, report)
     print(f"wrote {OUT}")
 

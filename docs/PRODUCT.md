@@ -29,10 +29,10 @@ Pipeline ingest → build → backtest → predict → score → publish runs da
 ## Capabilities and Constraints
 
 - v1 scope: live predictions (upcoming games: P(home), expected margin), recent results with hit/miss, scorecard (log loss, Brier, accuracy, margin MAE; Elo vs baseline), team power ratings (current Elo per team, trend).
-- Stats site (user decision 2026-09-26, ahead of PLAN §9's week-16 UI slot): EuroLeague-only stats pages modelled on boxscorelab.com and databallr.com. Stats-first home; Players dashboard (any metric, season or last 5/10/20 games, per-game/per-36/per-100); player pages with season history, game log, shot chart and Shot Profile Twin (last X games matched against every EuroLeague player-season since 2007-08); team pages with shots taken and allowed; Leaders; Compare; Shots explorer. The site shows every EuroLeague season since 2007-08 (owner, 2026-10-19; it showed the 5 most recent seasons from 2026-10-11), each loaded on demand with the season switch; the default view is the current season. Forecasts move to their own page, EuroLeague only (GBL is not shown on the site; its logs stay in the repo).
-- Season simulation is shown on a Season projection page as "not gated": M7 failed its validation gate, so its numbers never enter the pre-registered record (owner decision 2026-10-07). Still out of scope: odds on the site, tracking data (none exists).
+- Stats site (user decision 2026-09-26, ahead of PLAN §9's week-16 UI slot): EuroLeague-only stats pages modelled on boxscorelab.com and databallr.com. Stats-first home; Players dashboard (any metric, season or last 5/10/20 games, per-game/per-36/per-100); player pages with season history, game log, shot chart and Shot Profile Twin (last X games matched against every EuroLeague player-season since 2007-08); team pages with shots taken and allowed; Leaders; Compare; Shots explorer. The site shows every EuroLeague season since 2007-08 (owner, 2026-10-19; it showed the 5 most recent seasons from 2026-10-11), each loaded on demand with the season switch; the default view is the current season. Forecasts move to their own page, EuroLeague only.
+- Season simulation is shown on a Season projection page. M7 passed its validation gate for the EuroLeague (gate v2, `reports/backtest_m7_v2.json`). Still out of scope: odds on the site, tracking data (none exists).
 - Games whose prediction reached the public log after tip-off are shown but flagged and not scored.
-- Models today: MOV-adjusted Elo (FiveThirtyEight-style) publishes the forecasts; M1 and M5 run as shadow logs. Player models are built: xPTS shot-making (M2), RAPM/SPM impact (M3), league translation (M4), and player projections with an over/under board and comparables (M6, gate passed). Every model number on the site shows its interval and sample.
+- Models today: MOV-adjusted Elo (FiveThirtyEight-style) publishes the forecasts; M1 and M5 run as shadow logs. Player models are built: xPTS shot-making (M2), RAPM/SPM impact (M3), league translation (M4), and player projections with comparables (M6, gate passed). Every model number on the site shows its interval and sample.
 
 ## Brand Commitments
 
@@ -40,7 +40,6 @@ Name: 6.75 Analytics (short: 6.75, the EuroLeague and FIBA three-point distance 
 
 ## Evidence on Hand
 
-- `predictions/*_2026-27.csv` (pre-registered log), `reports/live_scorecard*.json`, `reports/backtest_elo*.json` (19 EuroLeague seasons 2007-2026, GBL backtest), DuckDB marts with games and teams.
 - No team logos or player photos are licensed; do not use them. No testimonials or press.
 - Club colours: one bounded exception (owner decision, 2026-09-26). Leaders and Compare draw players as generic SVG jersey backs in their club's two colours with surname and number; no crests, sponsors, kit copies or likenesses. Everywhere else colour stays data-only (docs/DESIGN.md, Club-Colour Exception).
 

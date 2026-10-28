@@ -7,7 +7,6 @@ import pytest
 from eurohoops.audit import Finding, audit
 from eurohoops.audit_coaches import coach_findings
 from eurohoops.audit_standings import Standing, standings_findings
-from eurohoops.audit_status import is_postponed
 from tests.test_audit import (
     BOX_FILL_DDL,
     GAMES_DDL,
@@ -78,16 +77,6 @@ def test_a_covid_cancelled_game_is_explained_and_an_unexplained_one_is_not() -> 
     assert (finding.count, finding.unexplained) == (2, 1)
     assert finding.examples == ["EL19_B"]
     assert sum(finding.reasons.values()) == 1
-
-
-def test_a_documented_correction_explains_its_minutes_key() -> None:
-    con = _mart()
-    con.execute("INSERT INTO player_box VALUES ('G1','T1','P1',0,0,0,0,0,0,0,3782,'esake')")
-    bare = _finding(audit(con), "minutes_above_longest_game")
-    assert (bare.count, bare.unexplained) == (1, 1)
-    documented = _finding(audit(con, {"G1 T1 P1": "box fix"}), "minutes_above_longest_game")
-    assert (documented.count, documented.unexplained) == (1, 0)
-    assert documented.reasons == {"box fix": 1}
 
 
 def test_a_documented_match_explains_a_person_with_two_ids() -> None:
@@ -243,17 +232,6 @@ def test_a_missing_standings_file_is_explained_by_the_results_fallback() -> None
     missing = standings_findings([], _rs_rows(), {}, [2019, 2021, 2026], set())[1]
     assert missing.unexplained == 0
     assert sum(missing.reasons.values()) == 3  # 2019 cancelled, 2026 live, 2021 from results
-
-
-def test_a_postponed_schedule_block_explains_the_game_only() -> None:
-    block = (
-        '<div class="esake-program-game"><div>ΑΝΑΒΑΛΛΕΤΑΙ</div>'
-        '<a href="/el/action/EsakegameView?idgame=B16D0588&mode=3">x</a></div>'
-        '<div class="esake-program-game"><a href="?idgame=0000ABCD">y</a></div>'
-    )
-    assert is_postponed(block, "B16D0588")
-    assert not is_postponed(block, "0000ABCD")
-    assert not is_postponed(block, "FFFFFFFF")
 
 
 def _coach_row(game: str, team: str, slug: str | None) -> dict[str, object]:

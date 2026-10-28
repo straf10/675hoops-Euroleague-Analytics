@@ -99,3 +99,47 @@ Statistics methods, marginal relevance (1):
 | POOL | Equal-weight log pool, nothing tuned. This is the setting the literature favours on small samples (Wang, Gupta). | Optional spread recalibration (Wang p.29; uncertain per Baran & Lerch). Screen near-duplicate members. | [C1](IDEAS.md#c1-spread-recalibrated-pool-pool-c), [C2](IDEAS.md#c2-redundancy-screen-of-pool-members) |
 | In-game WP | Brownian closed-form baseline, pre-game logit input, whole-game bootstrap, calibration by time bucket. | Already covered (Albert, Shimizu, Brill). | none |
 | Evaluation | Walk-forward splits, paired bootstrap, round clustering, pre-registered gates, leakage tests. | Plan for power: small gaps cannot pass R1 on one season's games. Use the market as a benchmark forecaster. | [E1](IDEAS.md#e1-power-check-for-the-r1-promotion-looks), [B1](IDEAS.md#b1-market-as-a-logged-forecaster-plus-an-encompassing-test) |
+
+
+## Scan of 2026-10-28 (25 new notes)
+
+Log: [search_log_2026-10-28.md](search_log_2026-10-28.md) (31 search loops). New ideas: [IDEAS.md](IDEAS.md#new-ideas-from-the-2026-10-28-scan-draft-not-pre-registered) (F1–F10, G0). Verification status is the first line of each note. Most new notes are abstract only; see the log for what was read in full.
+
+**EuroLeague and European basketball**
+- [deangelis-2023](papers/deangelis-2023-ghost-games-euro-basketball.md): ghost games cut European basketball home advantage by about 5%; bookmakers priced it (abstract only).
+- [giasemidis-2020](papers/giasemidis-2020-euroleague-crowd-prediction.md): EuroLeague 2016–19 ML accuracy at most 67%; crowd claim unquantified (abstract only).
+- [velyvis-2021](papers/velyvis-2021-euroleague-betting-thesis.md): bachelor thesis on EuroLeague betting efficiency; home-favourite effect claimed (intro only).
+- [carta-2026](papers/carta-2026-euroleague-timeouts.md): timeouts do not reverse EuroLeague momentum (press summary only).
+- [balli-2021](papers/balli-2021-euroleague-98pct.md): 98.9% EuroLeague accuracy claim; treated as a leakage warning (abstract only).
+
+**Rest, schedule and home advantage**
+- [esteves-2021](papers/esteves-2021-nba-back-to-back.md): NBA back-to-back penalty, 2016-17 (abstract only).
+- [bozhidarova-2026](papers/bozhidarova-2026-streaks-synergies-nba.md): back-to-back second games win 44% vs an expected 50%; flat baseline caveat (full HTML read).
+
+**Referees and behaviour**
+- [morgulev-2018](papers/morgulev-2018-referee-judgment-bias.md): no home or reputation bias in offensive-foul calls, Israeli league 2009/10 (full text).
+- [price-2010](papers/price-2010-nba-referee-race.md): crew race and fouls, NBA (abstract only; low relevance).
+- [miller-2018](papers/miller-2018-hot-hand-streak-bias.md): streak selection bias in hot-hand tests (abstract only).
+
+**Player ratings and metrics**
+- [sill-2010](papers/sill-2010-regularized-apm.md): RAPM judged by out-of-sample game prediction (abstract only).
+- [deshpande-2016](papers/deshpande-2016-player-win-impact.md): Bayesian player win-impact model (abstract only).
+- [josephs-2025](papers/josephs-2025-hypergraph-apm.md): hypergraph APM for players, pairs and lineups (abstract only).
+- [petridis-2026](papers/petridis-2026-lrapm.md): lineup RAPM with informed priors (abstract only).
+- [watts-2026](papers/watts-2026-dummy-rapm.md): dummy indicators for low-minute players in RAPM (abstract page).
+- [paine-2009](papers/paine-2009-win-shares-vs-ewa.md): Win Shares vs EWA; same-season check only (blog, full read).
+- [franks-2016](papers/franks-2016-meta-analytics.md): stability, discrimination and independence for sports metrics (abstract only).
+- [zhou-guan-2026](papers/zhou-guan-2026-metrics-to-decisions.md): decision-readiness gates, incl. point-in-time validity (abstract only).
+- [cervone-2016](papers/cervone-2016-possession-value.md): expected possession value from tracking data; not usable without tracking (abstract only).
+
+**Rating systems and models**
+- [shorewala-2025](papers/shorewala-2025-movda.md): saturating margin-of-victory Elo vs Elo and Glicko-2 on NBA (Table I, full HTML).
+- [attard-2023](papers/attard-2023-bayesian-hierarchical-nba.md): Bayesian hierarchical NBA scoring by shot type, negative binomial (pp.1–2 read).
+- [vaci-2019](papers/vaci-2019-nba-aging-curves.md): Bayesian latent-factor aging curves for NBA players (p.1 read).
+- [pipping-gamon-2026](papers/pipping-gamon-2026-blown-lead.md): in-game win probability calibration, dyadic bootstrap; NBA excess 1.3% (abstract only).
+
+**Calibration**
+- [niculescu-mizil-2005](papers/niculescu-mizil-2005-good-probabilities.md): Platt beats isotonic when data are scarce (p.1 and section 2 read).
+- [guo-2017](papers/guo-2017-temperature-scaling.md): temperature scaling (abstract only; neural networks).
+
+Gaps: no EuroLeague paper on injuries or player availability with numbers was reachable; the scan found none. The 2026 arXiv papers are preprints.

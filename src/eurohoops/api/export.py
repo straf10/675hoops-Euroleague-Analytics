@@ -45,13 +45,11 @@ OPENAPI_FILE = PurePosixPath("public/api/openapi.json")
 OPENAPI_ROUTE = "/openapi.json"
 
 PERSON_ID = re.compile(r"^[A-Z]:[0-9A-Za-z]+$")
-SCOUTING = ("board",)
 FIXED = {
     "/site": SITE_FILE,
     OPENAPI_ROUTE: OPENAPI_FILE,
     "/metrics/live": API_PREFIX / "metrics" / "live.json",
     "/rapm": API_PREFIX / "rapm.json",
-    **{f"/scouting/{name}": API_PREFIX / "scouting" / f"{name}.json" for name in SCOUTING},
 }
 FIXED_ROUTES = {file: route for route, file in FIXED.items()}
 PLAYER_FILES = {"projection": "projection.json", "similar": "similar.json", None: "index.json"}
@@ -177,10 +175,9 @@ def _source_codes(competition: str) -> dict[str, str]:
 
 
 def api_routes(store: Store, site: Mapping[str, Any]) -> list[Route]:
-    """The routes behind ``src/data/api/``: scouting, simulations, metrics, every projected or
+    """The routes behind ``src/data/api/``: simulations, metrics, every projected or
     similar person, and every team of the live season (from the ``/site`` ratings)."""
-    routes = [Route(f"/scouting/{name}", optional=True) for name in SCOUTING]
-    routes.append(Route(f"/simulations/latest?competition={EUROLEAGUE.name}", optional=True))
+    routes = [Route(f"/simulations/latest?competition={EUROLEAGUE.name}", optional=True)]
     routes.append(Route("/metrics/live", optional=True))
     routes.append(Route("/rapm", optional=True))
     projected = _report(store, M6_PROJECTIONS)["players"]

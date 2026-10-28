@@ -8,7 +8,6 @@ market column in the scorecard and never shows prices.
   with `regions=eu`, `markets=h2h,spreads,totals`, `oddsFormat=decimal`, `dateFormat=iso`.
 - `eurohoops odds` (`src/eurohoops/odds.py`) makes one call per run, with no retries, because
   a retry is billed too.
-- The GBL is not listed by The Odds API, so it has no market benchmark.
 
 ## Quota and cost
 Per the provider's documentation ([v4 guide](https://the-odds-api.com/liveapi/guides/v4/),
@@ -71,7 +70,7 @@ bookmakers, p_home, spread_books, spread_home, total_books, total`.
 `market` in `reports/live_scorecard.json`:
 - Scored games that have an odds row fetched before tip-off use their latest such snapshot.
 - The column reports market log loss, plus Elo and B0 log loss on the same games, with n.
-- Games without odds are left out of this column only. The GBL scorecard has `market: null`.
+- Games without odds are left out of this column only.
 
 ## Open items
 1. The API's EuroLeague team names. All 30 rows in `odds/euroleague_teams.csv` are candidates

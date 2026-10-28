@@ -8,11 +8,6 @@
       "mid",
       "three",
       "shot_making"
-    ],
-    "gbl": [
-      "rim",
-      "mid",
-      "three"
     ]
   },
   "pool_seasons": [
@@ -37,15 +32,6 @@
       "season": 2024,
       "name": "Carsen Edwards",
       "score": 0.91,
-      "query_season": 2025
-    },
-    {
-      "rank": 3,
-      "person_id": "G:ABCD1234",
-      "competition": "gbl",
-      "season": 2025,
-      "name": "Nikos Papas",
-      "score": 0.88,
       "query_season": 2025
     },
     {

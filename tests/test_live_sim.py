@@ -126,17 +126,17 @@ def test_log_is_gated_append_only_and_idempotent(tmp_path: Path) -> None:
     assert latest["after_round"] == DONE and latest["format"]["sources"] == ["synthetic"]
 
 
-def test_gbl_report_carries_the_unverified_notes(tmp_path: Path) -> None:
-    run = _run("gbl", n_sims=100)
-    fmt = replace(synthetic_formats("gbl", LIVE), unverified=("playoff positions",))
-    report = tmp_path / "sim_latest_gbl.json"
+def test_the_report_carries_the_unverified_notes(tmp_path: Path) -> None:
+    run = _run("euroleague", n_sims=100)
+    fmt = replace(synthetic_formats("euroleague", LIVE), unverified=("playoff positions",))
+    report = tmp_path / "sim_latest_euroleague.json"
     write_live_sim(
         run,
         MODEL,
         fmt=fmt,
         season=LIVE,
         at=AT,
-        log_path=tmp_path / "gbl_sim.csv",
+        log_path=tmp_path / "el_sim.csv",
         report_path=report,
     )
     assert json.loads(report.read_text(encoding="utf-8"))["format"]["unverified"] == [
@@ -220,7 +220,7 @@ def test_load_sim_counts_a_passed_gate_v2(tmp_path: Path) -> None:
     assert load_sim(v1, v2) == LiveSim("sim_full", 1.0, False, "m7-sim_full-v1", True)
 
 
-@pytest.mark.parametrize("competition", ["euroleague", "gbl"])
+@pytest.mark.parametrize("competition", ["euroleague"])
 def test_same_inputs_same_numbers(competition: str) -> None:
     a, b = _run(competition, n_sims=100), _run(competition, n_sims=100)
     assert np.array_equal(a.out.rank_counts, b.out.rank_counts)

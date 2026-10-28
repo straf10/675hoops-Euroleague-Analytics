@@ -51,8 +51,8 @@ const player = (name: string, team: string, over: Partial<Totals> = {}, season =
   t: { ...BASE, ...over },
 });
 
-test("there are sixteen boards, the total points one among them", () => {
-  assert.equal(BOARDS.length, 16);
+test("there are seventeen boards, the total points one among them", () => {
+  assert.equal(BOARDS.length, 17);
   assert.ok(BOARDS.some((b) => b.total && b.key === "pts"));
 });
 

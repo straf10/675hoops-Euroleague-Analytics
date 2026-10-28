@@ -5,7 +5,6 @@ Notes from the owner's review of the live site. Not yet planned or scheduled; `d
 Guiding rule for everything below: the average user wants stats and a quick answer. Strip AI-ish disclosures, internal status labels and methodology prose from every page except the pages that exist to hold it (About, Methodology, Glossary).
 
 ## Scope decisions (made)
-- **Remove GBL entirely** for now (site, API, pipeline output shown to users).
 - **Remove the Place column** from Standings. Teams are already sorted by expWins; the placement buckets (Top 6, Play-in, etc.) carry the information.
 - **Hide the Scouting page** for now. It shows little because most samples are tiny.
 - **Remove "Methodology" from the top category links.** It moves to the footer.
@@ -13,7 +12,7 @@ Guiding rule for everything below: the average user wants stats and a quick answ
 
 ## Global chrome
 - **Footer disclosure**: replace the current block ("A model benchmark, not betting advice…", "Updated Fri 9 Oct, 20:26 Athens", "Code, data and logs on GitHub") with:
-  - A line such as "Stats from the EuroLeague API. Not affiliated with the EuroLeague, Greek Basket League or any team."
+  - A line such as "Stats from the EuroLeague API. Not affiliated with the EuroLeague or any team."
   - A freshness line such as "Data through Oct 9, 2026 · build 20261009T1133" (build = the current build id/hash).
   - No GitHub link in the footer.
 - **Footer link row** (above the disclosure): clickable links to secondary pages: About, Methodology, Glossary, Support, Downloads, and possibly more.
@@ -118,7 +117,6 @@ Guiding rule for everything below: the average user wants stats and a quick answ
 
 ## Owner answers (2026-10-09)
 - Order: quick wins first, redesigns after.
-- GBL: removed for users only (site, API, published output). Ingestion, GBL logs and the daily GBL steps keep running; existing rows stay (append-only).
 - Seasons: models keep training on full history; the site shows the most recent 5 seasons.
 - Scouting and Shots: unlinked, code kept, old URLs redirect (Shots → team/player pages, Scouting → home).
 - Rename: brand only (site title, header, meta, logo). Repo, package and CLI stay `eurohoops`. Owner wants name ideas.
@@ -144,7 +142,7 @@ Guiding rule for everything below: the average user wants stats and a quick answ
 - Pre-registered rule (PLAN 8.1 R1): Elo is the published forecast until M5 (EL) beats it at the round-19 look or at season end. "Show the best model" has to work inside that rule: see the open question below.
 
 ### Phase A: quick wins (one branch, small PRs)
-1. GBL out of the site: nav, pages, competition switches, `publish` output, API JSON. Pipeline untouched.
+1. Pipeline untouched.
 2. Standings: drop the Place column, the explainers and every gated label; at most one short tooltip on the chance columns.
 3. Remove internal labels site-wide (gated, gate passed, shadow log, gate v2, report paths). Methodology describes models in plain words only.
 4. Hide Scouting and Shots: remove from nav, add redirects; keep code and vulture whitelist entries as needed.

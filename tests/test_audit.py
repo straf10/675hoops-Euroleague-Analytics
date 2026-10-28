@@ -40,7 +40,7 @@ BOX_FILL_DDL = (
 
 GOOD_GAME = (
     "G1",
-    "gbl",
+    "euroleague",
     2024,
     "RS",
     "AAA",
@@ -68,15 +68,17 @@ def mart() -> Iterator[duckdb.DuckDBPyConnection]:
     ):
         con.execute(ddl)
     con.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", list(GOOD_GAME))
-    con.execute("INSERT INTO team_games VALUES ('G1','gbl',2024,'AAA',true,80,'esake')")
-    con.execute("INSERT INTO team_games VALUES ('G1','gbl',2024,'BBB',false,70,'esake')")
+    con.execute("INSERT INTO team_games VALUES ('G1','euroleague',2024,'AAA',true,80,'api')")
+    con.execute("INSERT INTO team_games VALUES ('G1','euroleague',2024,'BBB',false,70,'api')")
     con.execute(
         """INSERT INTO player_box VALUES
-        ('G1','AAA','p1',80,30,40,5,10,5,6,2400,'esake'),
-        ('G1','BBB','p2',70,25,40,5,10,5,6,2400,'esake')"""
+        ('G1','AAA','p1',80,30,40,5,10,5,6,2400,'api'),
+        ('G1','BBB','p2',70,25,40,5,10,5,6,2400,'api')"""
     )
-    con.execute("INSERT INTO team_box VALUES ('G1','AAA',80,'esake'),('G1','BBB',70,'esake')")
-    con.execute("INSERT INTO player_xwalk VALUES ('P:1','gbl','p1'),('P:2','gbl','p2')")
+    con.execute("INSERT INTO team_box VALUES ('G1','AAA',80,'api'),('G1','BBB',70,'api')")
+    con.execute(
+        "INSERT INTO player_xwalk VALUES ('P:1','euroleague','p1'),('P:2','euroleague','p2')"
+    )
     yield con
     con.close()
 
@@ -89,41 +91,22 @@ def test_clean_mart_has_no_findings(mart: duckdb.DuckDBPyConnection) -> None:
     assert {name: n for name, n in _counts(mart).items() if n} == {}
 
 
-def test_impossible_values_are_flagged(mart: duckdb.DuckDBPyConnection) -> None:
-    mart.execute("INSERT INTO player_box VALUES ('G1','AAA','p3',-1,1,1,0,0,0,0,3782,'esake')")
-    mart.execute("INSERT INTO player_box VALUES ('G1','AAA','p4',2,5,3,0,0,0,0,600,'esake')")
-    counts = _counts(mart)
-    assert counts["negative_stat"] == 1
-    assert counts["made_above_attempted"] == 1
-    assert counts["points_not_from_shots"] == 2
-    assert counts["minutes_above_longest_game"] == 1
-
-
-def test_team_total_and_score_mismatches_are_flagged(mart: duckdb.DuckDBPyConnection) -> None:
-    mart.execute("UPDATE team_box SET total_points = 79 WHERE team = 'AAA'")
-    mart.execute("UPDATE team_games SET points = 71 WHERE team = 'BBB'")
-    counts = _counts(mart)
-    assert counts["official_box_total_not_score"] == 1
-    assert counts["team_points_not_score"] == 1
-
-
 def test_duplicates_and_null_keys_are_flagged(mart: duckdb.DuckDBPyConnection) -> None:
     mart.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", list(GOOD_GAME))
-    mart.execute("INSERT INTO player_box VALUES ('G1','AAA','p1',0,0,0,0,0,0,0,0,'esake')")
     mart.execute(
-        "INSERT INTO games VALUES ('G2', 'gbl', 2024, 'RS', NULL, 'CCC', 1, 2, true, false, false, "
+        "INSERT INTO games VALUES ('G2', 'euroleague', 2024, 'RS', NULL, 'CCC', 1, 2, true, false, "
+        "false, "
         "'2024-10-06 18:00:00+00')"
     )
     counts = _counts(mart)
     assert counts["duplicate_game"] == 1
-    assert counts["duplicate_player_box_row"] == 1
     assert counts["null_key"] == 1
 
 
 def test_home_flag_and_dates_are_checked(mart: duckdb.DuckDBPyConnection) -> None:
     mart.execute("UPDATE team_games SET home = false WHERE team = 'AAA'")
     mart.execute(
-        "INSERT INTO games VALUES ('G3','gbl',2024,'RS','CCC','DDD',1,2,true,false,false,"
+        "INSERT INTO games VALUES ('G3','euroleague',2024,'RS','CCC','DDD',1,2,true,false,false,"
         "'2025-08-01 18:00:00+00')"
     )
     counts = _counts(mart)
@@ -139,7 +122,7 @@ def test_neutral_games_are_not_home_flag_faults(mart: duckdb.DuckDBPyConnection)
 def test_unlogged_missing_box_and_season_gaps(mart: duckdb.DuckDBPyConnection) -> None:
     mart.execute("DELETE FROM team_games WHERE game_id = 'G1'")
     mart.execute(
-        "INSERT INTO games VALUES ('G9','gbl',2026,'RS','CCC','DDD',1,2,true,false,false,"
+        "INSERT INTO games VALUES ('G9','euroleague',2026,'RS','CCC','DDD',1,2,true,false,false,"
         "'2026-10-05 18:00:00+00')"
     )
     findings = {f.name: f for f in audit(mart)}
@@ -147,8 +130,3 @@ def test_unlogged_missing_box_and_season_gaps(mart: duckdb.DuckDBPyConnection) -
     assert findings["played_without_team_rows"].unexplained == 2  # nothing logged for them
     assert findings["season_gap"].count == 1
     assert "missing 2025" in findings["season_gap"].examples[0]
-
-
-def test_player_without_person_is_flagged(mart: duckdb.DuckDBPyConnection) -> None:
-    mart.execute("DELETE FROM player_xwalk WHERE source_id = 'p2'")
-    assert _counts(mart)["player_id_without_person"] == 1

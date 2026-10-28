@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from eurohoops.config import EL_TITLES_SEED, EUROLEAGUE, GBL, MART_PATH, SQL_DIR
+from eurohoops.config import EL_TITLES_SEED, EUROLEAGUE, MART_PATH, SQL_DIR
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.marts import build_marts
 from eurohoops.models.elo import EloParams
@@ -25,10 +25,6 @@ def load_fixture(name: str) -> list[dict[str, Any]]:
     return games
 
 
-def esake_fixture(name: str) -> str:
-    return (FIXTURES / "esake" / name).read_text(encoding="utf-8")
-
-
 @pytest.fixture
 def no_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     """Disable throttle/backoff sleeps; record requested durations."""
@@ -37,15 +33,11 @@ def no_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     return slept
 
 
-def make_games(seasons: dict[int, bool], seed: int = 7, gbl_like: bool = False) -> pd.DataFrame:
-    """Synthetic double round-robin per season; ``seasons`` maps season -> played.
-
-    ``gbl_like`` adds what GBL data has and EuroLeague data lacks: every 7th game is a 20-0
-    forfeit and the last round of each season is a playoff round.
-    """
+def make_games(seasons: dict[int, bool], seed: int = 7) -> pd.DataFrame:
+    """Synthetic double round-robin per season; ``seasons`` maps season -> played."""
     rng = np.random.default_rng(seed)
     strength = dict(zip(TEAMS, rng.normal(0, 6, len(TEAMS)), strict=True))
-    prefix = "GBL" if gbl_like else "E"
+    prefix = "E"
     pairs = [(h, a) for h in TEAMS for a in TEAMS if h != a]
     rows = []
     for season, played in seasons.items():
@@ -54,13 +46,13 @@ def make_games(seasons: dict[int, bool], seed: int = 7, gbl_like: bool = False) 
             code = rnd + 1
             margin = round(float(strength[home] - strength[away] + 3 + rng.normal(0, 11)))
             margin = margin if margin != 0 else 1
-            forfeit = gbl_like and played and code % 7 == 0
+            forfeit = False
             rows.append(
                 {
                     "game_id": f"{prefix}{season}_{code}",
                     "season": season,
                     "game_code": code,
-                    "phase": "PO" if gbl_like and rnd >= len(pairs) - 3 else "RS",
+                    "phase": "RS",
                     "round": rnd // 3 + 1,
                     "round_label": f"Round {rnd // 3 + 1}",
                     "tipoff_utc": start + pd.Timedelta(days=rnd // 3 * 7, minutes=15 * (rnd % 3)),
@@ -84,13 +76,12 @@ def teams_table(games: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"team": codes, "name": [f"Team {c} & Co" for c in codes]}, dtype=str)
 
 
-def write_pipeline(euroleague: pd.DataFrame, gbl: pd.DataFrame) -> None:
-    """Stage both competitions and build the mart, as `ingest` + `build` would (CWD-relative)."""
+def write_pipeline(euroleague: pd.DataFrame) -> None:
+    """Stage the EuroLeague and build the mart, as `ingest` + `build` would (CWD-relative)."""
     EL_TITLES_SEED.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(REPO / EL_TITLES_SEED, EL_TITLES_SEED)  # publish reads the titles seed
-    for comp, games in ((EUROLEAGUE, euroleague), (GBL, gbl)):
-        write_table(games, comp.staging_games)
-        write_table(teams_table(games), comp.staging_teams)
+    write_table(euroleague, EUROLEAGUE.staging_games)
+    write_table(teams_table(euroleague), EUROLEAGUE.staging_teams)
     build_marts(MART_PATH, REPO / SQL_DIR)
 
 
@@ -115,7 +106,7 @@ def make_team_games(games: pd.DataFrame, seed: int = 11) -> pd.DataFrame:
     for game in rated.to_dict("records"):
         fga = rng.integers(55, 66, size=2)
         raw = fga + 10.8
-        competition = "gbl" if str(game["game_id"]).startswith("GBL") else "euroleague"
+        competition = "euroleague"
         for side, (team, opp, points) in enumerate(
             (
                 (game["home"], game["away"], game["home_score"]),
@@ -139,7 +130,7 @@ def make_team_games(games: pd.DataFrame, seed: int = 11) -> pd.DataFrame:
                     "minutes": 40.0,
                     "poss_raw": float(raw[side]),
                     "poss_game": float(raw.mean()),
-                    "source": "esake_box" if competition == "gbl" else "euroleague_box",
+                    "source": "euroleague_box",
                 }
             )
     return TEAM_GAMES_SCHEMA.validate(pd.DataFrame(rows))

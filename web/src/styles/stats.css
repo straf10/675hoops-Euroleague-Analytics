@@ -508,8 +508,8 @@ svg.court {
   }
 }
 
-/* M6 (weeks 16-18 I): projection, impact and shot-making on the player page, and the
-   Scouting page. The same table, rail and chip chrome as above; no new colour. */
+/* M6 (weeks 16-18 I): projection, impact and shot-making on the player page. The same table,
+   rail and chip chrome as above; no new colour. */
 .proj-fig {
   margin: 0;
   min-width: 0;
@@ -627,21 +627,6 @@ svg.court {
   font-size: 0.75rem;
 }
 
-/* Scouting board: a dimension at a time, sortable heads, z on a small rail. */
-.board-controls {
-  margin-bottom: 20px;
-}
-.board-wrap:not(:has(input[name="dim"][value="shot_making"]:checked)) [data-panel="shot_making"],
-.board-wrap:not(:has(input[name="dim"][value="fg3_pct"]:checked)) [data-panel="fg3_pct"],
-.board-wrap:not(:has(input[name="dim"][value="on_off"]:checked)) [data-panel="on_off"] {
-  display: none;
-}
-.scroll.tall {
-  max-height: min(72dvh, 680px);
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rule-strong) transparent;
-}
 .board thead th {
   position: sticky;
   top: 0;
@@ -685,80 +670,7 @@ svg.court {
     color: var(--ink);
   }
 }
-.proj-chip {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--sunk);
-  box-shadow: inset 0 0 0 1px var(--rule-strong);
-  color: var(--ink-2);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-.proj-chip.likely-real {
-  color: var(--ink);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--ink-2);
-}
-.proj-chip.too-few-attempts,
-.proj-chip.within-noise {
-  color: var(--muted);
-}
-.zrail {
-  position: relative;
-  display: inline-block;
-  width: 64px;
-  height: 10px;
-  margin-right: 8px;
-  vertical-align: middle;
-}
-.zrail::before {
-  content: "";
-  position: absolute;
-  inset: 50% 0 auto;
-  border-top: 1px dotted var(--rule-strong);
-}
-.zrail::after {
-  content: "";
-  position: absolute;
-  inset: -3px auto -3px 50%;
-  border-left: 1px dashed var(--rule-strong);
-}
-.zrail i {
-  position: absolute;
-  z-index: 1;
-  top: 50%;
-  left: calc(var(--x) * 1%);
-  width: 8px;
-  height: 8px;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: var(--data-1);
-  box-shadow: 0 0 0 2px var(--page);
-}
-.zrail i.below {
-  background: var(--data-neg);
-}
-.cols-wrap {
-  margin-top: 4px;
-}
-/* The board, after player and z: Gap (gap, observed, expected) | Lasting (n, share that lasts, next). */
-@media (max-width: 720px) {
-  .cols-wrap > .seg.cols {
-    display: inline-flex;
-  }
-  .cols-wrap:has(.cols > :nth-child(1) > :checked) .board :is(th, td):nth-child(n + 6),
-  .cols-wrap:has(.cols > :nth-child(2) > :checked) .board :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(5)) {
-    display: none;
-  }
-}
 @media (max-width: 560px) {
-  .zrail {
-    display: none;
-  }
   .proj-rail li {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "who val" "track track";

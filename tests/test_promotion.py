@@ -88,7 +88,7 @@ def test_deterministic_with_fixed_seed() -> None:
 
 def test_needs_paired_games() -> None:
     kwargs = {
-        "competition": "gbl",
+        "competition": "euroleague",
         "season": SEASON,
         "look": 1,
         "checkpoint": "t",
@@ -245,14 +245,6 @@ def test_run_writes_the_verdict_once(tmp_path: Path) -> None:
         run_look("euroleague", 1, games(19), SEASON, flagship, elo, (), tmp_path)
 
 
-def test_gbl_uses_round_13(tmp_path: Path) -> None:
-    flagship, elo = write_logs(tmp_path, flagship_from=1)
-    with pytest.raises(LookNotDueError):
-        run_look("gbl", 1, games(12), SEASON, flagship, elo, (), tmp_path)
-    verdict, _ = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path)
-    assert (verdict.n_games, verdict.flagship, verdict.first_round) == (13, "M1", 1)
-
-
 def write_elor(
     tmp_path: Path, p: float = 0.7, *, model: str = "elor", filename: str = "elor.csv"
 ) -> Path:
@@ -340,13 +332,6 @@ def test_round_clustered_sensitivity_is_reported_with_r1_settings(tmp_path: Path
     assert sens["ci_hi"] == pytest.approx(verdict.mean_diff, abs=1e-9)
 
 
-def test_gbl_look_has_no_elor_blocks(tmp_path: Path) -> None:
-    flagship, elo = write_logs(tmp_path, flagship_from=1)
-    elor = write_elor(tmp_path)
-    _, out = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path, elor_log=elor)
-    assert "reported_only" not in json.loads(out.read_text())
-
-
 def test_pool_block_is_reported_with_the_look_ci_and_leaves_the_verdict_alone(
     tmp_path: Path,
 ) -> None:
@@ -397,10 +382,3 @@ def test_pool_block_is_added_next_to_elor_blocks(tmp_path: Path) -> None:
     blocks = json.loads(out.read_text())["reported_only"]
     assert set(blocks) == {"elor_vs_elo", "elor_vs_flagship", "pool_vs_elo"}
     assert blocks["elor_vs_elo"]["n"] == 19
-
-
-def test_gbl_look_has_no_pool_block(tmp_path: Path) -> None:
-    flagship, elo = write_logs(tmp_path, flagship_from=1)
-    pool = write_elor(tmp_path, 0.65, model="pool", filename="pool.csv")
-    _, out = run_look("gbl", 1, games(13), SEASON, flagship, elo, (), tmp_path, pool_log=pool)
-    assert "reported_only" not in json.loads(out.read_text())

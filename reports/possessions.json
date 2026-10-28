@@ -101,48 +101,6 @@
         "with_rows": 2,
         "missing": 8
       }
-    },
-    "gbl": {
-      "2018": {
-        "rated_games": 203,
-        "with_rows": 203,
-        "missing": 0
-      },
-      "2019": {
-        "rated_games": 139,
-        "with_rows": 139,
-        "missing": 0
-      },
-      "2020": {
-        "rated_games": 159,
-        "with_rows": 159,
-        "missing": 0
-      },
-      "2021": {
-        "rated_games": 180,
-        "with_rows": 180,
-        "missing": 0
-      },
-      "2022": {
-        "rated_games": 156,
-        "with_rows": 154,
-        "missing": 2
-      },
-      "2023": {
-        "rated_games": 163,
-        "with_rows": 163,
-        "missing": 0
-      },
-      "2024": {
-        "rated_games": 166,
-        "with_rows": 166,
-        "missing": 0
-      },
-      "2025": {
-        "rated_games": 174,
-        "with_rows": 174,
-        "missing": 0
-      }
     }
   },
   "missing_games": [
@@ -205,18 +163,6 @@
       "season": 2026,
       "game_id": "E2026_10",
       "reason": "no cached box score (ingest --details)"
-    },
-    {
-      "competition": "gbl",
-      "season": 2022,
-      "game_id": "GBL2022_4180233B",
-      "reason": "ESAKE totals 76-90 are not the result; no GBL play-by-play"
-    },
-    {
-      "competition": "gbl",
-      "season": 2022,
-      "game_id": "GBL2022_AF0B05AA",
-      "reason": "ESAKE totals 78-82 are not the result; no GBL play-by-play"
     }
   ],
   "points_mismatches": [],
@@ -835,24 +781,5 @@
         "pbp": 71
       }
     ]
-  },
-  "gbl_pbp_vs_esake": {
-    "games": 264,
-    "exact_share": {
-      "points": 0.9564,
-      "fga": 0.947,
-      "fta": 0.9811,
-      "oreb": 0.2216,
-      "dreb": 0.1383,
-      "tov": 0.5095
-    },
-    "mean_gap_pbp_minus_esake": {
-      "points": 0.3636,
-      "fga": 0.3314,
-      "fta": 0.0625,
-      "oreb": 1.5341,
-      "dreb": 2.0246,
-      "tov": 0.6913
-    }
   }
 }

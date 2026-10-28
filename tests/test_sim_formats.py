@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from eurohoops.sim.formats import cut_lines, season_format
-from eurohoops.standings import EUROLEAGUE_2026, GBL_2026
+from eurohoops.standings import EUROLEAGUE_2026
 
 SUMMARY = json.loads((Path(__file__).parent / "fixtures" / "m7_seasons.json").read_text())
 
@@ -28,7 +28,7 @@ def test_every_fixture_season_is_scored_or_raises():
         if key not in keys:
             with pytest.raises(ValueError):
                 season_format(competition, int(season))
-    assert set(SUMMARY) - keys == {"gbl_2023", "gbl_2024"}
+    assert set(SUMMARY) - keys == set()
 
 
 @pytest.mark.parametrize("competition,season", _scored())
@@ -52,7 +52,6 @@ def test_sources_and_partition(competition, season):
 
 def test_2026_is_unchanged():
     assert season_format("euroleague", 2026) is EUROLEAGUE_2026
-    assert season_format("gbl", 2026) is GBL_2026
 
 
 def test_deduction_only_in_euroleague_2022():
@@ -69,7 +68,6 @@ def test_cut_lines_with_and_without_play_in():
         "top10": tuple(range(1, 11)),
     }
     assert cut_lines(season_format("euroleague", 2018)) == {"direct": tuple(range(1, 9))}
-    assert cut_lines(season_format("gbl", 2021)) == {"direct": tuple(range(1, 9))}
 
 
 def test_series_follow_the_play_in():
@@ -85,18 +83,9 @@ def test_series_follow_the_play_in():
         ("euroleague", 2021),
         ("euroleague", 2014),
         ("euroleague", 2027),
-        ("gbl", 2018),
-        ("gbl", 2019),
-        ("gbl", 2023),
-        ("gbl", 2024),
         ("nba", 2025),
     ],
 )
 def test_unscored_seasons_raise(competition, season):
     with pytest.raises(ValueError):
         season_format(competition, season)
-
-
-def test_gbl_excluded_message_names_the_reason():
-    with pytest.raises(ValueError, match="quarterfinal field"):
-        season_format("gbl", 2023)

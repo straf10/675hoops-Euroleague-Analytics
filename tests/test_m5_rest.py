@@ -3,7 +3,7 @@
 import numpy as np
 
 from eurohoops.eval.m5_rest import FEATURES, Z90, ols_hc0, rest_report
-from tests.m5_synthetic import CLUB_MAP, build_inputs, default_run, small_spec
+from tests.m5_synthetic import build_inputs, default_run, small_spec
 
 
 def test_ols_hc0_recovers_a_planted_effect_and_matches_a_direct_computation() -> None:
@@ -48,14 +48,7 @@ def test_rest_report_on_the_synthetic_league() -> None:
     inputs = build_inputs()
     spec = small_spec()
     _, predictions = default_run()
-    report = rest_report(
-        inputs.games,
-        inputs.other_games,
-        inputs.club_map,
-        predictions,
-        tuning=spec.tuning,
-        greek=tuple(CLUB_MAP.values()),
-    )
+    report = rest_report(inputs.games, predictions, tuning=spec.tuning)
     by_split = report["residual_on_rest_diff"]["by_split"]
     assert set(by_split) == {"tuning", "validation"}
     m5 = predictions[predictions["model"] == "m5"]
@@ -63,4 +56,3 @@ def test_rest_report_on_the_synthetic_league() -> None:
     assert set(report["residual_on_rest_diff"]["by_tuning_season"]) <= {str(s) for s in spec.tuning}
     dist = report["distribution"]["tuning"]
     assert 0.0 <= dist["short_rest_share"] <= 1.0
-    assert sum(report["greek_within_3_days_of_other_competition"].values()) > 0

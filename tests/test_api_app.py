@@ -46,7 +46,8 @@ from eurohoops.stats.positions import games_by_club, season_positions
 from eurohoops.stats.runs import game_runs
 from eurohoops.stats.shots import build_shots
 from eurohoops.stats.units import load_units
-from tests.api_tree import EL_PERSON, GBL_ONLY_PERSON, NOW, build_tree
+from eurohoops.stats.win_shares import box_win_shares
+from tests.api_tree import EL_PERSON, NOW, UNPUBLISHED_PERSON, build_tree
 from tests.conftest import FIXTURES, REPO
 
 STATS_NOW = datetime(2026, 9, 26, 8, tzinfo=UTC)  # the clock the committed stats fixture used
@@ -85,16 +86,13 @@ OK_ROUTES = [
     "/stats/meta.json",
     "/stats/seasons/2024/players.json",
     "/games/upcoming",
-    "/games/upcoming?competition=gbl",
     "/predictions/E2026_2",
     "/teams/euroleague/BAR/ratings",
     "/teams/euroleague/LJU/factors?season=2010",
-    "/teams/gbl/AAAA0001/factors",
     f"/players/{EL_PERSON}",
     f"/players/{EL_PERSON}/projection",
     f"/players/{EL_PERSON}/similar",
     "/rapm",
-    "/scouting/board",
     "/simulations/latest",
     "/metrics/live",
     "/openapi.json",
@@ -106,7 +104,7 @@ NOT_FOUND_ROUTES = [
     ("/teams/euroleague/XXX/ratings", "unknown team 'XXX' in euroleague"),
     ("/teams/euroleague/ASV/ratings", "'ASV' has no game in the euroleague 2026 season"),
     ("/teams/acb/BAR/factors", "unknown competition 'acb'"),
-    ("/teams/gbl/XXX/factors", "unknown team 'XXX' in gbl"),
+    ("/games/upcoming?competition=gbl", "unknown competition 'gbl'"),
     ("/players/P:NOBODY", "unknown person_id 'P:NOBODY'"),
     ("/players/P:NOBODY/projection", "no M6 projection for person_id 'P:NOBODY'"),
     ("/players/P:NOBODY/similar", "no similarity list for person_id 'P:NOBODY'"),
@@ -156,9 +154,6 @@ def test_the_stats_listing_and_a_bad_query_value(client: TestClient) -> None:
 def test_route_values(client: TestClient) -> None:
     upcoming = client.get("/games/upcoming").json()
     assert upcoming["games"][0]["game_id"] == "E2026_4"  # the default competition is euroleague
-    assert (
-        client.get("/games/upcoming?competition=gbl").json()["games"][0]["game_id"] == "GBL2026_4"
-    )
     models = client.get("/predictions/E2026_4").json()["models"]
     assert (
         models["elo"]["pre_registered"]["p_home"],
@@ -173,11 +168,10 @@ def test_route_values(client: TestClient) -> None:
     assert factors["factors"]["efg_pct"]["value"] == pytest.approx(38 / 78)  # 26 + 1.5 * 8 over 78
     player = client.get(f"/players/{EL_PERSON}").json()
     assert player["name"] == "Levi Randolph" and len(player["seasons"]) == 1
-    assert client.get(f"/players/{GBL_ONLY_PERSON}").status_code == 404  # not on the site
+    assert client.get(f"/players/{UNPUBLISHED_PERSON}").status_code == 404  # not on the site
     assert client.get(f"/players/{EL_PERSON}/projection").json()["projections"][0]["team"] == "TEL"
     similar = client.get(f"/players/{EL_PERSON}/similar").json()["similar"]
-    assert [s["rank"] for s in similar] == [1]  # the GBL row is not published
-    assert client.get("/scouting/board").json()["rows"][0]["label"] == "within noise"
+    assert [s["rank"] for s in similar] == [1]
     metrics = client.get("/metrics/live").json()["competitions"]
     assert metrics[0]["scorecard"]["elo"]["log_loss"] == 0.61
     meta = client.get("/stats/meta.json").json()
@@ -207,18 +201,11 @@ def test_without_an_ungated_report_the_404_carries_the_verdict(tmp_path: Path) -
     assert body["gate"]["reason"] in body["detail"]
 
 
-def test_a_missing_report_is_a_404_naming_the_file(tmp_path: Path) -> None:
-    build_tree(tmp_path)
-    (tmp_path / "reports" / "m6_board.json").unlink()
-    response = make_client(tmp_path).get("/scouting/board")
-    assert response.status_code == 404
-    assert "m6_board.json not found: the M6 over/under board" in response.json()["detail"]
-
-
 def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dict[str, Any]]:
     """The payloads built the way ``cli export-stats --from-cache`` builds them."""
     games, teams = load_cached_games(raw)
     box = build_box_games(raw, games)
+    assists = game_assists(raw, games[games["played"]])
     return build_payloads(
         Inputs(
             games=games,
@@ -242,13 +229,8 @@ def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dic
                 site_window(box.players["season"].unique()),
                 DISPLAY_CODES["euroleague"],
             ),
-            assists=game_assists(
-                raw,
-                games[
-                    games["played"]
-                    & games["season"].isin(site_window(box.players["season"].unique()))
-                ],
-            ),
+            assists=assists,
+            win_shares=box_win_shares(box.players, box.teams),
             coaches=coach_games(raw, with_elo(games, load_tuned_model(history).params, 2007)),
             styles=game_styles(raw, games),
         ),
@@ -376,7 +358,6 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "games",
         "teams",
         "players",
-        "scouting",
         "simulations",
         "metrics",
     ]
@@ -393,7 +374,6 @@ def test_the_openapi_document_lists_every_route_under_its_tag(client: TestClient
         "/players/{person_id}/projection": "players",
         "/players/{person_id}/similar": "players",
         "/rapm": "players",
-        "/scouting/board": "scouting",
         "/simulations/latest": "simulations",
         "/metrics/live": "metrics",
     }

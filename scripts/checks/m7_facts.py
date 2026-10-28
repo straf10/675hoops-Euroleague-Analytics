@@ -8,13 +8,10 @@
    ``tests/fixtures/m7_official_tables.json``, and ``standings.rank`` on the mart's results
    (regulation scores for overtime games, the recorded deductions) reproduces each one.
 3. Cut lines: the EuroLeague playoff field is the table's top 8 (2016-2022); from 2023 the play-in
-   field is places 7-10 and places 1-6 reach the playoffs. GBL: the quarterfinal field is the
-   table's top 8 in every scored season, and it is not in 2023-24 and 2024-25 (why they are
-   excluded).
+   field is places 7-10 and places 1-6 reach the playoffs.
 4. Playoff home order: in every scored EuroLeague season, games 1 and 2 of each playoff series
    are at the better-placed team.
-5. 2026-27 schedules: EuroLeague 380 games, 38 per team, every ordered pair once; GBL 183 rows,
-   one duplicated ordered pair (Olympiacos-AEK), 182 after dropping it.
+5. 2026-27 schedules: EuroLeague 380 games, 38 per team, every ordered pair once.
 """
 
 import json
@@ -22,7 +19,7 @@ import re
 import sys
 from pathlib import Path
 
-from eurohoops.config import EUROLEAGUE, GBL, MART_PATH
+from eurohoops.config import EUROLEAGUE, MART_PATH
 from eurohoops.marts import read_games
 from eurohoops.sim.played import regulation_scores, season_results
 from eurohoops.standings import rank
@@ -30,10 +27,9 @@ from eurohoops.standings import rank
 FIXTURES = Path("tests/fixtures")
 SEASONS = json.loads((FIXTURES / "m7_seasons.json").read_text(encoding="utf-8"))
 OFFICIAL = json.loads((FIXTURES / "m7_official_tables.json").read_text(encoding="utf-8"))
-GBL_EXCLUDED = (2023, 2024)  # quarterfinal field != table top 8 (fact 3)
 
 ok = True
-games = {c.name: read_games(MART_PATH, c.name) for c in (EUROLEAGUE, GBL)}
+games = {EUROLEAGUE.name: read_games(MART_PATH, EUROLEAGUE.name)}
 
 
 def shape(competition: str, season: int) -> dict[str, object]:
@@ -53,6 +49,8 @@ def shape(competition: str, season: int) -> dict[str, object]:
 
 for key, recorded in SEASONS.items():
     competition, season = key.split("_")
+    if competition != "euroleague":
+        continue
     got = shape(competition, int(season))
     print(f"1 {key}: {got}")
     ok &= got == recorded
@@ -85,22 +83,6 @@ for season, table in tables.items():
     print(f"3 euroleague {season}: playoff/play-in field matches the cut lines {good}")
     ok &= good
 
-gbl = games[GBL.name]
-for key in SEASONS:
-    competition, season_s = key.split("_")
-    if competition != "gbl":
-        continue
-    season = int(season_s)
-    sg = gbl[gbl["season"] == season]
-    table = rank(season_results(sg[sg["phase"] == "RS"]))
-    po = sg[sg["phase"] == "PO"]
-    first = po[po["round"] == po["round"].min()]
-    field = {*first["home"], *first["away"]}
-    good = field == set(table[:8])
-    expected = season not in GBL_EXCLUDED
-    print(f"3 gbl {season}: quarterfinal field = table top 8 {good} (expected {expected})")
-    ok &= good == expected
-
 for season, table in tables.items():
     po = el[(el["season"] == season) & (el["phase"] == "PO")].sort_values("tipoff_utc")
     bad = 0
@@ -111,7 +93,7 @@ for season, table in tables.items():
     print(f"4 euroleague {season}: playoff games 1-2 away from the better-placed team: {bad}")
     ok &= bad == 0
 
-LIVE = (("euroleague", 380, [38], 380), ("gbl", 183, [26, 27], 182))
+LIVE = (("euroleague", 380, [38], 380),)
 for competition, rows, per_team, pairs in LIVE:
     g = games[competition]
     live = g[(g["season"] == 2026) & (g["phase"] == "RS")]

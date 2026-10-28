@@ -2,7 +2,7 @@
 
 The site is 675hoops.com: EuroLeague 2026-27 win predictions, the player and team stats behind
 them, and the coaches. This plan covers how people find it (search, feeds, markup) and how the
-work reaches them (posts, communities, outreach). It is EuroLeague only. No GBL pitch goes out
+work reaches them (posts, communities, outreach). It is EuroLeague only.
 until the owner decides on one.
 
 Principles:
@@ -87,7 +87,7 @@ Effort is the owner's time unless marked "agent", which means a code change in t
 - Played-game share cards (`/cards/games/{id}.png` exists only for upcoming games). Needs a new
   route and a design review. Skipped for now.
 - Player to coach links on player pages. Blocked until the Players page UI work is merged.
-- GBL. Needs the owner's go-ahead; it would need Greek-language pages, not only markup.
+Needs the owner's go-ahead; it would need Greek-language pages, not only markup.
 - Page speed and Lighthouse. Owned by the performance work, not this plan.
 
 ## How to tell it works

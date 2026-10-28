@@ -71,7 +71,7 @@ svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" he
 <rect class="mask" x="40" y="40" width="200" height="88" rx="6"/>
 <rect class="body" x="40" y="40" width="200" height="88" rx="6"/>
 <rect class="tag" x="48" y="47" width="116.0" height="13" rx="2"/>
-<text x="106.0" y="56.5" class="t-tag" text-anchor="middle" >PUBLISHED · EL · GBL</text>
+<text x="106.0" y="56.5" class="t-tag" text-anchor="middle" >PUBLISHED · EL</text>
 <text x="140.0" y="80.0" class="t-name" text-anchor="middle" >Elo (M0)</text>
 <text x="140.0" y="95.0" class="t-sub" text-anchor="middle" >one rating per team</text>
 <text x="140.0" y="108.0" class="t-sub" text-anchor="middle" >margin-adjusted updates</text>
@@ -89,7 +89,7 @@ svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" he
 <rect class="mask" x="520" y="40" width="200" height="88" rx="6"/>
 <rect class="body" x="520" y="40" width="200" height="88" rx="6"/>
 <rect class="tag" x="528" y="47" width="99.8" height="13" rx="2"/>
-<text x="577.9" y="56.5" class="t-tag" text-anchor="middle" >SHADOW · EL · GBL</text>
+<text x="577.9" y="56.5" class="t-tag" text-anchor="middle" >SHADOW · EL</text>
 <text x="620.0" y="80.0" class="t-name" text-anchor="middle" >M1 team efficiency</text>
 <text x="620.0" y="95.0" class="t-sub" text-anchor="middle" >offence · defence · pace</text>
 <text x="620.0" y="108.0" class="t-sub" text-anchor="middle" >ridge on possessions</text>

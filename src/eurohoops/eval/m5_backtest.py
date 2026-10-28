@@ -1,8 +1,8 @@
 """M5 backtest (week 14-16 J4): walk-forward tuning, the point-rule gate against M1, test (once).
 
 M5's margin for a game is ``player_part + adjustment``. ``player_part`` is injected
-(``PlayerPartFn``: M3's ``rapm_margins`` with a fitted RAPM for the EuroLeague, box-only margins
-for the GBL), so the harness never knows which; ``adjustment`` is ``models.m5.fit_residual``'s
+(``PlayerPartFn``: M3's ``rapm_margins`` with a fitted RAPM), so the harness never sees how it
+was fitted; ``adjustment`` is ``models.m5.fit_residual``'s
 walk-forward team residual, with or without the rest effect.
 
 Declared choices (the variant grid), all chosen on the tuning seasons only:
@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, replace
 from itertools import product
 from typing import Any
@@ -70,8 +70,7 @@ TOTALS = ("total_m1", "total_m1_rest")
 MODELS = ("m5", "m5_oracle", "m1", "elo")  # the returned frame's model order
 REST_COLUMNS = ("days_rest", "short_rest", "games_last_7d", "other_comp_prev")
 BLEND_COMPONENTS = ("core_rest", "m1", "elo")
-GREEK_CLUBS = frozenset({"PAN", "OLY", "00000001", "00000002"})
-AFTER_OTHER_DAYS = 3.0  # greek_after_other: previous game in the other competition within 3 days
+GREEK_CLUBS = frozenset({"PAN", "OLY"})
 ORACLE_LABEL = "oracle, not a forecast"
 GATE_RULE = (
     "M5 validation log loss < M1 validation log loss (point rule, owner 2026-10-05); "
@@ -100,16 +99,13 @@ FRAME_COLUMNS = (
 @dataclass(frozen=True)
 class M5Inputs:
     """Everything a run reads. ``games``, ``team_games`` and ``player_games`` are the target
-    competition's marts over every season (M1 and Elo warm up before the frame starts);
-    ``other_games`` is the other competition's ``games`` mart (or ``None``); ``club_map`` maps its
-    team codes to the target's. ``tuned_m1`` is ``reports/backtest_m1.json``'s ``tuned`` block and
-    ``elo`` its ``comparison_elo`` block (k, hca, reversion, margin_scale, margin_sigma)."""
+    competition's marts over every season (M1 and Elo warm up before the frame starts).
+    ``tuned_m1`` is ``reports/backtest_m1.json``'s ``tuned`` block and ``elo`` its
+    ``comparison_elo`` block (k, hca, reversion, margin_scale, margin_sigma)."""
 
     games: pd.DataFrame
     team_games: pd.DataFrame
     player_games: pd.DataFrame
-    other_games: pd.DataFrame | None
-    club_map: Mapping[str, str]
     tuned_m1: dict[str, Any]
     elo: dict[str, Any]
 
@@ -237,7 +233,7 @@ def _rms(values: FloatArray, mask: BoolArray) -> float:
 
 def _rest_arrays(inputs: M5Inputs, frame: pd.DataFrame) -> tuple[FloatArray, FloatArray]:
     """Rest features of the home and away side of every frame game, as floats."""
-    long = rest_features(inputs.games, inputs.other_games, inputs.club_map)
+    long = rest_features(inputs.games)
     long = long.set_index(["game_id", "side"])
     ids = frame["game_id"].astype(str)
     sides: list[FloatArray] = []
@@ -654,23 +650,20 @@ def _differences(
 def _segments(
     ctx: _Context, m5: Predictions, mask: BoolArray
 ) -> dict[str, dict[str, float | int | None]]:
-    """Where M5 and M1 differ: the Greek clubs, tight rest, the other competition, early season."""
+    """Where M5 and M1 differ: the Greek clubs, tight rest, early season."""
     frame = ctx.frame
     greek_home = frame["home"].astype(str).isin(GREEK_CLUBS).to_numpy()
     greek_away = frame["away"].astype(str).isin(GREEK_CLUBS).to_numpy()
     short = REST_COLUMNS.index("short_rest")
     other = REST_COLUMNS.index("other_comp_prev")
-    days = REST_COLUMNS.index("days_rest")
-    after_other = np.zeros(len(frame), dtype=bool)
-    for greek, rest in ((greek_home, ctx.rest_home), (greek_away, ctx.rest_away)):
-        after_other |= greek & (rest[:, other] > 0.0) & (rest[:, days] <= AFTER_OTHER_DAYS)
     groups = {
         "pan_oly": greek_home | greek_away,
         "short_rest_any": (ctx.rest_home[:, short] > 0.0) | (ctx.rest_away[:, short] > 0.0),
+        # EuroLeague only: no other competition, so these two stay empty (kept for the format).
         "other_comp_prev_any": (ctx.rest_home[:, other] > 0.0) | (ctx.rest_away[:, other] > 0.0),
+        "greek_after_other": np.zeros(len(frame), dtype=bool),
         "early_rounds": (frame["phase"] == "RS").to_numpy()
         & (frame["round"] <= EARLY_ROUNDS).to_numpy(),
-        "greek_after_other": after_other,
     }
     out: dict[str, dict[str, float | int | None]] = {}
     for name, group in groups.items():
@@ -1064,8 +1057,7 @@ def run_m5_backtest(
     ``tuning_only``: the grid, the choice and tuning metrics only -- no validation or test number
     anywhere, since the verdict must be committed before validation is scored. ``score_test``:
     also score the test seasons (only after the validation commit). ``fixed``: score this
-    choice (Platt and totals included) instead of choosing one (J-g: the GBL is scored with the
-    EuroLeague verdict, no GBL-specific choice)."""
+    choice (Platt and totals included) instead of choosing one."""
     ctx = _prepare(inputs, spec)
     selection = _select(ctx, spec, inputs, player_part, fixed)
     decision = _decide(ctx, spec, selection, fixed)
@@ -1100,12 +1092,7 @@ def run_m5_backtest(
             "validation": list(spec.validation),
             "test": list(spec.test),
         },
-        "data_sha256": data_sha256(
-            ctx.frame,
-            inputs.team_games,
-            inputs.player_games,
-            *([] if inputs.other_games is None else [inputs.other_games]),
-        ),
+        "data_sha256": data_sha256(ctx.frame, inputs.team_games, inputs.player_games),
         "tuning_only": tuning_only,
         "validation_scored": not tuning_only,
         "test_scored": score_test and not tuning_only,

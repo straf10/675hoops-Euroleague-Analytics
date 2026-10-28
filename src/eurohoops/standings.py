@@ -2,9 +2,6 @@
 
 EuroLeague: EuroLeague Bylaws 2026-27, Articles 18 (competition system) and 19 (tie breakers),
 https://ftpserver.euroleague.net/general/2026_27_EuroLeague_Bylaws.pdf (accessed 2026-09-25).
-GBL: ESAKE's regulations defer tie-breaks to each season's competition notice (Προκήρυξη),
-which could not be found for 2026-27; the GBL uses the same head-to-head procedure, marked
-unverified (reports/week3_closeout.md, 7b).
 """
 
 from collections import Counter
@@ -51,8 +48,8 @@ class Format:
     series: tuple[Series, ...]
     sources: tuple[str, ...]
     unverified: tuple[str, ...] = ()  # rules not confirmed by an official source
-    # Standings points deducted before the season (team id, points). The GBL awards 2 points
-    # per win and 1 per loss, so 2 points weigh one win in rank(deducted_wins=...).
+    # Standings points deducted before the season (team id, points): 2 points weigh one win in
+    # rank(deducted_wins=...).
     points_deducted: tuple[tuple[str, int], ...] = ()
 
     def deducted_wins(self) -> dict[str, int]:
@@ -78,33 +75,6 @@ EUROLEAGUE_2026 = Format(
         Series("final four", 1),
     ),
     sources=("https://ftpserver.euroleague.net/general/2026_27_EuroLeague_Bylaws.pdf Art. 18-19",),
-)
-
-GBL_2026 = Format(
-    competition="gbl",
-    season="2026-27",
-    teams=14,
-    regular_season_rounds=26,  # 14 teams home and away, as in the published ESAKE schedule
-    playoffs_direct=tuple(range(1, 9)),
-    play_in=(),
-    eliminated=(9, 10, 11, 12, 13),
-    relegated=(14,),
-    series=(Series("quarterfinals", 3), Series("semifinals", 3), Series("final", 5)),
-    sources=(
-        "ESAKE schedule 2026-27 (14 teams, 26 rounds), esake.gr results pages",
-        "https://www.esake.gr/31B83429 (2025-26 general assembly: QF/SF best of 3, final best"
-        " of 5; last place relegated)",
-    ),
-    unverified=(
-        "playoff positions (1-8 assumed) and series lengths: official 2025-26 decision, no"
-        " 2026-27 competition notice found",
-        "relegation of the 14th team",
-        "tie-breaks: EuroLeague-style head-to-head procedure assumed; it reproduces the"
-        " 2024-25 and 2025-26 final tables (Wikipedia)",
-    ),
-    # Olympiacos and Panathinaikos start on -2: sanction for the altercation between players
-    # in the 2025-26 finals (confirmed by the user 2026-09-25; shown on ESAKE's live table).
-    points_deducted=(("00000002", 2), ("00000001", 2)),
 )
 
 

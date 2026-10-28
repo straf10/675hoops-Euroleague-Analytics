@@ -202,8 +202,6 @@ def run_retune(
         games=games,
         team_games=inputs.team_games,
         player_games=inputs.player_games,
-        other_games=inputs.other_games,
-        club_map=inputs.club_map,
         tuned_m1=inputs.tuned_m1,
         elo=inputs.elo,
     )
@@ -329,8 +327,6 @@ def retune_check(
         games=games,
         team_games=inputs.team_games,
         player_games=inputs.player_games,
-        other_games=inputs.other_games,
-        club_map=inputs.club_map,
         tuned_m1=inputs.tuned_m1,
         elo=inputs.elo,
     )

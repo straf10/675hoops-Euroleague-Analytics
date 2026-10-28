@@ -2,8 +2,8 @@
 curve (L2), the over/under board (L3) and the similarity search (L4) all read.
 
 One row per person, competition and season: box-score counts summed over the games passed in,
-possessions as exposure (``poss`` = team possessions x minutes share, as in M3/M4), the team with
-the most seconds, and the person's first season in either league among the rows passed.
+possessions as exposure (``poss`` = team possessions x minutes share, as in M3), the team with
+the most seconds, and the person's first season among the rows passed.
 Per-100 rates are ``100 * count / poss``; percentages are made / attempted
 (``ts`` = pts / (2 * tsa), ``tsa`` = fga + 0.44 * fta).
 
@@ -12,8 +12,8 @@ the state at a cutoff filters the games first (``partial=True`` marks a season c
 checkpoint, so a projection can tell it from a finished season).
 
 Person ids come from ``player_xwalk``; a source id the crosswalk does not cover (the live
-season's newcomers: the crosswalk is built on 2007-2025) gets ``P:<id>`` (EuroLeague) or
-``G:<id>`` (GBL), the crosswalk's own scheme, and is flagged by ``mapped=False``.
+season's newcomers: the crosswalk is built on 2007-2025) gets ``P:<id>``, the crosswalk's own
+scheme, and is flagged by ``mapped=False``.
 
 ``player_ages`` turns birth dates into ages at 1 October of each season. Birth dates and exact
 ages are model inputs only: they never reach a committed file, a report or the site (owner rule,
@@ -31,7 +31,7 @@ import pandera.pandas as pa
 
 from eurohoops.parse.schemas import validated
 
-COMPETITIONS = ("euroleague", "gbl")
+COMPETITIONS = ("euroleague",)
 COUNT_COLUMNS = (
     "pts",
     "fg2m",
@@ -55,11 +55,11 @@ PCT_STATS = ("ts", "fg3", "ft")
 IMPACT_STATS = ("spm", "brapm")
 PROJECTED_STATS = COUNT_STATS + PCT_STATS + IMPACT_STATS
 TS_FTA_WEIGHT = 0.44
-_PREFIX = {"euroleague": "P:", "gbl": "G:"}
+_PREFIX = {"euroleague": "P:"}
 AGE_DAY = (10, 1)  # ages are taken at 1 October of the season's start year
 DAYS_PER_YEAR = 365.2425
-# A birth date that puts a player outside these ages in a season he played is a source error
-# (5 GBL placeholder dates, D16): the person's date is dropped and he takes the no-age path.
+# A birth date that puts a player outside these ages in a season he played is a source error:
+# the person's date is dropped and he takes the no-age path.
 AGE_RANGE = (15.0, 45.0)
 
 PLAYER_SEASONS_SCHEMA = pa.DataFrameSchema(
@@ -137,9 +137,9 @@ def build_player_seasons(
     *,
     partial: Mapping[str, int] | None = None,
 ) -> pd.DataFrame:
-    """The player-season frame from each competition's player games (``stats.box`` /
-    ``parse.gbl_box_lines`` rows); ``partial`` names, per competition, the season whose games
-    were cut at a checkpoint. Players with no seconds in a season are left out."""
+    """The player-season frame from each competition's player games (``stats.box`` rows);
+    ``partial`` names, per competition, the season whose games were cut at a checkpoint. Players
+    with no seconds in a season are left out."""
     frames = []
     for competition, games in player_games.items():
         if games.empty:
@@ -177,10 +177,9 @@ def build_player_seasons(
 
 def player_ages(bios: pd.DataFrame, xwalk: pd.DataFrame, seasons: pd.DataFrame) -> pd.DataFrame:
     """Age in years at 1 October of each ``(person_id, season)`` in ``seasons``, for persons
-    with a known birth date (``bios``: ``competition, source_id, birth_date``; the EuroLeague
-    date wins over the GBL one). A person whose date gives an age outside ``AGE_RANGE`` in any
-    of his seasons has a wrong date and gets no ages at all. In-memory only: never written out
-    (L-e)."""
+    with a known birth date (``bios``: ``competition, source_id, birth_date``). A person whose
+    date gives an age outside ``AGE_RANGE`` in any of his seasons has a wrong date and gets no
+    ages at all. In-memory only: never written out (L-e)."""
     dated = bios.dropna(subset=["birth_date"])
     frames = []
     for competition in COMPETITIONS:

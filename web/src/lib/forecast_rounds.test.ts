@@ -96,7 +96,7 @@ test("a valid query picks its round; unknown or missing values fall back to the 
   assert.equal(roundFromQuery("?euroleague-round=", param, groups)?.id, "PO");
   assert.equal(roundFromQuery("?euroleague-round=7&x=1", param, groups)?.id, "7");
   assert.equal(roundFromQuery("?round=6", param, groups)?.id, "PO");
-  assert.equal(roundFromQuery("?gbl-round=6", param, groups)?.id, "PO");
+  assert.equal(roundFromQuery("?other-round=6", param, groups)?.id, "PO");
 });
 
 test("roundFromQuery is null when there are no rounds", () => {
@@ -106,9 +106,9 @@ test("roundFromQuery is null when there are no rounds", () => {
 test("roundSearch sets the round, drops it at the default, and keeps other parameters", () => {
   const param = roundParam("euroleague");
   assert.equal(roundSearch("", param, "6", "PO"), "?euroleague-round=6");
-  assert.equal(roundSearch("?gbl-round=3", param, "6", "PO"), "?gbl-round=3&euroleague-round=6");
+  assert.equal(roundSearch("?other-round=3", param, "6", "PO"), "?other-round=3&euroleague-round=6");
   assert.equal(roundSearch("?euroleague-round=6", param, "PO", "PO"), "");
-  assert.equal(roundSearch("?gbl-round=3&euroleague-round=6", param, "PO", "PO"), "?gbl-round=3");
+  assert.equal(roundSearch("?other-round=3&euroleague-round=6", param, "PO", "PO"), "?other-round=3");
 });
 
 test("leadModel is the published model, else the first listed", () => {

@@ -18,13 +18,13 @@ import pandera.errors
 import pytest
 
 from eurohoops.api import readmodel as rm
-from eurohoops.config import EUROLEAGUE, GBL, M6_PROJECTIONS, M7, MART_PATH
+from eurohoops.config import EUROLEAGUE, M6_PROJECTIONS, M7, MART_PATH
 from eurohoops.eval.backtest import load_tuned_model
 from eurohoops.marts import data_volume, read_games
 from eurohoops.models.elo import prepare, season_ratings
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import PLAYER_FIELDS, load_cached_games
-from tests.api_tree import EL_PERSON, GBL_ONLY_PERSON, NOW, build_tree
+from tests.api_tree import EL_PERSON, NOW, UNPUBLISHED_PERSON, build_tree
 from tests.conftest import FIXTURES
 
 
@@ -177,10 +177,8 @@ def test_upcoming_games_hold_the_pre_registered_forecast(store: rm.Store) -> Non
     assert games[2]["home"]["code"] == "MAD" and games[2]["prediction"]["p_home"] == 0.4
 
 
-def test_upcoming_games_of_the_other_competition_and_unknown_ones(store: rm.Store) -> None:
-    gbl = rm.upcoming_games(store, "gbl", NOW)["games"]
-    assert gbl[0]["game_id"] == "GBL2026_4" and gbl[0]["prediction"]["p_home"] == 0.52
-    with pytest.raises(rm.NotFound, match="unknown competition 'nba'; expected one of"):
+def test_upcoming_games_of_an_unknown_competition(store: rm.Store) -> None:
+    with pytest.raises(rm.NotFound, match="unknown competition 'nba'"):
         rm.upcoming_games(store, "nba", NOW)
 
 
@@ -220,7 +218,6 @@ def test_prediction_gathers_every_model_and_an_unplayed_game_has_no_result(
     assert set(out["models"]) == {"elo", "m1"}
     m1 = out["models"]["m1"]["pre_registered"]
     assert (m1["p_home"], m1["exp_total"], m1["margin_df"]) == (0.63, 160.5, 7)
-    assert rm.prediction(store, "GBL2026_4")["competition"] == "gbl"
 
 
 def test_prediction_of_an_unlogged_game_is_not_found(store: rm.Store) -> None:
@@ -229,7 +226,7 @@ def test_prediction_of_an_unlogged_game_is_not_found(store: rm.Store) -> None:
 
 
 def _elo_table(root: Path, code: str, season: int) -> dict[str, tuple[float, float]]:
-    comp = {"euroleague": EUROLEAGUE, "gbl": GBL}[code]
+    comp = {"euroleague": EUROLEAGUE}[code]
     games = read_games(root / MART_PATH, comp.name)
     params = load_tuned_model(root / comp.live_backtest.report).params
     window = games[games["season"].between(comp.live_backtest.warmup[0], season)]
@@ -397,43 +394,9 @@ def test_a_missing_input_gives_a_null_factor_and_its_reason(store: rm.Store) -> 
         }
 
 
-def test_gbl_factors_take_counts_from_team_games_and_makes_from_the_player_lines(
-    store: rm.Store, root: Path
-) -> None:
-    out = rm.team_factors(store, "gbl", "AAAA0001", 2025)
-    # box_8FC479F6.html, first team, hand-read: totals row FGA 51 + 23, FTA 27, OREB 18, TOV 18;
-    # player lines sum to FG2M 24 and FG3M 7 (24 * 2 + 7 * 3 + 24 FTM = 93 points);
-    # the opponent's DREB is 25; possessions 74 - 18 + 18 + 0.42 * 27
-    f = out["factors"]
-    assert f["efg_pct"]["value"] == pytest.approx((24 + 1.5 * 7) / 74)
-    assert f["tov_pct"]["value"] == pytest.approx(18 / 85.34)
-    assert f["orb_pct"]["value"] == pytest.approx(18 / (18 + 25))
-    assert f["ft_rate"]["value"] == pytest.approx(27 / 74)
-    # its only 2025 game is against AAAA0002, which won it: above the 1500 start
-    played = out["schedule_strength"]["played"]
-    assert played["games"] == 1
-    assert played["mean_opponent_elo"] == pytest.approx(
-        _elo_table(root, "gbl", 2025)["AAAA0002"][0]
-    )
-    assert played["mean_opponent_elo"] > 1500.0
-    other = rm.team_factors(store, "gbl", "AAA", 2025)
-    assert other["factors"]["efg_pct"]["reason"] == "no box-score games for 'AAA' in 2025"
-
-
-def test_gbl_factors_without_cached_box_pages_say_so(fresh: Path) -> None:
-    shutil.rmtree(fresh / GBL.raw_dir)
-    out = rm.team_factors(rm.Store(fresh), "gbl", "AAAA0001", 2025)
-    assert out["factors"]["efg_pct"] == {
-        "value": None,
-        "reason": "no gbl box-score lines are cached",
-    }
-    assert out["available_seasons"] == []
-    assert out["schedule_strength"]["played"]["reason"] is None
-
-
 def test_factors_of_an_unknown_team_or_competition(store: rm.Store) -> None:
     with pytest.raises(rm.NotFound, match="unknown team 'XXX'"):
-        rm.team_factors(store, "gbl", "XXX", None)
+        rm.team_factors(store, "euroleague", "XXX", None)
     with pytest.raises(rm.NotFound, match="unknown competition"):
         rm.team_factors(store, "acb", "BAR", None)
 
@@ -441,7 +404,7 @@ def test_factors_of_an_unknown_team_or_competition(store: rm.Store) -> None:
 def test_a_player_has_his_euroleague_seasons_and_the_impact_reports(store: rm.Store) -> None:
     out = rm.player(store, EL_PERSON)
     assert (out["name"], out["debut_season"]) == ("Levi Randolph", 2024)
-    (el,) = out["seasons"]  # his GBL season is not published
+    (el,) = out["seasons"]
     assert (el["competition"], el["season"], el["team"], el["games"]) == (
         "euroleague",
         2024,
@@ -486,7 +449,7 @@ def test_players_outside_the_crosswalk_get_the_source_scheme_and_other_names(
     store: rm.Store,
 ) -> None:
     with pytest.raises(rm.NotFound, match="unknown person_id"):  # GBL-only: not on the site
-        rm.player(store, GBL_ONLY_PERSON)
+        rm.player(store, UNPUBLISHED_PERSON)
     unmapped = rm.player(store, "P:P006835")  # an EuroLeague id the crosswalk does not cover
     assert unmapped["name"] == "Jaylen Hoard"
     assert [s["total"] for s in unmapped["impact"]["seasons"]] == [1.0, 2.5]
@@ -507,7 +470,7 @@ def test_player_payloads_carry_no_birth_date_or_age(store: rm.Store) -> None:
     assert "birth" not in text and '"age"' not in text
 
 
-def test_projection_similarity_and_scouting_serve_the_committed_reports(store: rm.Store) -> None:
+def test_projection_and_similarity_serve_the_committed_reports(store: rm.Store) -> None:
     projection = rm.player_projection(store, EL_PERSON)
     assert (projection["model"], projection["variant"], projection["season"]) == (
         "m6",
@@ -526,10 +489,6 @@ def test_projection_similarity_and_scouting_serve_the_committed_reports(store: r
     assert [(r["rank"], r["person_id"]) for r in similar["similar"]] == [(1, "P:P006835")]
     assert list(similar["features"]) == ["euroleague"]
     assert similar["pool_seasons"] == [2023, 2024, 2025]
-
-    board = rm.scouting_board(store)
-    assert board["rows"][0]["z"] == 1.5 and board["dimensions"]["shot_making"]["n_min"] == 100
-    assert {r["competition"] for r in board["rows"]} == {"euroleague"}
 
 
 def test_projection_and_similarity_not_found_say_why(store: rm.Store, fresh: Path) -> None:
@@ -570,12 +529,6 @@ def test_a_passed_gate_v2_gates_the_euroleague_simulation_only(fresh: Path) -> N
     el = rm.simulation_latest(rm.Store(fresh), "euroleague")
     assert el["gated"] is True and el["gate"]["passed"] is True
     assert "gate v2" in el["gate"]["reason"]
-    (fresh / "reports" / "sim_ungated_gbl.json").write_text(
-        (fresh / "reports" / "sim_ungated_euroleague.json").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    gbl = rm.simulation_latest(rm.Store(fresh), "gbl")
-    assert gbl["gated"] is False and "GBL is not gated" in gbl["gate"]["reason"]
     v2.write_text(json.dumps({"gate_v2": {"passed": False}}), encoding="utf-8")
     assert rm.simulation_latest(rm.Store(fresh), "euroleague")["gated"] is False
 
@@ -587,8 +540,6 @@ def test_without_an_ungated_report_the_404_states_the_verdict(fresh: Path) -> No
     assert caught.value.reason.startswith("no ungated simulation report for euroleague: M7 failed")
     assert caught.value.extra["gated"] is False
     assert caught.value.extra["gate"]["passed"] is False
-    with pytest.raises(rm.NotFound, match="no ungated simulation report for gbl"):
-        rm.simulation_latest(rm.Store(fresh), "gbl")
 
 
 def _m7_store(tmp_path: Path, gate: dict[str, Any] | None) -> rm.Store:

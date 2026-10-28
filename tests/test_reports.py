@@ -44,6 +44,5 @@ def test_the_diff_catches_a_moved_value_and_a_dropped_key() -> None:
 def test_three_reports_are_frozen() -> None:
     assert sorted(p.name for p in BEFORE.glob("*.json")) == [
         "backtest_elo.json",
-        "backtest_elo_gbl.json",
         "backtest_elo_history.json",
     ]

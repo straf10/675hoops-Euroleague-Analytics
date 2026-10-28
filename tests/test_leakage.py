@@ -18,9 +18,9 @@ from tests.test_m1_backtest import SPEC as M1_TEST_SPEC
 PARAMS = EloParams(k=30.0, hca=80.0, reversion=0.5)
 
 
-@pytest.fixture(params=[False, True], ids=["euroleague-like", "gbl-like"])
-def history(request: pytest.FixtureRequest) -> pd.DataFrame:
-    return make_games({2023: True, 2024: True}, gbl_like=request.param)
+@pytest.fixture
+def history() -> pd.DataFrame:
+    return make_games({2023: True, 2024: True})
 
 
 def cutoff(games: pd.DataFrame) -> pd.Timestamp:
@@ -112,7 +112,7 @@ def mutations(games: pd.DataFrame, season: int) -> dict[str, pd.DataFrame]:
 
 @pytest.fixture(scope="module")
 def backtest_games() -> pd.DataFrame:
-    return make_games({s: True for s in range(2017, 2024)} | {2024: False}, gbl_like=True)
+    return make_games({s: True for s in range(2017, 2024)} | {2024: False})
 
 
 @pytest.mark.parametrize("season", [2022, 2023])
@@ -147,9 +147,9 @@ M1_RATING = DecayParams(half_life_days=120.0, carry=0.5, ridge=500.0)
 M1_PACE = DecayParams(half_life_days=120.0, carry=0.5, ridge=5.0)
 
 
-@pytest.fixture(params=[False, True], ids=["euroleague-like", "gbl-like"])
-def m1_history(request: pytest.FixtureRequest) -> tuple[pd.DataFrame, pd.DataFrame]:
-    games = make_games({2022: True, 2023: True, 2024: True}, gbl_like=request.param)
+@pytest.fixture
+def m1_history() -> tuple[pd.DataFrame, pd.DataFrame]:
+    games = make_games({2022: True, 2023: True, 2024: True})
     return games, make_team_games(games)
 
 
@@ -271,9 +271,9 @@ M1_SPEC = replace(
 )
 
 
-@pytest.fixture(scope="module", params=[False, True], ids=["euroleague-like", "gbl-like"])
-def m1_backtest_history(request: pytest.FixtureRequest) -> tuple[pd.DataFrame, pd.DataFrame]:
-    games = make_games({s: True for s in range(2017, 2024)}, gbl_like=request.param)
+@pytest.fixture(scope="module")
+def m1_backtest_history() -> tuple[pd.DataFrame, pd.DataFrame]:
+    games = make_games({s: True for s in range(2017, 2024)})
     return games, make_team_games(games)
 
 

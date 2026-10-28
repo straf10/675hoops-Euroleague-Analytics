@@ -461,11 +461,10 @@ def test_the_real_config_is_the_declared_one() -> None:
     assert GATE_V2_MARGIN == 0.005
 
 
-def test_the_cli_refuses_a_gbl_gate_v2_run_and_other_models() -> None:
+def test_the_cli_refuses_gate_v2_for_other_models() -> None:
     runner = CliRunner()
-    gbl = runner.invoke(cli.app, ["backtest", "--model", "m7", "--competition", "gbl", "--gate-v2"])
     other = runner.invoke(cli.app, ["backtest", "--model", "m1", "--gate-v2"])
-    assert (gbl.exit_code, other.exit_code) == (1, 1)
+    assert other.exit_code == 1
 
 
 def test_the_cli_writes_the_report_and_rows(

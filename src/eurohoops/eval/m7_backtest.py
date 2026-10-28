@@ -24,7 +24,7 @@ Definitions (orchestrator decisions on top of reports/m7_progress.md):
   covariance) the normals are still drawn but every simulation gets exactly m.
 - **Pace**: M1's pace point [mu_p, pace * n] as ``PaceModel(mu_p, pace of the season's teams)``.
 - **Noise**: M1's committed ``tuned.margin`` (Student-t df, or Normal). A ``*_pace`` margin
-  variant (the GBL's) uses its constant scale * sqrt(mean pace of the remaining fixtures /
+  variant uses its constant scale * sqrt(mean pace of the remaining fixtures /
   ref_pace) at that checkpoint (D8).
 - **Variants**: ``sim_full`` (sampled strengths, M1's noise), ``sim_net`` (noise scale shrunk
   so that strength variance + noise variance = M1's predictive variance V, floored at
@@ -37,7 +37,7 @@ Definitions (orchestrator decisions on top of reports/m7_progress.md):
 - **Targets**: the final table is ``standings.rank`` on every regular-season game of the season
   (regulation scores where given) with the format's deductions; the cut lines are
   ``formats.cut_lines``; the champion is the winner of the season's last played ``FF`` game
-  (EuroLeague) or ``PO`` game (GBL), or unknown.
+  (EuroLeague), or unknown.
 - **Metrics** (pooled per split and per checkpoint fraction, from the rounded CSV rows): Brier of
   P(direct cut), RPS of the final rank = sum_{k<n} (P(place <= k) - 1[place <= k])^2 / (n - 1),
   log loss of the cut probability clipped to [1e-4, 1 - 1e-4], Brier of P(top 10) in seasons with a
@@ -47,7 +47,7 @@ Definitions (orchestrator decisions on top of reports/m7_progress.md):
   team-season's checkpoints together) percentile 95% CI.
 - **Choice (K-i)**: on the tuning seasons only, the lowest mean RPS among the variants; a difference
   below ``tie_tolerance`` goes to the simpler one (``sim_full`` < ``sim_net`` < ``sim_inflate_c``
-  by increasing c). ``fixed`` skips the choice (the GBL scores the EuroLeague verdict).
+  by increasing c). ``fixed`` skips the choice.
 - **Gate (K-h)**: on the validation seasons the chosen variant's mean Brier is below
   ``point_sim``'s and ``standings_now``'s, and the Spiegelhalter |z| pooled over tuning and
   validation is below 1.96.
@@ -85,7 +85,7 @@ from eurohoops.standings import Format, Result, rank
 
 SPLITS = ("tuning", "validation", "test")
 BASELINES = ("point_sim", "elo_sim", "standings_now")
-CHAMPION_PHASE = {"euroleague": "FF", "gbl": "PO"}
+CHAMPION_PHASE = "FF"  # the champion is the winner of the last Final Four game
 LOG_CLIP = 1e-4
 Z_LIMIT = 1.96
 BINS = 10
@@ -144,7 +144,7 @@ TEAMS_SCHEMA = pa.DataFrameSchema(
 class M7Inputs:
     """Everything a run reads. ``games`` and ``team_games`` are the competition's marts over every
     season up to the last scored one; ``regulation`` maps ``game_id`` to the regulation score of
-    an overtime game (empty for the GBL); ``tuned_m1`` is ``reports/backtest_m1*.json``'s
+    an overtime game; ``tuned_m1`` is ``reports/backtest_m1*.json``'s
     ``tuned`` block and ``elo`` its ``comparison_elo`` block."""
 
     competition: str
@@ -305,7 +305,7 @@ def _season(inputs: M7Inputs, fmt: Format, season: int) -> _Season:
         teams=tuple(sorted({*regular["home"], *regular["away"]})),
         regular=regular,
         place={team: place for place, team in enumerate(final, start=1)},
-        champion=champion_of(games, CHAMPION_PHASE[inputs.competition]),
+        champion=champion_of(games, CHAMPION_PHASE),
     )
 
 
@@ -847,8 +847,8 @@ def run_m7_backtest(
     """The M7 report and the per-team-checkpoint rows (module docstring). ``tuning_only``: only
     the tuning seasons are simulated, so no validation or test number exists anywhere (the verdict
     must be committed before validation is scored). ``score_test``: also the test seasons (only
-    after the validation commit). ``fixed``: score this variant key instead of choosing one (the
-    GBL scores the EuroLeague verdict). ``formats`` supplies each season's ``Format``."""
+    after the validation commit). ``fixed``: score this variant key instead of choosing one.
+    ``formats`` supplies each season's ``Format``."""
     keys = [v.key for v in variants(spec)]
     if fixed is not None and fixed not in keys:
         raise ValueError(f"the fixed variant {fixed!r} is not one of {keys}")

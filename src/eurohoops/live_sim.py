@@ -251,7 +251,7 @@ def latest_report(
     run: LiveRun, model: LiveSim, fmt: Format, season: int, at: datetime
 ) -> dict[str, Any]:
     """``reports/sim_latest_{competition}.json``: the log rows plus the run's settings and the
-    format's sources and unverified rules (carried into every GBL output)."""
+    format's sources and unverified rules."""
     out = run.out
     return {
         "competition": fmt.competition,

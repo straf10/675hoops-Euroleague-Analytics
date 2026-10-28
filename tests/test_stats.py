@@ -67,6 +67,7 @@ from eurohoops.stats.shots import (
     period,
 )
 from eurohoops.stats.units import load_units
+from eurohoops.stats.win_shares import WS_FIELDS, box_win_shares
 from eurohoops.stats.zones import shot_zones
 from tests.conftest import FIXTURES
 
@@ -81,6 +82,7 @@ runner = CliRunner()
 def inputs() -> Inputs:
     games, teams = load_cached_games(RAW)
     box = build_box_games(RAW, games)
+    assists = game_assists(RAW, games[games["played"]])
     return Inputs(
         games=games,
         names=dict(teams.itertuples(index=False)),
@@ -97,7 +99,8 @@ def inputs() -> Inputs:
             site_window(box.players["season"].unique()),
             DISPLAY_CODES["euroleague"],
         ),
-        assists=game_assists(RAW, games[games["played"]]),
+        assists=assists,
+        win_shares=box_win_shares(box.players, box.teams),
         coaches=coach_games(
             RAW,
             with_elo(games, load_tuned_model(HISTORY_REPORT).params, 2007),
@@ -297,7 +300,7 @@ def test_team_totals_cover_the_player_lines(files: dict[str, dict[str, Any]]) ->
 
 def test_splits_add_up_to_the_season_rows(files: dict[str, dict[str, Any]]) -> None:
     splits = files["splits.json"]
-    assert splits["fields"] == list(PLAYER_FIELDS)
+    assert splits["fields"] == [*PLAYER_FIELDS, *WS_FIELDS]
     seasons = {s["season"] for s in files["meta.json"]["seasons"]}
     for season in seasons:
         rows = [r for r in splits["rows"] if r[1] == season]

@@ -56,7 +56,7 @@ def section(card: dict[str, object] = CARD, logged_rounds: int = 2) -> Section:
         columns=list(LOG_COLUMNS),
     )
     names = {"AAA": "Ολυμπιακός & <Co>"}
-    return Section("gbl", "Greek Basket League", log, card, REPORT, games, names, MODEL, 2026, 2025)
+    return Section("euroleague", "EuroLeague", log, card, REPORT, games, names, MODEL, 2026, 2025)
 
 
 def test_upcoming_results_and_scorecard() -> None:
@@ -117,7 +117,7 @@ def test_site_without_a_log_is_json_ready() -> None:
 
 
 def test_display_codes_rename_only_what_the_site_shows(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setitem(DISPLAY_CODES, "gbl", {"AAA": "OLY"})
+    monkeypatch.setitem(DISPLAY_CODES, "euroleague", {"AAA": "OLY"})
     data = section_data(section(), NOW)
     rated = {r["code"]: r["name"] for r in data["ratings"]}
     assert rated["OLY"] == "Ολυμπιακός & <Co>"  # the name is still looked up by the source code
@@ -168,7 +168,7 @@ def test_an_on_time_row_wins_over_an_earlier_listed_late_one() -> None:
 
 
 def test_next_tip_off_skips_games_without_a_confirmed_time() -> None:
-    """A GBL game without a confirmed time sits at 00:00 Athens; it is never the next tip-off."""
+    """A game without a confirmed time sits at 00:00 Athens; it is never the next tip-off."""
     plain = section()
     games = plain.games.copy()
     ahead = games[(games["season"] == 2026) & ~games["played"]].index

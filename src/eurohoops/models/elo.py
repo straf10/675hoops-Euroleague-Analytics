@@ -60,19 +60,23 @@ def mov_multiplier(mov: int, winner_diff: float) -> float:
     return float((mov + 3) ** 0.8 / (7.5 + 0.006 * winner_diff))
 
 
-def replay(games: GameArrays, params: EloParams) -> FloatArray:
-    """Return the pre-game rating difference (home - away + HCA) for every game."""
-    return _run(games, params)[0]
+def replay(games: GameArrays, params: EloParams, home_hca: FloatArray | None = None) -> FloatArray:
+    """Return the pre-game rating difference (home - away + HCA) for every game.
+
+    ``home_hca`` (one value per game, in ``games`` order) replaces ``params.hca`` for each game
+    when given (ELOH's per-team home advantage); the default is unchanged.
+    """
+    return _run(games, params, home_hca)[0]
 
 
 def replay_with_ratings(
-    games: GameArrays, params: EloParams
+    games: GameArrays, params: EloParams, home_hca: FloatArray | None = None
 ) -> tuple[FloatArray, FloatArray, FloatArray]:
     """Return ``(diff, home_rating, away_rating)`` for every game, all pre-game.
 
     ``diff`` is exactly what ``replay`` returns; the ratings exclude home-court advantage.
     """
-    diffs, home_ratings, away_ratings, _, _ = _run(games, params)
+    diffs, home_ratings, away_ratings, _, _ = _run(games, params, home_hca)
     return diffs, home_ratings, away_ratings
 
 
@@ -80,7 +84,7 @@ def season_ratings(
     games: GameArrays, params: EloParams, season: int
 ) -> dict[str, tuple[float, float]]:
     """Each ``season`` team's (current rating, rating at that season's start after reversion)."""
-    _, _, _, ratings, starts = _run(games, params)
+    _, _, _, ratings, starts = _run(games, params, None)
     teams = {
         t
         for s, h, a in zip(games.season, games.home, games.away, strict=True)
@@ -92,7 +96,7 @@ def season_ratings(
 
 
 def _run(
-    games: GameArrays, params: EloParams
+    games: GameArrays, params: EloParams, home_hca: FloatArray | None
 ) -> tuple[FloatArray, FloatArray, FloatArray, dict[str, float], dict[int, dict[str, float]]]:
     """One chronological pass: pre-game diffs and ratings, final ratings and a snapshot at each
     season start."""
@@ -123,7 +127,8 @@ def _run(
             starts[season] = dict(ratings)
         home_rating = ratings.setdefault(home, INITIAL_RATING)
         away_rating = ratings.setdefault(away, INITIAL_RATING)
-        diff = home_rating - away_rating + (0.0 if neutral else params.hca)
+        hca = params.hca if home_hca is None else float(home_hca[i])
+        diff = home_rating - away_rating + (0.0 if neutral else hca)
         diffs[i] = diff
         home_ratings[i] = home_rating
         away_ratings[i] = away_rating

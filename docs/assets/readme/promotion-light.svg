@@ -93,7 +93,7 @@ svg .foldtick{stroke:var(--paper);stroke-width:1.5}</style><rect width="100%" he
 <rect class="body" x="620" y="40" width="160" height="72" rx="6"/>
 <text x="700.0" y="66.0" class="t-name" text-anchor="middle" >Checkpoint</text>
 <text x="700.0" y="81.0" class="t-sub" text-anchor="middle" >EL: round 19 · end</text>
-<text x="700.0" y="94.0" class="t-sub" text-anchor="middle" >GBL: round 13 · end</text>
+<text x="700.0" y="94.0" class="t-sub" text-anchor="middle" ></text>
 </g>
 <g class="node n-step">
 <rect class="mask" x="820" y="40" width="160" height="72" rx="6"/>

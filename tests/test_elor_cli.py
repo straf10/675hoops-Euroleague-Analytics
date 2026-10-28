@@ -51,8 +51,6 @@ def elor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ElorCv:
         ["backtest", "--model", "elor", "--cv", "--cv-check"],
         ["backtest", "--cv"],
         ["backtest", "--model", "m5", "--cv-check"],
-        ["backtest", "--model", "elor", "--competition", "gbl", "--cv"],
-        ["backtest", "--model", "elor", "--competition", "gbl", "--cv-check"],
     ],
 )
 def test_elor_flags_refuse_other_models_competitions_and_combinations(args: list[str]) -> None:
