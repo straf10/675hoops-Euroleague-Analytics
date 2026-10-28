@@ -11,6 +11,7 @@ import json
 import time
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -20,6 +21,7 @@ from sklearn.isotonic import IsotonicRegression
 from eurohoops.models import wp as wpm
 from eurohoops.models.elo import EloParams, fit_margin_scale, prepare, replay
 from eurohoops.models.wp import Calibrated, Family, FloatArray
+from eurohoops.parallel import map_ordered, record
 from eurohoops.parse.wp_pbp import MARKERS, SCORING_CODES, parse_game
 
 ELO = EloParams(k=20.0, hca=90.0, reversion=0.25)  # the live parameters (elo.replay)
@@ -113,14 +115,24 @@ def _read_game(raw_dir: Path, row: Any) -> tuple[str | None, pd.DataFrame | None
     return None, _events(parsed.rows)
 
 
+def _read_game_item(item: tuple[Path, SimpleNamespace]) -> tuple[str | None, pd.DataFrame | None]:
+    """``_read_game`` for one (raw_dir, game) pair: a picklable item for worker processes."""
+    raw_dir, row = item
+    return _read_game(raw_dir, row)
+
+
 def build(games: pd.DataFrame, raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Games with exclusion reasons, scoring-event training rows, and checkpoint rows."""
     g = build_games(games)
     scoring: list[pd.DataFrame] = []
     checks: list[pd.DataFrame] = []
     rows: list[Any] = list(g.itertuples(index=False))
-    for row in rows:
-        reason, ev = _read_game(raw_dir, row)
+    # the play-by-play of each game is read and parsed in a worker; results stay in game order
+    read = map_ordered(
+        _read_game_item,
+        [(raw_dir, record(row)) for row in g.to_dict("records")],
+    )
+    for row, (reason, ev) in zip(rows, read, strict=True):
         g.loc[row.gid, "reason"] = reason
         if reason is not None or ev is None:
             continue

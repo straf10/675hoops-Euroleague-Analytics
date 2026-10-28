@@ -22,6 +22,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parallel import map_ordered
 from eurohoops.parse.schemas import validated
 from eurohoops.parse.shots import FIRST_VALIDATED_SEASON, FREE_THROW_SENTINEL, to_court_coords
 
@@ -144,18 +145,30 @@ def _with_geometry(raw: pd.DataFrame) -> pd.DataFrame:
     return frame[list(SHOTS_SCHEMA.columns)]
 
 
+def _shots_item(item: tuple[Path, dict[Hashable, Any]]) -> tuple[list[dict[str, Any]], int] | None:
+    """A game's shots and unplaced count for a worker process; None without a cached feed."""
+    raw_dir, game = item
+    season = int(game["season"])
+    path = raw_dir / "points" / f"E{season}" / f"{game['game_code']}.json.gz"
+    if not path.exists():
+        return None
+    return game_shots(json.loads(read_cached(path)), game)
+
+
 def build_shots(raw_dir: Path, games: pd.DataFrame) -> Shots:
     """Every cached ``Points`` feed of a played, non-forfeit game in ``games``."""
     rows: list[dict[str, Any]] = []
     coverage: dict[int, dict[str, int]] = {}
     rated = games[games["played"] & ~games["forfeit"]]
-    for game in rated.to_dict("records"):
+    records = rated.to_dict("records")
+    # each game's feed is read and parsed in a worker; the totals are combined in game order
+    feeds = map_ordered(_shots_item, [(raw_dir, game) for game in records])
+    for game, feed in zip(records, feeds, strict=True):
         season = int(game["season"])
         seen = coverage.setdefault(season, {"games": 0, "shots": 0, "unplaced": 0})
-        path = raw_dir / "points" / f"E{season}" / f"{game['game_code']}.json.gz"
-        if not path.exists():
+        if feed is None:
             continue
-        shots, unplaced = game_shots(json.loads(read_cached(path)), game)
+        shots, unplaced = feed
         seen["games"] += 1 if shots else 0
         seen["shots"] += len(shots)
         seen["unplaced"] += unplaced

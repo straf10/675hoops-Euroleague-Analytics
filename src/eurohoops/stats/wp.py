@@ -17,6 +17,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import astuple, dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -37,6 +38,7 @@ from eurohoops.eval.wp_backtest import (
 from eurohoops.models import wp as wpm
 from eurohoops.models.wp import Calibrated
 from eurohoops.models.wp_control import game_parts, team_view
+from eurohoops.parallel import map_ordered, record
 from eurohoops.parse.wp_pbp import ParsedGame, parse_game
 
 GRID_SECONDS = 30  # a line point every 30 s of game time, plus every scoring change
@@ -209,31 +211,47 @@ def game_line(
     }
 
 
+_MODEL: Calibrated | None = None  # the worker's copy of the fitted model (``_set_model``)
+
+
+def _set_model(model: Calibrated) -> None:
+    """Pool initializer: each worker process keeps the fitted model once, not once per game."""
+    global _MODEL  # noqa: PLW0603
+    _MODEL = model
+
+
+def _line_for(item: tuple[Path, SimpleNamespace, float]) -> tuple[str, dict[str, Any] | None]:
+    """One game's line (None without a usable play-by-play), for a worker process."""
+    raw_dir, row, pre = item
+    if _MODEL is None:
+        raise RuntimeError("_line_for needs _set_model first")
+    parsed = _parsed(raw_dir, row)
+    if parsed is None:
+        return str(row.game_id), None
+    home_won = bool(row.home_score > row.away_score)
+    return str(row.game_id), game_line(parsed, pre, bool(row.neutral), _MODEL, home_won)
+
+
 def wp_lines(
     games: pd.DataFrame, raw_dir: Path, report: Mapping[str, Any], pre_2026: Mapping[str, float]
 ) -> WpLines:
     """Every game with a usable play-by-play: the historic games with the backtest's walk-forward
     Elo P(home), the live season's games with their logged pre-game P(home)."""
     model, g = fit_frozen(games, raw_dir, report)
-    out: dict[str, dict[str, Any]] = {}
-
-    def add(row: Any, pre: float) -> None:
-        parsed = _parsed(raw_dir, row)
-        if parsed is None:
-            return
-        home_won = bool(row.home_score > row.away_score)
-        line = game_line(parsed, pre, bool(row.neutral), model, home_won)
-        if line is not None:
-            out[str(row.game_id)] = line
-
     pres = g["p_pre"].to_numpy(float)
-    for pre, row in zip(pres, g.itertuples(index=False), strict=True):
-        add(row, float(pre))
+    items: list[tuple[Path, SimpleNamespace, float]] = [
+        (raw_dir, record(row), float(pre))
+        for pre, row in zip(pres, g.to_dict("records"), strict=True)
+    ]
     live = games[(games["season"] > LAST_SEASON) & games["played"].astype(bool)]
-    for row in live.itertuples(index=False):
-        gid = str(row.game_id)
-        if gid in pre_2026:
-            add(row, pre_2026[gid])
+    items += [
+        (raw_dir, record(row), pre_2026[str(row["game_id"])])
+        for row in live.to_dict("records")
+        if str(row["game_id"]) in pre_2026
+    ]
+    # the per-game lines are computed in worker processes; results keep the order of ``items``
+    lines = map_ordered(_line_for, items, initializer=_set_model, initargs=(model,))
+    out = {gid: line for gid, line in lines if line is not None}
     return WpLines(
         version=str(report["version"]), family=str(report["chosen"]["family"]), games=out
     )

@@ -13,7 +13,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 
@@ -35,8 +35,10 @@ SAMPLE_SEED = 20260925
 CHECKS = ("five_on_court", "seconds", "minutes", "points")
 
 
-@dataclass(frozen=True)
-class Event:
+class Event(NamedTuple):
+    """A PBP row. A NamedTuple, not a frozen dataclass: the export builds millions of these and a
+    frozen dataclass spends most of its time in ``__init__``."""
+
     period: int  # 1-4, then 5, 6, ... for overtimes
     elapsed: int | None  # game seconds since tip-off; None for rows without a clock
     kind: str

@@ -6,7 +6,7 @@ forward, home perspective). The file is never fetched here; the caller reads the
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 # Section 2: every made field goal and made free throw. LAYUPMD and DUNK are the 2008-2014 coding
 # of two-point makes; a model without them drops 41,164 makes.
@@ -29,8 +29,10 @@ CLOCK_BLANK = "blank"
 CLOCK_ND = "nd"
 
 
-@dataclass(frozen=True)
-class PlayRow:
+class PlayRow(NamedTuple):
+    """One play. A NamedTuple, not a frozen dataclass: a game has ~500 rows and the export parses
+    every game twice, so construction speed matters."""
+
     period: int  # 1-4 regulation; 4 + k in overtime period k
     ot: int  # 1 in overtime
     clock: float  # seconds left in the period, clamped to the period maximum

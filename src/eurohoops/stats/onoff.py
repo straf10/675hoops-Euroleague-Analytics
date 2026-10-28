@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parallel import map_ordered
 from eurohoops.parse.stints import OVERTIME_S, POINTS, QUARTER_S, QUARTERS, events
 
 log = logging.getLogger(__name__)
@@ -187,30 +188,40 @@ def onoff_payload(
     return payload
 
 
+def _game_score_rows(item: tuple[Path, str, int, int, str]) -> list[tuple[Any, ...]] | None:
+    """One game's scoring rows (``SCORE_COLUMNS``) for a worker process; None without a file."""
+    raw_dir, game_id, season, code, home = item
+    path = raw_dir / "playbyplay" / f"E{season}" / f"{code}.json.gz"
+    if not path.exists():
+        return None
+    return [
+        (
+            game_id,
+            season,
+            event.period,
+            event.elapsed,
+            event.team,
+            event.player,
+            POINTS[event.kind],
+            event.team == home,
+        )
+        for event in events(json.loads(read_cached(path)))
+        if event.kind in POINTS
+    ]
+
+
 def score_events(raw_dir: Path, games: pd.DataFrame) -> pd.DataFrame:
     """Scoring events of ``games`` (game_id, season, game_code, home) from the cached
     play-by-play, in log order. Games without a cached file are skipped."""
+    items = [
+        (raw_dir, str(game_id), int(season), int(code), home)
+        for game_id, season, code, home in zip(
+            games["game_id"], games["season"], games["game_code"], games["home"], strict=True
+        )
+    ]
     rows: list[tuple[Any, ...]] = []
-    for game_id, season, code, home in zip(
-        games["game_id"], games["season"], games["game_code"], games["home"], strict=True
-    ):
-        path = raw_dir / "playbyplay" / f"E{int(season)}" / f"{int(code)}.json.gz"
-        if not path.exists():
-            continue
-        for event in events(json.loads(read_cached(path))):
-            if event.kind in POINTS:
-                rows.append(
-                    (
-                        str(game_id),
-                        int(season),
-                        event.period,
-                        event.elapsed,
-                        event.team,
-                        event.player,
-                        POINTS[event.kind],
-                        event.team == home,
-                    )
-                )
+    for found in map_ordered(_game_score_rows, items):
+        rows.extend(found or [])
     return pd.DataFrame(rows, columns=list(SCORE_COLUMNS))
 
 
