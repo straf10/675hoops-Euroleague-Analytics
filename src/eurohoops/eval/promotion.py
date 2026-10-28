@@ -25,9 +25,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from eurohoops.eval.forecasts import REGULAR_SEASON, _finished, _provable
+from eurohoops.eval.forecasts import REGULAR_SEASON, _finished
 from eurohoops.eval.metrics import paired_bootstrap_ci_clustered, per_game_log_loss
-from eurohoops.eval.scorecard import read_log
+from eurohoops.eval.scorecard import provable_rows, read_log
 from eurohoops.logs import write_json
 from eurohoops.models.elo import FloatArray
 
@@ -162,9 +162,9 @@ def _flagship_rows(log: pd.DataFrame) -> tuple[pd.DataFrame, str]:
 def _season_provable(
     log_path: Path, season: int, manual_pushes: Sequence[datetime]
 ) -> pd.DataFrame:
-    """One log's pre-registered row per game of ``season`` (see ``forecasts._provable``)."""
+    """One log's pre-registered row per game of ``season`` (see ``scorecard.provable_rows``)."""
     log = read_log(log_path)
-    return _provable(log[log["season"] == season], manual_pushes)
+    return provable_rows(log[log["season"] == season], manual_pushes)
 
 
 def _capped_finished(games: pd.DataFrame, season: int, last_round: int | None) -> pd.DataFrame:
@@ -225,7 +225,7 @@ def _pairing(
     if flagship_all.empty:
         raise ValueError("the flagship has no logged games this season")
     flagship_rows, version = _flagship_rows(flagship_all)
-    flagship = _provable(flagship_rows, manual_pushes)
+    flagship = provable_rows(flagship_rows, manual_pushes)
     elo = _season_provable(elo_log, season, manual_pushes)
     finished = _capped_finished(games, season, last_round)
     paired = _join(flagship, elo, finished)

@@ -17,7 +17,7 @@ import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.metrics import per_game_log_loss
-from eurohoops.eval.scorecard import latest_per_model_game, not_provable, read_log
+from eurohoops.eval.scorecard import provable_rows, read_log
 from eurohoops.logs import TIME_FORMAT
 
 REGULAR_SEASON = "RS"
@@ -25,18 +25,6 @@ WITHIN_POINTS = (5, 10)  # margin error bands, in points
 MARKET_LABEL = "Bookmakers"
 MKT_KEY = "mkt"  # the benchmark forecaster: the bookmakers' pre-tip line (docs/models/mkt.md)
 _NUMERIC = ("p_home", "exp_margin", "exp_total")
-
-
-def _provable(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.DataFrame:
-    """The pre-registered row per game: the latest provable row stamped before its tip-off, of the
-    earliest model version that logged the game (``latest_per_model_game``)."""
-    valid = log[
-        pd.to_datetime(log["predicted_at_utc"], utc=True)
-        < pd.to_datetime(log["tipoff_utc"], utc=True)
-    ]
-    kept = valid[~not_provable(valid, manual_pushes)]
-    latest = latest_per_model_game(kept)
-    return latest.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
 
 
 def _finished(games: pd.DataFrame, season: int) -> pd.DataFrame:
@@ -63,7 +51,7 @@ def _calls(
     log = read_log(log_path)
     if "exp_total" not in log.columns:
         log = log.assign(exp_total=np.nan)
-    rows = _provable(log, manual_pushes)
+    rows = provable_rows(log, manual_pushes)
     rows = rows[rows["season"] == season]
     first_round = int(rows["round"].min()) if len(rows) else None
     finished = _finished(games, season)

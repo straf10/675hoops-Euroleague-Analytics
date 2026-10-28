@@ -56,6 +56,20 @@ def latest_per_model_game(rows: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def provable_rows(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.DataFrame:
+    """The pre-registered row per game: the latest provable row stamped before its tip-off, of the
+    earliest model version that logged the game (``latest_per_model_game``). Rows that became
+    public only at or after tip-off are left out. The promotion test, the forecasts and every
+    live section use this selection."""
+    valid = log[
+        pd.to_datetime(log["predicted_at_utc"], utc=True)
+        < pd.to_datetime(log["tipoff_utc"], utc=True)
+    ]
+    kept = valid[~not_provable(valid, manual_pushes)]
+    latest = latest_per_model_game(kept)
+    return latest.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
+
+
 def _scored(rows: pd.DataFrame, games: pd.DataFrame, model: TunedModel) -> pd.DataFrame:
     """Each game's row joined with its result, in tip-off order, with B0 alongside.
 
@@ -216,10 +230,12 @@ def m1_section(
     elo: pd.DataFrame,
     window: int = ROLLING_WINDOW,
     name: str = "m1",
+    *,
+    manual_pushes: Sequence[datetime] = (),
 ) -> dict[str, Any]:
-    """Live M1 scores: its log's earliest pre-tip-off row per finished game, with the Elo
-    headline forecast of the same game alongside (``elo``: scored Elo rows). ``name`` keys the
-    model's blocks (``"m5"`` scores the shadow M5 log, which has the same columns)."""
+    """Live M1 scores: its log's pre-registered row per finished game (``provable_rows``), with
+    the Elo headline forecast of the same game alongside (``elo``: scored Elo rows). ``name`` keys
+    the model's blocks (``"m5"`` scores the shadow M5 log, which has the same columns)."""
     log = (
         pd.read_csv(m1_log_path, dtype={"game_id": str})
         if m1_log_path.exists()
@@ -229,7 +245,7 @@ def m1_section(
         pd.to_datetime(log["predicted_at_utc"], utc=True)
         < pd.to_datetime(log["tipoff_utc"], utc=True)
     ]
-    first = valid.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
+    first = provable_rows(log, manual_pushes)
     finished = games.loc[
         games["played"] & ~games["forfeit"],
         ["game_id", "tipoff_utc", "home_score", "away_score"],
@@ -294,17 +310,23 @@ def m1_section(
     }
 
 
-def trial_section(log_path: Path, games: pd.DataFrame, elo: pd.DataFrame) -> dict[str, Any]:
-    """A trial model's live scores (ELOR's shadow log): its earliest pre-tip-off row per finished
-    game, scored like the headline (log loss, Brier, hit rate = accuracy), with Elo's headline
-    forecast of the same games alongside. Reported only: never the headline, a decision or a
-    site forecast. ``elo``: the scored Elo rows of ``build_scorecard``."""
+def trial_section(
+    log_path: Path,
+    games: pd.DataFrame,
+    elo: pd.DataFrame,
+    *,
+    manual_pushes: Sequence[datetime] = (),
+) -> dict[str, Any]:
+    """A trial model's live scores (ELOR's shadow log): its pre-registered row per finished game
+    (``provable_rows``), scored like the headline (log loss, Brier, hit rate = accuracy), with
+    Elo's headline forecast of the same games alongside. Reported only: never the headline, a
+    decision or a site forecast. ``elo``: the scored Elo rows of ``build_scorecard``."""
     log = read_log(log_path)
     valid = log[
         pd.to_datetime(log["predicted_at_utc"], utc=True)
         < pd.to_datetime(log["tipoff_utc"], utc=True)
     ]
-    first = valid.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
+    first = provable_rows(log, manual_pushes)
     finished = games.loc[
         games["played"] & ~games["forfeit"],
         ["game_id", "tipoff_utc", "home_score", "away_score"],
@@ -384,21 +406,41 @@ def build_scorecard(
         "rolling": {"window": ROLLING_WINDOW, "series": rolling},
         "warnings": monitoring_warnings(rolling, log, games, now),
         "market": None if odds_path is None else market_scores(headline, odds_path),
-        **({} if m1_log_path is None else {"m1": m1_section(m1_log_path, games, headline)}),
+        **(
+            {}
+            if m1_log_path is None
+            else {"m1": m1_section(m1_log_path, games, headline, manual_pushes=manual_pushes)}
+        ),
         **(
             {}
             if m5_log_path is None
-            else {"m5": m1_section(m5_log_path, games, headline, name="m5")}
+            else {
+                "m5": m1_section(
+                    m5_log_path, games, headline, name="m5", manual_pushes=manual_pushes
+                )
+            }
         ),
         **(
-            {} if elor_log_path is None else {"elor": trial_section(elor_log_path, games, headline)}
+            {}
+            if elor_log_path is None
+            else {
+                "elor": trial_section(elor_log_path, games, headline, manual_pushes=manual_pushes)
+            }
         ),
         **(
             {}
             if m5inj_log_path is None
-            else {"m5inj": m1_section(m5inj_log_path, games, headline, name="m5inj")}
+            else {
+                "m5inj": m1_section(
+                    m5inj_log_path, games, headline, name="m5inj", manual_pushes=manual_pushes
+                )
+            }
         ),
         **(
-            {} if eloh_log_path is None else {"eloh": trial_section(eloh_log_path, games, headline)}
+            {}
+            if eloh_log_path is None
+            else {
+                "eloh": trial_section(eloh_log_path, games, headline, manual_pushes=manual_pushes)
+            }
         ),
     }

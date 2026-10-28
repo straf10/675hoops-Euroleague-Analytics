@@ -10,6 +10,7 @@ import pytest
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.metrics import crps_normal
 from eurohoops.eval.scorecard import build_scorecard, public_at, rolling_log_loss
+from eurohoops.live_m1 import M1_LOG_COLUMNS
 from eurohoops.odds import ODDS_COLUMNS
 from eurohoops.predict import LOG_COLUMNS
 
@@ -298,3 +299,74 @@ def test_elor_section_without_a_log_is_empty(tmp_path: Path, tuned: TunedModel) 
         0,
         0,
     )
+
+
+def m1_log(path: Path, rows: list[tuple[str, float, str]]) -> Path:
+    """An M1-format log: (game_id, p_home, predicted_at_utc) rows of G1 to G3."""
+    teams = {"G1": ("AAA", "BBB"), "G2": ("CCC", "DDD"), "G3": ("EEE", "FFF")}
+    frame = pd.DataFrame(
+        [
+            {
+                "game_id": g,
+                "season": 2026,
+                "round": 1,
+                "phase": "RS",
+                "tipoff_utc": "2026-10-01T18:00:00Z",
+                "home": teams[g][0],
+                "away": teams[g][1],
+                "p_home": p,
+                "exp_margin": 3.0,
+                "exp_total": 160.0,
+                "margin_sigma": 11.0,
+                "margin_df": 7.0,
+                "total_sigma": 15.0,
+                "model": "m1",
+                "model_version": "m1v1",
+                "predicted_at_utc": stamp,
+            }
+            for g, p, stamp in rows
+        ],
+        columns=list(M1_LOG_COLUMNS),
+    )
+    frame.to_csv(path, index=False)
+    return path
+
+
+def test_every_section_scores_the_latest_pre_tipoff_row(tmp_path: Path, tuned: TunedModel) -> None:
+    # G1 is forecast twice by one version before tip-off: the 08:00 row (p=.2) and the 12:00
+    # row (p=.8). Every section scores the later one, as the headline and the promotion test do.
+    # G1 home won by 10; G2 (p=.4 at 08:00) home won by 2; G3 is stamped at tip-off (late).
+    m1 = m1_log(
+        tmp_path / "m1.csv",
+        [
+            ("G1", 0.2, "2026-10-01T08:00:00Z"),
+            ("G1", 0.8, "2026-10-01T12:00:00Z"),
+            ("G2", 0.4, "2026-10-01T08:00:00Z"),
+            ("G3", 0.9, "2026-10-01T18:00:00Z"),
+        ],
+    )
+    elor = tmp_path / "elor.csv"
+    elor.write_text(
+        f"{HEADER}\n"
+        "G1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.2,1.0,elor,e1,2026-10-01T08:00:00Z\n"
+        "G1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.8,5.0,elor,e1,2026-10-01T12:00:00Z\n"
+        "G2,2026,1,RS,2026-10-01T18:00:00Z,CCC,DDD,0.4,-3.0,elor,e1,2026-10-01T08:00:00Z\n"
+    )
+    log = tmp_path / "log.csv"
+    log.write_text(LOG)
+    card = build_scorecard(
+        log,
+        results(played=True),
+        tuned,
+        NOW,
+        m1_log_path=m1,
+        m5_log_path=m1,
+        elor_log_path=elor,
+    )
+    expected = -(math.log(0.8) + math.log(0.4)) / 2  # later G1 row, then G2
+    assert card["m1"]["m1"]["n"] == 2
+    assert card["m1"]["m1"]["log_loss"] == pytest.approx(expected, abs=1e-6)
+    assert card["m5"]["m5"]["log_loss"] == pytest.approx(expected, abs=1e-6)
+    assert card["elor"]["metrics"]["n"] == 2
+    assert card["elor"]["metrics"]["log_loss"] == pytest.approx(expected, abs=1e-6)
+    assert card["m1"]["same_games_as_elo"]["m1_log_loss"] == pytest.approx(expected, abs=1e-6)
