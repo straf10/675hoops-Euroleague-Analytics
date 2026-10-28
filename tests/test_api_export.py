@@ -56,10 +56,20 @@ def client_for(root: Path, *, from_cache: bool = False) -> TestClient:
     return TestClient(create_app(Store(root, from_cache=from_cache), lambda: NOW))
 
 
+@pytest.fixture(scope="module")
+def template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The fixture tree, built once per module. Tests never use it directly: they mutate their
+    tree (stale files, removed raw caches), so each one copies it."""
+    root = tmp_path_factory.mktemp("api_export") / "template"
+    root.mkdir()
+    build_tree(root)
+    return root
+
+
 @pytest.fixture
-def tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The fixture tree as the working directory, with the CLI clock fixed."""
-    build_tree(tmp_path)
+def tree(template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A private copy of the fixture tree as the working directory, with the CLI clock fixed."""
+    shutil.copytree(template, tmp_path, dirs_exist_ok=True)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(publish_mod, "utc_now", lambda: NOW)
     return tmp_path
