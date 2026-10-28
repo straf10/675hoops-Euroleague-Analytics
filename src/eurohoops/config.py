@@ -135,6 +135,9 @@ class Competition:
     m5inj_prediction_log: Path | None = (
         None  # live M5-INJ shadow log (EuroLeague only; see M5INJ_LIVE_ENABLED)
     )
+    eloh_prediction_log: Path | None = (
+        None  # live ELOH shadow log (EuroLeague only; see ELOH_LIVE_ENABLED)
+    )
     # Elo model inputs per logged prediction (docs/match_report.md, section 1); append-only
     inputs_log: Path | None = None
 
@@ -194,6 +197,7 @@ EUROLEAGUE = Competition(
     eloc_prediction_log=Path("predictions/euroleague_eloc_2026-27.csv"),
     pool_prediction_log=Path("predictions/euroleague_pool_2026-27.csv"),
     m5inj_prediction_log=Path("predictions/euroleague_m5inj_2026-27.csv"),
+    eloh_prediction_log=Path("predictions/euroleague_eloh_2026-27.csv"),
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
 )
 
@@ -510,6 +514,13 @@ ELOC_CV = ElocCv(
     fit_from=2011,
     live_fit_seasons=(2011, LIVE_SEASON - 1),
 )
+
+# ELOH (experiments/eloh.md): live Elo with a per-team home advantage. The team shifts are fitted
+# once on ELOH_FIT_SEASONS (scripts/fit_eloh.py) and frozen in ELOH_FIT. The shadow log stays off
+# until the orchestrator sets ELOH_LIVE_ENABLED.
+ELOH_LIVE_ENABLED = False
+ELOH_FIT = Path("reports/eloh_fit.json")
+ELOH_FIT_SEASONS = _seasons(2007, 2023)
 
 
 M5_GBL = M5Backtest(
