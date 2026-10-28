@@ -55,6 +55,7 @@ from eurohoops.config import (
     LIVE_SEASON,
     M5INJ_LIVE_ENABLED,
     MART_PATH,
+    POOL3_LIVE_ENABLED,
     SITE_FORECAST_MODEL,
 )
 from eurohoops.eval.forecasts import build_forecasts
@@ -108,6 +109,7 @@ def legacy_site(out: Path, now: datetime) -> None:
                         "elor": comp.elor_prediction_log,
                         "m5inj": comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
                         "eloh": comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
+                        "pool3": comp.pool3_prediction_log if POOL3_LIVE_ENABLED else None,
                     },
                     FORECAST_MODELS,
                     live.games,

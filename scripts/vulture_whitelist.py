@@ -104,6 +104,11 @@ apply_c
 fit_c
 paired_gap
 
+# POOL3 screen (experiments/pool3.md): diagnostic, run by scripts/diag_pool3.py, not the pipeline
+from eurohoops.eval.pool3 import member_rows, screen  # noqa: E402
+
+member_rows
+screen
 # ELOH step A (scripts/fit_eloh.py, run once): the fit and its frozen file's writer; the live
 # forecaster reads only reports/eloh_fit.json. TeamEffect's fields are written by asdict.
 from eurohoops.config import ELOH_FIT_SEASONS  # noqa: E402
