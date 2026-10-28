@@ -50,7 +50,7 @@ zone A (at the rim) 0.938 and zone J (beyond half court) 0.026.
 - `zero_coordinates`: (0, 0), the feed's missing location.
 - `label_geometry` (2011-12 on only): a 3 inside the three-point line moved in by 0.15 m, or a 2
   beyond it moved out by 0.15 m. 2007-10 coordinates fit neither the 6.75 m nor the 6.25 m line
-  (`reports/week3_closeout.md` §7a), so the test is not applied there. Those seasons are kept,
+  (`reports/week3_closeout.md` §7a, deleted in 158aabf: `git show 158aabf^:reports/week3_closeout.md`), so the test is not applied there. Those seasons are kept,
   flagged `validated_season = False`, and not used for fitting or scoring.
 
 ## Free throws
