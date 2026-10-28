@@ -19,7 +19,12 @@ Walk-forward safe like H-c: a game's projection reads only games that tipped off
 cutoff (the first tip-off of its ``(season, phase, round)``), never the game's own rows.
 """
 
+import math
+from dataclasses import dataclass
+from typing import Any
+
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from eurohoops.models import minutes
@@ -36,22 +41,6 @@ def _decay_weights(count: int, half_life_games: float) -> FloatArray:
     return weights
 
 
-def _weighted_shares(rows: pd.DataFrame, denominator: float) -> dict[str, float]:
-    """Share of each player with weighted seconds: ``rows`` carries ``player_id, sec, weight``."""
-    by_player = (rows["sec"] * rows["weight"]).groupby(rows["player_id"]).sum().sort_index()
-    return {
-        str(p): min(1.0, minutes.ON_COURT * float(s) / denominator)
-        for p, s in by_player.items()
-        if s > 0
-    }
-
-
-def _played_in(rows: pd.DataFrame, recent: pd.Series) -> set[str]:
-    """Players with seconds in at least one of the ``recent`` games (``rows``: the team's rows)."""
-    on_court = rows[rows["game_id"].isin(recent) & (rows["sec"] > 0)]
-    return {str(p) for p in on_court["player_id"]}
-
-
 def _drop_absent(shares: dict[str, float], played: set[str]) -> dict[str, float]:
     """Drop the players who played in none of the recent games; rescale the rest to the old sum."""
     kept = {p: s for p, s in shares.items() if p in played}
@@ -59,6 +48,172 @@ def _drop_absent(shares: dict[str, float], played: set[str]) -> dict[str, float]
         return shares
     scale = sum(shares.values()) / sum(kept.values())
     return {p: min(1.0, s * scale) for p, s in kept.items()}
+
+
+@dataclass(frozen=True)
+class _Played:
+    """One team-season's rated games in tip-off order. Each game's player rows (``codes``: the
+    player's index in the sorted player list, ``secs``) sit in game order in one array, with
+    ``starts[i]`` the offset of game ``i``'s rows (``starts[-1]`` = all rows)."""
+
+    times: FloatArray
+    team_secs: FloatArray
+    starts: npt.NDArray[np.int64]
+    codes: npt.NDArray[np.int64]
+    secs: npt.NDArray[Any]
+
+
+@dataclass(frozen=True)
+class _Window:
+    """A projected side, before the group sums: its denominator and, for proj_avail, the codes of
+    the players who played in its last ``absent_games`` games (None: no absence rule)."""
+
+    game_id: str
+    side: str
+    team: str
+    denominator: float
+    absent_codes: npt.NDArray[np.int64] | None
+
+
+def _played_index(
+    team_games: pd.DataFrame, player_games: pd.DataFrame, codes: dict[str, int]
+) -> dict[tuple[object, ...], _Played]:
+    """Per (team, season), the player rows of its games in tip-off order (``team_games`` is
+    sorted by tip-off). Rows of one (game, team) keep their ``player_games`` order."""
+    player_codes = np.array([codes[str(p)] for p in player_games["player_id"]], dtype=np.int64)
+    secs = player_games["sec"].to_numpy()
+    rows_by: dict[Any, tuple[npt.NDArray[np.int64], npt.NDArray[Any]]] = {}
+    for key, positions in player_games.groupby(["game_id", "team"]).indices.items():
+        rows_by[key] = (player_codes[positions], secs[positions])
+    out: dict[tuple[object, ...], _Played] = {}
+    for key, frame in team_games.groupby(["team", "season"]):
+        parts = [rows_by[(g, key[0])] for g in frame["game_id"]]
+        counts = np.array([len(part[0]) for part in parts], dtype=np.int64)
+        starts = np.concatenate([[0], np.cumsum(counts)]).astype(np.int64)
+        out[key] = _Played(
+            times=frame["time"].to_numpy(dtype=np.float64),
+            team_secs=frame["team_sec"].to_numpy(dtype=np.float64),
+            starts=starts,
+            codes=np.concatenate([part[0] for part in parts]),
+            secs=np.concatenate([part[1] for part in parts]),
+        )
+    return out
+
+
+def _window_of(
+    played: _Played | None,
+    cutoff: float,
+    season: int,
+    team: str,
+    by_team: dict[tuple[object, ...], _Played],
+) -> tuple[_Played, int, bool] | None:
+    """The played games a side projects from: its earlier games of the season (``k`` of them,
+    tip-off order), else its whole previous season. None if it has no games at all."""
+    k = 0
+    if played is not None and not math.isnan(cutoff):
+        k = int(np.searchsorted(played.times, cutoff, side="left"))
+    if k > 0 and played is not None:
+        return played, k, True
+    previous = by_team.get((team, season - 1))
+    if previous is None or len(previous.times) == 0:
+        return None
+    return previous, len(previous.times), False
+
+
+def _side_windows(
+    variant: str,
+    games: pd.DataFrame,
+    by_team: dict[tuple[object, ...], _Played],
+    *,
+    half_life_games: float,
+    absent_games: int,
+) -> tuple[
+    list[_Window], list[npt.NDArray[np.int64]], list[npt.NDArray[np.int64]], list[npt.NDArray[Any]]
+]:
+    """Pass 1: every projected side's window, with its rows stacked in the old concatenation
+    order (window games in time order, each game's rows in ``player_games`` order)."""
+    windows: list[_Window] = []
+    group_ids: list[npt.NDArray[np.int64]] = []
+    group_codes: list[npt.NDArray[np.int64]] = []
+    group_values: list[npt.NDArray[Any]] = []
+    for game_id, season, home, away, cutoff in zip(
+        games["game_id"],
+        games["season"].astype(int),
+        games["home"],
+        games["away"],
+        minutes.round_cutoffs(games),
+        strict=True,
+    ):
+        for side, team in zip(minutes.SIDES, (str(home), str(away)), strict=True):
+            found = _window_of(by_team.get((team, season)), float(cutoff), season, team, by_team)
+            if found is None:
+                continue
+            played, k, this_season = found
+            weights = (
+                _decay_weights(k, half_life_games) if this_season else np.ones(k, dtype=np.float64)
+            )
+            denominator = float(np.dot(weights, played.team_secs[:k].copy()))
+            end = int(played.starts[k])
+            row_weights = np.repeat(weights, np.diff(played.starts[: k + 1]))
+            absent = None
+            if variant == "proj_avail" and this_season and k >= absent_games:
+                lo = int(played.starts[k - absent_games])
+                on_court = played.secs[lo:end] > 0
+                absent = np.unique(played.codes[lo:end][on_court])
+            windows.append(_Window(str(game_id), side, team, denominator, absent))
+            group_ids.append(np.full(end, len(windows) - 1, dtype=np.int64))
+            group_codes.append(played.codes[:end])
+            group_values.append(played.secs[:end] * row_weights)
+    return windows, group_ids, group_codes, group_values
+
+
+def _window_shares(
+    windows: list[_Window],
+    group_ids: list[npt.NDArray[np.int64]],
+    group_codes: list[npt.NDArray[np.int64]],
+    group_values: list[npt.NDArray[Any]],
+    names: list[str],
+) -> list[dict[str, object]]:
+    """Pass 2: one groupby over every window's rows. pandas sums each (window, player) group's
+    values in row order, as the old per-window groupby did, so the sums match bit for bit."""
+    out: list[dict[str, object]] = []
+    if not windows:
+        return out
+    sums = (
+        pd.DataFrame(
+            {
+                "window": np.concatenate(group_ids),
+                "code": np.concatenate(group_codes),
+                "value": np.concatenate(group_values),
+            }
+        )
+        .groupby(["window", "code"], sort=True)["value"]
+        .sum()
+    )
+    window_of = sums.index.get_level_values("window").to_numpy(dtype=np.int64)
+    code_of = sums.index.get_level_values("code").to_numpy(dtype=np.int64).tolist()
+    seconds = sums.to_numpy(dtype=np.float64).tolist()
+    bounds = np.searchsorted(window_of, np.arange(len(windows) + 1)).tolist()
+    for w, window in enumerate(windows):
+        lo, hi = bounds[w], bounds[w + 1]
+        shares = {
+            names[c]: min(1.0, minutes.ON_COURT * float(s) / window.denominator)
+            for c, s in zip(code_of[lo:hi], seconds[lo:hi], strict=True)
+            if s > 0
+        }
+        if window.absent_codes is not None:
+            shares = _drop_absent(shares, {names[c] for c in window.absent_codes.tolist()})
+        for player, share in shares.items():
+            out.append(
+                {
+                    "game_id": window.game_id,
+                    "side": window.side,
+                    "team": window.team,
+                    "player_id": player,
+                    "share": share,
+                }
+            )
+    return out
 
 
 def projected_shares_variant(
@@ -81,50 +236,14 @@ def projected_shares_variant(
     if variant == "proj_hc":
         return minutes.projected_shares(games, player_games, n_games)
     team_games = minutes._team_games(games, player_games)
-    rows_by = {key: frame for key, frame in player_games.groupby(["game_id", "team"])}
-    by_team = {key: frame for key, frame in team_games.groupby(["team", "season"])}
-    out: list[dict[str, object]] = []
-    for game_id, season, home, away, cutoff in zip(
-        games["game_id"],
-        games["season"].astype(int),
-        games["home"],
-        games["away"],
-        minutes.round_cutoffs(games),
-        strict=True,
-    ):
-        for side, team in zip(minutes.SIDES, (str(home), str(away)), strict=True):
-            played = by_team.get((team, season))
-            earlier = played[played["time"] < cutoff] if played is not None else None
-            this_season = earlier is not None and not earlier.empty
-            if not this_season:
-                earlier = by_team.get((team, season - 1))
-            if earlier is None or earlier.empty:
-                continue
-            if this_season:
-                weights = _decay_weights(len(earlier), half_life_games)
-            else:
-                weights = np.ones(len(earlier), dtype=np.float64)
-            denominator = float(np.dot(weights, earlier["team_sec"].to_numpy(dtype=np.float64)))
-            rows = pd.concat(
-                [
-                    rows_by[(g, team)].assign(weight=w)
-                    for g, w in zip(earlier["game_id"], weights, strict=True)
-                ]
-            )
-            shares = _weighted_shares(rows, denominator)
-            if variant == "proj_avail" and this_season and len(earlier) >= absent_games:
-                recent = earlier["game_id"].tail(absent_games)
-                shares = _drop_absent(shares, _played_in(rows, recent))
-            for player, share in shares.items():
-                out.append(
-                    {
-                        "game_id": str(game_id),
-                        "side": side,
-                        "team": team,
-                        "player_id": player,
-                        "share": share,
-                    }
-                )
+    # Player codes follow the sorted player ids, so code order is the old sort_index order.
+    names = [str(p) for p in sorted(set(player_games["player_id"]))]
+    codes = {name: i for i, name in enumerate(names)}
+    by_team = _played_index(team_games, player_games, codes)
+    windows, group_ids, group_codes, group_values = _side_windows(
+        variant, games, by_team, half_life_games=half_life_games, absent_games=absent_games
+    )
+    out = _window_shares(windows, group_ids, group_codes, group_values, names)
     return validated(
         pd.DataFrame(out, columns=list(minutes.SHARES_SCHEMA.columns)), minutes.SHARES_SCHEMA
     )
