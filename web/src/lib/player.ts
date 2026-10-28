@@ -64,6 +64,8 @@ export const SEASON_COLS: { head: string; about: string; cell: (t: Totals) => st
   { head: "3P%", about: "Three-pointers made per attempt", cell: (t) => pct(t.fg3m, t.fg3a) },
   { head: "FT%", about: "Free throws made per attempt", cell: (t) => pct(t.ftm, t.fta) },
   { head: "TS%", about: "True shooting: PTS / (2 × (FGA + 0.44 × FTA))", cell: ts },
+  // A season total, not per game: the column reads as WS in its own right.
+  { head: "WS", about: "Win shares this season: a season total, not per game", cell: (t) => (t.ws === undefined ? "–" : one(t.ws)) },
 ];
 
 // ---- Shot quality -------------------------------------------------------------------------

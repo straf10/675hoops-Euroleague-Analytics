@@ -170,6 +170,7 @@ export const BOARDS: BoardSpec[] = [
   { key: "usg", title: "Usage %" },
   { key: "net", title: "Net rating" },
   { key: "ast_pct", title: "Assist %" },
+  { key: "ws", title: "Win shares", total: true },
 ];
 
 /** Whether a line ranks on a measure: the measure's own attempts or minutes rule, then the floors. */

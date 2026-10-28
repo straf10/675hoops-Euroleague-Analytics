@@ -34,6 +34,7 @@ export function lines(data: SeasonPlayers, view: View, rapm: RapmData | null = n
   const board = rapm && rapm.season === view.season ? rapm : null;
   const all = data.players.map((row) => {
     const totals = totalsOf(data.fields, row.totals.season);
+    if (row.ws) Object.assign(totals, row.ws);
     const found = board?.players[row.id];
     if (board && found) {
       totals.rapm = found.total;
