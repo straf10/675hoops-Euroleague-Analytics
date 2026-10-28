@@ -1,6 +1,6 @@
 # Elo with a roster prior (ELOR): Elo plus a preseason roster rating
 
-Status: live shadow (logged daily to `predictions/euroleague_elor_2026-27.csv`; shown on the Forecasts page as "Roster Elo (trial)"; never the published forecast).
+Status: live shadow (logged daily to `predictions/euroleague_elor_2026-27.csv`; not shown on the site; never the published forecast).
 
 Judged by the standard promotion test (CLAUDE.md rule 4).
 
