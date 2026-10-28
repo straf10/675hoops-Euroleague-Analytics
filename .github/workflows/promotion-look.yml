@@ -1,7 +1,7 @@
-# Runs one pre-registered look of the R1 flagship promotion test (docs/models/m5.md for the
-# EuroLeague, m1.md for the GBL). Manual only: no schedule.
+# Runs one pre-registered look of the R1 flagship promotion test (docs/models/m5.md). Manual only:
+# no schedule.
 #
-# Run look 1 once EuroLeague regular-season round 19 (GBL round 13) is complete, and look 2 once
+# Run look 1 once EuroLeague regular-season round 19 is complete, and look 2 once
 # the season's last game is played. An early dispatch is harmless: promote-check refuses before
 # the checkpoint is complete and exits 1 with "Nothing computed.", which fails this run on purpose.
 # A look runs once: a second dispatch refuses because its verdict file already exists.
@@ -13,13 +13,6 @@ name: promotion-look
 on:
   workflow_dispatch:
     inputs:
-      competition:
-        description: "Competition to test"
-        type: choice
-        required: true
-        options:
-          - euroleague
-          - gbl
       look:
         description: "Pre-registered look: 1 (mid-season) or 2 (season end)"
         type: choice
@@ -54,12 +47,6 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --no-dev
       # Restore only: the daily run owns the saves, and this run must not overwrite its caches.
-      - name: Restore GBL raw cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: data/raw/gbl
-          key: gbl-raw-${{ github.run_id }}
-          restore-keys: gbl-raw-
       - name: Restore EuroLeague raw cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -70,13 +57,11 @@ jobs:
       # from the restored raw cache; only the live season is fetched. Box scores are not staged:
       # the mart does not need them.
       - name: Ingest schedules and results
-        run: |
-          uv run --no-dev eurohoops ingest
-          uv run --no-dev eurohoops ingest --competition gbl
+        run: uv run --no-dev eurohoops ingest
       - name: Build marts
         run: uv run --no-dev eurohoops build
       - name: Promotion look
-        run: uv run --no-dev eurohoops promote-check --competition ${{ inputs.competition }} --look ${{ inputs.look }}
+        run: uv run --no-dev eurohoops promote-check --look ${{ inputs.look }}
       # main may have moved during the run: replay the run's commit on top of it. A conflict is
       # never resolved here: abort, fail, merge by hand.
       - name: Commit the verdict
@@ -91,7 +76,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Promotion look ${{ inputs.competition }} ${{ inputs.look }}"
+          git commit -m "Promotion look euroleague ${{ inputs.look }}"
           remote="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
           if ! git pull --rebase "$remote" main; then
             git rebase --abort 2>/dev/null || true  # no rebase to abort if the pull itself failed
