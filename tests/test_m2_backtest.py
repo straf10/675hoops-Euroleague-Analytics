@@ -102,9 +102,18 @@ def test_parallel_fits_equal_sequential_fits() -> None:
     assert len(one.pair) == 6 and not np.isnan(one.oof).any()
 
 
-def test_report_has_every_field_and_two_runs_are_identical(monkeypatch: pytest.MonkeyPatch) -> None:
-    report, xpts = _run(monkeypatch, score_test=False)
-    again, _ = _run(monkeypatch, score_test=False)
+@pytest.fixture(scope="module")
+def plain_run() -> tuple[dict[str, Any], pd.DataFrame]:
+    """The run without test scoring, shared by the tests that only read it."""
+    with pytest.MonkeyPatch.context() as patch:
+        return _run(patch, score_test=False)
+
+
+def test_report_has_every_field_and_two_runs_are_identical(
+    plain_run: tuple[dict[str, Any], pd.DataFrame], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    report, xpts = plain_run
+    again, _ = _run(monkeypatch, score_test=False)  # a second, independent run
     assert json.dumps(report, sort_keys=True) == json.dumps(again, sort_keys=True)
     for variant in m2_backtest.VARIANTS:
         block = report["variants"][variant]
@@ -148,7 +157,9 @@ def test_report_has_every_field_and_two_runs_are_identical(monkeypatch: pytest.M
     )
 
 
-def test_scoring_the_test_seasons_adds_test_numbers(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_scoring_the_test_seasons_adds_test_numbers(
+    plain_run: tuple[dict[str, Any], pd.DataFrame], monkeypatch: pytest.MonkeyPatch
+) -> None:
     report, xpts = _run(monkeypatch, score_test=True)
     assert report["test_scored"]
     assert report["variants"]["spline"]["test"]["n"] == report["shots"]["test"] > 0
@@ -158,7 +169,7 @@ def test_scoring_the_test_seasons_adds_test_numbers(monkeypatch: pytest.MonkeyPa
     assert level["test"]["n"] == report["shots"]["test"]
     assert level["meets_f_f"]["test"] == calibrated(level["test"])
     # scoring the test seasons changes no development or validation number of the variants
-    before, _ = _run(monkeypatch, score_test=False)
+    before, _ = plain_run
     for name, block in before["level_variants"]["variants"].items():
         after = report["level_variants"]["variants"][name]
         assert block["cv"] == after["cv"] and block["validation"] == after["validation"]
