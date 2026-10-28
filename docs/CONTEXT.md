@@ -9,7 +9,7 @@ The public CSV of forecasts (`predictions/*.csv`). Rows are added, never edited 
 _Avoid_: prediction file, history
 
 **Pre-registered row**:
-A game's earliest log row stamped before its tip-off. One row per game is scored.
+A game's latest log row stamped before its tip-off, from the earliest model version that logged the game. One row per game is scored.
 
 **Provable row**:
 A row stamped before tip-off that also reached the public log before tip-off.
