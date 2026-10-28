@@ -283,7 +283,9 @@ def test_odds_fails_cleanly(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ODDS_API_KEY", "fake-key")
     monkeypatch.setattr(live_mod, "make_client", lambda: httpx.Client(transport=odds_api(401)))
     result = runner.invoke(cli.app, ["odds"])
-    assert result.exit_code == 1
+    # a rejected key is a source failure: warned and skipped, so the daily run still publishes
+    assert result.exit_code == 0
+    assert "::warning title=Odds unavailable::HTTP 401 INVALID_KEY" in result.output
     assert "fake-key" not in result.output
 
 

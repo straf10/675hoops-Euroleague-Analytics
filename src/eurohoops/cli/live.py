@@ -94,7 +94,7 @@ from eurohoops.models.availability import read_injuries, read_roster_names
 from eurohoops.models.elor import WalkForwardRatings
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
 from eurohoops.models.roster import RosterCacheError, read_rosters
-from eurohoops.odds import OddsApiError, OddsPaths, api_key, record_odds
+from eurohoops.odds import OddsApiError, OddsFetchError, OddsPaths, api_key, record_odds
 from eurohoops.predict import LatePredictionError, logged_keys, predict_upcoming
 from eurohoops.sim.formats import season_format
 from eurohoops.tipoff import first_tipoff_on
@@ -522,6 +522,12 @@ def odds() -> None:
             summary = record_odds(
                 client, key, read_games(MART_PATH, EUROLEAGUE.name), paths, utc_now
             )
+    except OddsFetchError as exc:
+        # The source gave no usable answer: warn, record nothing, and let the daily run publish.
+        note = "this run goes on without odds"
+        log.warning("odds unavailable: %s; %s", exc, note)
+        typer.echo(f"::warning title=Odds unavailable::{exc}; {note}")
+        return
     except OddsApiError as exc:
         log.error("odds: %s", exc)
         raise typer.Exit(code=1) from None

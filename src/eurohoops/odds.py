@@ -69,6 +69,11 @@ class OddsApiError(RuntimeError):
     """The call failed or was refused; the message never contains the URL or the key."""
 
 
+class OddsFetchError(OddsApiError):
+    """The odds source gave no usable answer: a transport error, a non-200 status, or a body that
+    does not parse. Nothing is written to odds/ for it, and the daily run goes on without odds."""
+
+
 @dataclass(frozen=True)
 class OddsPaths:
     log: Path  # public consensus rows (append-only)
@@ -240,7 +245,7 @@ def record_odds(
         with _quiet_http_logs():
             response = client.get(API_URL, params={"apiKey": key, **QUERY})
     except httpx.HTTPError as exc:
-        raise OddsApiError(f"transport error: {type(exc).__name__}") from None
+        raise OddsFetchError(f"transport error: {type(exc).__name__}") from None
     call = {
         "called_at_utc": fetched_at.strftime(TIME_FORMAT),
         "status": response.status_code,
@@ -258,11 +263,16 @@ def record_odds(
         call["requests_remaining"] or "?",
     )
     if response.status_code != httpx.codes.OK:
-        append_rows(paths.calls, CALL_COLUMNS, [call])
-        raise OddsApiError(f"HTTP {response.status_code} {_error_code(response)}".strip())
+        # No row in odds/ for a failed call: the raw answer is not kept either.
+        raise OddsFetchError(f"HTTP {response.status_code} {_error_code(response)}".strip())
     write_atomic(paths.raw_dir / f"{fetched_at:%Y%m%dT%H%M%SZ}.json.gz", response.content)
-    events: list[dict[str, Any]] = json.loads(response.content)
-    rows, unmatched = consensus_rows(events, read_team_map(paths.teams), games, fetched_at)
+    teams = read_team_map(paths.teams)
+    try:
+        events: list[dict[str, Any]] = json.loads(response.content)
+        rows, unmatched = consensus_rows(events, teams, games, fetched_at)
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        # Parsed before anything is appended, so a bad body never leaves a partial row.
+        raise OddsFetchError(f"unusable odds body ({type(exc).__name__})") from None
     append_rows(paths.log, ODDS_COLUMNS, rows)
     append_rows(
         paths.calls, CALL_COLUMNS, [{**call, "events": len(events), "rows_written": len(rows)}]
