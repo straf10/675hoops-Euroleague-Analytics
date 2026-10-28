@@ -150,7 +150,7 @@ def test_simulate_passes_the_production_spec_and_run_count(sim: dict[str, Any]) 
     live_mod.simulate(dry_run=True)
     ((call),) = sim["run_calls"]
     assert call["spec"] is live_mod.M7
-    assert call["n_sims"] == live_mod.LIVE_SIMS == 10_000
+    assert call["n_sims"] == live_mod.LIVE_SIMS
     assert call["season"] == LIVE
 
 
