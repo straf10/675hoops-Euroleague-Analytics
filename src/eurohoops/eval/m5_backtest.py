@@ -843,18 +843,31 @@ def _edge_flags(spec: M5Backtest, choice: Choice) -> dict[str, bool]:
     return flags
 
 
-def _season_rows(ctx: _Context, values: FloatArray, *, last: bool) -> dict[str, FloatArray]:
-    """The first (or last) row of ``values`` with finite entries, per season."""
+def _season_rows(
+    ctx: _Context, values: FloatArray, *, last: bool, only: tuple[int, ...] | None = None
+) -> dict[str, FloatArray]:
+    """The first (or last) row of ``values`` with finite entries, per season (``only``: just
+    those seasons, if given)."""
     out: dict[str, FloatArray] = {}
     for s in np.unique(ctx.season):
+        if only is not None and int(s) not in only:
+            continue
         rows = np.flatnonzero((ctx.season == s) & np.isfinite(values).all(axis=1))
         if len(rows):
             out[str(s)] = values[rows[-1] if last else rows[0]]
     return out
 
 
-def _chosen_details(ctx: _Context, player_part: FloatArray, choice: Choice) -> dict[str, Any]:
-    """Blend weights per season and the rest coefficients at each season's last cutoff."""
+def _chosen_details(
+    ctx: _Context,
+    player_part: FloatArray,
+    choice: Choice,
+    *,
+    only: tuple[int, ...] | None = None,
+) -> dict[str, Any]:
+    """Blend weights per season and the rest coefficients at each season's last cutoff. ``only``
+    keeps just those seasons: a season's weights and coefficients are fit on the seasons before
+    it, so a later season's values carry validation and test outcomes."""
     details: dict[str, Any] = {}
     if choice.form == "core":
         return details
@@ -863,7 +876,7 @@ def _chosen_details(ctx: _Context, player_part: FloatArray, choice: Choice) -> d
     )
     details["rest_coefficients"] = {
         season: {name: round_finite(float(v)) for name, v in zip(REST_COLUMNS, row, strict=True)}
-        for season, row in _season_rows(ctx, coef, last=True).items()
+        for season, row in _season_rows(ctx, coef, last=True, only=only).items()
     }
     if choice.form == "blend":
         _, weights = _blend_weights(ctx, core)
@@ -871,7 +884,7 @@ def _chosen_details(ctx: _Context, player_part: FloatArray, choice: Choice) -> d
             season: {
                 name: round_finite(float(w)) for name, w in zip(BLEND_COMPONENTS, row, strict=True)
             }
-            for season, row in _season_rows(ctx, weights, last=False).items()
+            for season, row in _season_rows(ctx, weights, last=False, only=only).items()
         }
     return details
 
@@ -1126,7 +1139,12 @@ def run_m5_backtest(
                 "scale": m5.model.scale,
                 "df": m5.model.df,
             },
-            **_chosen_details(ctx, selection.player_part[option], final),
+            **_chosen_details(
+                ctx,
+                selection.player_part[option],
+                final,
+                only=spec.tuning if tuning_only else None,
+            ),
         },
         **_split_blocks(sc),
         "other_variants": _other_variants(sc, selection, decision),
