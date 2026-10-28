@@ -157,7 +157,7 @@ export async function playerM6(id: string): Promise<PlayerM6> {
 /** 2026 -> "2026-27". */
 export const seasonLabel = (s: number): string => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
 
-export const COMPETITIONS: Record<string, string> = { euroleague: "EuroLeague", gbl: "GBL" };
+export const COMPETITIONS: Record<string, string> = { euroleague: "EuroLeague" };
 
 /** A source team code as the site shows it (publish.py's DISPLAY_CODES; tests keep the copy in step). */
 const displayCode = (competition: string, code: string): string =>

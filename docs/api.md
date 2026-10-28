@@ -12,7 +12,7 @@ Team codes are the **source** codes (`ULK`, `PAN`, …). Person ids look like `P
 
 | Route | Read model | Source |
 |---|---|---|
-| `GET /site` | `site` | the forecasts, results, scorecards and Elo of both competitions (today's `site.json`) |
+| `GET /site` | `site` | the forecasts, results, scorecards and Elo of the EuroLeague (today's `site.json`) |
 | `GET /stats` | `stats_index` | the path of every stats file |
 | `GET /stats/{path}` | `stats_file` | one stats file, e.g. `meta.json`, `seasons/2025/players.json` |
 | `GET /games/upcoming?competition=` | `upcoming_games` | unplayed live-season games with their forecast |

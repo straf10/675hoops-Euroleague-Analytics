@@ -1,6 +1,5 @@
 # EuroHoops
 
-Forecasts every EuroLeague and Greek Basket League (GBL) game of the live season, logs each forecast publicly before tip-off, and scores it against a home-win baseline.
 
 ## Forecasts and the log
 
@@ -49,7 +48,7 @@ A played game that is not a forfeit. Only rated games update ratings or are scor
 A game awarded 20-0 by decision. It counts as played but carries no rating information.
 
 **Source code**:
-The team code the data source uses (EuroLeague API `ULK`, ESAKE id `00000001`). Every table, log and report uses it.
+The team code the data source uses (EuroLeague API `ULK`). Every table, log and report uses it.
 _Avoid_: team id
 
 **Display code**:
@@ -58,7 +57,7 @@ The real-life abbreviation the site shows in place of a source code (`FBT`, `PAO
 ## Players across leagues
 
 **Person id**:
-One player across the EuroLeague and the GBL (`P:<EuroLeague id>`, else `G:<ESAKE id>`), from the `player_xwalk` mart. Source ids remain the keys of every other table.
+Source ids remain the keys of every other table.
 _Avoid_: player id (that is a source id)
 
 **Dual season**:
@@ -68,10 +67,10 @@ A season a player played at least 300 minutes in both leagues (in practice for P
 A player with at least 300 minutes in one league in a season, under 100 in the other, and at least 300 in the other the next season.
 
 **Silver pair**:
-A GBL id and a EuroLeague id on the same Greek club in the same season, with equal or near birth dates. Used as matcher tuning data, not as a label.
+Used as matcher tuning data, not as a label.
 
 **Confirmed time**:
-A tip-off time the source has published. A GBL game without one sits at local midnight of its date and shows as "time TBC" until its time is published.
+A tip-off time the source has published.
 
 ## Season simulation (M7)
 

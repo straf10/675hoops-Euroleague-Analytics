@@ -40,7 +40,7 @@ interface View {
   club: string; // "" = the whole league
 }
 
-// all-time hidden until pre-2022 seasons return (docs/SITE_FEEDBACK.md): set true to restore "Best seasons".
+// all-time hidden until pre-2022 seasons return : set true to restore "Best seasons".
 export const SHOW_ALL_TIME = false;
 export const SCOPES: { key: Scope; label: string }[] = [
   { key: "season", label: "Season" },

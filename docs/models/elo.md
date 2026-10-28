@@ -1,6 +1,6 @@
 # Elo: the published forecast and the baseline
 
-Status: published (EuroLeague forecast page). GBL Elo is logged and scored, not shown.
+Status: published (EuroLeague forecast page).
 
 ## What it is
 A margin-adjusted Elo in the style of FiveThirtyEight's NBA ratings. Code: `src/eurohoops/models/elo.py`.
@@ -17,7 +17,6 @@ A margin-adjusted Elo in the style of FiveThirtyEight's NBA ratings. Code: `src/
 
 - **EuroLeague (live):** warm-up 2023, tuning 2024, test 2025, 60 grid points. `k` 20, `hca` 90, `reversion` 0.25. The best `reversion` sits on the grid edge.
 - **EuroLeague history (not live):** warm-up 2007–2014, tuning 2015–2023, test 2024–2025, same grid. `k` 30, `hca` 110. Used only as `history_backtests` in `config.py`.
-- **GBL (live):** warm-up 2018–2021, tuning 2022–2023, test 2024–2025, 450-point grid. The grid best is `k` 50, `hca` 170, `reversion` 0. The live values `k` 40, `hca` 130, `reversion` 0.25 are fixed, and the report's `tuned` block reads them, not the grid best.
 
 ### Live logging
 - Both competitions are forecast daily (`eurohoops predict`, run by `.github/workflows/daily.yml`). The forecasts are logged to `predictions/`.
@@ -25,8 +24,8 @@ A margin-adjusted Elo in the style of FiveThirtyEight's NBA ratings. Code: `src/
 - Each run replays Elo from the live backtest's first warm-up season, with the report's parameters. It writes one row per upcoming game: every game in rounds whose first tip-off is within 48 h of the run.
 - Columns: `p_home` (four decimals), `exp_margin`, `model` (`elo`), `model_version`, `predicted_at_utc`.
 - The scored row of a game is its latest row stamped before tip-off. Two EuroLeague rows are not provably before tip-off and are excluded.
-- `model_version` is the package version plus an 8-character hash of the tuned parameters and the margin scale (`TunedModel.version`). The EuroLeague log holds `0.1.0+4356d891` (first round) and `0.2.0+425e6393`. The GBL log holds `0.2.0+df05260c`. The last two match the backtest reports.
-- `eurohoops score` writes the scorecards: `reports/live_scorecard.json` and `reports/live_scorecard_gbl.json`, under `elo` and `b0`.
+- `model_version` is the package version plus an 8-character hash of the tuned parameters and the margin scale (`TunedModel.version`). The EuroLeague log holds `0.1.0+4356d891` (first round) and `0.2.0+425e6393`. The last two match the backtest reports.
+- `eurohoops score` writes the scorecard `reports/live_scorecard.json`, under `elo` and `b0`.
 
 ## Results
 Elo is scored on the tuning and test seasons against B0. Log loss and Brier: lower is better. Games are all rated, played games of the seasons shown.
@@ -68,29 +67,8 @@ Elo is scored on the tuning and test seasons against B0. Log loss and Brier: low
 | EuroLeague history: test log loss, Elo minus B0 | -0.030605 | `backtest_elo_history.json:test_log_loss_diff_elo_minus_b0.mean` |
 | EuroLeague history: test log loss, Elo minus B0, CI low | -0.052174 | `backtest_elo_history.json:test_log_loss_diff_elo_minus_b0.ci95.0` |
 | EuroLeague history: test log loss, Elo minus B0, CI high | -0.009555 | `backtest_elo_history.json:test_log_loss_diff_elo_minus_b0.ci95.1` |
-| GBL live: grid points | 450 | `backtest_elo_gbl.json:grid.size` |
-| GBL grid best: k | 50 | `backtest_elo_gbl.json:grid.best.k` |
-| GBL grid best: hca | 170 | `backtest_elo_gbl.json:grid.best.hca` |
-| GBL grid best: reversion | 0 | `backtest_elo_gbl.json:grid.best.reversion` |
-| GBL grid best minus live, test log loss | 0.000535 | `backtest_elo_gbl.json:grid.best_minus_tuned_log_loss.test.mean` |
-| GBL grid best minus live, test, CI low | -0.019354 | `backtest_elo_gbl.json:grid.best_minus_tuned_log_loss.test.ci95.0` |
-| GBL grid best minus live, test, CI high | 0.023376 | `backtest_elo_gbl.json:grid.best_minus_tuned_log_loss.test.ci95.1` |
-| GBL live: tuned k | 40 | `backtest_elo_gbl.json:tuned.k` |
-| GBL live: tuned hca | 130 | `backtest_elo_gbl.json:tuned.hca` |
-| GBL live: tuned reversion | 0.25 | `backtest_elo_gbl.json:tuned.reversion` |
-| GBL live: tuning log loss | 0.43133 | `backtest_elo_gbl.json:metrics.tuning.elo.log_loss` |
-| GBL live: test games | 340 | `backtest_elo_gbl.json:metrics.test.elo.n` |
-| GBL live: test log loss | 0.484529 | `backtest_elo_gbl.json:metrics.test.elo.log_loss` |
-| GBL live: test Brier | 0.159803 | `backtest_elo_gbl.json:metrics.test.elo.brier` |
-| GBL live: test accuracy | 0.761765 | `backtest_elo_gbl.json:metrics.test.elo.accuracy` |
-| GBL live: test ECE | 0.050269 | `backtest_elo_gbl.json:metrics.test.elo.ece` |
-| GBL live: test log loss, B0 | 0.667972 | `backtest_elo_gbl.json:metrics.test.b0.log_loss` |
-| GBL live: test ECE, B0 | 0.025294 | `backtest_elo_gbl.json:metrics.test.b0.ece` |
-| GBL live: test log loss, Elo minus B0 | -0.183443 | `backtest_elo_gbl.json:test_log_loss_diff_elo_minus_b0.mean` |
-| GBL live: test log loss, Elo minus B0, CI low | -0.226229 | `backtest_elo_gbl.json:test_log_loss_diff_elo_minus_b0.ci95.0` |
-| GBL live: test log loss, Elo minus B0, CI high | -0.137582 | `backtest_elo_gbl.json:test_log_loss_diff_elo_minus_b0.ci95.1` |
 
 ## Files
 - Code: `src/eurohoops/models/elo.py` (rating replay), `src/eurohoops/eval/backtest.py` (tuning and scoring), `src/eurohoops/predict.py` (daily log), `src/eurohoops/config.py` (`SITE_FORECAST_MODEL`, `history_backtests`).
-- Reports: `reports/backtest_elo.json` (EuroLeague, live parameters), `reports/backtest_elo_history.json` (EuroLeague, long history), `reports/backtest_elo_gbl.json` (GBL, live parameters), `reports/live_scorecard.json`, `reports/live_scorecard_gbl.json`.
-- Logs: `predictions/euroleague_2026-27.csv`, `predictions/gbl_2026-27.csv`.
+- Reports: `reports/backtest_elo.json` (EuroLeague, live parameters), `reports/backtest_elo_history.json` (EuroLeague, long history), `reports/live_scorecard.json`.
+- Logs: `predictions/euroleague_2026-27.csv`.

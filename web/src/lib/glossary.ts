@@ -474,7 +474,7 @@ export const TERMS: GlossaryTerm[] = [
     term: "RAPM",
     name: "Regularised adjusted plus-minus",
     group: "Player ratings",
-    def: "Points per 100 possessions a player's team scores and allows with him on the floor, adjusted for his teammates and opponents, shrunk toward a box-score estimate. Zero is average, and a higher total is better. EuroLeague only: the Greek Basket League has too few play-by-play stints to rate.",
+    def: "Points per 100 possessions a player's team scores and allows with him on the floor, adjusted for his teammates and opponents, shrunk toward a box-score estimate. Zero is average, and a higher total is better. Rated for EuroLeague players.",
     formula: "O-RAPM + D-RAPM",
     shownOn: [PP, PL],
   },

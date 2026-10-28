@@ -74,7 +74,6 @@ Spawn one runner per live shadow, in parallel. Each one:
 - computes the standard test (`bootstrap_ci`, `promotion_verdict`);
 - writes `reports/checkpoint_<id>_<comp>_look<N>.json`.
 
-For the flagship (M5 for EuroLeague, M1 for GBL), use `uv run eurohoops promote-check --competition <comp> --look <N>`.
 
 Then the orchestrator decides:
 - **Pass** → promote. Point `publish.py` and the site at the shadow, and keep the old model as a shadow. Commit.
