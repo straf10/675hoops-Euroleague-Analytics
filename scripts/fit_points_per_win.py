@@ -1,4 +1,5 @@
-"""Re-derive EuroLeague points per win (``POINTS_PER_WIN`` in stats/win_shares.py).
+"""Re-derive EuroLeague points per win from the data, as a comparison only (Win Shares uses the
+Basketball-Reference rule, 0.32 x league PPG x pace factor, in stats/win_shares.py).
 
 Fits win % on point differential per game over EuroLeague regular seasons 2007-08..2025-26 (the
 season label is the starting year), from the cached schedules only: nothing is fetched or written.

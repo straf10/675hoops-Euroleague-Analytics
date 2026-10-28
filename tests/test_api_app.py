@@ -221,7 +221,6 @@ def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dic
     games, teams = load_cached_games(raw)
     box = build_box_games(raw, games)
     assists = game_assists(raw, games[games["played"]])
-    season_of = dict(zip(games["game_id"].astype(str), games["season"].astype(int), strict=True))
     return build_payloads(
         Inputs(
             games=games,
@@ -246,7 +245,7 @@ def _independent_stats(raw: Path, now: datetime, history: Path) -> dict[str, dic
                 DISPLAY_CODES["euroleague"],
             ),
             assists=assists,
-            win_shares=box_win_shares(box.players, box.teams, assists, season_of),
+            win_shares=box_win_shares(box.players, box.teams),
             coaches=coach_games(raw, with_elo(games, load_tuned_model(history).params, 2007)),
             styles=game_styles(raw, games),
         ),

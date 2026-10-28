@@ -1,12 +1,12 @@
-"""Win Shares (stats/win_shares.py): each formula on hand-computed numbers, the two-team example
-worked out by hand, the team-sum check, and the points-per-win fit.
+"""Win Shares (stats/win_shares.py): each formula on hand-computed numbers, a two-team game
+worked out by hand, the team-sum check, and the points-per-win fit (a comparison only).
 
-Hand example: one game, season 2025. Team A (won 80-76) and team B; 100 possessions each, so
-league PPP = 156 / 200 = 0.78. Both defences hold opponents to 50% FG (FMwt = 0.8) and 20% of
-missed shots to offensive rebounds (DOR% = 0.2). Each team has two players who each played 6,000
-seconds (team minutes 12,000). The first player holds the team's counting stats, the second none.
-Assisted field goals: A1 6 twos and 4 threes, B1 5 twos and 3 threes, so points per assisted FG =
-43 / 18.
+Hand example: one game, season 2025. Team A won 80-76 over team B. Each team has five players who
+each played 6,000 seconds (team minutes 30,000). A1 and A2 hold team A's counting stats (A3-A5 have
+none), and B1 and B2 hold team B's. Both teams took 60 field goals and 100 possessions, so league
+PPP is 156 / 200 = 0.78, league PPG is 78, and points per win is 0.32 x 78 = 24.96 for both teams.
+Team A's defence allowed 30 of 60 field goals (DFG 50%) and 8 of 40 offensive rebounds (DOR 20%),
+so FMwt is 0.8. Team A's and B's free-throw percentages are both 50%.
 """
 
 from __future__ import annotations
@@ -15,30 +15,68 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from eurohoops.stats.assists import AssistRow
 from eurohoops.stats.win_shares import (
-    AST_CREDIT,
-    DEFENSE_REPLACEMENT,
-    assisted_fg,
+    box_win_shares,
     fit_points_per_win,
-    forced_miss_weight,
     individual_drtg,
     marginal_defense,
     marginal_offense,
-    offense_possessions,
+    points_per_win,
     points_produced,
+    possessions_used,
+    qast,
+    scoring_possessions,
+    scoring_possessions_player,
     stop_percentage,
     team_check,
+    team_orb_weight,
+    team_play_pct,
     team_seasons_regular,
     win_shares,
 )
 
-PPW = 35.5
+PPW = 24.96  # 0.32 x 78 x (100 / 100)
+ZEROS = (
+    "pts",
+    "pf",
+    "fg2m",
+    "fg2a",
+    "fg3m",
+    "fg3a",
+    "ftm",
+    "fta",
+    "oreb",
+    "dreb",
+    "ast",
+    "stl",
+    "blk",
+    "tov",
+)
 
 
-def _team(team: str, opp: str, won: bool, pts: int, **counts: int) -> dict[str, object]:
-    base = {"season": 2025, "game_id": "g1", "team": team, "opponent": opp, "won": won, "pts": pts}
-    return {**base, "poss": 100, **counts}
+def _team(team: str, opp: str, won: bool, **counts: int) -> dict[str, object]:
+    return {
+        "season": 2025,
+        "game_id": "g1",
+        "team": team,
+        "opponent": opp,
+        "won": won,
+        "poss": 100,
+        **counts,
+    }
+
+
+def _player(team: str, pid: str, sec: int, **stats: int) -> dict[str, object]:
+    row: dict[str, object] = {
+        "season": 2025,
+        "game_id": "g1",
+        "team": team,
+        "opponent": "B" if team == "A" else "A",
+        "player_id": pid,
+        "player": pid,
+        "sec": sec,
+    }
+    return {**row, **dict.fromkeys(ZEROS, 0), **stats}
 
 
 def _box() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -48,7 +86,7 @@ def _box() -> tuple[pd.DataFrame, pd.DataFrame]:
                 "A",
                 "B",
                 True,
-                80,
+                pts=80,
                 fg2m=20,
                 fg2a=40,
                 fg3m=10,
@@ -60,12 +98,13 @@ def _box() -> tuple[pd.DataFrame, pd.DataFrame]:
                 tov=12,
                 stl=6,
                 blk=4,
+                ast=15,
             ),
             _team(
                 "B",
                 "A",
                 False,
-                76,
+                pts=76,
                 fg2m=20,
                 fg2a=40,
                 fg3m=10,
@@ -77,154 +116,237 @@ def _box() -> tuple[pd.DataFrame, pd.DataFrame]:
                 tov=14,
                 stl=6,
                 blk=4,
+                ast=12,
             ),
         ]
     )
-    counts = {
-        "fg2m": 0,
-        "fg2a": 0,
-        "fg3m": 0,
-        "fg3a": 0,
-        "fta": 0,
-        "oreb": 0,
-        "dreb": 0,
-        "ast": 0,
-        "stl": 0,
-        "blk": 0,
-        "tov": 0,
-        "pf": 0,
-    }
-    a1 = {
-        "fg2m": 20,
-        "fg2a": 40,
-        "fg3m": 10,
-        "fg3a": 20,
-        "fta": 20,
-        "oreb": 8,
-        "dreb": 32,
-        "ast": 15,
-        "stl": 6,
-        "blk": 4,
-        "tov": 12,
-        "pf": 20,
-    }
-    b1 = {
-        "fg2m": 20,
-        "fg2a": 40,
-        "fg3m": 10,
-        "fg3a": 20,
-        "fta": 12,
-        "oreb": 8,
-        "dreb": 32,
-        "ast": 12,
-        "stl": 6,
-        "blk": 4,
-        "tov": 14,
-        "pf": 20,
-    }
-    rows = [
-        ("A", "A1", a1),
-        ("A", "A2", counts),
-        ("B", "B1", b1),
-        ("B", "B2", counts),
-    ]
     players = pd.DataFrame(
         [
-            {
-                "season": 2025,
-                "game_id": "g1",
-                "team": team,
-                "opponent": "B" if team == "A" else "A",
-                "player_id": pid,
-                "player": pid,
-                "sec": 6000,
-                **stats,
-            }
-            for team, pid, stats in rows
+            _player(
+                "A",
+                "A1",
+                6000,
+                pts=48,
+                fg2m=12,
+                fg2a=24,
+                fg3m=6,
+                fg3a=12,
+                ftm=6,
+                fta=12,
+                oreb=5,
+                dreb=20,
+                tov=7,
+                stl=4,
+                blk=3,
+                ast=9,
+                pf=12,
+            ),
+            _player(
+                "A",
+                "A2",
+                6000,
+                pts=32,
+                fg2m=8,
+                fg2a=16,
+                fg3m=4,
+                fg3a=8,
+                ftm=4,
+                fta=8,
+                oreb=3,
+                dreb=12,
+                tov=5,
+                stl=2,
+                blk=1,
+                ast=6,
+                pf=8,
+            ),
+            _player("A", "A3", 6000),
+            _player("A", "A4", 6000),
+            _player("A", "A5", 6000),
+            _player(
+                "B",
+                "B1",
+                6000,
+                pts=46,
+                fg2m=12,
+                fg2a=24,
+                fg3m=6,
+                fg3a=12,
+                ftm=4,
+                fta=8,
+                oreb=5,
+                dreb=20,
+                tov=9,
+                stl=4,
+                blk=3,
+                ast=7,
+                pf=12,
+            ),
+            _player(
+                "B",
+                "B2",
+                6000,
+                pts=30,
+                fg2m=8,
+                fg2a=16,
+                fg3m=4,
+                fg3a=8,
+                ftm=2,
+                fta=4,
+                oreb=3,
+                dreb=12,
+                tov=5,
+                stl=2,
+                blk=1,
+                ast=5,
+                pf=8,
+            ),
+            _player("B", "B3", 6000),
+            _player("B", "B4", 6000),
+            _player("B", "B5", 6000),
         ]
     )
     return players, teams
 
 
-def _assisted() -> pd.DataFrame:
-    rows = {
-        "g1": [
-            *[AssistRow("A", "A2", "A1", 2, "fg")] * 6,
-            *[AssistRow("A", "A2", "A1", 3, "fg")] * 4,
-            *[AssistRow("B", "B2", "B1", 2, None)] * 5,
-            *[AssistRow("B", "B2", "B1", 3, "fg")] * 3,
-            AssistRow("A", "A2", "A1", 1, "ft"),  # a free-throw link: not a field goal
-        ]
-    }
-    return assisted_fg(rows, {"g1": 2025})
+def test_scoring_possessions_and_play_rate() -> None:
+    assert scoring_possessions(30, 0.5, 20) == pytest.approx(36.0)  # 30 + 0.75 x 20 x 0.4
+    assert team_play_pct(36.0, 60, 20, 12) == pytest.approx(0.45)  # 36 / (60 + 8 + 12)
 
 
-def test_forced_miss_weight_hand_values() -> None:
-    assert forced_miss_weight(0.5, 0.2) == pytest.approx(0.8)
-    # 0.4 x 0.8 / (0.4 x 0.8 + 0.6 x 0.2) = 0.32 / 0.44
-    assert forced_miss_weight(0.4, 0.2) == pytest.approx(0.32 / 0.44)
+def test_orb_weight_from_orb_and_play_rates() -> None:
+    assert team_orb_weight(0.2, 0.45) == pytest.approx(36 / 47)  # 0.36 / (0.36 + 0.11)
 
 
-def test_offense_possessions_and_marginal_offense() -> None:
-    used = offense_possessions(60, 20, 12, 8)  # 60 + 0.44 x 20 + 12 - 8
-    assert used == pytest.approx(72.8)
-    assert marginal_offense(83.596667, 0.78, used) == pytest.approx(31.355387, abs=1e-4)
+def test_qast_from_minutes_assists_and_makes() -> None:
+    # A1 plays 6,000 of 30,000 team seconds (one fifth), 9 of his team's 15 assists, 18 of 30 FGM.
+    value = qast(sec=6000, team_sec=30000, ast=9, fgm=18, team_ast=15, team_fgm=30)
+    assert value == pytest.approx(0.228)  # 1.14 x (15 - 9) / 30; the second term is 0 at one fifth
 
 
-def test_points_produced_splits_assisted_points() -> None:
-    assert AST_CREDIT == 0.5
-    # unassisted 46 + half of 24 assisted + 15 AST x 43/18 x 0.5 + 8 ORB x 0.8 x 1.2
-    prod = points_produced(46, 24, ast=15, league_points_per_assist=43 / 18, orb=8, team_ppp=0.8)
-    assert prod == pytest.approx(83.596667, abs=1e-4)
+def test_points_per_win_is_the_pace_adjusted_league_ppg() -> None:
+    assert points_per_win(78, 100, 100) == pytest.approx(PPW)
+    assert points_per_win(78, 110, 100) == pytest.approx(PPW * 1.1)
 
 
-def test_defense_stop_drtg_and_marginal_defense() -> None:
-    stop = stop_percentage(28.2896, 12000, 100, 6000)  # stops x team MIN / (poss x MIN)
-    assert stop == pytest.approx(0.565792)
-    drtg = individual_drtg(76, 76 / 33.6, stop)  # 76 + 0.2 (100 x 2.2619 x (1 - 0.5658) - 76)
-    assert drtg == pytest.approx(80.442743, abs=1e-4)
-    md = marginal_defense(6000, 12000, 100, 0.78, drtg)  # 0.5 x 100 x (1.08 x 0.78 - DRtg / 100)
-    assert DEFENSE_REPLACEMENT == 1.08
-    assert md == pytest.approx(1.8986286, abs=1e-4)
+def test_points_produced_hand_value_for_a2() -> None:
+    # FG part 28 x (1 - 0.5 x 0.5833 x 0.342); AST part 4.0833; FT 4; ORB part 3 x 0.7660 x 2.2222.
+    prod = points_produced(
+        fgm=12,
+        fg3m=4,
+        pts=32,
+        ftm=4,
+        fga=24,
+        fg_share=28 / 48,
+        qast_value=0.342,
+        ast=6,
+        team_fgm=30,
+        team_fg3m=10,
+        team_pts=80,
+        team_ftm=10,
+        team_fga=60,
+        oreb=3,
+        team_orb_factor=3.6 / 47,
+        orb_weight_play=36 / 47 * 0.45,
+        team_ppp_scoring=80 / 36,
+    )
+    assert prod == pytest.approx(33.038308, abs=1e-5)
+
+
+def test_possessions_used_hand_value_for_a2() -> None:
+    scoring = scoring_possessions_player(
+        fgm=12,
+        fga=24,
+        pts=32,
+        ftm=4,
+        fta=8,
+        ft_pct=0.5,
+        fg_share=28 / 48,
+        qast_value=0.342,
+        ast=6,
+        team_pts=80,
+        team_ftm=10,
+        team_fga=60,
+        oreb=3,
+        team_orb_factor=3.6 / 47,
+        orb_weight_play=36 / 47 * 0.45,
+    )
+    used = possessions_used(
+        scoring=scoring, fga=24, fgm=12, team_orb_pct_value=0.2, ft_pct=0.5, fta=8, tov=5
+    )
+    assert used == pytest.approx(30.073706, abs=1e-5)
+
+
+def test_marginal_offense_and_defense_hand_values() -> None:
+    assert marginal_offense(51.229974, 0.78, 45.335557) == pytest.approx(18.697178, abs=1e-5)
+    stop = stop_percentage(15.47616, 30000, 100, 6000)  # stops x team MIN / (poss x MIN)
+    assert stop == pytest.approx(0.773808)
+    drtg = individual_drtg(76, 76 / 33.6, stop)
+    assert drtg == pytest.approx(71.03248, abs=1e-4)
+    md = marginal_defense(6000, 30000, 100, 0.78, drtg)  # 0.2 x 100 x (1.08 x 0.78 - DRtg / 100)
+    assert md == pytest.approx(2.6415, abs=1e-3)
 
 
 def test_win_shares_hand_example() -> None:
     players, teams = _box()
-    ws = win_shares(players, teams, _assisted(), PPW).set_index("player_id")
-    assert ws.loc["A1", "ows"] == pytest.approx(0.8832503, abs=1e-4)
-    assert ws.loc["A1", "dws"] == pytest.approx(0.0534825, abs=1e-4)
-    assert ws.loc["A1", "ws"] == pytest.approx(0.9367328, abs=1e-4)
-    assert ws.loc["A1", "ws40"] == pytest.approx(0.9367328 / 100 * 40, abs=1e-3)
-    assert ws.loc["A2", "ows"] == pytest.approx(0.0, abs=1e-9)
-    assert ws.loc["A2", "dws"] == pytest.approx(-0.1518755, abs=1e-4)
-    assert ws.loc["B1", "ows"] == pytest.approx(0.8726424, abs=1e-4)  # used 60 + 0.44 x 12 + 14 - 8
-    assert ws.loc["B1", "ws"] == pytest.approx(0.8834035, abs=1e-4)
-    assert ws.loc["B2", "dws"] == pytest.approx(-0.2010094, abs=1e-4)
+    ws = win_shares(players, teams).set_index("player_id")
+    assert ws.loc["A1", "points_produced"] == pytest.approx(51.229974, abs=1e-5)
+    assert ws.loc["A1", "possessions_used"] == pytest.approx(45.335557, abs=1e-5)
+    assert ws.loc["A1", "ows"] == pytest.approx(0.749086, abs=1e-5)
+    assert ws.loc["A1", "dws"] == pytest.approx(0.105829, abs=1e-5)
+    assert ws.loc["A1", "ws"] == pytest.approx(0.854915, abs=1e-5)
+    assert ws.loc["A1", "ws40"] == pytest.approx(0.341966, abs=1e-5)  # 0.854915 / 100 x 40
+    assert ws.loc["A2", "ows"] == pytest.approx(0.459031, abs=1e-5)
+    assert ws.loc["A2", "dws"] == pytest.approx(0.013439, abs=1e-5)
+    assert ws.loc["A3", "ows"] == pytest.approx(0.0)  # no shots, no assists
+    assert ws.loc["A3", "dws"] == pytest.approx(-0.086404, abs=1e-5)
+    assert ws.loc["B1", "ows"] == pytest.approx(0.633656, abs=1e-5)
+    assert ws.loc["B1", "ws"] == pytest.approx(0.716707, abs=1e-5)
+    assert ws.loc["B2", "dws"] == pytest.approx(-0.010567, abs=1e-5)
+    assert ws.loc["B3", "dws"] == pytest.approx(-0.114356, abs=1e-5)
+
+
+def test_league_offense_sums_to_points_over_points_per_win() -> None:
+    # Sum of OWS = (sum PProd - 0.92 x league PPP x sum possessions used) / points per win.
+    players, teams = _box()
+    ws = win_shares(players, teams)
+    marginal = ws["points_produced"].sum() - 0.92 * 0.78 * ws["possessions_used"].sum()
+    assert ws["ows"].sum() == pytest.approx(marginal / PPW, abs=1e-9)
 
 
 def test_team_sum_check() -> None:
     players, teams = _box()
-    ws = win_shares(players, teams, _assisted(), PPW)
+    ws = win_shares(players, teams)
     sums = ws.groupby("team")["ws"].sum()
-    assert sums["A"] == pytest.approx(0.7848573, abs=1e-4)
-    assert sums["B"] == pytest.approx(0.6823951, abs=1e-4)
+    assert sums["A"] == pytest.approx(1.068173, abs=1e-5)
+    assert sums["B"] == pytest.approx(0.787362, abs=1e-5)
     check = team_check(ws, teams).iloc[0]
     assert check["teams"] == 2
-    assert check["mae"] == pytest.approx(0.4487689, abs=1e-4)  # mean of |0.785 - 1| and |0.682 - 0|
+    assert check["mae"] == pytest.approx((abs(sums["A"] - 1) + abs(sums["B"] - 0)) / 2, abs=1e-9)
     assert check["correlation"] == pytest.approx(1.0)  # the winner also has the larger WS sum
-    assert check["ws_total"] == pytest.approx(1.4672524, abs=1e-4)
+    assert check["ws_total"] == pytest.approx(sums.sum(), abs=1e-9)
+    assert check["wins_total"] == 1
+
+
+def test_box_win_shares_validates_and_drops_players_off_court() -> None:
+    players, teams = _box()
+    players.loc[players["player_id"] == "B5", "sec"] = 0
+    out = box_win_shares(players, teams)
+    assert "B5" not in set(out["player_id"])
+    assert len(out) == 9
 
 
 def test_fit_points_per_win_recovers_slope() -> None:
     rng = np.random.default_rng(1)
     diff = rng.uniform(-10, 10, size=300)
-    wins_pct = 0.5 + 0.02 * diff  # exact: 1 / 0.02 = 50 points per win
+    win_pct = 0.5 + 0.02 * diff  # exact: 1 / 0.02 = 50 points per win
     frame = pd.DataFrame(
-        {"games": 34, "wins": 34 * wins_pct, "pf": 1000 + 34 * diff / 2, "pa": 1000 - 34 * diff / 2}
+        {"games": 34, "wins": 34 * win_pct, "pf": 1000 + 34 * diff / 2, "pa": 1000 - 34 * diff / 2}
     )
     fit = fit_points_per_win(frame, resamples=200)
     assert fit.value == pytest.approx(50.0, rel=1e-9)
-    assert fit.low <= fit.value + 1e-9 and fit.value - 1e-9 <= fit.high
+    assert fit.low <= fit.value + 1e-9
+    assert fit.value - 1e-9 <= fit.high
     assert fit.intercept == pytest.approx(0.5, abs=1e-9)
 
 

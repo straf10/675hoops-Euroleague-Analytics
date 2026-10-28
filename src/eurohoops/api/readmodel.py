@@ -486,8 +486,6 @@ def stats_inputs(store: Store) -> Inputs:
         # Every played game's assists, not only the site window: the splits keep full careers, and
         # Win Shares need the assisted field goals of every box score.
         assists = game_assists(raw, games[games["played"]])
-        ids, years = games["game_id"].astype(str), games["season"].astype(int)
-        season_of = dict(zip(ids, years, strict=True))
         return Inputs(
             games=games,
             names=dict(teams.itertuples(index=False)),
@@ -501,7 +499,7 @@ def stats_inputs(store: Store) -> Inputs:
             roster=read_rosters(raw, sorted(cached)),
             units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
             assists=assists,
-            win_shares=box_win_shares(box.players, box.teams, assists, season_of),
+            win_shares=box_win_shares(box.players, box.teams),
             wp=_wp_lines(store, games),
             coaches=_coach_games(store, games),
             styles=_coach_styles(store, games),

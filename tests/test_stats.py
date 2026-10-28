@@ -83,7 +83,6 @@ def inputs() -> Inputs:
     games, teams = load_cached_games(RAW)
     box = build_box_games(RAW, games)
     assists = game_assists(RAW, games[games["played"]])
-    season_of = dict(zip(games["game_id"].astype(str), games["season"].astype(int), strict=True))
     return Inputs(
         games=games,
         names=dict(teams.itertuples(index=False)),
@@ -101,7 +100,7 @@ def inputs() -> Inputs:
             DISPLAY_CODES["euroleague"],
         ),
         assists=assists,
-        win_shares=box_win_shares(box.players, box.teams, assists, season_of),
+        win_shares=box_win_shares(box.players, box.teams),
         coaches=coach_games(
             RAW,
             with_elo(games, load_tuned_model(HISTORY_REPORT).params, 2007),

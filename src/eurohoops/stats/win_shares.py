@@ -1,45 +1,64 @@
-"""Win Shares per EuroLeague player-season: Dean Oliver's method (*Basketball on Paper*, 2004),
-as Basketball-Reference publishes it. Reference: datafield.dev, *Professional Basketball
-Analytics*, part 3 chapter 13.
+"""Win Shares per EuroLeague player-season, following Basketball-Reference's implementation of
+Dean Oliver's method (*Basketball on Paper*, 2004):
 
-The chapter's formulas disagree in places (two versions each of the forced-miss weight, the
-individual stops and the marginal defense). This module follows its section 13.12 derivation,
-which is the version with the full defensive stop model. Where the chapter gives no value, the
-constant is documented next to it below.
+- Win Shares: https://www.basketball-reference.com/about/ws.html
+- Individual ratings (Points Produced, scoring possessions, Stop%, DRtg):
+  https://www.basketball-reference.com/about/ratings.html
 
-Offense, season totals per player (``OWS``):
-  PProd = PProd_FG + PProd_AST + PProd_ORB, where
-    PProd_FG  = 2 x unassisted 2FGM + 3 x unassisted 3FGM
-                + AST_CREDIT x points of the assisted makes (an assisted make's points split
-                between scorer and passer, AST_CREDIT each);
-    PProd_AST = AST x league points per assisted FG x AST_CREDIT;
-    PProd_ORB = ORB x team points per possession x ORB_WEIGHT.
-  Possessions used = FGA + 0.44 x FTA + TOV - ORB.
-  Marginal offense = PProd - 0.92 x league PPP x possessions used;
-  OWS = marginal offense / points per win.
+Offense, season totals per player (OWS). Team terms are per team-season:
+  Team_Scoring_Poss = Team_FGM + (1 - (1 - Team_FT%)^2) x Team_FTA x 0.4
+  Team_Play%        = Team_Scoring_Poss / (Team_FGA + 0.4 x Team_FTA + Team_TOV)
+  Team_ORB%         = Team_ORB / (Team_ORB + Opp_DRB)
+  Team_ORB_Weight   = ((1 - Team_ORB%) x Team_Play%)
+                      / ((1 - Team_ORB%) x Team_Play% + Team_ORB% x (1 - Team_Play%))
+  qAST = (MP / (Team_MP / 5)) x 1.14 x ((Team_AST - AST) / Team_FGM)
+         + [((Team_AST / Team_MP) x MP x 5 - AST) / ((Team_FGM / Team_MP) x MP x 5 - FGM)]
+           x (1 - MP / (Team_MP / 5))
+  FG_Part  = FGM x (1 - 0.5 x ((PTS - FTM) / (2 x FGA)) x qAST)
+  AST_Part = 0.5 x (((Team_PTS - Team_FTM) - (PTS - FTM)) / (2 x (Team_FGA - FGA))) x AST
+  FT_Part  = (1 - (1 - FT%)^2) x 0.4 x FTA
+  ORB_Part = ORB x Team_ORB_Weight x Team_Play%
+  ScPoss   = (FG_Part + AST_Part + FT_Part) x (1 - (Team_ORB / Team_Scoring_Poss) x Team_ORB_Weight
+             x Team_Play%) + ORB_Part
+  PProd_FG_Part  = 2 x (FGM + 0.5 x 3PM) x (1 - 0.5 x ((PTS - FTM) / (2 x FGA)) x qAST)
+  PProd_AST_Part = 2 x ((Team_FGM - FGM + 0.5 x (Team_3PM - 3PM)) / (Team_FGM - FGM)) x 0.5
+                   x (((Team_PTS - Team_FTM) - (PTS - FTM)) / (2 x (Team_FGA - FGA))) x AST
+  PProd_ORB_Part = ORB x Team_ORB_Weight x Team_Play% x (Team_PTS / Team_Scoring_Poss)
+  PProd    = (PProd_FG_Part + PProd_AST_Part + FTM)
+             x (1 - (Team_ORB / Team_Scoring_Poss) x Team_ORB_Weight x Team_Play%)
+             + PProd_ORB_Part
+  FGxPoss  = (FGA - FGM) x (1 - 1.07 x Team_ORB%)
+  FTxPoss  = (1 - FT%)^2 x 0.4 x FTA
+  Possessions used = ScPoss + FGxPoss + FTxPoss + TOV
+  Marginal offense = PProd - 0.92 x league PPP x possessions used
+  OWS = marginal offense / points per win
 
-Defense, season totals per player (``DWS``), with the team's opponent totals:
-  DFG% = opp FGM / opp FGA; DOR% = opp ORB / (opp ORB + team DRB);
+Defense, season totals per player (DWS), with the team's opponent totals:
+  DFG% = Opp_FGM / Opp_FGA; DOR% = Opp_ORB / (Opp_ORB + Team_DRB);
   FMwt = DFG% (1 - DOR%) / (DFG% (1 - DOR%) + (1 - DFG%) DOR%);
-  Stops1 = STL + BLK x FMwt x (1 - 1.07 DOR%) + DRB x (1 - FMwt)          (individual);
-  Stops2 = MIN / team MIN x [(opp FGA - opp FGM - team BLK) x FMwt x (1 - 1.07 DOR%)
-           + (opp TOV - team STL)] + PF / team PF x 0.4 x opp FTA x (1 - opp FT%)^2   (team share);
-  Stop% = (Stops1 + Stops2) x team MIN / (team possessions x MIN);
-  D points per scoring possession = opp PTS / (opp FGM + (1 - (1 - opp FT%)^2) x opp FTA x 0.4);
-  DRtg = team DRtg + 0.2 x (100 x D points per scoring possession x (1 - Stop%) - team DRtg),
-  team DRtg = 100 x opp PTS / team possessions;
-  Marginal defense = MIN / team MIN x team possessions x (1.08 x league PPP - DRtg / 100);
+  Stops1 = STL + BLK x FMwt x (1 - 1.07 DOR%) + DRB x (1 - FMwt)           (player);
+  Stops2 = (((Opp_FGA - Opp_FGM - Team_BLK) / Team_MP) x FMwt x (1 - 1.07 DOR%)
+            + (Opp_TOV - Team_STL) / Team_MP) x MP
+           + (PF / Team_PF) x 0.4 x Opp_FTA x (1 - Opp_FT%)^2;
+  Stops = Stops1 + Stops2;  Stop% = Stops x Team_MP / (Team_Poss x MP);
+  D_Pts_per_ScPoss = Opp_PTS / (Opp_FGM + (1 - (1 - Opp_FT%)^2) x Opp_FTA x 0.4);
+  Team DRtg = 100 x Opp_PTS / Team_Poss;
+  DRtg = Team DRtg + 0.2 x (100 x D_Pts_per_ScPoss x (1 - Stop%) - Team DRtg);
+  Marginal defense = MP / Team_MP x Team_Poss x (1.08 x league PPP - DRtg / 100);
   DWS = marginal defense / points per win.
+
+Points per win (ws.html): 0.32 x league PPG x (team pace / league pace), per team-season, where
+PPG and pace are per team-game. With this constant the league's WS sums to its wins, because
+the replacement levels 0.92 and 1.08 leave 0.16 x points scored in marginal points per season.
 
 Win Shares = OWS + DWS; WS/40 = WS / MIN x 40 (EuroLeague games are 40 minutes).
 
-Season totals are summed over every box score of the season (the games the Players page uses);
-rates (Stop%, DRtg, PPP) are computed once per team-season from those totals.
+Season totals are summed over every box score of the season (the games the Players page uses).
+Rates (Stop%, DRtg, PPP, pace) are computed once per team-season from those totals.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -47,26 +66,19 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.parse.schemas import validated
-from eurohoops.stats.assists import AssistRow
 
-# Points per win on EuroLeague regular seasons 2007-08..2025-26 (392 team-seasons): the inverse of
-# the slope of win % on point differential per game, fitted by ``fit_points_per_win``
-# (re-derived by scripts/fit_points_per_win.py). 35.50, 95% CI 33.92 to 37.11. Replaces the
-# NBA's 0.32 x league PPG.
-POINTS_PER_WIN = 35.50
-# Offensive-rebound weight in PProd_ORB. The chapter gives no value; its worked example uses 1.2.
-ORB_WEIGHT = 1.2
-# Share of an assisted basket's points credited to the passer (PProd_AST) and the scorer (PProd_FG)
-AST_CREDIT = 0.5
-FTA_POSSESSION = 0.44  # FTA weight in possessions used
-FTA_SCORING = 0.4  # FTA weight in scoring possessions
+PPW_FACTOR = 0.32  # points per win = PPW_FACTOR x league PPG x (team pace / league pace)
 OFFENSE_REPLACEMENT = 0.92  # x league PPP x possessions used
 DEFENSE_REPLACEMENT = 1.08  # x league PPP x team possessions
+FT_SCORING = 0.4  # FTA weight in scoring possessions and in FT_Part
+FTA_POSSESSION = 0.4  # FTA weight in the team play rate and FTxPoss
+DOR_STOP_WEIGHT = 1.07  # (1 - 1.07 DOR%) in FGxPoss, Stops1 and Stops2
+QAST_WEIGHT = 1.14  # qAST's first term
 DRTG_SHARE = 0.2  # weight of the stop-based term in an individual DRtg
-DOR_STOP_WEIGHT = 1.07  # (1 - 1.07 DOR%) in the blocked-shot and missed-shot stops
 MINUTES_PER_GAME = 40  # EuroLeague regulation game, for WS/40
 
-TEAM_COLS = [
+# Team-season sums needed from the box scores (own totals, then the opponent's: opp_ prefix).
+COUNT_COLS = [
     "pts",
     "fg2m",
     "fg2a",
@@ -79,16 +91,19 @@ TEAM_COLS = [
     "tov",
     "stl",
     "blk",
+    "ast",
     "poss",
-    "won",
 ]
+# Player season sums (player box lines).
 PLAYER_COLS = [
     "sec",
     "pf",
+    "pts",
     "fg2m",
     "fg2a",
     "fg3m",
     "fg3a",
+    "ftm",
     "fta",
     "oreb",
     "dreb",
@@ -116,10 +131,11 @@ def fit_points_per_win(
 ) -> PointsPerWin:
     """Points per win from regular-season team-seasons (``games``, ``wins``, ``pf``, ``pa``).
 
-    Regresses win % on point differential per game (OLS with intercept). A win is worth 1 / slope
-    points of differential over a season: wins - games / 2 = games x slope x diff per game, and
-    total differential = games x diff per game. The interval resamples team-seasons
-    (``resamples``, with a seeded generator).
+    A comparison only: the module uses the Basketball-Reference definition. Regresses win % on
+    point differential per game (OLS with intercept). A win is worth 1 / slope points of
+    differential over a season: wins - games / 2 = games x slope x diff per game, and total
+    differential = games x diff per game. The interval resamples team-seasons (``resamples``, with a
+    seeded generator).
     """
     games = team_seasons["games"].to_numpy(dtype=float)
     diff = (team_seasons["pf"] - team_seasons["pa"]).to_numpy(dtype=float) / games
@@ -169,56 +185,137 @@ def team_seasons_regular(games: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def assisted_fg(
-    assists: Mapping[str, Sequence[AssistRow]], seasons: Mapping[str, int]
-) -> pd.DataFrame:
-    """Assisted made field goals per scorer: season, team, player_id, a2 (2-pointers), a3 (3s).
-
-    Uses the field-goal links of ``stats/assists.py`` (``tier`` ``fg``, or None for a field goal);
-    free-throw links are not field goals and are left out.
-    """
-    rows = [
-        (seasons[gid], r.team, r.scorer, r.points)
-        for gid, linked in assists.items()
-        for r in linked
-        if r.scorer is not None and (r.tier or "fg") == "fg" and r.points in (2, 3)
-    ]
-    frame = pd.DataFrame(rows, columns=["season", "team", "player_id", "points"])
-    frame["a2"] = (frame["points"] == 2).astype(int)
-    frame["a3"] = (frame["points"] == 3).astype(int)
-    return frame.groupby(["season", "team", "player_id"], as_index=False)[["a2", "a3"]].sum()
-
-
-def forced_miss_weight(dfg: pd.Series | float, dor: pd.Series | float) -> pd.Series | float:
-    """FMwt: the share of the opponents' missed shots that the defence turns into stops."""
-    return dfg * (1 - dor) / (dfg * (1 - dor) + (1 - dfg) * dor)
-
-
-def offense_possessions(
-    fga: pd.Series | float, fta: pd.Series | float, tov: pd.Series | float, orb: pd.Series | float
+def scoring_possessions(
+    fgm: pd.Series | float, ft_pct: pd.Series | float, fta: pd.Series | float
 ) -> pd.Series | float:
-    """Possessions used: FGA + 0.44 FTA + TOV - ORB."""
-    return fga + FTA_POSSESSION * fta + tov - orb
+    """Scoring possessions: FGM + (1 - (1 - FT%)^2) x FTA x 0.4 (team or player)."""
+    return fgm + (1 - (1 - ft_pct) ** 2) * fta * FT_SCORING
+
+
+def team_play_pct(
+    scoring: pd.Series | float,
+    fga: pd.Series | float,
+    fta: pd.Series | float,
+    tov: pd.Series | float,
+) -> pd.Series | float:
+    """Team_Play% = Team_Scoring_Poss / (Team_FGA + 0.4 x Team_FTA + Team_TOV)."""
+    return scoring / (fga + FTA_POSSESSION * fta + tov)
+
+
+def team_orb_pct(orb: pd.Series | float, opp_drb: pd.Series | float) -> pd.Series | float:
+    """Team_ORB% = Team_ORB / (Team_ORB + Opp_DRB)."""
+    return orb / (orb + opp_drb)
+
+
+def team_orb_weight(orb_pct: pd.Series | float, play_pct: pd.Series | float) -> pd.Series | float:
+    """Team_ORB_Weight: the share of an offensive rebound's possession worth a full possession."""
+    return ((1 - orb_pct) * play_pct) / ((1 - orb_pct) * play_pct + orb_pct * (1 - play_pct))
+
+
+def points_per_win(
+    league_ppg: pd.Series | float, pace: pd.Series | float, league_pace: pd.Series | float
+) -> pd.Series | float:
+    """Points per win: 0.32 x league PPG x (team pace / league pace), per team-game."""
+    return PPW_FACTOR * league_ppg * (pace / league_pace)
+
+
+def qast(
+    *,
+    sec: pd.Series | float,
+    team_sec: pd.Series | float,
+    ast: pd.Series | float,
+    fgm: pd.Series | float,
+    team_ast: pd.Series | float,
+    team_fgm: pd.Series | float,
+) -> pd.Series | float:
+    """qAST: the share of the player's made field goals that were assisted, from his minutes and
+    his team's assists and made field goals (Basketball-Reference). Times are seconds."""
+    per_five = team_sec / 5
+    first = (sec / per_five) * (QAST_WEIGHT * ((team_ast - ast) / team_fgm))
+    second = (((team_ast / team_sec) * sec * 5 - ast) / ((team_fgm / team_sec) * sec * 5 - fgm)) * (
+        1 - sec / per_five
+    )
+    return first + second
 
 
 def points_produced(
-    unassisted: pd.Series | float,
-    assisted_points: pd.Series | float,
     *,
+    fgm: pd.Series | float,
+    fg3m: pd.Series | float,
+    pts: pd.Series | float,
+    ftm: pd.Series | float,
+    fga: pd.Series | float,
+    qast_value: pd.Series | float,
+    fg_share: pd.Series | float,
     ast: pd.Series | float,
-    league_points_per_assist: pd.Series | float,
-    orb: pd.Series | float,
-    team_ppp: pd.Series | float,
+    team_fgm: pd.Series | float,
+    team_fg3m: pd.Series | float,
+    team_pts: pd.Series | float,
+    team_ftm: pd.Series | float,
+    team_fga: pd.Series | float,
+    oreb: pd.Series | float,
+    team_orb_factor: pd.Series | float,
+    orb_weight_play: pd.Series | float,
+    team_ppp_scoring: pd.Series | float,
 ) -> pd.Series | float:
-    """PProd = PProd_FG + PProd_AST + PProd_ORB (see the module docstring).
+    """PProd (Basketball-Reference, see the module docstring).
 
-    ``unassisted`` is the unassisted made-shot points (2 and 3 each); ``assisted_points`` the
-    points of his assisted makes.
-    """
-    prod_fg = unassisted + AST_CREDIT * assisted_points
-    prod_ast = ast * league_points_per_assist * AST_CREDIT
-    prod_orb = orb * team_ppp * ORB_WEIGHT
-    return prod_fg + prod_ast + prod_orb
+    ``team_orb_factor`` = Team_ORB / Team_Scoring_Poss x Team_ORB_Weight x Team_Play%;
+    ``orb_weight_play`` = Team_ORB_Weight x Team_Play%; ``team_ppp_scoring`` = Team_PTS /
+    Team_Scoring_Poss."""
+    fg_part = 2 * (fgm + 0.5 * fg3m) * (1 - 0.5 * fg_share * qast_value)
+    ast_part = (
+        2
+        * ((team_fgm - fgm + 0.5 * (team_fg3m - fg3m)) / (team_fgm - fgm))
+        * 0.5
+        * (((team_pts - team_ftm) - (pts - ftm)) / (2 * (team_fga - fga)))
+        * ast
+    )
+    orb_part = oreb * orb_weight_play * team_ppp_scoring
+    return (fg_part + ast_part + ftm) * (1 - team_orb_factor) + orb_part
+
+
+def scoring_possessions_player(
+    *,
+    fgm: pd.Series | float,
+    fga: pd.Series | float,
+    pts: pd.Series | float,
+    ftm: pd.Series | float,
+    fta: pd.Series | float,
+    ft_pct: pd.Series | float,
+    qast_value: pd.Series | float,
+    fg_share: pd.Series | float,
+    ast: pd.Series | float,
+    team_pts: pd.Series | float,
+    team_ftm: pd.Series | float,
+    team_fga: pd.Series | float,
+    oreb: pd.Series | float,
+    team_orb_factor: pd.Series | float,
+    orb_weight_play: pd.Series | float,
+) -> pd.Series | float:
+    """ScPoss (Basketball-Reference): the player's scoring possessions (module docstring)."""
+    fg_part = fgm * (1 - 0.5 * fg_share * qast_value)
+    ast_part = 0.5 * (((team_pts - team_ftm) - (pts - ftm)) / (2 * (team_fga - fga))) * ast
+    ft_part = (1 - (1 - ft_pct) ** 2) * FT_SCORING * fta
+    orb_part = oreb * orb_weight_play
+    return (fg_part + ast_part + ft_part) * (1 - team_orb_factor) + orb_part
+
+
+def possessions_used(
+    *,
+    scoring: pd.Series | float,
+    fga: pd.Series | float,
+    fgm: pd.Series | float,
+    team_orb_pct_value: pd.Series | float,
+    ft_pct: pd.Series | float,
+    fta: pd.Series | float,
+    tov: pd.Series | float,
+) -> pd.Series | float:
+    """TotPoss = ScPoss + FGxPoss + FTxPoss + TOV, FGxPoss = (FGA - FGM)(1 - 1.07 Team_ORB%),
+    FTxPoss = (1 - FT%)^2 x 0.4 x FTA."""
+    fgx = (fga - fgm) * (1 - DOR_STOP_WEIGHT * team_orb_pct_value)
+    ftx = (1 - ft_pct) ** 2 * FTA_POSSESSION * fta
+    return scoring + fgx + ftx + tov
 
 
 def marginal_offense(
@@ -258,120 +355,205 @@ def marginal_defense(
     return (minutes / team_minutes) * team_poss * (DEFENSE_REPLACEMENT * league_ppp - drtg / 100)
 
 
+def _div(num: pd.Series, den: pd.Series) -> pd.Series:
+    """num / den, with 0 where the denominator is 0 (a player with no attempts of that kind)."""
+    out = num / den
+    return out.where(np.isfinite(out), 0.0)
+
+
 def _team_seasons(teams: pd.DataFrame, players: pd.DataFrame) -> pd.DataFrame:
-    """One row per team-season: own totals (``TEAM_COLS``), opponent totals (``opp_`` prefix),
-    team minutes in seconds (``mp``) and team fouls (``pf``)."""
-    other = teams[["game_id", "team", *TEAM_COLS]].rename(
-        columns={"team": "opponent", **{c: f"opp_{c}" for c in TEAM_COLS}}
+    """One row per team-season: own sums (``tm_`` prefix), the opponents' sums (``opp_``), games
+    (``tm_games``), team minutes in seconds (``tm_mp``) and team fouls (``tm_pf``)."""
+    other = teams[["game_id", "team", *COUNT_COLS]].rename(
+        columns={"team": "opponent", **{c: f"opp_{c}" for c in COUNT_COLS}}
     )
     games = teams.merge(other, on=["game_id", "opponent"], validate="one_to_one")
-    opp_cols = [f"opp_{c}" for c in TEAM_COLS]
-    totals = games.groupby(["season", "team"])[[*TEAM_COLS, *opp_cols]].sum()
-    totals["mp"] = players.groupby(["season", "team"])["sec"].sum()
-    totals["pf"] = players.groupby(["season", "team"])["pf"].sum()
-    return totals.reset_index()
+    sums = games.groupby(["season", "team"])[[*COUNT_COLS, *[f"opp_{c}" for c in COUNT_COLS]]].sum()
+    sums = sums.rename(columns={c: f"tm_{c}" for c in COUNT_COLS})
+    sums["tm_games"] = games.groupby(["season", "team"]).size()
+    sums["tm_mp"] = players.groupby(["season", "team"])["sec"].sum()
+    sums["tm_pf"] = players.groupby(["season", "team"])["pf"].sum()
+    return sums.reset_index()
 
 
-def win_shares(
-    players: pd.DataFrame,
-    teams: pd.DataFrame,
-    assisted: pd.DataFrame,
-    points_per_win: float = POINTS_PER_WIN,
-) -> pd.DataFrame:
-    """Win Shares per player, season and team: OWS, DWS, WS, WS/40 (``stats.box.BoxGames`` tables
-    ``players`` and ``teams``; ``assisted`` from :func:`assisted_fg`).
+def win_shares(players: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
+    """Win Shares per player, season and team: OWS, DWS, WS, WS/40 and the possessions used.
 
-    Every row of ``players`` must have ``sec`` > 0 (a player who was on the court). Team sums come
-    from the same box scores, so a team's WS sums to its wins only up to the stats model.
+    ``players`` and ``teams`` are the box-score tables of ``stats.box.BoxGames``. Every row of
+    ``players`` must have ``sec`` > 0 (he was on the court).
     """
-    ts = _team_seasons(teams, players)
-    ts["fgm"] = ts["fg2m"] + ts["fg3m"]
-    ts["fga"] = ts["fg2a"] + ts["fg3a"]
-    ts["opp_fgm"] = ts["opp_fg2m"] + ts["opp_fg3m"]
-    ts["opp_fga"] = ts["opp_fg2a"] + ts["opp_fg3a"]
-    ts["team_ppp"] = ts["pts"] / ts["poss"]
-    league = ts.groupby("season")[["pts", "poss"]].sum()
-    lg_ppp = (league["pts"] / league["poss"]).rename("lg_ppp")
-    ts = ts.merge(lg_ppp, left_on="season", right_index=True)
-    ts["dfg"] = ts["opp_fgm"] / ts["opp_fga"]
-    ts["dor"] = ts["opp_oreb"] / (ts["opp_oreb"] + ts["dreb"])
-    ts["fmwt"] = forced_miss_weight(ts["dfg"], ts["dor"])
-    ts["stops2_team"] = (ts["opp_fga"] - ts["opp_fgm"] - ts["blk"]) * ts["fmwt"] * (
-        1 - DOR_STOP_WEIGHT * ts["dor"]
-    ) + (ts["opp_tov"] - ts["stl"])
-    opp_ft = ts["opp_ftm"] / ts["opp_fta"]
-    ts["foul_stops_team"] = FTA_SCORING * ts["opp_fta"] * (1 - opp_ft) ** 2
-    ts["d_pps"] = ts["opp_pts"] / (
-        ts["opp_fgm"] + (1 - (1 - opp_ft) ** 2) * ts["opp_fta"] * FTA_SCORING
+    tm = _team_seasons(teams, players)
+    tm["tm_fgm"] = tm["tm_fg2m"] + tm["tm_fg3m"]
+    tm["tm_fga"] = tm["tm_fg2a"] + tm["tm_fg3a"]
+    tm["opp_fgm"] = tm["opp_fg2m"] + tm["opp_fg3m"]
+    tm["opp_fga"] = tm["opp_fg2a"] + tm["opp_fg3a"]
+    tm_ft = tm["tm_ftm"] / tm["tm_fta"]
+    opp_ft = tm["opp_ftm"] / tm["opp_fta"]
+    tm["scoring"] = scoring_possessions(tm["tm_fgm"], tm_ft, tm["tm_fta"])
+    tm["play"] = team_play_pct(tm["scoring"], tm["tm_fga"], tm["tm_fta"], tm["tm_tov"])
+    tm["orb_pct"] = team_orb_pct(tm["tm_oreb"], tm["opp_dreb"])
+    tm["orb_weight"] = team_orb_weight(tm["orb_pct"], tm["play"])
+    tm["orb_factor"] = (tm["tm_oreb"] / tm["scoring"]) * tm["orb_weight"] * tm["play"]
+    tm["orb_weight_play"] = tm["orb_weight"] * tm["play"]
+    tm["ppp_scoring"] = tm["tm_pts"] / tm["scoring"]
+    tm["team_ppp"] = tm["tm_pts"] / tm["tm_poss"]
+    tm["pace"] = tm["tm_poss"] / tm["tm_games"]
+    league = tm.groupby("season")[["tm_pts", "tm_poss", "tm_games"]].sum()
+    lg = pd.DataFrame(
+        {
+            "lg_ppp": league["tm_pts"] / league["tm_poss"],
+            "lg_ppg": league["tm_pts"] / league["tm_games"],
+            "lg_pace": league["tm_poss"] / league["tm_games"],
+        }
     )
-    ts["team_drtg"] = 100 * ts["opp_pts"] / ts["poss"]
-
-    assists = assisted.groupby("season")[["a2", "a3"]].sum()
-    assists["points"] = 2 * assists["a2"] + 3 * assists["a3"]
-    assists["count"] = assists["a2"] + assists["a3"]
-    per_assist = (assists["points"] / assists["count"]).rename("pts_per_assist")
+    tm = tm.merge(lg, left_on="season", right_index=True)
+    tm["ppw"] = points_per_win(tm["lg_ppg"], tm["pace"], tm["lg_pace"])
+    # defence: the opponents' totals against this team
+    tm["dfg"] = tm["opp_fgm"] / tm["opp_fga"]
+    tm["dor"] = tm["opp_oreb"] / (tm["opp_oreb"] + tm["tm_dreb"])
+    tm["fmwt"] = (tm["dfg"] * (1 - tm["dor"])) / (
+        tm["dfg"] * (1 - tm["dor"]) + (1 - tm["dfg"]) * tm["dor"]
+    )
+    tm["stops2_team"] = (tm["opp_fga"] - tm["opp_fgm"] - tm["tm_blk"]) * tm["fmwt"] * (
+        1 - DOR_STOP_WEIGHT * tm["dor"]
+    ) + (tm["opp_tov"] - tm["tm_stl"])
+    tm["foul_stops_team"] = FT_SCORING * tm["opp_fta"] * (1 - opp_ft) ** 2
+    tm["d_pps"] = tm["opp_pts"] / (
+        tm["opp_fgm"] + (1 - (1 - opp_ft) ** 2) * tm["opp_fta"] * FT_SCORING
+    )
+    tm["team_drtg"] = 100 * tm["opp_pts"] / tm["tm_poss"]
 
     pl = players.groupby(["season", "team", "player_id"], as_index=False).agg(
-        player=("player", "last"),
-        **{c: (c, "sum") for c in PLAYER_COLS},
+        player=("player", "last"), **{c: (c, "sum") for c in PLAYER_COLS}
     )
-    pl = pl.merge(assisted, on=["season", "team", "player_id"], how="left").fillna(
-        {"a2": 0, "a3": 0}
-    )
-    pl = pl.merge(ts, on=["season", "team"], validate="many_to_one", suffixes=("", "_tm"))
-    pl = pl.merge(per_assist, left_on="season", right_index=True)
-    pl["fga"] = pl["fg2a"] + pl["fg3a"]  # the player's, not the team column merged above
-
-    unassisted = 2 * (pl["fg2m"] - pl["a2"]) + 3 * (pl["fg3m"] - pl["a3"])
-    assisted_points = 2 * pl["a2"] + 3 * pl["a3"]
-    pprod = points_produced(
-        unassisted,
-        assisted_points,
+    pl["fgm"] = pl["fg2m"] + pl["fg3m"]
+    pl["fga"] = pl["fg2a"] + pl["fg3a"]
+    pl["ft_pct"] = _div(pl["ftm"], pl["fta"])
+    pl = pl.merge(tm, on=["season", "team"], validate="many_to_one")
+    pl["qast"] = qast(
+        sec=pl["sec"],
+        team_sec=pl["tm_mp"],
         ast=pl["ast"],
-        league_points_per_assist=pl["pts_per_assist"],
-        orb=pl["oreb"],
-        team_ppp=pl["team_ppp"],
+        fgm=pl["fgm"],
+        team_ast=pl["tm_ast"],
+        team_fgm=pl["tm_fgm"],
     )
-    pl["points_produced"] = pprod
-    used = offense_possessions(pl["fga"], pl["fta"], pl["tov"], pl["oreb"])
-    pl["ows"] = marginal_offense(pprod, pl["lg_ppp"], used) / points_per_win
+    qa = pl["qast"]
+    fg_share = _div(pl["pts"] - pl["ftm"], 2 * pl["fga"])  # (PTS - FTM) / (2 FGA); 0 without FGA
 
+    # Offense. The team terms are per team-season (the merged columns).
+    pl["pprod"] = points_produced(
+        fgm=pl["fgm"],
+        fg3m=pl["fg3m"],
+        pts=pl["pts"],
+        ftm=pl["ftm"],
+        fga=pl["fga"],
+        qast_value=qa,
+        fg_share=fg_share,
+        ast=pl["ast"],
+        team_fgm=pl["tm_fgm"],
+        team_fg3m=pl["tm_fg3m"],
+        team_pts=pl["tm_pts"],
+        team_ftm=pl["tm_ftm"],
+        team_fga=pl["tm_fga"],
+        oreb=pl["oreb"],
+        team_orb_factor=pl["orb_factor"],
+        orb_weight_play=pl["orb_weight_play"],
+        team_ppp_scoring=pl["ppp_scoring"],
+    )
+    pl["scoring_poss"] = scoring_possessions_player(
+        fgm=pl["fgm"],
+        fga=pl["fga"],
+        pts=pl["pts"],
+        ftm=pl["ftm"],
+        fta=pl["fta"],
+        ft_pct=pl["ft_pct"],
+        qast_value=qa,
+        fg_share=fg_share,
+        ast=pl["ast"],
+        team_pts=pl["tm_pts"],
+        team_ftm=pl["tm_ftm"],
+        team_fga=pl["tm_fga"],
+        oreb=pl["oreb"],
+        team_orb_factor=pl["orb_factor"],
+        orb_weight_play=pl["orb_weight_play"],
+    )
+    pl["poss_used"] = possessions_used(
+        scoring=pl["scoring_poss"],
+        fga=pl["fga"],
+        fgm=pl["fgm"],
+        team_orb_pct_value=pl["orb_pct"],
+        ft_pct=pl["ft_pct"],
+        fta=pl["fta"],
+        tov=pl["tov"],
+    )
+    pl["ows"] = marginal_offense(pl["pprod"], pl["lg_ppp"], pl["poss_used"]) / pl["ppw"]
+
+    # Defense
     stops1 = (
         pl["stl"]
         + pl["blk"] * pl["fmwt"] * (1 - DOR_STOP_WEIGHT * pl["dor"])
         + pl["dreb"] * (1 - pl["fmwt"])
     )
-    stops2 = (pl["sec"] / pl["mp"]) * pl["stops2_team"] + (pl["pf"] / pl["pf_tm"]) * pl[
+    stops2 = (pl["sec"] / pl["tm_mp"]) * pl["stops2_team"] + (pl["pf"] / pl["tm_pf"]) * pl[
         "foul_stops_team"
     ]
-    stop = stop_percentage(stops1 + stops2, pl["mp"], pl["poss"], pl["sec"])
+    stop = stop_percentage(stops1 + stops2, pl["tm_mp"], pl["tm_poss"], pl["sec"])
     drtg = individual_drtg(pl["team_drtg"], pl["d_pps"], stop)
     pl["dws"] = (
-        marginal_defense(pl["sec"], pl["mp"], pl["poss"], pl["lg_ppp"], drtg) / points_per_win
+        marginal_defense(pl["sec"], pl["tm_mp"], pl["tm_poss"], pl["lg_ppp"], drtg) / pl["ppw"]
     )
 
     pl["ws"] = pl["ows"] + pl["dws"]
     pl["minutes"] = pl["sec"] / 60
     pl["ws40"] = pl["ws"] / pl["minutes"] * MINUTES_PER_GAME
-    return pl[
+    out = pl[
         [
             "season",
             "team",
             "player_id",
             "player",
             "minutes",
-            "points_produced",
+            "pprod",
+            "poss_used",
             "ows",
             "dws",
             "ws",
             "ws40",
         ]
-    ].reset_index(drop=True)
+    ].rename(columns={"pprod": "points_produced", "poss_used": "possessions_used"})
+    return out.reset_index(drop=True)
+
+
+WS_FIELDS = ("ows", "dws", "ws", "ws40")
+WIN_SHARES_SCHEMA = pa.DataFrameSchema(
+    {
+        "season": pa.Column("int64"),
+        "team": pa.Column(str),
+        "player_id": pa.Column(str),
+        "player": pa.Column(str),
+        "minutes": pa.Column("float64", pa.Check.gt(0)),
+        "points_produced": pa.Column("float64"),
+        "possessions_used": pa.Column("float64"),
+        "ows": pa.Column("float64"),
+        "dws": pa.Column("float64"),
+        "ws": pa.Column("float64"),
+        "ws40": pa.Column("float64"),
+    },
+    unique=["season", "team", "player_id"],
+    strict=True,
+)
+
+
+def box_win_shares(players: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
+    """Win Shares of every player who was on court in the box scores (``WIN_SHARES_SCHEMA``)."""
+    on_court = players[players["sec"] > 0]
+    return validated(win_shares(on_court, teams), WIN_SHARES_SCHEMA)
 
 
 def team_check(ws: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
-    """Per season: the correlation of each team's summed player WS with its wins, and the mean
-    absolute error of that sum (wins over the same games, from the team box rows)."""
+    """Per season: the correlation of each team's summed player WS with its wins, the mean absolute
+    error of that sum, and the league sum of WS against the league's wins (the same games)."""
     summed = ws.groupby(["season", "team"], as_index=False)["ws"].sum()
     wins = teams.groupby(["season", "team"], as_index=False)["won"].sum()
     both = summed.merge(wins, on=["season", "team"], validate="one_to_one")
@@ -388,37 +570,3 @@ def team_check(ws: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
-
-
-WS_FIELDS = ("ows", "dws", "ws", "ws40")
-WIN_SHARES_SCHEMA = pa.DataFrameSchema(
-    {
-        "season": pa.Column("int64"),
-        "team": pa.Column(str),
-        "player_id": pa.Column(str),
-        "player": pa.Column(str),
-        "minutes": pa.Column("float64", pa.Check.gt(0)),
-        "points_produced": pa.Column("float64"),
-        "ows": pa.Column("float64"),
-        "dws": pa.Column("float64"),
-        "ws": pa.Column("float64"),
-        "ws40": pa.Column("float64"),
-    },
-    unique=["season", "team", "player_id"],
-    strict=True,
-)
-
-
-def box_win_shares(
-    players: pd.DataFrame,
-    teams: pd.DataFrame,
-    assists: Mapping[str, Sequence[AssistRow]],
-    seasons: Mapping[str, int],
-) -> pd.DataFrame:
-    """Win Shares of every player who was on court in the box scores (``WIN_SHARES_SCHEMA``).
-
-    ``assists`` is the play-by-play assist rows per game id and ``seasons`` the season per game id
-    (both from the games table); the assisted field goals come from them.
-    """
-    on_court = players[players["sec"] > 0]
-    return validated(win_shares(on_court, teams, assisted_fg(assists, seasons)), WIN_SHARES_SCHEMA)

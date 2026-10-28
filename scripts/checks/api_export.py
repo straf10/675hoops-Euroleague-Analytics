@@ -136,7 +136,6 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
         teams = read_teams(MART_PATH, EUROLEAGUE.name)
     box = build_box_games(raw_dir, games)
     assists = game_assists(raw_dir, games[games["played"]])
-    season_of = dict(zip(games["game_id"].astype(str), games["season"].astype(int), strict=True))
     inputs = Inputs(
         games=games,
         names=dict(teams.itertuples(index=False)),
@@ -158,7 +157,7 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
             DISPLAY_CODES[EUROLEAGUE.name],
         ),
         assists=assists,
-        win_shares=box_win_shares(box.players, box.teams, assists, season_of),
+        win_shares=box_win_shares(box.players, box.teams),
     )
     write_stats(out, build_payloads(inputs, now))
 
