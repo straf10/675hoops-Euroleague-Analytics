@@ -4,6 +4,7 @@
 is the Top 16 (2007-08 to 2015-16).
 """
 
+import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,7 @@ OPTIONAL_COLUMNS = ("venue", "venue_address")
 
 
 ATHENS = "Europe/Athens"  # EuroLeague tip-offs are published in Athens local time
+_OFFSET = re.compile(r"(Z|[+-]\d{2}:?\d{2})$")  # utcDate must say which zone it is in
 
 
 def _scores_match_played(df: pd.DataFrame) -> pd.Series:
@@ -148,30 +150,51 @@ def parse_schedule(season: int, games: list[RawGame]) -> pd.DataFrame:
     Final Four games are neutral whatever ``isNeutralVenue`` says: the API sets it
     inconsistently (0 of 4 Final Four games in 2023-24, 2 of 4 in 2024-25).
     """
-    rows = [
-        {
-            "game_id": game["identifier"],
-            "season": season,
-            "game_code": game["gameCode"],
-            "phase": game["phaseType"]["code"],
-            "round": game["round"],
-            "round_label": game["roundAlias"],
-            "tipoff_utc": pd.to_datetime(game["utcDate"], format="ISO8601", utc=True),
-            "home": game["local"]["club"]["code"],
-            "away": game["road"]["club"]["code"],
-            # Unplayed games carry score 0 in the API; they must be null here.
-            "home_score": game["local"]["score"] if game["played"] else None,
-            "away_score": game["road"]["score"] if game["played"] else None,
-            "played": game["played"],
-            "forfeit": False,
-            "neutral": game["isNeutralVenue"] or game["phaseType"]["code"] == "FF",
-            "confirmed_date": game["confirmedDate"],
-            "venue": _venue_field(game, "name"),
-            "venue_address": _venue_field(game, "address"),
-        }
-        for game in games
-    ]
+    rows = [_row(season, game) for game in games]
     return conform(pd.DataFrame(rows, columns=list(GAMES_SCHEMA.columns)))
+
+
+def _flag(game: RawGame, key: str) -> bool:
+    """A JSON boolean; a string such as "false" is truthy and would be read as true."""
+    value = game[key]
+    if not isinstance(value, bool):
+        raise ValueError(f"{game['identifier']}: {key} is {value!r}, not a boolean")
+    return value
+
+
+def _club_code(game: RawGame, side: str) -> str:
+    """A club code as published; a padded code would be a second team in the tables."""
+    code = game[side]["club"]["code"]
+    if not isinstance(code, str) or not code or code != code.strip():
+        raise ValueError(f"{game['identifier']}: {side} club code {code!r} is not a clean code")
+    return code
+
+
+def _row(season: int, game: RawGame) -> dict[str, Any]:
+    played = _flag(game, "played")
+    neutral = _flag(game, "isNeutralVenue")
+    if not _OFFSET.search(game["utcDate"]):
+        raise ValueError(f"{game['identifier']}: utcDate {game['utcDate']!r} has no timezone")
+    return {
+        "game_id": game["identifier"],
+        "season": season,
+        "game_code": game["gameCode"],
+        "phase": game["phaseType"]["code"],
+        "round": game["round"],
+        "round_label": game["roundAlias"],
+        "tipoff_utc": pd.to_datetime(game["utcDate"], format="ISO8601", utc=True),
+        "home": _club_code(game, "local"),
+        "away": _club_code(game, "road"),
+        # Unplayed games carry score 0 in the API; they must be null here.
+        "home_score": game["local"]["score"] if played else None,
+        "away_score": game["road"]["score"] if played else None,
+        "played": played,
+        "forfeit": False,
+        "neutral": neutral or game["phaseType"]["code"] == "FF",
+        "confirmed_date": _flag(game, "confirmedDate"),
+        "venue": _venue_field(game, "name"),
+        "venue_address": _venue_field(game, "address"),
+    }
 
 
 def build_games_table(schedules: dict[int, list[RawGame]]) -> pd.DataFrame:
