@@ -70,8 +70,9 @@ class OddsApiError(RuntimeError):
 
 
 class OddsFetchError(OddsApiError):
-    """The odds source gave no usable answer: a transport error, a non-200 status, or a body that
-    does not parse. Nothing is written to odds/ for it, and the daily run goes on without odds."""
+    """The odds source gave no usable answer (a transport error, a non-200 status, a body that does
+    not parse) or the quota is spent. No consensus row is written; a non-200 answer still appends
+    its call row, the audit trail. The daily run goes on without odds."""
 
 
 @dataclass(frozen=True)
@@ -239,7 +240,10 @@ def record_odds(
             raise OddsApiError(str(exc)) from None
     remaining = last_remaining(paths.calls)
     if remaining is not None and remaining < MIN_REMAINING:
-        raise OddsApiError(f"refusing to call: {remaining} requests remaining (< {MIN_REMAINING})")
+        # Out of quota is a source failure, not a broken log: forecasts go on without odds.
+        raise OddsFetchError(
+            f"quota: refusing to call, {remaining} requests remaining (< {MIN_REMAINING})"
+        )
     fetched_at = clock()
     try:
         with _quiet_http_logs():
@@ -263,7 +267,8 @@ def record_odds(
         call["requests_remaining"] or "?",
     )
     if response.status_code != httpx.codes.OK:
-        # No row in odds/ for a failed call: the raw answer is not kept either.
+        # The call row is the audit trail of a real call (status, quota); no consensus row.
+        append_rows(paths.calls, CALL_COLUMNS, [call])
         raise OddsFetchError(f"HTTP {response.status_code} {_error_code(response)}".strip())
     write_atomic(paths.raw_dir / f"{fetched_at:%Y%m%dT%H%M%SZ}.json.gz", response.content)
     teams = read_team_map(paths.teams)
