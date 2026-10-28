@@ -4,8 +4,7 @@ import pandas as pd
 
 from eurohoops.api.readmodel import _ordered
 from eurohoops.eval.backtest import TunedModel
-from eurohoops.eval.forecasts import _provable
-from eurohoops.eval.scorecard import _scored, latest_per_model_game
+from eurohoops.eval.scorecard import _scored, latest_per_model_game, provable_rows
 from eurohoops.predict import LOG_COLUMNS
 from tests.conftest import make_games
 
@@ -56,7 +55,7 @@ def test_provable_takes_the_latest_row_before_tipoff_and_ignores_later_ones() ->
             row("G1", "2026-10-01T19:00:00Z", "0.9000"),  # stamped after tip-off: never counts
         ]
     )
-    (kept,) = _provable(log, manual_pushes=[]).to_dict("records")
+    (kept,) = provable_rows(log, manual_pushes=[]).to_dict("records")
     assert kept["p_home"] == "0.7000"
 
 
