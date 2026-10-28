@@ -121,6 +121,7 @@ def _load_schedule(
         return _schedule_games(read_cached(path))
     cached = _cached_games(path)
     payload = fetcher.get(SCHEDULE_URL.format(season=season))
+    stats.schedule_fetches += 1
     try:
         games = _checked_schedule(payload)
         _refuse_shrink(games, cached)
@@ -138,7 +139,6 @@ def _load_schedule(
             "Schedule rejected", f"{season} {exc}: cached {len(kept)} games, new {exc.new_games}"
         )
         return kept
-    stats.schedule_fetches += 1
     write_atomic(path, payload)
     return games
 

@@ -333,3 +333,26 @@ def test_deploy_site_takes_only_a_daily_run_of_this_repo_on_main() -> None:
     assert "actions/runs/$run_id" in find
     assert ".github/workflows/daily.yml schedule" in find
     assert ".github/workflows/daily.yml workflow_dispatch" in find
+
+
+def setup_uv_pins() -> list[tuple[str, object]]:
+    """(workflow file, version input) of every astral-sh/setup-uv step in the repository."""
+    pins = []
+    for path in sorted((REPO / ".github/workflows").glob("*.yml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job in (data.get("jobs") or {}).values():
+            for step in job.get("steps") or []:
+                if str(step.get("uses", "")).startswith("astral-sh/setup-uv@"):
+                    pins.append((path.name, (step.get("with") or {}).get("version")))
+    return pins
+
+
+def test_every_setup_uv_step_pins_the_uv_the_dockerfile_installs() -> None:
+    # Pinned so that CI, the daily job and the API image run one uv (F-02); the Dockerfile's
+    # version is the reference, so the two cannot drift apart.
+    pins = setup_uv_pins()
+    assert len(pins) == 4, pins
+    dockerfile = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    pinned = re.search(r'pip install --no-cache-dir "uv==([0-9.]+)"', dockerfile)
+    assert pinned is not None, "the Dockerfile must pin uv"
+    assert {version for _, version in pins} == {pinned.group(1)}, pins

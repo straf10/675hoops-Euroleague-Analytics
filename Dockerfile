@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     EUROHOOPS_ROOT=/srv/eurohoops
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir "uv==0.12.18"
 
 WORKDIR /build
 COPY pyproject.toml uv.lock README.md LICENSE ./
