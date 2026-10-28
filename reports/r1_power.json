@@ -1,0 +1,360 @@
+{
+  "rule": {
+    "source": "docs/models/m5.md and m1.md (PLAN 8.1 R1); eval/promotion.py",
+    "promote_if": "two-sided 97.5% paired-bootstrap CI upper bound < 0 and mean <= min_gap",
+    "ci_level": 0.975,
+    "z_upper": 2.2414,
+    "min_gap": -0.01,
+    "resamples": 10000,
+    "seed": 20261009
+  },
+  "looks": {
+    "euroleague": [
+      {
+        "name": "round 19",
+        "n_games": 160
+      },
+      {
+        "name": "season end",
+        "n_games": 372
+      }
+    ]
+  },
+  "gap_sd": [
+    {
+      "competition": "euroleague",
+      "pair": "m5-elo",
+      "split": "validation",
+      "n_games": 331,
+      "mean": -0.004744,
+      "sd": 0.1264,
+      "source": "per-game backtest_m5_games.csv (validation)"
+    },
+    {
+      "competition": "euroleague",
+      "pair": "m1-elo",
+      "split": "validation",
+      "n_games": 331,
+      "mean": -0.000796,
+      "sd": 0.067014,
+      "source": "per-game backtest_m5_games.csv (validation)"
+    },
+    {
+      "competition": "euroleague",
+      "pair": "m5-m1",
+      "split": "validation",
+      "n_games": 331,
+      "mean": -0.003948,
+      "sd": 0.104417,
+      "source": "per-game backtest_m5_games.csv (validation)"
+    },
+    {
+      "competition": "euroleague",
+      "pair": "m5-elo",
+      "split": "test",
+      "n_games": 732,
+      "mean": -0.001351,
+      "sd": 0.141362,
+      "source": "per-game backtest_m5_games.csv (test)"
+    },
+    {
+      "competition": "euroleague",
+      "pair": "m1-elo",
+      "split": "test",
+      "n_games": 732,
+      "mean": -0.001336,
+      "sd": 0.087911,
+      "source": "per-game backtest_m5_games.csv (test)"
+    },
+    {
+      "competition": "euroleague",
+      "pair": "m5-m1",
+      "split": "test",
+      "n_games": 732,
+      "mean": -1.5e-05,
+      "sd": 0.129939,
+      "source": "per-game backtest_m5_games.csv (test)"
+    }
+  ],
+  "checks": {
+    "euroleague": {
+      "validation_m5_log_loss": [
+        0.583765,
+        0.583765
+      ],
+      "validation_m1_log_loss": [
+        0.587714,
+        0.587714
+      ],
+      "validation_m5_minus_m1_ci_sd": 0.098565,
+      "test_m1_minus_elo_ci_sd": 0.085894,
+      "test_m1_minus_elo_mean": -0.001336
+    }
+  },
+  "analytic": {
+    "euroleague": {
+      "sd": 0.141362,
+      "sd_source": "test split, 732 games",
+      "rows": [
+        {
+          "true_gap": -0.003,
+          "marginal": [
+            0.0242,
+            0.0249
+          ],
+          "cumulative": [
+            0.0242,
+            0.0491
+          ]
+        },
+        {
+          "true_gap": -0.005,
+          "marginal": [
+            0.0364,
+            0.0436
+          ],
+          "cumulative": [
+            0.0364,
+            0.08
+          ]
+        },
+        {
+          "true_gap": -0.01,
+          "marginal": [
+            0.0891,
+            0.1325
+          ],
+          "cumulative": [
+            0.0891,
+            0.2216
+          ]
+        },
+        {
+          "true_gap": -0.02,
+          "marginal": [
+            0.3257,
+            0.3839
+          ],
+          "cumulative": [
+            0.3257,
+            0.7097
+          ]
+        },
+        {
+          "true_gap": 0.0,
+          "marginal": [
+            0.0125,
+            0.0095
+          ],
+          "cumulative": [
+            0.0125,
+            0.022
+          ]
+        }
+      ]
+    }
+  },
+  "sensitivity_analytic": {
+    "euroleague_validation": {
+      "sd": 0.1264,
+      "sd_source": "validation, 331 games",
+      "rows": [
+        {
+          "true_gap": -0.003,
+          "marginal": [
+            0.0261,
+            0.0276
+          ],
+          "cumulative": [
+            0.0261,
+            0.0538
+          ]
+        },
+        {
+          "true_gap": -0.005,
+          "marginal": [
+            0.0408,
+            0.0508
+          ],
+          "cumulative": [
+            0.0408,
+            0.0916
+          ]
+        },
+        {
+          "true_gap": -0.01,
+          "marginal": [
+            0.1074,
+            0.1625
+          ],
+          "cumulative": [
+            0.1074,
+            0.2699
+          ]
+        },
+        {
+          "true_gap": -0.02,
+          "marginal": [
+            0.4052,
+            0.4024
+          ],
+          "cumulative": [
+            0.4052,
+            0.8076
+          ]
+        },
+        {
+          "true_gap": 0.0,
+          "marginal": [
+            0.0125,
+            0.0095
+          ],
+          "cumulative": [
+            0.0125,
+            0.022
+          ]
+        }
+      ]
+    },
+    "euroleague_pooled": {
+      "sd": 0.136828,
+      "sd_source": "pooled, 1063 games",
+      "rows": [
+        {
+          "true_gap": -0.003,
+          "marginal": [
+            0.0248,
+            0.0256
+          ],
+          "cumulative": [
+            0.0248,
+            0.0504
+          ]
+        },
+        {
+          "true_gap": -0.005,
+          "marginal": [
+            0.0376,
+            0.0455
+          ],
+          "cumulative": [
+            0.0376,
+            0.0831
+          ]
+        },
+        {
+          "true_gap": -0.01,
+          "marginal": [
+            0.0939,
+            0.1406
+          ],
+          "cumulative": [
+            0.0939,
+            0.2345
+          ]
+        },
+        {
+          "true_gap": -0.02,
+          "marginal": [
+            0.3473,
+            0.3919
+          ],
+          "cumulative": [
+            0.3473,
+            0.7392
+          ]
+        },
+        {
+          "true_gap": 0.0,
+          "marginal": [
+            0.0125,
+            0.0095
+          ],
+          "cumulative": [
+            0.0125,
+            0.022
+          ]
+        }
+      ]
+    }
+  },
+  "simulation": {
+    "euroleague": {
+      "gaps_source": "test split, 732 games",
+      "n_historical_gaps": 732,
+      "sims": 2000,
+      "sim_seed": 20261022,
+      "rows": [
+        {
+          "true_gap": -0.003,
+          "marginal": [
+            0.0305,
+            0.036
+          ],
+          "cumulative": [
+            0.0305,
+            0.0665
+          ]
+        },
+        {
+          "true_gap": -0.005,
+          "marginal": [
+            0.0485,
+            0.058
+          ],
+          "cumulative": [
+            0.0485,
+            0.1065
+          ]
+        },
+        {
+          "true_gap": -0.01,
+          "marginal": [
+            0.111,
+            0.1505
+          ],
+          "cumulative": [
+            0.111,
+            0.2615
+          ]
+        },
+        {
+          "true_gap": -0.02,
+          "marginal": [
+            0.3535,
+            0.363
+          ],
+          "cumulative": [
+            0.3535,
+            0.7165
+          ]
+        },
+        {
+          "true_gap": 0.0,
+          "marginal": [
+            0.0155,
+            0.018
+          ],
+          "cumulative": [
+            0.0155,
+            0.0335
+          ]
+        }
+      ]
+    }
+  },
+  "bootstrap_check": {
+    "euroleague": {
+      "bootstrap_ci_upper": 0.01027804,
+      "vectorised_upper": 0.01027804,
+      "n": 732
+    }
+  },
+  "shape": {
+    "euroleague": {
+      "skew": 0.7778,
+      "excess_kurtosis": 3.3568,
+      "source": "test split, 732 games"
+    }
+  }
+}

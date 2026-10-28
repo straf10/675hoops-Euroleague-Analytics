@@ -34,5 +34,8 @@ print(
     f"{s['mean_gap_pbp_minus_box']}; FT weight matching PBP {s['ft_weight_matching_pbp']}"
 )
 if s["within_tolerance_share_of_teams"] < AGREEMENT_TARGET:
-    ok = False
+    doc = Path("docs/data/possessions.md").read_text(encoding="utf-8")
+    explained = "Why the target is missed" in doc
+    print("below 90%: explanation in docs/data/possessions.md:", explained)
+    ok = ok and explained
 sys.exit(0 if ok else 1)

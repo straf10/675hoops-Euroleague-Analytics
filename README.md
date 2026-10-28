@@ -12,14 +12,21 @@ Live site: https://675hoops.com/ (EuroLeague). "6.75" is the FIBA three-point di
 
 `ingest` → `build` → `backtest` → `predict` → `score` → `publish`, each run as `uv run eurohoops <cmd>`. The backtest runs offline when a model changes; its report fixes the parameters the daily run uses.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.svg">
+  <img alt="Daily pipeline: sources, raw cache, DuckDB marts, predict, append-only logs, score, site; the offline backtest feeds parameters and the promotion test picks the published model" src="docs/assets/readme/overview-light.svg" width="100%">
+</picture>
 
 The daily workflow ([`daily.yml`](.github/workflows/daily.yml)) commits `predictions/`, `reports/` and `odds/` to `main`. That commit proves each forecast existed before its game.
 
 ## 1. Ingest and build
 
-- **Ingest** stores every raw response gzip-compressed under `data/raw/` and never fetches it again. Only the live season's schedule refreshes.
+- **Ingest** stores every raw response gzip-compressed under `data/raw/` and never fetches it again.
 - **Build** parses the cache, validates each table with pandera, and loads the DuckDB marts. Everything downstream reads the marts. Team codes stay the source's (`ULK`, `PAN`); display names appear only on the site.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/ingest-dark.svg">
+</picture>
 
 | Source | What | Notes |
 |---|---|---|
@@ -39,6 +46,10 @@ Not every free throw ends a possession; 0.42 is the weight that matches a play-b
 
 Elo is the published forecast. Every other game model is a **shadow**: it logs its own forecast for every game, is scored on the same games, and replaces Elo only by beating it on live games at a fixed checkpoint ([section 7](#7-promotion)).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/models-dark.svg">
+  <img alt="Model dependency map: Elo is published; ELOR builds on Elo and M3; M5 builds on M3 and M1; M7 simulates seasons from M1; M5-INJ adjusts M5 for injuries; POOL averages four logs; B0 is the baseline" src="docs/assets/readme/models-light.svg" width="100%">
+</picture>
 
 EuroLeague numbers unless marked; log loss is lower-is-better.
 
@@ -129,6 +140,10 @@ Plays the rest of the season 10,000 times. Each run draws team strengths from M1
 
 A backtest replays history as if live: each forecast uses only games before its round, and parameters are chosen on seasons earlier than the ones scored.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/splits-dark.svg">
+  <img alt="Season splits per model: warm-up, tuning, validation, test and the live 2026-27 season" src="docs/assets/readme/splits-light.svg" width="100%">
+</picture>
 
 **Warm-up** builds ratings, **tuning** picks parameters by log loss, **validation** checks the choice, **test** (2024-25, 2025-26) is scored once. Each experiment's pass bar is committed in `experiments/<id>.md` before its result is computed. M1 v2 and M7 gate v2 reused seen seasons, so they are not clean hold-outs.
 
@@ -175,6 +190,10 @@ Shadows started on different dates, so only the paired test below compares them 
 
 `eurohoops promote-check` refuses to run early.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/promotion-dark.svg">
+  <img alt="Promotion flow: write the pass bar, walk-forward backtest, live shadow log, checkpoint, paired bootstrap; promoted only if the CI upper bound is below 0 and the mean gap is at most -0.01" src="docs/assets/readme/promotion-light.svg" width="100%">
+</picture>
 
 ```
 d_i     = LL_shadow(i) − LL_elo(i)        on the games both logs share
