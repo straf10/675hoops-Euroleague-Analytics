@@ -12,7 +12,9 @@ from eurohoops.cli.live import predict as live_predict
 from tests.conftest import REPO
 
 DAILY = (REPO / ".github/workflows/daily.yml").read_text(encoding="utf-8")
-BASH = shutil.which("bash") or "bash"
+# On Windows, bash on PATH is often the WSL launcher, which cannot run the step; prefer Git Bash.
+GIT_BASH = Path("C:/Program Files/Git/bin/bash.exe")
+BASH = str(GIT_BASH) if os.name == "nt" and GIT_BASH.exists() else shutil.which("bash") or "bash"
 
 
 def test_daily_workflow_runs_every_step() -> None:
@@ -250,6 +252,49 @@ def test_push_replays_the_run_on_a_main_that_moved(tmp_path: Path) -> None:
     assert (other / "README").exists()
 
 
+def move_remote_before_each_push(runner: Path, other: Path, times: int) -> None:
+    """A pre-push hook in the runner: the first `times` pushes find main moved by another commit."""
+    counter = runner / ".git/moves"
+    hook = runner / ".git/hooks/pre-push"
+    hook.write_text(
+        "#!/bin/sh\n"
+        f'n=$(cat "{counter.as_posix()}" 2>/dev/null || echo 0)\n'
+        f'if [ "$n" -lt {times} ]; then\n'
+        f'  echo $((n+1)) > "{counter.as_posix()}"\n'
+        f'  cd "{other.as_posix()}" && echo "owner $n" >> README && git add README'
+        ' && git -c user.name=t -c user.email=t@t commit -qm "owner $n"'
+        " && git push -q origin main || exit 1\n"
+        "fi\nexit 0\n",
+        newline="\n",
+    )
+    hook.chmod(0o755)
+
+
+def test_a_main_that_moves_once_during_the_push_is_replayed_once_more(tmp_path: Path) -> None:
+    other, runner, env = sandbox(tmp_path)
+    move_remote_before_each_push(runner, other, times=1)
+    with (runner / "predictions/log.csv").open("a", newline="\n") as fh:
+        fh.write("G2,0.6\n")
+    done = run_commit_step(runner, env)
+    assert done.returncode == 0, done.stdout + done.stderr
+    git(other, "pull", "-q", "origin", "main")
+    assert (other / "predictions/log.csv").read_text() == "game_id,p\nG1,0.5\nG2,0.6\n"
+    assert "owner 0" in (other / "README").read_text()
+
+
+def test_a_main_that_moves_twice_fails_the_job_without_a_loop_or_a_force(tmp_path: Path) -> None:
+    other, runner, env = sandbox(tmp_path)
+    move_remote_before_each_push(runner, other, times=2)
+    with (runner / "predictions/log.csv").open("a", newline="\n") as fh:
+        fh.write("G2,0.6\n")
+    done = run_commit_step(runner, env)
+    assert done.returncode != 0
+    assert (runner / ".git/moves").read_text().strip() == "2"  # exactly two pushes attempted
+    git(other, "pull", "-q", "origin", "main")
+    assert "G2" not in (other / "predictions/log.csv").read_text()  # nothing of ours was pushed
+    assert "owner 1" in (other / "README").read_text()  # the remote's commits were not overwritten
+
+
 def test_a_conflict_on_an_append_only_log_fails_without_rewriting_rows(tmp_path: Path) -> None:
     other, runner, env = sandbox(tmp_path)
     with (other / "predictions/log.csv").open("a", newline="\n") as fh:
@@ -275,3 +320,39 @@ def test_an_unreachable_remote_fails_with_the_error_annotation(tmp_path: Path) -
     done = run_commit_step(runner, env)
     assert done.returncode != 0
     assert "::error::" in done.stdout
+
+
+def test_deploy_site_takes_only_a_daily_run_of_this_repo_on_main() -> None:
+    """Artifact poisoning: the site data must come from this repository's daily-predictions run on
+    main. A fork's run on a branch named main, or any other workflow, must be refused."""
+    deploy = (REPO / ".github/workflows/deploy-site.yml").read_text(encoding="utf-8")
+    find = deploy[deploy.index("- name: Find the latest site data") :]
+    find = find[: find.index("- uses: actions/download-artifact")]
+    assert ".workflow_run.head_repository_id == $REPO_ID" in find
+    assert "REPO_ID: ${{ github.repository_id }}" in find
+    assert "actions/runs/$run_id" in find
+    assert ".github/workflows/daily.yml schedule" in find
+    assert ".github/workflows/daily.yml workflow_dispatch" in find
+
+
+def setup_uv_pins() -> list[tuple[str, object]]:
+    """(workflow file, version input) of every astral-sh/setup-uv step in the repository."""
+    pins = []
+    for path in sorted((REPO / ".github/workflows").glob("*.yml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job in (data.get("jobs") or {}).values():
+            for step in job.get("steps") or []:
+                if str(step.get("uses", "")).startswith("astral-sh/setup-uv@"):
+                    pins.append((path.name, (step.get("with") or {}).get("version")))
+    return pins
+
+
+def test_every_setup_uv_step_pins_the_uv_the_dockerfile_installs() -> None:
+    # Pinned so that CI, the daily job and the API image run one uv (F-02); the Dockerfile's
+    # version is the reference, so the two cannot drift apart.
+    pins = setup_uv_pins()
+    assert len(pins) == 4, pins
+    dockerfile = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    pinned = re.search(r'pip install --no-cache-dir "uv==([0-9.]+)"', dockerfile)
+    assert pinned is not None, "the Dockerfile must pin uv"
+    assert {version for _, version in pins} == {pinned.group(1)}, pins

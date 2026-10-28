@@ -19,6 +19,7 @@ import numpy as np
 
 from eurohoops.config import LIVE_SEASON
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parse.schemas import box_count
 
 QUARTERS = ("FirstQuarter", "SecondQuarter", "ThirdQuarter", "ForthQuarter")  # sic, API keys
 QUARTER_S = 600
@@ -203,7 +204,7 @@ def box_facts(box: dict[str, Any]) -> BoxFacts:
         team = players[0]["Team"].strip()
         starters[team] = {p["Player_ID"].strip() for p in players if p["IsStarter"] == 1}
         seconds[team] = {p["Player_ID"].strip(): _box_seconds(p["Minutes"]) for p in players}
-        points[team] = int(side["totr"]["Points"])
+        points[team] = box_count(side["totr"]["Points"])
     return BoxFacts(starters, seconds, points, overtimes(box["ByQuarter"]))
 
 

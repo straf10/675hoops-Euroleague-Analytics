@@ -8,10 +8,12 @@ Cache layout (``root`` = data/raw/euroleague):
 
 import json
 import logging
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from eurohoops.config import SCHEDULE_MAX_DROP_GAMES, SCHEDULE_MAX_DROP_SHARE
 from eurohoops.ingest.cache import read_cached, write_atomic
 from eurohoops.ingest.http import Fetcher
 
@@ -23,6 +25,15 @@ MIN_INTERVAL_S = 1.0
 log = logging.getLogger(__name__)
 
 RawGame = dict[str, Any]
+
+
+class ScheduleRejectedError(RuntimeError):
+    """A live-schedule response that must not replace the cached one: not a schedule, no games,
+    or a drop beyond the thresholds. ``new_games`` is what the response held (0 if unreadable)."""
+
+    def __init__(self, message: str, new_games: int = 0) -> None:
+        super().__init__(message)
+        self.new_games = new_games
 
 
 class PastSeasonNotCachedError(RuntimeError):
@@ -58,6 +69,40 @@ def _schedule_games(payload: bytes) -> list[RawGame]:
     return games
 
 
+def _checked_schedule(payload: bytes) -> list[RawGame]:
+    """The games of a live-season response; ``ScheduleRejectedError`` if it is not a schedule."""
+    try:
+        games = _schedule_games(payload)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ScheduleRejectedError(f"response is not a schedule ({type(exc).__name__})") from exc
+    if not isinstance(games, list) or not games:
+        raise ScheduleRejectedError("response has no games")
+    return games
+
+
+def _refuse_shrink(games: list[RawGame], cached: list[RawGame] | None) -> None:
+    """A response that drops too many games from the cached schedule is refused: it is far more
+    likely a truncated or partial API answer than a real change of the schedule."""
+    if cached is None:
+        return
+    drop = len(cached) - len(games)
+    if drop > SCHEDULE_MAX_DROP_GAMES or drop > SCHEDULE_MAX_DROP_SHARE * len(cached):
+        raise ScheduleRejectedError(
+            f"drops {drop} games ({drop / len(cached):.1%}) from the cached schedule",
+            new_games=len(games),
+        )
+
+
+def _annotate(title: str, message: str) -> None:
+    """A GitHub Actions warning: it shows in the run summary; in a local shell it is plain text."""
+    sys.stdout.write(f"::warning title={title}::{message}\n")
+    sys.stdout.flush()
+
+
+def _cached_games(path: Path) -> list[RawGame] | None:
+    return _schedule_games(read_cached(path)) if path.exists() else None
+
+
 def _load_schedule(
     fetcher: Fetcher, root: Path, season: int, live_season: int, stats: CacheStats
 ) -> list[RawGame]:
@@ -74,10 +119,28 @@ def _load_schedule(
             )
         stats.schedule_hits += 1
         return _schedule_games(read_cached(path))
+    cached = _cached_games(path)
     payload = fetcher.get(SCHEDULE_URL.format(season=season))
     stats.schedule_fetches += 1
+    try:
+        games = _checked_schedule(payload)
+        _refuse_shrink(games, cached)
+    except ScheduleRejectedError as exc:
+        # The cache stays as it is: the run goes on with the cached schedule.
+        kept = cached or []
+        log.warning(
+            "EuroLeague %d schedule rejected: %s; cached %d games kept", season, exc, len(kept)
+        )
+        if cached is None:
+            log.warning(
+                "EuroLeague %d has no cached schedule: this run has no games for it", season
+            )
+        _annotate(
+            "Schedule rejected", f"{season} {exc}: cached {len(kept)} games, new {exc.new_games}"
+        )
+        return kept
     write_atomic(path, payload)
-    return _schedule_games(payload)
+    return games
 
 
 def _fetch_details(

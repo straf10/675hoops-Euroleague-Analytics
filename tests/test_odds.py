@@ -9,10 +9,14 @@ from typing import Any
 import httpx
 import pandas as pd
 import pytest
+from typer.testing import CliRunner
 
+from eurohoops.cli import app as cli_app
+from eurohoops.cli import live
 from eurohoops.odds import (
     MIN_REMAINING,
     OddsApiError,
+    OddsFetchError,
     OddsPaths,
     api_key,
     consensus,
@@ -22,6 +26,7 @@ from eurohoops.odds import (
 )
 
 FAKE_KEY = "0123456789abcdef0123456789abcdef"
+CALL_HEADER = "called_at_utc,status,cost,requests_used,requests_remaining,events,rows_written\n"
 NOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
 HEADERS = {"x-requests-last": "3", "x-requests-used": "3", "x-requests-remaining": "497"}
 
@@ -227,18 +232,19 @@ def test_quota_guard(paths: OddsPaths, remaining: int, calls: int) -> None:
     if calls:
         run(paths, api)
     else:
-        with pytest.raises(OddsApiError, match="refusing to call"):
+        with pytest.raises(OddsFetchError, match="quota: refusing to call"):
             run(paths, api)
     assert len(api.requests) == calls
 
 
 def test_rejected_key_is_logged_without_the_key(paths: OddsPaths) -> None:
     api = FakeOddsApi(401, {"message": "API key is not valid", "error_code": "INVALID_KEY"})
-    with pytest.raises(OddsApiError) as err:
+    with pytest.raises(OddsFetchError) as err:
         run(paths, api)
     assert str(err.value) == "HTTP 401 INVALID_KEY"
-    assert rows(paths.calls)[0]["status"] == "401"
-    assert not paths.log.exists()
+    assert FAKE_KEY not in str(err.value)
+    assert not paths.log.exists()  # no consensus row
+    assert [r["status"] for r in rows(paths.calls)] == ["401"]  # the call row is kept
 
 
 def test_transport_errors_hide_the_url(paths: OddsPaths) -> None:
@@ -291,3 +297,126 @@ def test_an_unterminated_log_stops_the_run_before_the_paid_call(
         run(paths, api)
     assert api.requests == []
     assert (paths.log.read_bytes(), paths.calls.read_bytes()) == before
+
+
+def snapshot(paths: OddsPaths) -> dict[str, bytes | None]:
+    """The bytes of both logs (None if absent), to prove a failed run changes nothing."""
+    return {str(p): p.read_bytes() if p.exists() else None for p in (paths.log, paths.calls)}
+
+
+@pytest.mark.parametrize(
+    ("responder", "reason"),
+    [
+        (lambda request: httpx.Response(200, text="<html>not json</html>"), "unusable odds body"),
+        (lambda request: httpx.Response(200, json={"x": 1}), "unusable odds body"),
+        (lambda request: httpx.Response(200, json=[{"bookmakers": "nope"}]), "unusable odds body"),
+    ],
+)
+def test_a_failed_fetch_or_bad_body_writes_no_row(
+    paths: OddsPaths, responder: Any, reason: str
+) -> None:
+    paths.log.write_bytes(b"existing\n")  # the log exists before the failed run
+    paths.calls.write_bytes(b"existing\n")
+    before = snapshot(paths)
+    with (
+        httpx.Client(transport=httpx.MockTransport(responder)) as client,
+        pytest.raises(OddsFetchError, match=reason),
+    ):
+        record_odds(client, FAKE_KEY, games(), paths, lambda: NOW)
+    assert snapshot(paths) == before
+
+
+def test_a_non_200_answer_appends_its_call_row_and_no_odds_row(paths: OddsPaths) -> None:
+    paths.log.write_bytes(b"existing\n")
+    paths.calls.write_bytes(CALL_HEADER.encode())
+    log_before, calls_before = paths.log.read_bytes(), paths.calls.read_bytes()
+
+    def fail(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="oops")
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(fail)) as client,
+        pytest.raises(OddsFetchError, match=r"^HTTP 500$"),
+    ):
+        record_odds(client, FAKE_KEY, games(), paths, lambda: NOW)
+    assert paths.log.read_bytes() == log_before
+    after = paths.calls.read_bytes()
+    assert after.startswith(calls_before)
+    assert after.count(b"\n") == calls_before.count(b"\n") + 1
+    assert rows(paths.calls)[-1]["status"] == "500"
+
+
+def test_a_transport_failure_writes_no_row(paths: OddsPaths) -> None:
+    paths.log.write_bytes(b"existing\n")
+    before = snapshot(paths)
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(refuse)) as client,
+        pytest.raises(OddsFetchError, match="transport error: ConnectError"),
+    ):
+        record_odds(client, FAKE_KEY, games(), paths, lambda: NOW)
+    assert snapshot(paths) == before
+
+
+@pytest.fixture
+def daily_odds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The `eurohoops odds` command in a temporary tree (its paths are relative)."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ODDS_API_KEY", FAKE_KEY)
+    (tmp_path / "odds").mkdir()
+    (tmp_path / "odds" / "euroleague_teams.csv").write_text(
+        "odds_api_name,team,verified\nReal Madrid,MAD,no\nOlympiacos,OLY,no\n"
+    )
+    monkeypatch.setattr(live, "read_games", lambda *args: games())
+    return tmp_path
+
+
+def invoke_odds(api: httpx.MockTransport, monkeypatch: pytest.MonkeyPatch) -> Any:
+    monkeypatch.setattr("eurohoops.cli.live.make_client", lambda: httpx.Client(transport=api))
+    return CliRunner().invoke(cli_app, ["odds"])
+
+
+def test_the_daily_odds_step_warns_and_exits_0_when_the_source_fails(
+    daily_odds: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    odds_log = daily_odds / "odds" / "euroleague_2026-27.csv"
+    calls = daily_odds / "odds" / "api_calls.csv"
+    odds_log.write_bytes(b"existing rows\n")
+    calls.write_bytes(CALL_HEADER.encode())
+    before = (odds_log.read_bytes(), calls.read_bytes())
+    result = invoke_odds(httpx.MockTransport(FakeOddsApi(500)), monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "::warning title=Odds unavailable::HTTP 500" in result.output
+    assert odds_log.read_bytes() == before[0]
+    assert calls.read_bytes().startswith(before[1])
+    assert rows(calls)[-1]["status"] == "500"
+    assert not (daily_odds / "data" / "raw" / "odds").exists() or not list(
+        (daily_odds / "data" / "raw" / "odds").glob("*.gz")
+    )
+
+
+def test_a_normal_odds_run_is_unchanged(daily_odds: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    result = invoke_odds(httpx.MockTransport(FakeOddsApi()), monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "consensus rows from" in result.output
+    assert "::warning" not in result.output
+    assert (daily_odds / "odds" / "euroleague_2026-27.csv").exists()
+
+
+def test_a_spent_quota_warns_and_makes_no_call(
+    daily_odds: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = daily_odds / "odds" / "api_calls.csv"
+    header = "called_at_utc,status,cost,requests_used,requests_remaining,events,rows_written\n"
+    calls.write_text(header + f"2026-09-30T08:00:00Z,200,3,500,{MIN_REMAINING - 1},4,1\n")
+    before = calls.read_bytes()
+    api = FakeOddsApi()
+    result = invoke_odds(httpx.MockTransport(api), monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "::warning title=Odds unavailable::quota: refusing to call" in result.output
+    assert api.requests == []  # no paid call
+    assert calls.read_bytes() == before  # and no row
+    assert not (daily_odds / "odds" / "euroleague_2026-27.csv").exists()

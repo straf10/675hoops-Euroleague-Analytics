@@ -18,7 +18,7 @@ import pandera.pandas as pa
 
 from eurohoops.ingest.cache import read_cached
 from eurohoops.parse.possessions import box_possessions
-from eurohoops.parse.schemas import validated
+from eurohoops.parse.schemas import box_count, validated
 from eurohoops.parse.stints import overtimes
 
 COMPETITIONS = ("euroleague",)
@@ -99,12 +99,13 @@ def euroleague_lines(box: dict[str, Any]) -> tuple[dict[str, Line], float] | str
     for side in box["Stats"]:
         totals = side["totr"]
         lines[side["PlayersStats"][0]["Team"].strip()] = {
-            "points": int(totals["Points"]),
-            "fga": int(totals["FieldGoalsAttempted2"]) + int(totals["FieldGoalsAttempted3"]),
-            "fta": int(totals["FreeThrowsAttempted"]),
-            "oreb": int(totals["OffensiveRebounds"]),
-            "dreb": int(totals["DefensiveRebounds"]),
-            "tov": int(totals["Turnovers"]),
+            "points": box_count(totals["Points"]),
+            "fga": box_count(totals["FieldGoalsAttempted2"])
+            + box_count(totals["FieldGoalsAttempted3"]),
+            "fta": box_count(totals["FreeThrowsAttempted"]),
+            "oreb": box_count(totals["OffensiveRebounds"]),
+            "dreb": box_count(totals["DefensiveRebounds"]),
+            "tov": box_count(totals["Turnovers"]),
         }
     minutes = REGULATION_MINUTES + OVERTIME_MINUTES * overtimes(box["ByQuarter"])
     return lines, minutes

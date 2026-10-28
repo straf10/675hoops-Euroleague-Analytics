@@ -89,6 +89,9 @@ def trips(rows: Sequence[dict[str, Any]]) -> list[Trip]:
     """Free-throw trips of one game in log order, and-ones tied to their made field goal."""
     out: list[dict[str, Any]] = []
     last_fg: dict[str, Any] | None = None
+    logged: set[int] = (
+        set()
+    )  # event numbers already counted: a repeated feed row is not a second shot
     for row in rows:
         kind = str(row.get("PLAYTYPE") or "").strip()
         team = str(row.get("CODETEAM") or "").strip()
@@ -97,6 +100,11 @@ def trips(rows: Sequence[dict[str, Any]]) -> list[Trip]:
             continue
         if kind not in FT_CODES:
             continue
+        number = row.get("NUMBEROFPLAY")
+        if number is not None:
+            if int(number) in logged:
+                continue
+            logged.add(int(number))
         key = (team, period_of(int(row["MINUTE"])), str(row.get("MARKERTIME") or ""))
         if out and out[-1]["key"] == key:
             out[-1]["fta"] += 1

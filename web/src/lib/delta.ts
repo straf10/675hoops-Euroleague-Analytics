@@ -6,7 +6,7 @@
 
 import up from "@phosphor-icons/core/assets/fill/caret-up-fill.svg?raw";
 import down from "@phosphor-icons/core/assets/fill/caret-down-fill.svg?raw";
-import { signed } from "./format";
+import { esc, signed } from "./format";
 import type { BetterIs } from "./better";
 
 export type { BetterIs };
@@ -48,9 +48,9 @@ export function deltaHtml(
   const shown = Number(diff.toFixed(digits));
   const verdict = deltaVerdict(shown, better);
   const figure = `${signed(shown, digits)}${unit}`;
-  if (verdict === "even") return `<span class="delta" data-verdict="even">${figure}<span class="sr-only"> level with ${versus}</span></span>`;
+  if (verdict === "even") return `<span class="delta" data-verdict="even">${figure}<span class="sr-only"> level with ${esc(versus)}</span></span>`;
   const above = shown > 0;
-  const said = `${above ? "above" : "below"} ${versus}${verdict === "neutral" ? "" : `, ${verdict}`}`;
+  const said = `${above ? "above" : "below"} ${esc(versus)}${verdict === "neutral" ? "" : `, ${verdict}`}`;
   return (
     `<span class="delta" data-verdict="${verdict}">` +
     `<span class="delta-arrow" aria-hidden="true">${above ? up : down}</span>${figure}` +
