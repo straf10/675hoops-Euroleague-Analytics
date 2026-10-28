@@ -447,6 +447,8 @@ def build_scorecard(
         **(
             {}
             if pool3_log_path is None
-            else {"pool3": trial_section(pool3_log_path, games, headline)}
+            else {
+                "pool3": trial_section(pool3_log_path, games, headline, manual_pushes=manual_pushes)
+            }
         ),
     }
