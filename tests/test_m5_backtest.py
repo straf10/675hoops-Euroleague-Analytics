@@ -318,8 +318,17 @@ def test_tuning_only_puts_no_validation_or_test_anywhere(
     assert {k: v for k, v in platt.items() if k != "coefficients"} == {
         k: v for k, v in full_platt.items() if k != "coefficients"
     }
+    # blend weights and rest coefficients are reported for the tuning seasons only (a later
+    # season's values are fit on validation and test outcomes)
+    kept_tuning = {str(s) for s in SPEC.tuning}
     without_platt = {k: v for k, v in report["chosen"].items() if k != "platt"}
-    assert without_platt == {k: v for k, v in full["chosen"].items() if k != "platt"}
+    full_without_platt = {k: v for k, v in full["chosen"].items() if k != "platt"}
+    for key in ("blend_weights", "rest_coefficients"):
+        if key in full_without_platt:
+            full_without_platt[key] = {
+                s: v for s, v in full_without_platt[key].items() if s in kept_tuning
+            }
+    assert without_platt == full_without_platt
     assert report["metrics"]["tuning"] == full["metrics"]["tuning"]
     assert report["oracle"]["tuning"] == full["oracle"]["tuning"]
     assert report["segments"]["tuning"] == full["segments"]["tuning"]

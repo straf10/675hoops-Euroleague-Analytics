@@ -229,6 +229,13 @@ def test_unknown_variant_raises() -> None:
         projected_shares_variant("proj_nope", games, player_games)
 
 
+def test_sides_without_any_earlier_games_get_no_shares() -> None:
+    _, player_games = fixture()
+    newcomers = pd.DataFrame([game_row("NEW", 2021, 9, "2021-12-01", home="CCC", away="DDD")])
+    out = projected_shares_variant("proj_decay", newcomers, player_games)
+    assert out.empty
+
+
 def mutate(
     games: pd.DataFrame,
     player_games: pd.DataFrame,
