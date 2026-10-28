@@ -518,7 +518,7 @@ ELOC_CV = ElocCv(
 # ELOH (experiments/eloh.md): live Elo with a per-team home advantage. The team shifts are fitted
 # once on ELOH_FIT_SEASONS (scripts/fit_eloh.py) and frozen in ELOH_FIT. The shadow log stays off
 # until the orchestrator sets ELOH_LIVE_ENABLED.
-ELOH_LIVE_ENABLED = False
+ELOH_LIVE_ENABLED = True
 ELOH_FIT = Path("reports/eloh_fit.json")
 ELOH_FIT_SEASONS = _seasons(2007, 2023)
 
