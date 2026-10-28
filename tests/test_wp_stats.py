@@ -183,39 +183,3 @@ def test_logged_pre_takes_the_elo_row_in_force_at_tip_off(tmp_path: Path) -> Non
     frame.to_csv(path, index=False)
     assert export.logged_pre(path) == {"E2026_1": 0.60, "E2026_2": 0.41}
     assert export.logged_pre(tmp_path / "missing.csv") == {}
-
-
-def _build_inputs(tmp_path: Path, body: bytes) -> tuple[pd.DataFrame, Path]:
-    """A one-game games table and a raw cache holding one play-by-play file."""
-    raw = tmp_path / "raw"
-    (raw / "playbyplay" / "E2023").mkdir(parents=True)
-    (raw / "playbyplay" / "E2023" / "1.json.gz").write_bytes(body)
-    games = pd.DataFrame({"game_id": ["E2023_1"], "season": [2023], "home_score": [80]})
-    return games, raw
-
-
-def test_the_build_cache_is_reused_until_an_input_changes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls: list[int] = []
-
-    def fake_build(games: pd.DataFrame, raw_dir: Path) -> tuple[pd.DataFrame, ...]:
-        calls.append(1)
-        return (games.copy(), games.copy(), games.copy())
-
-    monkeypatch.setattr(export, "build", fake_build)
-    cache = tmp_path / "cache"
-    games, raw = _build_inputs(tmp_path, b"game one")
-    first = export.build_cached(games, raw, cache)
-    again = export.build_cached(games, raw, cache)
-    assert len(calls) == 1  # same inputs: read back from the cache
-    assert again[0].equals(first[0]) and again[2].equals(first[2])
-
-    (raw / "playbyplay" / "E2023" / "1.json.gz").write_bytes(b"game one, revised")
-    export.build_cached(games, raw, cache)
-    assert len(calls) == 2  # a changed play-by-play file invalidates it
-
-    export.build_cached(games.assign(home_score=81), raw, cache)
-    assert len(calls) == 3  # so does a changed games table
-    assert len(list(cache.glob("*.pkl"))) == 3
-    assert export.build_key(games, raw) != export.build_key(games.assign(season=2024), raw)

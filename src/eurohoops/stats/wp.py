@@ -13,9 +13,7 @@ of each team (``models/wp_control.py``). Read only: nothing is written under ``d
 """
 
 import gzip
-import hashlib
 import json
-import pickle
 from collections.abc import Mapping, Sequence
 from dataclasses import astuple, dataclass
 from pathlib import Path
@@ -59,46 +57,8 @@ class WpLines:
     games: Mapping[str, Mapping[str, Any]]  # game id -> line, swings and control parts
 
 
-WP_BUILD_VERSION = "1"  # bump with any change to the build's code (``eval.wp_backtest.build``)
-WP_BUILD_CACHE = Path("data/cache/wp_build")
-
-
-def build_key(games: pd.DataFrame, raw_dir: Path) -> str:
-    """Digest of everything ``build`` reads: the code version, the games table and every cached
-    play-by-play file (path and bytes), so a new game or a changed file gives a new key."""
-    digest = hashlib.sha256(WP_BUILD_VERSION.encode())
-    digest.update(repr(list(games.columns)).encode())
-    digest.update(pd.util.hash_pandas_object(games, index=True).to_numpy().tobytes())
-    for path in sorted((raw_dir / "playbyplay").glob("E*/*.json.gz")):
-        digest.update(path.relative_to(raw_dir).as_posix().encode())
-        digest.update(hashlib.sha256(path.read_bytes()).digest())
-    return digest.hexdigest()
-
-
-def build_cached(
-    games: pd.DataFrame, raw_dir: Path, cache_dir: Path = WP_BUILD_CACHE
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """``eval.wp_backtest.build``, read from ``cache_dir`` when its key matches (see ``build_key``).
-
-    The cache is a local file under ``data/cache``; the build is a pure function of the key's
-    inputs, so a hit returns the same frames the build would.
-    """
-    path = cache_dir / f"{build_key(games, raw_dir)}.pkl"
-    if path.exists():
-        with path.open("rb") as fh:
-            cached: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame] = pickle.load(fh)
-        return cached
-    built = build(games, raw_dir)
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    with tmp.open("wb") as fh:
-        pickle.dump(built, fh, protocol=pickle.HIGHEST_PROTOCOL)
-    tmp.replace(path)
-    return built
-
-
 def fit_frozen(
-    games: pd.DataFrame, raw_dir: Path, report: Mapping[str, Any], cache_dir: Path = WP_BUILD_CACHE
+    games: pd.DataFrame, raw_dir: Path, report: Mapping[str, Any]
 ) -> tuple[Calibrated, pd.DataFrame]:
     """The gate's chosen model, refitted with the gate's code on the training seasons only.
 
@@ -107,7 +67,7 @@ def fit_frozen(
     """
     chosen = str(report["chosen"]["family"])
     setting = report["chosen"]["gbm_setting"]
-    g, train_rows, states = build_cached(games, raw_dir, cache_dir)
+    g, train_rows, states = build(games, raw_dir)
     s_train = train_rows[train_rows["season"].isin(TRAIN)]
     model = Calibrated(_fit(chosen, setting, s_train), _oof_isotonic(train_rows, chosen, setting))
     ck_val = states[states["season"].isin(VALIDATION)]
