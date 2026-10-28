@@ -4,10 +4,12 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'sha256-3pJu0C1DctTV9XaDOgOoIMMSuIocxvwDnToV9thSfiM=' 'sha256-lN8J3YWpCveYwSFsduZMujor4Ckx6k0FQofkl68j488=' 'sha256-e+PlzRLEsc5r2QjbY0N9X50a1N7RNSOb7P8v6UguXmI=' 'sha256-SewhOhMawN/eW9gUoQfrwFglPOEy9OH4L0sEmUW72b8=' 'sha256-rAvtN0kn2NTesEGjAwvL3XSjCPcookghdRTVy3VQHC8=' 'sha256-pyGYNgq1qjnE74Nfn7vOjYILf+6aXRdAYQ9KW1PMqq0=' 'sha256-xgSk0IDYYG/DS1VIRnl114BfaFMXTQKVoXm7t1vJry8=' 'sha256-nKSaiUdtxwgVa14cQMj3eRojfWbYQ7EtqBx2JlGYbb0=' 'sha256-ad2rG/N15GvMqs0XOyqzRv1u/RowYSJNOMih+bS9WuA=' 'sha256-EGBjaXg8dtKFMiUnFzns5J6Ig0uUlMfnaHZb5KaA+LI=' 'sha256-EHIzbbOJQ4Ko4zjCvFuDvGdjhgq/zu/6c+m3ubvyVIE=' 'sha256-aTvU5lg6RK40Uw3jBonx1QPgoAWus+ZvLuIEEHnW2y8='; script-src-attr 'unsafe-hashes' 'sha256-GZIcz60Uwd6wT3vaYke/atSr53TehbYAPepOa3d03Vw='; style-src 'self' 'sha256-N/8WhQYpTTWPzMsGjj/UMrpmkMog80EWJuTy/XWK7W4=' 'sha256-/VRL5YTw56MD34zW8ggIrftSE8BA+2uiPF1/JkK1ku4=' 'sha256-7Xcyi7btNYagBvHzLGAPFacX4SnpS9bDqx8A+Ie27fs=' 'sha256-E1ERnBcJxUL3Plf46fcXhYOoEnSSSW6G1vNhqHbGObc=' 'sha256-gpr1Z9U9/Z8o+u3Zx+u+fW9KImdXNZkJxI1W29dRbo8=' 'sha256-BRkE0xdd7PtFxOVHUDaUQWqGyP01OuLMgv8CFnAPpfQ=' 'sha256-93BxOspgmc9pWaf5BNjt3eBaq6PDnW4HrnkFqrXL4Ec=' 'sha256-3ZQr6yisei1eayV0w85Tn4+Ie+uCebE/NS8jxw92Vfg=' 'sha256-3VHKYji75kuiFssporufcP+6w5EcyUUt4PlBkzIUaNw=' 'sha256-RiaHRjII1AWyN9iza9wc/54k0/fNNUEBUFuwO9EGwPs=' 'sha256-Ve+uJcTrDrjKm+oHxbdk4urfzA7dyEa8XxkyIyT4qAM=' 'sha256-BzJzNqBsVuVqGclxropbafd008EOtOo18GVG9fHLckU=' 'sha256-1xByH+lTH9WsDA3AnikgiQ+CeT4fqaNpfm2iFCq/3YI='; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: same-origin
 
 # Raw data the pages load in the browser: keep it out of search results.
 /data/*
