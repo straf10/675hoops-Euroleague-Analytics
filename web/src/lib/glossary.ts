@@ -483,8 +483,8 @@ export const TERMS: GlossaryTerm[] = [
     term: "WS",
     name: "Win shares",
     group: "Player ratings",
-    def: "The wins a player's box-score production adds to his team over a season: offensive win shares plus defensive win shares. Points per win is fitted on EuroLeague seasons (35.5 points of differential a win). EuroLeague only.",
-    formula: "WS = OWS + DWS",
+    def: "The wins a player's box-score production adds to his team over a season: offensive win shares plus defensive win shares. Points per win is Basketball-Reference's rule, 0.32 times the league's points per game, scaled by the team's pace, so the league's win shares add up to its wins. EuroLeague only.",
+    formula: "WS = OWS + DWS, with points per win = 0.32 × league PPG × (team pace / league pace)",
     shownOn: [PP, PL, LD],
   },
   {
@@ -492,8 +492,8 @@ export const TERMS: GlossaryTerm[] = [
     term: "OWS",
     name: "Offensive win shares",
     group: "Player ratings",
-    def: "The wins from scoring and creating above a replacement player: the points he produces, less 0.92 points per possession at the league rate for each possession he uses, in points per win.",
-    formula: "OWS = (PProd − 0.92 × league PPP × possessions used) / 35.5",
+    def: "The wins from scoring and creating above a replacement player. Points produced (PProd) counts field goals, assists, free throws and offensive rebounds, as Dean Oliver defines them and Basketball-Reference computes them; the replacement player produces 0.92 points per possession at the league rate for each possession the player uses.",
+    formula: "OWS = (PProd − 0.92 × league PPP × possessions used) / points per win",
     shownOn: [PP, PL, LD],
   },
   {
@@ -502,7 +502,7 @@ export const TERMS: GlossaryTerm[] = [
     name: "Defensive win shares",
     group: "Player ratings",
     def: "The wins from defence above a replacement player, from his defensive rating: stops from steals, blocks, defensive rebounds and forced misses, which are estimated from the box score. Caveat: the stops are box-score proxies, not counted on video, so DWS is the weakest of the three win shares figures.",
-    formula: "DWS = (MIN / team MIN) × team possessions × (1.08 × league PPP − DRtg / 100) / 35.5",
+    formula: "DWS = (MIN / team MIN) × team possessions × (1.08 × league PPP − DRtg / 100) / points per win",
     shownOn: [PP, PL, LD],
   },
   {
