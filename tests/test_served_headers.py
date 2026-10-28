@@ -1,9 +1,13 @@
 """The served security headers: the report-only CSP, COOP and CORP in web/public/_headers.
 
 The hashes and the inventory below come from scanning the built site (every inline script, style
-and handler, the external origins and the fetch targets). When inline code changes, rebuild the
-site, rescan, and update them here: the policy is report-only, so a stale hash only shows up as a
-browser report, never as a broken page.
+and handler, the external origins and the fetch targets). This test reads only the committed
+_headers file and the constants below, so it never needs a build and never skips in CI. The daily
+job checks the built site against the header (scripts/checks/csp_hashes.py, a warning only).
+
+Hash stability: the classic teams/[code] pair (INLINE_CLASSIC_SCRIPTS, two entries) carries the
+season from define:vars and changes at season rollover. Every other hash is fixed until its source
+or the bundler changes. When inline code changes, rebuild the site, rescan, and update them here.
 """
 
 from pathlib import Path
@@ -78,9 +82,15 @@ def policy(rules: dict[str, dict[str, str]]) -> dict[str, list[str]]:
     return {d.split()[0]: d.split()[1:] for d in value.split(";") if d.strip()}
 
 
-def test_csp_is_report_only_and_never_enforced(rules: dict[str, dict[str, str]]) -> None:
-    for path, headers in rules.items():
-        assert "Content-Security-Policy" not in headers, path
+def test_the_enforced_header_keeps_its_four_directives(rules: dict[str, dict[str, str]]) -> None:
+    assert rules["/*"]["Content-Security-Policy"] == (
+        "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+    )
+
+
+def test_the_new_policy_is_report_only_and_not_enforced(rules: dict[str, dict[str, str]]) -> None:
+    enforced = rules["/*"]["Content-Security-Policy"]
+    assert "script-src" not in enforced and "style-src" not in enforced
     assert "Content-Security-Policy-Report-Only" in rules["/*"]
 
 
