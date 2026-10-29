@@ -7,12 +7,12 @@
     "E2026_3"
   ],
   "elo": {
-    "n": 74,
-    "log_loss": 0.635051,
-    "brier": 0.22269,
-    "accuracy": 0.621622,
-    "margin_mae": 8.965676,
-    "ece": 0.143203,
+    "n": 78,
+    "log_loss": 0.632012,
+    "brier": 0.221223,
+    "accuracy": 0.615385,
+    "margin_mae": 9.192308,
+    "ece": 0.136538,
     "reliability": [
       {
         "low": 0.0,
@@ -38,23 +38,23 @@
       {
         "low": 0.3,
         "high": 0.4,
-        "n": 3,
-        "mean_p": 0.343233,
+        "n": 4,
+        "mean_p": 0.3525,
         "observed": 0.0
       },
       {
         "low": 0.4,
         "high": 0.5,
-        "n": 9,
-        "mean_p": 0.449256,
-        "observed": 0.222222
+        "n": 10,
+        "mean_p": 0.45034,
+        "observed": 0.3
       },
       {
         "low": 0.5,
         "high": 0.6,
-        "n": 15,
-        "mean_p": 0.546667,
-        "observed": 0.4
+        "n": 16,
+        "mean_p": 0.54405,
+        "observed": 0.375
       },
       {
         "low": 0.6,
@@ -66,9 +66,9 @@
       {
         "low": 0.7,
         "high": 0.8,
-        "n": 18,
-        "mean_p": 0.741011,
-        "observed": 0.611111
+        "n": 19,
+        "mean_p": 0.739263,
+        "observed": 0.631579
       },
       {
         "low": 0.8,
@@ -85,15 +85,15 @@
         "observed": null
       }
     ],
-    "margin_crps": 6.11431
+    "margin_crps": 6.273899
   },
   "b0": {
-    "n": 74,
-    "log_loss": 0.714864,
-    "brier": 0.260387,
-    "accuracy": 0.527027,
-    "margin_mae": 10.282232,
-    "ece": 0.105439,
+    "n": 78,
+    "log_loss": 0.715616,
+    "brier": 0.260754,
+    "accuracy": 0.525641,
+    "margin_mae": 10.54981,
+    "ece": 0.106825,
     "reliability": [
       {
         "low": 0.0,
@@ -140,9 +140,9 @@
       {
         "low": 0.6,
         "high": 0.7,
-        "n": 74,
+        "n": 78,
         "mean_p": 0.632466,
-        "observed": 0.527027
+        "observed": 0.525641
       },
       {
         "low": 0.7,
@@ -166,20 +166,20 @@
         "observed": null
       }
     ],
-    "margin_crps": 7.03297
+    "margin_crps": 7.241405
   },
   "totals": {
-    "n": 74,
-    "mae": 14.678186
+    "n": 78,
+    "mae": 14.825802
   },
   "all_rows": {
     "elo": {
-      "n": 76,
-      "log_loss": 0.642033,
-      "brier": 0.226012,
-      "accuracy": 0.618421,
-      "margin_mae": 8.834342,
-      "ece": 0.141778,
+      "n": 80,
+      "log_loss": 0.638722,
+      "brier": 0.224415,
+      "accuracy": 0.6125,
+      "margin_mae": 9.061875,
+      "ece": 0.135351,
       "reliability": [
         {
           "low": 0.0,
@@ -205,23 +205,23 @@
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 3,
-          "mean_p": 0.343233,
+          "n": 4,
+          "mean_p": 0.3525,
           "observed": 0.0
         },
         {
           "low": 0.4,
           "high": 0.5,
-          "n": 9,
-          "mean_p": 0.449256,
-          "observed": 0.222222
+          "n": 10,
+          "mean_p": 0.45034,
+          "observed": 0.3
         },
         {
           "low": 0.5,
           "high": 0.6,
-          "n": 16,
-          "mean_p": 0.544069,
-          "observed": 0.4375
+          "n": 17,
+          "mean_p": 0.541759,
+          "observed": 0.411765
         },
         {
           "low": 0.6,
@@ -233,9 +233,9 @@
         {
           "low": 0.7,
           "high": 0.8,
-          "n": 18,
-          "mean_p": 0.741011,
-          "observed": 0.611111
+          "n": 19,
+          "mean_p": 0.739263,
+          "observed": 0.631579
         },
         {
           "low": 0.8,
@@ -252,15 +252,15 @@
           "observed": null
         }
       ],
-      "margin_crps": 6.047744
+      "margin_crps": 6.206671
     },
     "b0": {
-      "n": 76,
-      "log_loss": 0.71525,
-      "brier": 0.260575,
-      "accuracy": 0.526316,
-      "margin_mae": 10.122733,
-      "ece": 0.10615,
+      "n": 80,
+      "log_loss": 0.715964,
+      "brier": 0.260924,
+      "accuracy": 0.525,
+      "margin_mae": 10.391596,
+      "ece": 0.107466,
       "reliability": [
         {
           "low": 0.0,
@@ -307,9 +307,9 @@
         {
           "low": 0.6,
           "high": 0.7,
-          "n": 76,
+          "n": 80,
           "mean_p": 0.632466,
-          "observed": 0.526316
+          "observed": 0.525
         },
         {
           "low": 0.7,
@@ -333,11 +333,11 @@
           "observed": null
         }
       ],
-      "margin_crps": 6.937729
+      "margin_crps": 7.145715
     },
     "totals": {
-      "n": 76,
-      "mae": 14.492271
+      "n": 80,
+      "mae": 14.645492
     }
   },
   "rolling": {
@@ -517,26 +517,54 @@
         "n": 74,
         "elo": 0.650934,
         "b0": 0.751247
+      },
+      {
+        "game_id": "E2026_79",
+        "tipoff_utc": "2026-10-28T17:30:00Z",
+        "n": 75,
+        "elo": 0.651883,
+        "b0": 0.751247
+      },
+      {
+        "game_id": "E2026_77",
+        "tipoff_utc": "2026-10-28T18:00:00Z",
+        "n": 76,
+        "elo": 0.640197,
+        "b0": 0.74039
+      },
+      {
+        "game_id": "E2026_78",
+        "tipoff_utc": "2026-10-28T19:00:00Z",
+        "n": 77,
+        "elo": 0.65046,
+        "b0": 0.74039
+      },
+      {
+        "game_id": "E2026_80",
+        "tipoff_utc": "2026-10-28T19:30:00Z",
+        "n": 78,
+        "elo": 0.653528,
+        "b0": 0.751247
       }
     ]
   },
   "warnings": [],
   "market": {
-    "n": 40,
-    "log_loss": 0.594453,
-    "elo_log_loss": 0.628742,
-    "b0_log_loss": 0.688823
+    "n": 42,
+    "log_loss": 0.58922,
+    "elo_log_loss": 0.618424,
+    "b0_log_loss": 0.690762
   },
   "m1": {
     "rows_in_log": 80,
     "rows_excluded_late": 0,
     "m1": {
-      "n": 66,
-      "log_loss": 0.634448,
-      "brier": 0.22257,
-      "accuracy": 0.636364,
-      "margin_mae": 8.93303,
-      "ece": 0.125217,
+      "n": 70,
+      "log_loss": 0.62866,
+      "brier": 0.219824,
+      "accuracy": 0.642857,
+      "margin_mae": 9.148143,
+      "ece": 0.117999,
       "reliability": [
         {
           "low": 0.0,
@@ -562,16 +590,16 @@
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 2,
-          "mean_p": 0.381,
+          "n": 3,
+          "mean_p": 0.363767,
           "observed": 0.0
         },
         {
           "low": 0.4,
           "high": 0.5,
-          "n": 9,
-          "mean_p": 0.434967,
-          "observed": 0.222222
+          "n": 11,
+          "mean_p": 0.440545,
+          "observed": 0.272727
         },
         {
           "low": 0.5,
@@ -590,9 +618,9 @@
         {
           "low": 0.7,
           "high": 0.8,
-          "n": 14,
-          "mean_p": 0.745736,
-          "observed": 0.642857
+          "n": 15,
+          "mean_p": 0.74502,
+          "observed": 0.666667
         },
         {
           "low": 0.8,
@@ -609,14 +637,14 @@
           "observed": null
         }
       ],
-      "margin_crps": 6.124259,
-      "totals_mae": 13.979697,
-      "totals_crps": 9.909446
+      "margin_crps": 6.280966,
+      "totals_mae": 14.275286,
+      "totals_crps": 10.106761
     },
     "same_games_as_elo": {
-      "n": 66,
-      "m1_log_loss": 0.634448,
-      "elo_log_loss": 0.647854
+      "n": 70,
+      "m1_log_loss": 0.62866,
+      "elo_log_loss": 0.643737
     },
     "rolling": {
       "window": 50,
@@ -722,6 +750,30 @@
           "tipoff_utc": "2026-10-27T20:00:00Z",
           "n": 66,
           "m1": 0.626994
+        },
+        {
+          "game_id": "E2026_79",
+          "tipoff_utc": "2026-10-28T17:30:00Z",
+          "n": 67,
+          "m1": 0.627897
+        },
+        {
+          "game_id": "E2026_77",
+          "tipoff_utc": "2026-10-28T18:00:00Z",
+          "n": 68,
+          "m1": 0.616819
+        },
+        {
+          "game_id": "E2026_78",
+          "tipoff_utc": "2026-10-28T19:00:00Z",
+          "n": 69,
+          "m1": 0.628537
+        },
+        {
+          "game_id": "E2026_80",
+          "tipoff_utc": "2026-10-28T19:30:00Z",
+          "n": 70,
+          "m1": 0.629419
         }
       ]
     }
@@ -730,12 +782,12 @@
     "rows_in_log": 60,
     "rows_excluded_late": 0,
     "m5": {
-      "n": 46,
-      "log_loss": 0.64488,
-      "brier": 0.227939,
-      "accuracy": 0.630435,
-      "margin_mae": 9.098478,
-      "ece": 0.194274,
+      "n": 50,
+      "log_loss": 0.639343,
+      "brier": 0.225845,
+      "accuracy": 0.62,
+      "margin_mae": 9.3608,
+      "ece": 0.186714,
       "reliability": [
         {
           "low": 0.0,
@@ -754,16 +806,16 @@
         {
           "low": 0.2,
           "high": 0.3,
-          "n": 1,
-          "mean_p": 0.2344,
+          "n": 2,
+          "mean_p": 0.24645,
           "observed": 0.0
         },
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 3,
-          "mean_p": 0.3503,
-          "observed": 0.0
+          "n": 4,
+          "mean_p": 0.359625,
+          "observed": 0.25
         },
         {
           "low": 0.4,
@@ -775,9 +827,9 @@
         {
           "low": 0.5,
           "high": 0.6,
-          "n": 8,
-          "mean_p": 0.5691,
-          "observed": 0.375
+          "n": 9,
+          "mean_p": 0.570156,
+          "observed": 0.333333
         },
         {
           "low": 0.6,
@@ -796,8 +848,8 @@
         {
           "low": 0.8,
           "high": 0.9,
-          "n": 3,
-          "mean_p": 0.854733,
+          "n": 4,
+          "mean_p": 0.84745,
           "observed": 1.0
         },
         {
@@ -808,18 +860,25 @@
           "observed": 1.0
         }
       ],
-      "margin_crps": 6.156498,
-      "totals_mae": 13.470217,
-      "totals_crps": 9.783504
+      "margin_crps": 6.370877,
+      "totals_mae": 13.9846,
+      "totals_crps": 10.087704
     },
     "same_games_as_elo": {
-      "n": 46,
-      "m5_log_loss": 0.64488,
-      "elo_log_loss": 0.660286
+      "n": 50,
+      "m5_log_loss": 0.639343,
+      "elo_log_loss": 0.653528
     },
     "rolling": {
       "window": 50,
-      "series": []
+      "series": [
+        {
+          "game_id": "E2026_80",
+          "tipoff_utc": "2026-10-28T19:30:00Z",
+          "n": 50,
+          "m5": 0.639343
+        }
+      ]
     }
   },
   "elor": {
@@ -827,12 +886,12 @@
     "rows_in_log": 36,
     "rows_excluded_late": 0,
     "metrics": {
-      "n": 22,
-      "log_loss": 0.612984,
-      "brier": 0.211978,
-      "accuracy": 0.681818,
-      "margin_mae": 8.550909,
-      "ece": 0.266736,
+      "n": 26,
+      "log_loss": 0.611578,
+      "brier": 0.211511,
+      "accuracy": 0.653846,
+      "margin_mae": 9.292692,
+      "ece": 0.230331,
       "reliability": [
         {
           "low": 0.0,
@@ -858,23 +917,23 @@
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 1,
-          "mean_p": 0.3408,
+          "n": 2,
+          "mean_p": 0.35525,
           "observed": 0.0
         },
         {
           "low": 0.4,
           "high": 0.5,
-          "n": 3,
-          "mean_p": 0.4509,
-          "observed": 0.0
+          "n": 4,
+          "mean_p": 0.4503,
+          "observed": 0.25
         },
         {
           "low": 0.5,
           "high": 0.6,
-          "n": 4,
-          "mean_p": 0.537025,
-          "observed": 0.25
+          "n": 5,
+          "mean_p": 0.54342,
+          "observed": 0.2
         },
         {
           "low": 0.6,
@@ -886,9 +945,9 @@
         {
           "low": 0.7,
           "high": 0.8,
-          "n": 9,
-          "mean_p": 0.729456,
-          "observed": 0.555556
+          "n": 10,
+          "mean_p": 0.72983,
+          "observed": 0.6
         },
         {
           "low": 0.8,
@@ -908,21 +967,21 @@
       "margin_crps": null
     },
     "same_games_as_elo": {
-      "n": 22,
-      "elor_log_loss": 0.612984,
-      "elo_log_loss": 0.620182
+      "n": 26,
+      "elor_log_loss": 0.611578,
+      "elo_log_loss": 0.613355
     }
   },
   "m5inj": {
     "rows_in_log": 23,
     "rows_excluded_late": 0,
     "m5inj": {
-      "n": 9,
-      "log_loss": 0.672508,
-      "brier": 0.234089,
-      "accuracy": 0.666667,
-      "margin_mae": 10.036667,
-      "ece": 0.306344,
+      "n": 13,
+      "log_loss": 0.636219,
+      "brier": 0.221535,
+      "accuracy": 0.615385,
+      "margin_mae": 10.717692,
+      "ece": 0.306546,
       "reliability": [
         {
           "low": 0.0,
@@ -941,16 +1000,16 @@
         {
           "low": 0.2,
           "high": 0.3,
-          "n": 1,
-          "mean_p": 0.2362,
+          "n": 2,
+          "mean_p": 0.22825,
           "observed": 0.0
         },
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.3991,
+          "observed": 1.0
         },
         {
           "low": 0.4,
@@ -962,9 +1021,9 @@
         {
           "low": 0.5,
           "high": 0.6,
-          "n": 2,
-          "mean_p": 0.566,
-          "observed": 0.5
+          "n": 3,
+          "mean_p": 0.570033,
+          "observed": 0.333333
         },
         {
           "low": 0.6,
@@ -983,9 +1042,9 @@
         {
           "low": 0.8,
           "high": 0.9,
-          "n": 2,
-          "mean_p": 0.82255,
-          "observed": 0.5
+          "n": 3,
+          "mean_p": 0.8246,
+          "observed": 0.666667
         },
         {
           "low": 0.9,
@@ -995,14 +1054,14 @@
           "observed": null
         }
       ],
-      "margin_crps": 6.415558,
-      "totals_mae": 13.697778,
-      "totals_crps": 9.83145
+      "margin_crps": 7.134006,
+      "totals_mae": 15.606154,
+      "totals_crps": 10.986698
     },
     "same_games_as_elo": {
-      "n": 9,
-      "m5inj_log_loss": 0.672508,
-      "elo_log_loss": 0.636421
+      "n": 13,
+      "m5inj_log_loss": 0.636219,
+      "elo_log_loss": 0.61777
     },
     "rolling": {
       "window": 50,
@@ -1014,12 +1073,12 @@
     "rows_in_log": 14,
     "rows_excluded_late": 0,
     "metrics": {
-      "n": 0,
-      "log_loss": null,
-      "brier": null,
-      "accuracy": null,
-      "margin_mae": null,
-      "ece": null,
+      "n": 4,
+      "log_loss": 0.577303,
+      "brier": 0.194844,
+      "accuracy": 0.75,
+      "margin_mae": 13.405,
+      "ece": 0.18155,
       "reliability": [
         {
           "low": 0.0,
@@ -1045,16 +1104,16 @@
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.3881,
+          "observed": 0.0
         },
         {
           "low": 0.4,
           "high": 0.5,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 2,
+          "mean_p": 0.47525,
+          "observed": 0.5
         },
         {
           "low": 0.5,
@@ -1073,9 +1132,9 @@
         {
           "low": 0.7,
           "high": 0.8,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.7114,
+          "observed": 1.0
         },
         {
           "low": 0.8,
@@ -1095,9 +1154,9 @@
       "margin_crps": null
     },
     "same_games_as_elo": {
-      "n": 0,
-      "elor_log_loss": null,
-      "elo_log_loss": null
+      "n": 4,
+      "elor_log_loss": 0.577303,
+      "elo_log_loss": 0.575805
     }
   },
   "pool3": {
@@ -1105,12 +1164,12 @@
     "rows_in_log": 14,
     "rows_excluded_late": 0,
     "metrics": {
-      "n": 0,
-      "log_loss": null,
-      "brier": null,
-      "accuracy": null,
-      "margin_mae": null,
-      "ece": null,
+      "n": 4,
+      "log_loss": 0.566609,
+      "brier": 0.192774,
+      "accuracy": 0.5,
+      "margin_mae": 12.8175,
+      "ece": 0.4149,
       "reliability": [
         {
           "low": 0.0,
@@ -1136,23 +1195,23 @@
         {
           "low": 0.3,
           "high": 0.4,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.3173,
+          "observed": 0.0
         },
         {
           "low": 0.4,
           "high": 0.5,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.4308,
+          "observed": 1.0
         },
         {
           "low": 0.5,
           "high": 0.6,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.5408,
+          "observed": 0.0
         },
         {
           "low": 0.6,
@@ -1164,9 +1223,9 @@
         {
           "low": 0.7,
           "high": 0.8,
-          "n": 0,
-          "mean_p": null,
-          "observed": null
+          "n": 1,
+          "mean_p": 0.7677,
+          "observed": 1.0
         },
         {
           "low": 0.8,
@@ -1186,9 +1245,9 @@
       "margin_crps": null
     },
     "same_games_as_elo": {
-      "n": 0,
-      "elor_log_loss": null,
-      "elo_log_loss": null
+      "n": 4,
+      "elor_log_loss": 0.566609,
+      "elo_log_loss": 0.575805
     }
   }
 }
