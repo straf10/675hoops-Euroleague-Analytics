@@ -177,6 +177,7 @@ def _changed(base: Snap, edited: Snap) -> list[str]:
 # --- Edits of the inputs -----------------------------------------------------------------------
 
 
+@cache
 def _cut(case: tuple[str, int, float]) -> pd.Timestamp:
     """The cutoff of a checkpoint target, or the first tip-off of the season (next-season)."""
     competition, season, checkpoint = case

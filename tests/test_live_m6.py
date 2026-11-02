@@ -17,6 +17,7 @@ from eurohoops.api.readmodel import (
     SIMILAR_ROWS_SCHEMA,
 )
 from eurohoops.config import M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
+from eurohoops.eval.common import round_finite
 from eurohoops.eval.m6_backtest import (
     M6Inputs,
     World,
@@ -26,6 +27,7 @@ from eurohoops.eval.m6_backtest import (
     target_inputs,
 )
 from eurohoops.live_m6 import (
+    DIGITS,
     inputs_digest,
     live_checkpoint,
     live_people,
@@ -35,8 +37,10 @@ from eurohoops.live_m6 import (
     player_rows,
     projections_report,
     query_rows,
+    similarity_report,
 )
 from eurohoops.models.player_seasons import PROJECTED_STATS
+from eurohoops.models.similarity import BOX_FEATURES, SHOT_FEATURES
 from eurohoops.parse.schemas import validated
 from tests.m6_synthetic import build_inputs, small_spec, synthetic_rounds
 
@@ -245,3 +249,51 @@ def test_the_committed_report_rows_match_the_read_models_schemas() -> None:
     similar = json.loads((ROOT / M6_SIMILARITY).read_text(encoding="utf-8"))
     for rows in similar["players"].values():
         validated(pd.DataFrame(rows), SIMILAR_ROWS_SCHEMA)
+
+
+def test_similarity_report_lists_each_neighbour_by_rank_with_its_name_and_score() -> None:
+    similar = pd.DataFrame(
+        {
+            "person_id": ["P:1", "P:1", "P:2"],
+            "rank": [2, 1, 1],
+            "match_person_id": ["P:9", "P:8", "P:7"],
+            "match_competition": ["euroleague", "euroleague", "gbl"],
+            "match_season": [2019, 2018, 2020],
+            "score": [0.123456789, 0.5, 0.25],
+            "season": [2024, 2024, 2024],
+        }
+    )
+    out = similarity_report(similar, 2024, [2019, 2018], False, {"P:8": "Eight Name"})
+    assert out["model"] == "m6" and out["season"] == 2024
+    assert out["pool_seasons"] == [2018, 2019]
+    assert out["features"] == {"euroleague": list(BOX_FEATURES)}
+    first, second = out["players"]["P:1"]
+    assert first == {
+        "rank": 1,
+        "person_id": "P:8",
+        "competition": "euroleague",
+        "season": 2018,
+        "name": "Eight Name",
+        "score": 0.5,
+        "query_season": 2024,
+    }
+    assert second["name"] == "P:9"  # no display name: the person id stands in
+    assert second["score"] == round_finite(0.123456789, DIGITS) == 0.1235
+    assert out["players"]["P:2"][0]["competition"] == "gbl"  # the other competition is kept
+
+
+def test_similarity_features_add_the_shot_features_when_asked() -> None:
+    similar = pd.DataFrame(
+        {
+            "person_id": ["P:1"],
+            "rank": [1],
+            "match_person_id": ["P:8"],
+            "match_competition": ["euroleague"],
+            "match_season": [2018],
+            "score": [0.5],
+            "season": [2024],
+        }
+    )
+    out = similarity_report(similar, 2024, [2018], True, {})
+    assert out["features"]["euroleague"] == [*BOX_FEATURES, *SHOT_FEATURES]
+    assert out["players"]["P:1"][0]["name"] == "P:8"
