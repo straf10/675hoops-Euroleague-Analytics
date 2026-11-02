@@ -29,7 +29,7 @@ model-column granularity (``model_gram``/``model_rhs`` -- always exactly ``M.T @
 by construction, never recomputed by a triple product). Solving reuses the previous cutoff's
 theta as the conjugate-gradient warm start (model columns are a fixed index space for a given
 variant, so a column's position never moves between cutoffs), which is what keeps a walk-forward
-pass fast (H-j; the H1 benchmark, ``scripts/bench_m3_rapm.py``).
+pass fast (H-j).
 
 Margin convention: the row-level home column is +-1 (H-b, literally), so, exactly as in
 ``team_eff`` (whose own margin is ``2 * h * home_flag`` because the home and away ORtg rows each

@@ -115,10 +115,37 @@ def _read_game(raw_dir: Path, row: Any) -> tuple[str | None, pd.DataFrame | None
     return None, _events(parsed.rows)
 
 
-def _read_game_item(item: tuple[Path, SimpleNamespace]) -> tuple[str | None, pd.DataFrame | None]:
-    """``_read_game`` for one (raw_dir, game) pair: a picklable item for worker processes."""
+def _game_frames(
+    item: tuple[Path, SimpleNamespace],
+) -> tuple[str | None, pd.DataFrame | None, pd.DataFrame | None]:
+    """One game in a worker process: its exclusion reason, then (for an included game) its
+    scoring-event training rows and its checkpoint rows, built from the play-by-play."""
     raw_dir, row = item
-    return _read_game(raw_dir, row)
+    reason, ev = _read_game(raw_dir, row)
+    if reason is not None or ev is None:
+        return reason, None, None
+    base = {
+        "gid": row.gid,
+        "season": int(row.season),
+        "phase": row.phase,
+        "logit_pre": float(row.logit_pre),
+        "neutral": float(bool(row.neutral)),
+        "y": int(row.y),
+        "diff": float(row.diff),
+    }
+    sc = ev[ev["ptype"].isin(SCORING_CODES)]
+    scoring = pd.DataFrame(
+        {
+            **base,
+            "gid": row.gid,
+            "t": sc["t"].to_numpy(float),
+            "ot": sc["ot"].to_numpy(float),
+            "m": sc["m"].to_numpy(float),
+        }
+    )
+    ck = checkpoint_states(ev)
+    checks = pd.DataFrame({**base, **{c: ck[c].to_numpy(float) for c in ck.columns}})
+    return reason, scoring, checks
 
 
 def build(games: pd.DataFrame, raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -127,38 +154,18 @@ def build(games: pd.DataFrame, raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFram
     scoring: list[pd.DataFrame] = []
     checks: list[pd.DataFrame] = []
     rows: list[Any] = list(g.itertuples(index=False))
-    # the play-by-play of each game is read and parsed in a worker; results stay in game order
+    # each game's play-by-play is read, parsed and turned into its rows in a worker; results
+    # stay in game order
     read = map_ordered(
-        _read_game_item,
+        _game_frames,
         [(raw_dir, record(row)) for row in g.to_dict("records")],
     )
-    for row, (reason, ev) in zip(rows, read, strict=True):
+    for row, (reason, game_scoring, game_checks) in zip(rows, read, strict=True):
         g.loc[row.gid, "reason"] = reason
-        if reason is not None or ev is None:
+        if game_scoring is None or game_checks is None:
             continue
-        base = {
-            "gid": row.gid,
-            "season": int(row.season),
-            "phase": row.phase,
-            "logit_pre": float(row.logit_pre),
-            "neutral": float(bool(row.neutral)),
-            "y": int(row.y),
-            "diff": float(row.diff),
-        }
-        sc = ev[ev["ptype"].isin(SCORING_CODES)]
-        scoring.append(
-            pd.DataFrame(
-                {
-                    **base,
-                    "gid": row.gid,
-                    "t": sc["t"].to_numpy(float),
-                    "ot": sc["ot"].to_numpy(float),
-                    "m": sc["m"].to_numpy(float),
-                }
-            )
-        )
-        ck = checkpoint_states(ev)
-        checks.append(pd.DataFrame({**base, **{c: ck[c].to_numpy(float) for c in ck.columns}}))
+        scoring.append(game_scoring)
+        checks.append(game_checks)
     training = pd.concat(scoring, ignore_index=True)
     states = pd.concat(checks, ignore_index=True)
     return g, training, states
