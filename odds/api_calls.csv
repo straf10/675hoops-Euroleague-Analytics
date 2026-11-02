@@ -73,3 +73,4 @@ called_at_utc,status,cost,requests_used,requests_remaining,events,rows_written
 2026-10-30T14:35:38Z,200,3,189,311,7,4
 2026-10-31T13:56:12Z,200,3,192,308,1,1
 2026-11-01T14:33:17Z,200,3,3,497,6,4
+2026-11-02T17:28:28Z,200,3,6,494,10,6
