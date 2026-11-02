@@ -233,7 +233,7 @@ Weeks start Mon 28 Sep 2026. Target load is 20–25 h/week; at 30+ h/week, weeks
 
 Elo remains the published forecast until R1's promotion test is met. Gains come from new information (availability/injuries, preseason roster turnover) and the odds benchmark (§1.3), not from more tuning on the validation and test splits.
 
-- **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Built: the paired-bootstrap test (`src/eurohoops/eval/promotion.py`), `eurohoops promote-check` (`cli/backtest.py`), run manually by `.github/workflows/promotion-look.yml`. Not yet run: no `reports/promotion_*` look is committed. Look 1 (EuroLeague round 19) is still ahead.
+- **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Built: the paired-bootstrap test (`src/eurohoops/eval/promotion.py`), `eurohoops promote-check` (`cli/backtest.py`), run manually by `.github/workflows/promotion-look.yml`. Status: built; no `reports/promotion_*` look is committed yet. The first look is due after EuroLeague round 19.
 - **R2 Season scorecard**: done. Per model and season to date: games, picks right, log loss, Brier, margin MAE, % of margins within 5 and 10 pts, totals MAE. Live for both competitions.
 - **R3 Per-round view**: done. EuroLeague rounds, not calendar weeks.
 - **R4 All-games list**: done. Filterable by round and model; shadow-model start rounds are stated.
@@ -253,8 +253,8 @@ Logging: each daily run logs every unplayed, confirmed game of any round whose f
 
 1. BasketHotel PBP: endpoint, fields, substitutions present? Coordinates?
 2. ~~EuroLeague shot coordinate system (origin, units, orientation): plot a season of shots.~~ Resolved: raw centimetres from the basket centre, shots mirrored onto one basket, converted to metres with y toward half court. Validated against the FIBA line from 2011-12 (`src/eurohoops/parse/shots.py:1-7`, `docs/data/shots.md`, `reports/shots.json`). Season plot: `reports/el_shots_2024.png` (2024-25).
-3. 2026-27 formats and tiebreak rules (EuroLeague play-in).
-4. OddsPortal feasibility (one-day timebox). Open: no spike result is in the repo (no OddsPortal code, data or report). The forward-only fallback is in use: The Odds API (`src/eurohoops/odds.py:29`), recorded in `odds/euroleague_2026-27.csv`.
+3. ~~2026-27 formats and tiebreak rules (EuroLeague play-in).~~ Resolved from the official 2026-27 EuroLeague Bylaws Art. 18-19 (https://ftpserver.euroleague.net/general/2026_27_EuroLeague_Bylaws.pdf, pp. 146-153, read 2026-11-02): 20 teams, 38 rounds; places 1-6 go direct; 7-10 play the play-in (single games: A 7v8, B 9v10, C loser A v winner B; the A and C winners are seeds 7 and 8); best-of-5 playoffs 1v8, 4v5, 3v6, 2v7 (games 1, 2, 5 at the higher seed); Final Four single games, SF 1/8 v 4/5 and 2/7 v 3/6. Tiebreaks per Art. 19.5.1/19.5.2, overtime excluded. `src/eurohoops/sim/season.py` and `src/eurohoops/standings.py` match these rules. Not modelled: the fewer-games rules (19.2-19.3), the 20-0 rule (19.6), and the alphabetical last-resort fallback in `standings.py`.
+4. ~~OddsPortal feasibility (one-day timebox).~~ Settled by the forward-only fallback: The Odds API (`src/eurohoops/odds.py:29`), recorded in `odds/euroleague_2026-27.csv`. No OddsPortal spike was run (no OddsPortal code, data or report in the repo).
 5. ~~Stint validation pass rate on a sample of 50 EL games.~~ Resolved: 50 EuroLeague games (2015 to 2025), all checks pass 100% (`reports/stint_validation.json`, written by `eurohoops stints` in `src/eurohoops/cli/build.py`).
 
 ---

@@ -10,23 +10,23 @@ Effort: S (≤ 1 day), M (2–4 days), L (a week or more). Verdict: **Do**, **La
 
 | # | Idea | Status | Effort | Verdict |
 |---|------|--------|--------|---------|
-| 5 | Show the number of simulations | Have | S | **Do** |
+| 5 | Show the number of simulations | Have | S | **Done** (standings lede, `standings/index.astro:31`) |
 | 4 | Data-volume strip (games, PBP events, shots, seasons) | Partial | S | **Do** |
-| 15 | Overtime counts as clutch time | Have | S (copy) | **Do** (say so) |
-| 6 | ORtg vs DRtg scatter | Have | S | **Do** |
-| 14 | Pace vs net rating scatter | Have | S | **Do** |
-| 2 | Last matchday: predicted vs happened | Have | S | **Do** (add a summary line) |
-| 3 | Strength of schedule: played, remaining, next 5, home/away, rest, travel | Partial | M | **Do** |
-| 17 | Minutes-weighted roster continuity | Have | S–M | **Do** |
-| 12 | Best duos and five-man units, minimum minutes | Have | M | **Do** |
+| 15 | Overtime counts as clutch time | Have | S (copy) | **Done** (glossary Clutch definition) |
+| 6 | ORtg vs DRtg scatter | Have | S | **Done** (`lib/scatter.ts`, Teams index) |
+| 14 | Pace vs net rating scatter | Have | S | **Done** (`lib/scatter.ts`, Teams index) |
+| 2 | Last matchday: predicted vs happened | Have | S | **Done** (`headlineText`, `ForecastRecord.astro`) |
+| 3 | Strength of schedule: played, remaining, next 5, home/away, rest, travel | Partial | M | **Do** (travel not built) |
+| 17 | Minutes-weighted roster continuity | Have | S–M | **Done** (`team/Continuity.astro`) |
+| 12 | Best duos and five-man units, minimum minutes | Have | M | **Done** (`team/Lineups.astro`) |
 | 11 | Assist network per team | Partial | M | **Do** |
 | 7 | Game pages: in-game win probability, swings, runs, box score | Partial | L | **Do** (flagship) |
 | 13 | Metric list (RAPM, WPA, GCI, …) | Mixed | — | See §13 |
-| 9 | RAPM | Have | — | Expose on site |
-| 1 | Coach pages | Have | M–L | **Later** (trim scope) |
+| 9 | RAPM | Have | — | **Done** (RAPM line on player pages, `a602172`) |
+| 1 | Coach pages | Have | M–L | **Done, trimmed** (`06afb2a`, `d876471`) |
 | 10 | MVP ladder | New | M | **Later** (after 7) |
 | 16 | Referee metrics | New | M | **Later** (careful framing) |
-| 18 | Elo carried over + home/away net ratings | Partial | M | Test as a shadow model |
+| 18 | Elo carried over + home/away net ratings | Partial | M | ELOH shadow live (merge `0a5e361`, 2026-10-28); no verdict yet |
 | 8 | Scan the Laloudakis repo | Done | — | See §8 (borrow WP recipe, sim backtest) |
 | 19 | Scan GN Basketball Intelligence | Done | — | See §19 |
 
@@ -72,7 +72,7 @@ a round recap share card (`lib/cards/site`). Missing: a one-line headline above 
 7 of 10 called, Brier 0.19 vs home-win baseline 0.24; biggest miss: X beat Y at 22%." Data is
 already in the scored log.
 
-## 3. Strength of schedule — Do
+## 3. Strength of schedule — Partial (travel not built)
 
 Today: one number on team pages (`api/readmodel.py:_schedule_strength`): mean **current** Elo of
 every opponent on the schedule, played and remaining together.
