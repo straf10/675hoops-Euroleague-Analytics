@@ -242,9 +242,20 @@ jobs:
         with:
           name: site
           path: site
+      # Unknown URLs get the branded 404.html (not_found_handling "404-page"); the default "none" is an empty 404.
+      # Written at the workspace root, outside site/, so the config itself is never served.
+      - name: Write the Worker config
+        run: |
+          cat > wrangler.jsonc <<'EOF'
+          {
+            "name": "675hoops",
+            "compatibility_date": "2026-10-01",
+            "assets": { "directory": "site", "not_found_handling": "404-page" }
+          }
+          EOF
       - uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.149.0"
-          command: deploy --assets site --name 675hoops --compatibility-date 2026-10-01
+          command: deploy
