@@ -3,17 +3,17 @@
 The site is 675hoops.com: EuroLeague 2026-27 win predictions, the player and team stats behind
 them, and the coaches. This plan covers how people find it (search, feeds, markup) and how the
 work reaches them (posts, communities, outreach). It is EuroLeague only.
-until the owner decides on one.
 
 Principles:
 
 - **The record is the pitch.** Predictions are logged before tip-off and the log is append-only
   (`predictions/*.csv`). Posts quote the record as it stands, wins and losses both, and only what
   the forecast record page shows.
-- **Nothing is posted by code.** The site and its feeds are read-only. Posting, emailing and
-  submitting to services are done by the owner from the owner's accounts.
-- **No new tracking.** The site collects no analytics today, and Sentry takes errors only. Any
-  audience measurement is decision 10 below.
+- **Posting (owner decision, 2026-11-03, replaces "nothing is posted by code").** The pipeline
+  makes the posts and short videos. Instagram is posted by API; TikTok by hand until its app audit
+  passes; X and Reddit by hand by the owner. Plan and budget: `docs/PLAN.md` §8.3.
+- **Measurement (decision 10, decided 2026-11-03).** Cloudflare Web Analytics (cookieless, no
+  personal data) and Google Search Console. Sentry takes errors only.
 - **Design.** `docs/DESIGN.md` ("The Quiet Reference"): neutral paper, one typeface, colour only on
   data. Share features add no visual weight.
 
@@ -43,7 +43,7 @@ Effort is the owner's time unless marked "agent", which means a code change in t
 
 ### Top 10, in order
 
-1. **Verify the site in Google Search Console and submit the sitemap.** Owner, one-off, 30 min.
+1. **Done 2026-11-03.** **Verify the site in Google Search Console and submit the sitemap.** Owner, one-off, 30 min.
    Verify by DNS TXT record on the domain (the URL-prefix method needs the HTML file, which is
    not in the build). Then submit `https://675hoops.com/sitemap-index.xml`. "Discovered, currently
    not indexed" in the first month is normal for new sites and clears as the domain earns links.
@@ -76,7 +76,7 @@ Effort is the owner's time unless marked "agent", which means a code change in t
    an iframe, with the round's calls and the record, no tracking, no scripts beyond the page's own,
    and the same colour rules as the site. Owner reviews against `docs/DESIGN.md` before it ships.
    Embeds bring links back without anyone visiting first, so this comes after items 1 to 8.
-10. **Decide on audience measurement.** Owner, decision in 30 min; agent, 1 h to add it if chosen.
+10. **Done 2026-11-03 (Cloudflare Web Analytics).** **Decide on audience measurement.** Owner, decision in 30 min; agent, 1 h to add it if chosen.
     Options: no analytics (honest, but the plan cannot be measured beyond Search Console); a
     cookieless, privacy-friendly counter with no personal data (for example Cloudflare Web
     Analytics, since the site already sits on Cloudflare Pages); or a self-hosted log summary.
