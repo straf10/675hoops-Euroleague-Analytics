@@ -19,7 +19,7 @@ A margin-adjusted Elo in the style of FiveThirtyEight's NBA ratings. Code: `src/
 - **EuroLeague history (not live):** warm-up 2007–2014, tuning 2015–2023, test 2024–2025, same grid. `k` 30, `hca` 110. Used only as `history_backtests` in `config.py`.
 
 ### Live logging
-- Both competitions are forecast daily (`eurohoops predict`, run by `.github/workflows/daily.yml`). The forecasts are logged to `predictions/`.
+- The EuroLeague is forecast daily (`eurohoops predict`, run by `.github/workflows/daily.yml`). The forecasts are logged to `predictions/`.
 - The site shows the EuroLeague forecast only (`SITE_FORECAST_MODEL = "elo"` in `config.py`).
 - Each run replays Elo from the live backtest's first warm-up season, with the report's parameters. It writes one row per upcoming game: every game in rounds whose first tip-off is within 48 h of the run.
 - Columns: `p_home` (four decimals), `exp_margin`, `model` (`elo`), `model_version`, `predicted_at_utc`.

@@ -23,7 +23,7 @@ Our setup: walk-forward by round, paired bootstrap of per-game log-loss gaps, a 
 **Leakage and split choice change the answer.**
 - [li-2025](../papers/li-2025-ai-basketball-prediction-review.md): AdaBoost dropped from 75% in CV to 66.8% on a held-out test (p.9). Published "98.9%" results sit in a peer-reviewed review without a leakage check (p.13).
 - [he-2025](../papers/he-2025-stacked-ensemble-nba.md): random row splits with mirror rows and same-game box scores.
-- The honest ceiling is about 69% for EuroLeague and 78% for GBL (Lampis 2023 via Li, Table 3, p.14). Our Elo test accuracy is in that range.
+- The honest ceiling is about 69% for EuroLeague and 78% for GBL (Lampis 2023 via Li, Table 3, p.14). Our Elo test accuracy is in that range for EuroLeague. GBL removed 2026-10-28, so the GBL figure no longer applies to us.
 
 **Diagnostics.**
 - [ridall-2025](../papers/ridall-2025-epl-bayesian-state-space.md): calibration by outcome class (Table 4, p.16). Its scoring rules "show a high degree of agreement" (p.12).

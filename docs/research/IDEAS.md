@@ -31,18 +31,18 @@ Ties are broken by effort, then by whether the idea needs new data collection.
 ---
 
 ## E1. Power check for the R1 promotion looks
-- **Model:** evaluation of M5 vs Elo (EuroLeague) and M1 vs Elo (GBL). No model change.
+- **Model:** evaluation of M5 vs Elo and M1 vs Elo (EuroLeague). No model change.
 - **Change:** before EuroLeague round 19, write down the chance that R1 can promote at each look, given realistic gaps.
 - **Why:**
   - Shared outcomes and randomness cap what small samples can show ([brill-2024](papers/brill-2024-difficulty-win-probability.md), [lopez-2017](papers/lopez-2017-how-often-best-team-wins.md)).
   - Small claimed gaps are often noise ([tian-2024](papers/tian-2024-spectral-dynamic-bradley-terry.md)).
 - **Rough estimate from our own cards:**
   - The M5 − M1 test CI half-width is 0.0096 on 732 games (`docs/models/m5.md`), so the per-game gap SD ≈ 0.13.
-  - M1 − Elo is 0.0062 on its test, so the SD ≈ 0.09.
+  - The M1 − Elo test CI half-width is 0.0062 (EuroLeague, `docs/models/m1.md`), so the SD ≈ 0.09 (`docs/models/r1_power.md`: 0.0859).
   - At round 19 (about 190 EuroLeague games) the SE is about 0.007–0.009. A two-sided 97.5% CI clears 0 only if the observed gap is below about −0.016 to −0.021.
   - The test gaps so far are −0.0013 (M1 − Elo) and about 0 (M5 − M1). If the true gap is −0.003, the chance of promotion at round 19 is about 4% (reader's arithmetic, normal approximation).
 - **Data:** have it (backtest JSONs, live logs).
-- **Draft gate:** none. This is a report, not a model test. Output: a table of promotion probability by true gap (−0.003, −0.005, −0.01, −0.02) and by look (round 19, season end), for both competitions.
+- **Draft gate:** none. This is a report, not a model test. Output: a table of promotion probability by true gap (−0.003, −0.005, −0.01, −0.02) and by look (round 19, season end), for EuroLeague.
 - **Risks:**
   - The SD estimate comes from past seasons. Live 2026-27 games may differ.
   - The result may lead the owner to change R1. Any change must be declared as a new rule version before the look it affects, never after seeing results.
@@ -135,11 +135,11 @@ Ties are broken by effort, then by whether the idea needs new data collection.
   - Teams with roster churn jump more ([macridemartino-2026](papers/macridemartino-2026-dynamic-bradley-terry.md)).
 - **Data:** have it.
 - **Draft gate:**
-  - Evaluation data: fresh seasons only. EuroLeague and GBL 2027-28, every game both M1 and `M1-SS` log, from round 1.
+  - Evaluation data: fresh seasons only. EuroLeague 2027-28, every game both M1 and `M1-SS` log, from round 1.
   - Primary metric: log-loss difference (`M1-SS` − M1) on rounds 1–10, paired bootstrap.
   - Secondary metric: the same on the full season.
   - Pass rule: 95% CI upper bound of the primary < 0 **and** a full-season mean ≤ 0.
-  - Report both competitions separately; the GBL is the M1 flagship case.
+  - Report EuroLeague only. (The GBL was the M1 flagship case until it was removed on 2026-10-28.)
 - **Risks:**
   - About 100 EuroLeague games in rounds 1–10 per season, so power is low (E1). It may need 2028-29 pooled too, which must be declared up front.
   - The fixed γ may be wrong for EuroLeague roster churn.

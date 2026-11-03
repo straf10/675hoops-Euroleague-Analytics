@@ -21,7 +21,7 @@ Our data: `odds/euroleague_2026-27.csv` holds The Odds API snapshots for 40 Euro
 **Known biases.**
 - **Favourite–longshot:** not found in the NBA (ANOVA p = .866) or the NHL. Found in NFL bins, college sports and MLB ([robbins-2022](../papers/robbins-2022-sports-betting-efficiency.md), p.14–18). In MMA it is significant but not profitable ([miller-2026](../papers/miller-2026-mma-betting-efficiency.md), Table 3, p.10).
 - **Early-season totals:** in the NBA, totals lines are too high early in the season. Unders won 61.9% at the open and 56.7% at the close after a downward line move (Table 3, p.8). The bias fades by about the 10th home game (p.7) ([baryla-2007](../papers/baryla-2007-nba-early-season-totals-bias.md)). It is relevant to M1 totals and to our totals benchmark.
-- **Less-covered markets are noisier:** Colquitt's small-conference result suggests GBL lines (if we ever get them) would be a weaker benchmark than EuroLeague lines.
+- **Less-covered markets are noisier:** Colquitt's small-conference result suggests lines from smaller leagues would be a weaker benchmark than EuroLeague lines (GBL removed 2026-10-28, so no GBL lines are in scope).
 
 ## What we do now
 - Proportional de-vig, median across books, EuroLeague only. This matches the literature's standard.
