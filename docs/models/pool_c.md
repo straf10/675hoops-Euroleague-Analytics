@@ -22,7 +22,7 @@ Pass bar: the 95% CI upper bound of the paired difference (POOL-c minus POOL) lo
 
 **Method.**
 1. Fit set: POOL's scored rows for EuroLeague 2026-27 rounds 1 to 19. `c` is fitted once on that set.
-2. Evaluation set: POOL's scored rows for rounds 20 to season end. No evaluation row is used for the fit.
+2. Evaluation set: POOL's scored rows for rounds 20 to season end. No evaluation row is used for the fit. Season end includes the play-in, playoffs and Final Four (owner, 2026-11-03, before round 20; the reading of the committed text, not a change to it).
 3. Test: paired bootstrap of the per-game difference (POOL-c minus POOL) log loss over the evaluation rows. 10,000 resamples of games with replacement, seed 20261022 (`GATE_RESAMPLES`, `GATE_SEED` in `pool_c.py`; `eval.metrics.paired_bootstrap_ci`). Interval: 95% percentile CI of the mean difference.
 
 **Limits.**
