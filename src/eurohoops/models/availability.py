@@ -107,21 +107,27 @@ def match_injuries(
     return out
 
 
+def latest_snapshot(matched: pd.DataFrame, cutoff: datetime) -> pd.Timestamp | None:
+    """The stamp of the latest snapshot strictly before ``cutoff``, or None if there is none."""
+    if matched.empty:
+        return None
+    stamps = pd.to_datetime(matched["snapshot_utc"], format=TIME_FORMAT, utc=True)
+    limit = pd.Timestamp(cutoff)
+    limit = limit.tz_localize("UTC") if limit.tzinfo is None else limit
+    before = stamps < limit
+    return stamps[before].max() if before.any() else None
+
+
 def out_players(matched: pd.DataFrame, cutoff: datetime) -> set[str]:
     """Player ids marked ``Out`` in the latest snapshot stamped strictly before ``cutoff``.
 
     That snapshot is taken as a whole: a player who is not listed in it has no status (not Out),
     even if an older snapshot had him Out. Unmatched rows are never Out.
     """
-    if matched.empty:
+    latest = latest_snapshot(matched, cutoff)
+    if latest is None:
         return set()
     stamps = pd.to_datetime(matched["snapshot_utc"], format=TIME_FORMAT, utc=True)
-    limit = pd.Timestamp(cutoff)
-    limit = limit.tz_localize("UTC") if limit.tzinfo is None else limit
-    before = stamps < limit
-    if not before.any():
-        return set()
-    latest = stamps[before].max()
     rows = matched[(stamps == latest) & (matched["match"] == MATCHED) & (matched["status"] == OUT)]
     return {str(p) for p in rows["player_id"]}
 

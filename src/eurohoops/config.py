@@ -211,6 +211,9 @@ EUROLEAGUE = Competition(
 # M5-INJ (docs/models/m5_inj.md): gate committed by the owner on 2026-10-23, logging on from then.
 # Its evaluation games are the games logged after that commit.
 M5INJ_LIVE_ENABLED = True
+# Owner decision 2026-11-03 (docs/models/m5_inj.md): the injury snapshot used at a row's cutoff must
+# be at most this many hours older than the cutoff. Older, and no M5-INJ row is written for the run.
+M5INJ_MAX_SNAPSHOT_AGE_HOURS = 6
 
 # POOL (docs/models/pool.md): an equal-weight logarithmic pool of four live EuroLeague logs.
 # Switched on by the owner on 2026-10-17 after approving the protocol (pins re-checked that day).

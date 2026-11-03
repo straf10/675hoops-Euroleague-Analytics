@@ -14,6 +14,8 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
 **Status at the cutoff.**
 - A row's cutoff is its `predicted_at_utc`, the instant the forecast is stamped. The injury status is read before the forecast is made, so the status and the stamp refer to the same instant.
 - The status comes from the latest snapshot stamped strictly before the cutoff, taken as a whole.
+- That snapshot must be at most 6 hours older than the cutoff (`config.M5INJ_MAX_SNAPSHOT_AGE_HOURS`; exactly 6 h is accepted). Owner decision, 2026-11-03.
+- If it is older, or there is none before the cutoff, no M5-INJ row is written for that run, and no fallback to M5 or to an older snapshot. The run logs `m5inj: latest injury snapshot <ts> is <h> h old (> 6 h); no M5-INJ rows written`. The daily job does not fail.
 - A player is `Out` when he is listed `Out` in that snapshot (matched rows only).
 - A player not listed in that snapshot has no status, so he is not `Out`, even if an older snapshot had him `Out`.
 - Unmatched rows are never `Out`.
@@ -44,7 +46,8 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
 **Logging.**
 - File: `predictions/euroleague_m5inj_2026-27.csv` (the M1/M5 column shape, `model = m5inj`).
 - Written by `eurohoops predict` only when `M5INJ_LIVE_ENABLED` is True and M5's validation check has passed (the M5 report). Same upcoming-game rule as M5 (`predict.upcoming_games`).
-- Version: `tagged_version("m5inj", <M5 version> + the rule's name)`.
+- Version: `tagged_version("m5inj", <M5 version> + the rule's name)`. The rule's name is `out-v2-max-age-6h` from 2026-11-03 (was `out-v1`, no maximum age). The `out-v1` rows stay in the log (append-only).
+- Pass bar: unchanged. The standard promotion test (CLAUDE.md rule 4) on the games both logs share (M5-INJ vs M5), with no re-tuning.
 - The logged row keeps only the forecast. The matched status is recomputed from `injuries/` at the row's `predicted_at_utc` when needed.
 - The daily job uses the committed `injuries/` log, which may be some hours behind the latest snapshot.
 
