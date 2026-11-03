@@ -254,10 +254,47 @@ Dates are first or last tip-off of the round in the games mart (UTC). Pass bars 
 | Gate | What happens | Deadline (round, UTC) | Pass bar (doc, commit) | Code | Status |
 |---|---|---|---|---|---|
 | B2 early totals | Diagnostic on rounds 1–5, 6–10, 11+ | Pass bar before R11, Wed 11 Nov 2026 19:45 | `docs/models/diag_early_totals.md`, 3c9d4e3 (2026-10-23) | `uv run python scripts/diag_early_totals.py --season 2026` | Pass bar set; script runs; not yet scored |
-| C1 POOL-c | Fit `c` on POOL rows R1–19, test R20 to end | Pass bar before R19, Tue 22 Dec 2026 17:00 | `docs/models/pool_c.md`, cdab23b (2026-10-22), wording 158aabf | `uv run python scripts/diag_pool_c.py --stage fit` (refuses until R1–19 are played), then `--stage eval` | Pass bar set; wired (fit and eval stages run); not fitted, not scored |
+| C1 POOL-c | Fit `c` on POOL rows R1–19, test R20 to end | Pass bar before R19, Tue 22 Dec 2026 17:00 | `docs/models/pool_c.md`, cdab23b (2026-10-22), wording 158aabf | removed with POOL | **Dropped by owner, 2026-11-03**: POOL, POOL3 and ELOR were retired (§8.3), and POOL stops logging before round 19. Never fitted or scored. |
 | B1 MKT | Benchmark and encompassing test | Pass bar before season-end look, Fri 16 Apr 2027 18:30 | `docs/models/mkt.md`, 47491f1 (2026-10-22), wording 158aabf | `uv run python scripts/checks/mkt_benchmark.py` (stdout) | Pass bar set; script runs; not yet scored |
 | Look 1 | Promotion test (CLAUDE.md rule 4) | After R19, from Wed 23 Dec 2026 19:30 | `docs/models/m5.md` and `m1.md` | `uv run eurohoops promote-check --look 1` | Not due; refuses until R1–19 are played |
 | Look 2 | Promotion test at season end | After R38, from Fri 16 Apr 2027 18:30 | as Look 1 | `uv run eurohoops promote-check --look 2` | Not due |
+
+### 8.3 Audit follow-up (owner decisions, 2026-11-03)
+
+An audit found the project strong on rigour and weak on reach: no analytics, no posting, too many shadows for about 100 live games, and a site spread across many stats pages. Decisions:
+
+- **Models.** POOL, POOL3 and ELOR are retired: code, scripts, tests and site display removed; their rows stay in `predictions/` (rule 1). C1 POOL-c is dropped (§8.2). No new models before Look 1. Running: Elo (published), M1, M5, M5-INJ, ELOH, SIM.
+- **Site.** Forecasts first: home and navigation lead with this round's calls and the running record. Stats pages stay as support; no new stats pages.
+- **Portfolio.** For ML engineering and sports analytics roles equally: the README for engineers (system and rigour), one blog post for analysts (what a season of calls taught).
+- **Done 2026-11-03:** Cloudflare Web Analytics, Sentry and Google Search Console set up by the owner; CSP allows the analytics and Sentry hosts; branded 404 for unknown URLs (Worker `not_found_handling: 404-page`); feed items link to their round; About says "since 2007-08"; home uses "call" wording and explains Brier and log loss; visitor-facing empty states.
+- **Open (owner):** the Cloudflare analytics beacon is not injected (the site is a Worker, not Pages): add the snippet with the site token, and a privacy line on the About page (REACH decision 10).
+
+Batches, run one at a time by agents, each reviewed, checklist-green and merged before the next:
+
+| Batch | Scope | Status |
+|---|---|---|
+| 1 Model trim | Retire POOL, POOL3, ELOR as above | In progress |
+| 2 Front end | Share images for played games, forecast and team pages; forecast grid without sideways scroll on phones; chart labels above 11 px; remaining "picked" wording on /forecasts and the glossary; social links (once the accounts exist) | Planned |
+| 3 Back end | Daily-job failure alert (GitHub issue on a failed run or a soft-failed step); season derived from the date instead of hard-coded 2026; repo cleanup (one-off scripts, stop committing the 24.6 MB `reports/backtest_m6_players.csv`, vulture whitelist); Dockerfile and API kept, documented and built in CI | Planned |
+| 4 README | Results first (live record, chart, link), short, a glossary for model names, correct test count | Planned |
+| 5 Social content generator | See below | Next session (2026-11-04) |
+| 6 Posting automation | See below | After batch 5 |
+
+**Social media (owner decision).** Content is made by code; posting is automated where it is free.
+
+- **Content, made after each round by the pipeline:**
+  - Round preview: this round's calls (card image and caption).
+  - Round recap: how the calls did, with the record so far (losses included), and how the winners won (the stat that decided each notable game).
+  - Season projection update after each round: playoff and Top-6 chances that moved most.
+  - About 30-second reels: one interesting stat line, player or team performance, rendered as animated data graphics from the marts with an AI voiceover (free, open-source text-to-speech) and a script the pipeline writes. No game footage and no league or club logos (copyright). The format may follow popular NBA stat pages; the content and design are our own.
+- **Posting:**
+  - Instagram (posts and reels): by API from a Business or Creator account linked to a Facebook page.
+  - TikTok: the owner uploads by hand until TikTok approves the app's audit (unaudited apps can only post privately), then by API.
+  - X: the pipeline makes the image and text, and the owner posts by hand (X has no free posting tier for new apps).
+  - Reddit: always posted by hand by the owner. Automated self-promotion gets accounts banned.
+- **Budget:** €0 per month.
+- **Owner prerequisites:** create the accounts; Meta developer app and Facebook page for Instagram; TikTok developer app and audit request.
+- **Measure:** weekly visitors in Cloudflare Web Analytics and replies or comments per post. If there is no growth after six rounds, change the hook.
 
 Round dates: R11 starts Wed 11 Nov 2026 19:45 UTC; R19 runs 22 Dec 2026 17:00 to 23 Dec 2026 19:30 UTC; R38 (last RS round) ends 16 Apr 2027 18:30 UTC. Source: `games` mart, `tipoff_utc`.
 
