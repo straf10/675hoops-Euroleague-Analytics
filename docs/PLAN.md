@@ -247,6 +247,20 @@ Dropped: R7 v3 (a v3 rule to name real over-performers). Reason: the board feeds
 
 Logging: each daily run logs every unplayed, confirmed game of any round whose first tip-off is within 48 h (`round_lead_hours`, default 48), so rounds are logged 24–48 h before their first game. A game with unconfirmed time is logged once confirmed, before its tip-off. The latest row before tip-off is the one scored (`predict.upcoming_games` selects games).
 
+### 8.2 Gate calendar (2026-27)
+
+Dates are first or last tip-off of the round in the games mart (UTC). Pass bars are fixed once committed (CLAUDE.md rule 3).
+
+| Gate | What happens | Deadline (round, UTC) | Pass bar (doc, commit) | Code | Status |
+|---|---|---|---|---|---|
+| B2 early totals | Diagnostic on rounds 1–5, 6–10, 11+ | Pass bar before R11, Wed 11 Nov 2026 19:45 | `docs/models/diag_early_totals.md`, 3c9d4e3 (2026-10-23) | `uv run python scripts/diag_early_totals.py --season 2026` | Pass bar set; script runs; not yet scored |
+| C1 POOL-c | Fit `c` on POOL rows R1–19, test R20 to end | Pass bar before R19, Tue 22 Dec 2026 17:00 | `docs/models/pool_c.md`, cdab23b (2026-10-22), wording 158aabf | `src/eurohoops/eval/pool_c.py` (no CLI command yet) | Pass bar set; library runs; not wired, not scored |
+| B1 MKT | Benchmark and encompassing test | Pass bar before season-end look, Fri 16 Apr 2027 18:30 | `docs/models/mkt.md`, 47491f1 (2026-10-22), wording 158aabf | `uv run python scripts/checks/mkt_benchmark.py` (stdout) | Pass bar set; script runs; not yet scored |
+| Look 1 | Promotion test (CLAUDE.md rule 4) | After R19, from Wed 23 Dec 2026 19:30 | `docs/models/m5.md` and `m1.md` | `uv run eurohoops promote-check --look 1` | Not due; refuses until R1–19 are played |
+| Look 2 | Promotion test at season end | After R38, from Fri 16 Apr 2027 18:30 | as Look 1 | `uv run eurohoops promote-check --look 2` | Not due |
+
+Round dates: R11 starts Wed 11 Nov 2026 19:45 UTC; R19 runs 22 Dec 2026 17:00 to 23 Dec 2026 19:30 UTC; R38 (last RS round) ends 16 Apr 2027 18:30 UTC. Source: `games` mart, `tipoff_utc`.
+
 ---
 
 ## 9. Open items
