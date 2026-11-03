@@ -1163,7 +1163,7 @@
     }
   },
   "m5inj": {
-    "rows_in_log": 33,
+    "rows_in_log": 43,
     "rows_excluded_late": 0,
     "m5inj": {
       "n": 23,
