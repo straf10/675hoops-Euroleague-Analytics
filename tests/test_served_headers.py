@@ -1,13 +1,13 @@
-"""The served security headers: the report-only CSP, COOP and CORP in web/public/_headers.
+"""The served security headers: the enforced CSP, COOP and CORP in web/public/_headers.
 
 The hashes and the inventory below come from scanning the built site (every inline script, style
 and handler, the external origins and the fetch targets). This test reads only the committed
 _headers file and the constants below, so it never needs a build and never skips in CI. The daily
 job checks the built site against the header (scripts/checks/csp_hashes.py, a warning only).
 
-Hash stability: the classic teams/[code] pair (INLINE_CLASSIC_SCRIPTS, two entries) carries the
-season from define:vars and changes at season rollover. Every other hash is fixed until its source
-or the bundler changes. When inline code changes, rebuild the site, rescan, and update them here.
+Hash stability: every hash is fixed until its source or the bundler changes. The teams/[code]
+script reads its season from a data attribute, so it has one hash for all seasons. When inline
+code changes, rebuild the site, rescan, and update them here.
 """
 
 from pathlib import Path
@@ -20,8 +20,7 @@ HEADERS = Path(__file__).resolve().parents[1] / "web" / "public" / "_headers"
 # blocks are data, not code, so no CSP applies to them).
 INLINE_CLASSIC_SCRIPTS = (
     "sha256-3pJu0C1DctTV9XaDOgOoIMMSuIocxvwDnToV9thSfiM=",
-    "sha256-lN8J3YWpCveYwSFsduZMujor4Ckx6k0FQofkl68j488=",
-    "sha256-e+PlzRLEsc5r2QjbY0N9X50a1N7RNSOb7P8v6UguXmI=",
+    "sha256-z6WhmaLW8FoXGRlWSgZHo9FjVo0+3+tjRkYXyTKMSwE=",
     "sha256-SewhOhMawN/eW9gUoQfrwFglPOEy9OH4L0sEmUW72b8=",
     "sha256-rAvtN0kn2NTesEGjAwvL3XSjCPcookghdRTVy3VQHC8=",
     "sha256-pyGYNgq1qjnE74Nfn7vOjYILf+6aXRdAYQ9KW1PMqq0=",
@@ -78,20 +77,15 @@ def rules() -> dict[str, dict[str, str]]:
 
 @pytest.fixture(scope="module")
 def policy(rules: dict[str, dict[str, str]]) -> dict[str, list[str]]:
-    value = rules["/*"]["Content-Security-Policy-Report-Only"]
+    value = rules["/*"]["Content-Security-Policy"]
     return {d.split()[0]: d.split()[1:] for d in value.split(";") if d.strip()}
 
 
-def test_the_enforced_header_keeps_its_four_directives(rules: dict[str, dict[str, str]]) -> None:
-    assert rules["/*"]["Content-Security-Policy"] == (
-        "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
-    )
-
-
-def test_the_new_policy_is_report_only_and_not_enforced(rules: dict[str, dict[str, str]]) -> None:
-    enforced = rules["/*"]["Content-Security-Policy"]
-    assert "script-src" not in enforced and "style-src" not in enforced
-    assert "Content-Security-Policy-Report-Only" in rules["/*"]
+def test_the_csp_is_enforced_with_script_and_style_rules(
+    rules: dict[str, dict[str, str]], policy: dict[str, list[str]]
+) -> None:
+    assert "Content-Security-Policy-Report-Only" not in rules["/*"]
+    assert "script-src" in policy and "style-src" in policy
 
 
 def test_policy_keeps_the_framing_base_object_and_form_rules(policy: dict[str, list[str]]) -> None:

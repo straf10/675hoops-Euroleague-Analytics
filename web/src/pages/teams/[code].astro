@@ -95,13 +95,16 @@ const bandHead = [
         .map((p) => ({ name: p.name, url: abs(`${base}/players/${p.slug}/`) })),
     })}
   />
-  <div class="accented" style={accentStyle}>
-  <script is:inline define:vars={{ shown: String(t.season) }}>
-    // Tabs need JavaScript; without it every panel shows, stacked.
-    document.documentElement.classList.add("js");
-    // A link to another season: hide the season's numbers until they arrive, so they never flash.
-    const asked = new URLSearchParams(location.search).get("season");
-    if (asked && asked !== shown) document.documentElement.classList.add("season-pending");
+  <div class="accented" style={accentStyle} data-shown={String(t.season)}>
+  <script is:inline>
+    (function () {
+      const shown = document.currentScript.parentElement.dataset.shown;
+      // Tabs need JavaScript; without it every panel shows, stacked.
+      document.documentElement.classList.add("js");
+      // A link to another season: hide the season's numbers until they arrive, so they never flash.
+      const asked = new URLSearchParams(location.search).get("season");
+      if (asked && asked !== shown) document.documentElement.classList.add("season-pending");
+    })();
   </script>
   <header
     class="wrap head team-head"

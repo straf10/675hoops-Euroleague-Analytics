@@ -207,8 +207,9 @@ jobs:
         run: |
           npm ci
           npm run build
-      # F-03: a stale inline-code hash shows up here as a warning, not only as a browser report.
-      - name: CSP hash drift (warning only)
+      # F-03: the CSP is enforced, so an inline script whose hash is missing from the header would not run.
+      # A stale hash fails the build here and the site is not deployed.
+      - name: CSP hash drift
         run: python3 scripts/checks/csp_hashes.py site site/_headers
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

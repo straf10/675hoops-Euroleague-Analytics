@@ -1,4 +1,4 @@
-"""F-03 drift check (scripts/checks/csp_hashes.py): a stale CSP hash is a warning, never a failure.
+"""F-03 drift check (scripts/checks/csp_hashes.py): a stale CSP hash fails the check.
 
 The check runs on a small HTML page written to a temporary folder, so it needs no site build and
 never skips: CI runs it with the same inputs as the daily job."""
@@ -46,8 +46,7 @@ def _headers(tmp_path: Path, hashes: list[str]) -> Path:
     sources = " ".join(f"'{h}'" for h in hashes)
     path = tmp_path / "_headers"
     path.write_text(
-        "/*\n"
-        f"  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' {sources}\n",
+        f"/*\n  Content-Security-Policy: default-src 'self'; script-src 'self' {sources}\n",
         encoding="utf-8",
     )
     return path
@@ -98,14 +97,14 @@ def test_a_missing_site_is_a_warning_not_a_silent_pass(tmp_path: Path) -> None:
     assert "no built pages" in messages[0]
 
 
-def test_main_prints_a_github_warning_and_exits_zero(
+def test_main_prints_a_github_error_and_exits_one(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     site = _site(tmp_path)
     headers = _headers(tmp_path, [])
-    assert check.main(["csp_hashes.py", str(site), str(headers)]) == 0
+    assert check.main(["csp_hashes.py", str(site), str(headers)]) == 1
     out = capsys.readouterr().out
-    assert out.startswith("::warning title=CSP hash drift::script ")
+    assert out.startswith("::error title=CSP hash drift::script ")
 
 
 def test_main_is_quiet_when_everything_is_declared(
@@ -116,4 +115,4 @@ def test_main_is_quiet_when_everything_is_declared(
         tmp_path, [check.csp_hash(SCRIPT), check.csp_hash(STYLE), check.csp_hash(HANDLER)]
     )
     assert check.main(["csp_hashes.py", str(site), str(headers)]) == 0
-    assert "::warning" not in capsys.readouterr().out
+    assert "::error" not in capsys.readouterr().out
