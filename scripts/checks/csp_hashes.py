@@ -1,11 +1,11 @@
 """F-03 drift check: every executable inline script, style and event handler in the built site must
-have its hash in the served Content-Security-Policy-Report-Only header.
+have its hash in the served Content-Security-Policy header.
 
 Usage: python3 scripts/checks/csp_hashes.py SITE_DIR HEADERS_FILE
 
-A stale hash only shows up as a browser report, so the daily job runs this right after the site
-build and prints one GitHub warning per missing hash. It always exits 0: a warning, never a failed
-day. Standard library only, so the build-site job runs it with the runner's python3.
+The CSP is enforced, so an undeclared inline block does not run. The daily job runs this right
+after the site build, prints one GitHub error per missing hash and exits 1, which stops the deploy.
+Standard library only, so the build-site job runs it with the runner's python3.
 """
 
 import base64
@@ -17,7 +17,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 TITLE = "CSP hash drift"
-REPORT_ONLY = "Content-Security-Policy-Report-Only"
+CSP_HEADER = "Content-Security-Policy"
 
 
 def csp_hash(text: str) -> str:
@@ -65,10 +65,10 @@ def inline_blocks(html: str) -> list[tuple[str, str]]:
 
 
 def declared_hashes(headers_text: str) -> set[str]:
-    """Every sha256 in the Report-Only header of the _headers file (any path rule)."""
+    """Every sha256 in the enforced CSP header of the _headers file (any path rule)."""
     found: set[str] = set()
     for line in headers_text.splitlines():
-        if line.strip().startswith(f"{REPORT_ONLY}:"):
+        if line.strip().startswith(f"{CSP_HEADER}:"):
             found.update(re.findall(r"'(sha256-[A-Za-z0-9+/=]+)'", line))
     return found
 
@@ -94,7 +94,7 @@ def check(site: Path, headers: Path) -> list[str]:
         first = pages_seen.most_common(1)[0][0]
         messages.append(
             f"{kind} {digest} is on {sum(pages_seen.values())} block(s), "
-            f"e.g. {first}, and not in {REPORT_ONLY}; update web/public/_headers"
+            f"e.g. {first}, and not in {CSP_HEADER}; update web/public/_headers"
         )
     return messages
 
@@ -105,10 +105,10 @@ def main(argv: list[str]) -> int:
         return 2
     messages = check(Path(argv[1]), Path(argv[2]))
     for message in messages:
-        print(f"::warning title={TITLE}::{message}")
+        print(f"::error title={TITLE}::{message}")
     if not messages:
         print(f"CSP hashes: every inline block in {argv[1]} is declared")
-    return 0
+    return 1 if messages else 0
 
 
 if __name__ == "__main__":
