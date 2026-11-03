@@ -95,7 +95,7 @@ const scoreRows = [
   <section class="band wrap" id="matchday" aria-labelledby="matchday-title">
     <header class="sec-head">
       <h2 id="matchday-title">Matchday</h2>
-      <p>Our chance for each game before tip-off, then the result and whether the pick held.</p>
+      <p>Our chance for each game before tip-off, then the result and whether our call was right.</p>
     </header>
     {comps.map((c) => <Matchday comp={c} />)}
   </section>
@@ -111,7 +111,9 @@ const scoreRows = [
   <section class="band wrap" id="scoring" aria-labelledby="scoring-title">
     <header class="sec-head">
       <h2 id="scoring-title">How the model scores</h2>
-      <p>The same finished games, three scores: hit rate (higher is better), Brier and log loss (lower is better).</p>
+      <p>
+        The same finished games, three scores: hit rate (higher is better), <a class="ink-link" href={`${base}/glossary/#brier`}>Brier</a> and <a class="ink-link" href={`${base}/glossary/#log-loss`}>log loss</a> (lower is better). Both score how close our chances were to what happened: a confident call that misses costs a lot, a cautious one costs little.
+      </p>
     </header>
     <table class="score-table">
       <caption class="sr-only">Forecast scores on the same games</caption>
