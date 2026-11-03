@@ -1,6 +1,8 @@
 # POOL-c: POOL with a spread parameter on its logit
 
-Status: diagnostic (draft; nothing fitted or evaluated on live data yet).
+Status: diagnostic (wired; nothing fitted or evaluated on live data yet).
+
+How to run: `uv run python scripts/diag_pool_c.py --stage fit` once every round 1-19 game is played (it refuses before, writes `reports/pool_c_fit.json` once, `--force` overwrites it), then `uv run python scripts/diag_pool_c.py --stage eval` at any time after (writes `reports/diag_pool_c.json`, with n so far).
 
 Pass bar: the 95% CI upper bound of the paired difference (POOL-c minus POOL) log loss is below 0.
 
@@ -35,6 +37,6 @@ Pass bar: the 95% CI upper bound of the paired difference (POOL-c minus POOL) lo
 None yet.
 
 ## Files
-- Code: `src/eurohoops/eval/pool_c.py` (`fit_c`, `apply_c`, `paired_gap`), `src/eurohoops/eval/metrics.py` (`paired_bootstrap_ci`).
-- Tests: `tests/test_pool_c.py` (synthetic, seeded).
+- Code: `scripts/diag_pool_c.py` (the two stages), `src/eurohoops/eval/pool_c.py` (`fit_c`, `apply_c`, `paired_gap`, `run_fit`, `run_eval`), `src/eurohoops/eval/metrics.py` (`paired_bootstrap_ci`).
+- Tests: `tests/test_pool_c.py` (synthetic, seeded; stages on `tests/fixtures/pool_c/`).
 - Input: `predictions/euroleague_pool_2026-27.csv`.
