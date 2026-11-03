@@ -23,7 +23,7 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
 - Roster source: the cached 2026 people listing, `data/raw/euroleague/people/E2026.json.gz` (the cache read by `models/roster.py`). Only rows with `type == "J"` count. Player id: `"P" + person.code`, the box-score player id. Club: `club.code`.
 - Injury rows: the `team` column (source code, mapped from the BasketNews team name by `injuries.team_name_map`) and the `player` name (BasketNews, "First Last").
 - Key: `eurohoops.entity.translit.latin_key` of the name. It folds accents and case, keeps A-Z, drops generational suffixes (JR, SR, II, III, IV) and sorts the tokens. "Isaia Cordinier" and "CORDINIER, ISAIA" give the same key.
-- Aliases: `src/eurohoops/models/injury_aliases.csv` holds eight (club, BasketNews id) to roster name pairs. For these rows the alias name replaces the BasketNews name in the key. The club must still match.
+- Aliases: `src/eurohoops/models/injury_aliases.csv` holds nine (club, BasketNews id) to roster name pairs. For these rows the alias name replaces the BasketNews name in the key. The club must still match.
   - ASV 6183 Patrick Mills to MILLS, PATTY
   - IST 40764 D. Karutasu to KARUTASU, DARIUS
   - IST 21746 P.J. Dozier to DOZIER, PJ
@@ -32,6 +32,7 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
   - PAN 19143 Juan Hernangomez to HERNANGOMEZ, JUANCHO
   - PAN 24143 Nikos Rogkavopoulos to ROGKAVOPOULOS, NIKOLAOS
   - PRS 17092 T.J. Warren to WARREN, TJ
+  - PAM 36114 Nate Reuvers to REUVERS, NATHAN (added 2026-11-03: the listing spells his first name in full; same club and surname, 7 games in the 2026 box scores. Not yet owner-confirmed.)
 - Rule: an injury row matches a roster player if the roster player has the same club code and the same key (the alias name's key where an alias applies).
 - Ties: two or more roster players with the same club and key are unmatched (reason `ambiguous`).
 - Misses: no roster player with that club and key is unmatched (reason `no_roster_match`). No fuzzy match is used.
@@ -80,6 +81,8 @@ Checked `injuries/euroleague_2026-27.csv` (25 snapshots, 2,451 rows, 2026-10-07 
 - All snapshots: 2,045 matched, 406 unmatched of 2,451 (16.6%), 0 ambiguous. After 10-22 the unmatched share is 18.4% (261 of 1,420).
 - Latest snapshot (11-03 11:00Z): 92 of 110 match. 11 of its 30 `Out` rows do not.
 - New unmatched pairs since 10-22 (7): ASV Lorenz Sanz, OLY John Konchar, PAM Nate Reuvers, PAR Antonio Reeves, PAR Robert Franks, ULK Dwight Powell, ZAL Keenan Evans. Reuvers (PAM) is listed `Out` in some rows.
+- Diagnosis (2026-11-03): the seven are new signings, and the local copy of the listing predated them. CI refreshes it daily (`eurohoops people` in `daily.yml`), so the live log saw a newer one. With the listing refreshed on 2026-11-03 (968 rows), Sanz, Konchar, Reeves, Franks and Evans match. Reuvers is listed as `REUVERS, NATHAN` and matches via the alias above. Powell (ULK) is not in the EuroLeague listing yet.
+- With the refreshed listing and the Reuvers alias, all snapshots: 2,203 matched, 248 unmatched of 2,451 (17 distinct pairs), 0 ambiguous.
 
 **Live forecasts** (`predictions/euroleague_m5inj_2026-27.csv`).
 - All 23 rows have a snapshot stamped before their cutoff. Age: median 4.7 h, max 5.3 h. None is older than 48 h.
