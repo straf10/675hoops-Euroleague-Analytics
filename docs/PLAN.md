@@ -254,7 +254,7 @@ Dates are first or last tip-off of the round in the games mart (UTC). Pass bars 
 | Gate | What happens | Deadline (round, UTC) | Pass bar (doc, commit) | Code | Status |
 |---|---|---|---|---|---|
 | B2 early totals | Diagnostic on rounds 1–5, 6–10, 11+ | Pass bar before R11, Wed 11 Nov 2026 19:45 | `docs/models/diag_early_totals.md`, 3c9d4e3 (2026-10-23) | `uv run python scripts/diag_early_totals.py --season 2026` | Pass bar set; script runs; not yet scored |
-| C1 POOL-c | Fit `c` on POOL rows R1–19, test R20 to end | Pass bar before R19, Tue 22 Dec 2026 17:00 | `docs/models/pool_c.md`, cdab23b (2026-10-22), wording 158aabf | `src/eurohoops/eval/pool_c.py` (no CLI command yet) | Pass bar set; library runs; not wired, not scored |
+| C1 POOL-c | Fit `c` on POOL rows R1–19, test R20 to end | Pass bar before R19, Tue 22 Dec 2026 17:00 | `docs/models/pool_c.md`, cdab23b (2026-10-22), wording 158aabf | `uv run python scripts/diag_pool_c.py --stage fit` (refuses until R1–19 are played), then `--stage eval` | Pass bar set; wired (fit and eval stages run); not fitted, not scored |
 | B1 MKT | Benchmark and encompassing test | Pass bar before season-end look, Fri 16 Apr 2027 18:30 | `docs/models/mkt.md`, 47491f1 (2026-10-22), wording 158aabf | `uv run python scripts/checks/mkt_benchmark.py` (stdout) | Pass bar set; script runs; not yet scored |
 | Look 1 | Promotion test (CLAUDE.md rule 4) | After R19, from Wed 23 Dec 2026 19:30 | `docs/models/m5.md` and `m1.md` | `uv run eurohoops promote-check --look 1` | Not due; refuses until R1–19 are played |
 | Look 2 | Promotion test at season end | After R38, from Fri 16 Apr 2027 18:30 | as Look 1 | `uv run eurohoops promote-check --look 2` | Not due |

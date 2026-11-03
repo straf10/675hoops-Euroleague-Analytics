@@ -96,13 +96,11 @@ from eurohoops.eval.early_totals import build_report  # noqa: E402
 
 build_report
 
-# POOL-c (docs/models/pool_c.md, draft gate): fit, frozen apply and the paired gap are written ahead
-# of their pipeline step; nothing in src calls them until the owner commits the gate
-from eurohoops.eval.pool_c import apply_c, fit_c, paired_gap  # noqa: E402
+# POOL-c (docs/models/pool_c.md): the two stages are run by scripts/diag_pool_c.py, not the pipeline
+from eurohoops.eval.pool_c import run_eval, run_fit  # noqa: E402
 
-apply_c
-fit_c
-paired_gap
+run_eval
+run_fit
 
 # POOL3 screen (experiments/pool3.md): diagnostic, run by scripts/diag_pool3.py, not the pipeline
 from eurohoops.eval.pool3 import member_rows, screen  # noqa: E402
