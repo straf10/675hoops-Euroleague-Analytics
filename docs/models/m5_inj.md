@@ -81,8 +81,8 @@ Checked `injuries/euroleague_2026-27.csv` (25 snapshots, 2,451 rows, 2026-10-07 
 - All snapshots: 2,045 matched, 406 unmatched of 2,451 (16.6%), 0 ambiguous. After 10-22 the unmatched share is 18.4% (261 of 1,420).
 - Latest snapshot (11-03 11:00Z): 92 of 110 match. 11 of its 30 `Out` rows do not.
 - New unmatched pairs since 10-22 (7): ASV Lorenz Sanz, OLY John Konchar, PAM Nate Reuvers, PAR Antonio Reeves, PAR Robert Franks, ULK Dwight Powell, ZAL Keenan Evans. Reuvers (PAM) is listed `Out` in some rows.
-- Diagnosis (2026-11-03, cached listing `E2026.json.gz`, 2026 box scores in `boxscore/E2026`): Reuvers is listed as `REUVERS, NATHAN` (PAM, 7 games), fixed by the alias above. Sanz (ASV) played one game (1.2 min) but is not in the listing. Konchar, Reeves, Franks, Powell and Evans are in neither the listing nor the cached box scores. Walker IV (BES) and Koloko (RED) are in the box scores and not in the listing, so the listing lacks players beyond the seven. The listing has no fetch date.
-- After the Reuvers alias, all snapshots: 2,056 matched, 395 unmatched of 2,451 (28 distinct pairs), 0 ambiguous. Before: 2,045 and 406 (29 pairs).
+- Diagnosis (2026-11-03): the seven are new signings, and the local copy of the listing predated them. CI refreshes it daily (`eurohoops people` in `daily.yml`), so the live log saw a newer one. With the listing refreshed on 2026-11-03 (968 rows), Sanz, Konchar, Reeves, Franks and Evans match. Reuvers is listed as `REUVERS, NATHAN` and matches via the alias above. Powell (ULK) is not in the EuroLeague listing yet.
+- With the refreshed listing and the Reuvers alias, all snapshots: 2,203 matched, 248 unmatched of 2,451 (17 distinct pairs), 0 ambiguous.
 
 **Live forecasts** (`predictions/euroleague_m5inj_2026-27.csv`).
 - All 23 rows have a snapshot stamped before their cutoff. Age: median 4.7 h, max 5.3 h. None is older than 48 h.
