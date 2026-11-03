@@ -48,7 +48,7 @@ export const GET: APIRoute = ({ site }) => {
     return [
       "<item>",
       `<title>${esc(`EuroLeague ${season}, round ${round} predictions`)}</title>`,
-      `<link>${esc(`${origin}/`)}</link>`,
+      `<link>${esc(`${origin}/forecasts/#round-euroleague-${round}`)}</link>`,
       `<guid isPermaLink="false">${esc(`euroleague-${season}-round-${round}`)}</guid>`,
       `<pubDate>${new Date(latest).toUTCString()}</pubDate>`,
       `<description>${esc(`<ul>${list}</ul>`)}</description>`,
