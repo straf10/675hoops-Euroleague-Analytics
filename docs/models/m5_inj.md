@@ -64,6 +64,29 @@ Latest snapshot (2026-10-22 11:00Z): 86 of 102 rows match and 16 do not, 13 of t
 
 No scored results yet.
 
+## Feed audit (2026-11-03)
+Checked `injuries/euroleague_2026-27.csv` (25 snapshots, 2,451 rows, 2026-10-07 to 2026-11-03 11:00Z). Read-only; no code or log changed.
+
+**Cadence.**
+- Snapshots on 18 of 28 days. No snapshot on 10-08..10-13, 10-19, or 10-30..11-01.
+- Longest gap 176 h (10-07 09:30Z to 10-14 17:55Z). Other gaps over 48 h: 50 h (10-18 to 10-20) and 88 h (10-29 to 11-02).
+- Rows per snapshot: min 84 (10-16), median 100, max 110. Every snapshot lists all 20 clubs.
+- Page update to snapshot lag: median 2.1 h, max 30 h (the 10-25 snapshot).
+
+**Two-week clock.** Never met. The longest run of consecutive days with a snapshot is 10 (10-20 to 10-29). If snapshots run daily from 11-02, the first full 14-day run is 11-02 to 11-15.
+
+**Matching** (`availability.match_injuries`, rule unchanged):
+- Up to 10-22: 886 matched, 145 unmatched of 1,031. Reproduces the numbers above.
+- All snapshots: 2,045 matched, 406 unmatched of 2,451 (16.6%), 0 ambiguous. After 10-22 the unmatched share is 18.4% (261 of 1,420).
+- Latest snapshot (11-03 11:00Z): 92 of 110 match. 11 of its 30 `Out` rows do not.
+- New unmatched pairs since 10-22 (7): ASV Lorenz Sanz, OLY John Konchar, PAM Nate Reuvers, PAR Antonio Reeves, PAR Robert Franks, ULK Dwight Powell, ZAL Keenan Evans. Reuvers (PAM) is listed `Out` in some rows.
+
+**Live forecasts** (`predictions/euroleague_m5inj_2026-27.csv`).
+- All 23 rows have a snapshot stamped before their cutoff. Age: median 4.7 h, max 5.3 h. None is older than 48 h.
+- Every M5 row from 10-23 on (20 games) has an M5-INJ row. The three M5-INJ rows for E2026_68 to E2026_70 are stamped 10-23, while their M5 rows are from 10-20.
+
+**Verdict.** The two-week clock is not met (earliest 2026-11-15, if daily snapshots hold). The gaps are a risk for the live test: the rule uses the latest snapshot before the cutoff with no maximum age, so a status could come from a snapshot days old. No logged forecast has done so yet, since the last forecast (10-28) came before the 10-30 gap.
+
 ## Files
 - Code: `src/eurohoops/injuries.py`, `src/eurohoops/models/injury_aliases.csv`, `src/eurohoops/models/rotation.py` (`_drop_absent`), `src/eurohoops/eval/m5_backtest.py`, `src/eurohoops/entity/translit.py` (`latin_key`), `src/eurohoops/config.py` (`M5INJ_LIVE_ENABLED`, `m5inj_prediction_log`).
 - Data: `injuries/euroleague_2026-27.csv`, `data/raw/euroleague/people/E2026.json.gz`.
