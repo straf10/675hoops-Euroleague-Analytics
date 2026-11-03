@@ -33,6 +33,11 @@ INLINE_MODULE_SCRIPTS = (
     "sha256-EHIzbbOJQ4Ko4zjCvFuDvGdjhgq/zu/6c+m3ubvyVIE=",
     "sha256-aTvU5lg6RK40Uw3jBonx1QPgoAWus+ZvLuIEEHnW2y8=",
 )
+# Third parties: Cloudflare Web Analytics (beacon script injected at the edge, and the endpoint it
+# reports to) and the Sentry ingest host from PUBLIC_SENTRY_DSN.
+CF_BEACON_SCRIPT = "https://static.cloudflareinsights.com"
+CF_BEACON_REPORT = "https://cloudflareinsights.com"
+SENTRY_INGEST = "https://o4512259541499904.ingest.de.sentry.io"
 # The <style> blocks in the pages.
 INLINE_STYLES = (
     "sha256-N/8WhQYpTTWPzMsGjj/UMrpmkMog80EWJuTy/XWK7W4=",
@@ -101,6 +106,7 @@ def test_scripts_and_styles_carry_exactly_the_inventoried_hashes(
 ) -> None:
     assert policy["script-src"] == [
         "'self'",
+        CF_BEACON_SCRIPT,
         *(f"'{h}'" for h in INLINE_CLASSIC_SCRIPTS + INLINE_MODULE_SCRIPTS),
     ]
     assert policy["style-src"] == ["'self'", *(f"'{h}'" for h in INLINE_STYLES)]
@@ -115,6 +121,8 @@ def inventory() -> list[tuple[str, str]]:
     items = [("script-src", "'self'"), ("style-src", "'self'"), ("img-src", "'self'")]
     items += [("font-src", "'self'"), ("connect-src", "'self'"), ("form-action", "'self'")]
     items += [("manifest-src", "'self'")]
+    items += [("script-src", CF_BEACON_SCRIPT), ("connect-src", CF_BEACON_REPORT)]
+    items += [("connect-src", SENTRY_INGEST)]
     items += [("script-src", f"'{h}'") for h in INLINE_CLASSIC_SCRIPTS + INLINE_MODULE_SCRIPTS]
     items += [("style-src", f"'{h}'") for h in INLINE_STYLES]
     items += [("script-src-attr", f"'{INLINE_HANDLER}'")]
