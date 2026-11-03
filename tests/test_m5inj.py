@@ -324,6 +324,7 @@ def test_the_alias_file_is_the_owner_list() -> None:
         ("PAN", "19143"): "HERNANGOMEZ, JUANCHO",
         ("PAN", "24143"): "ROGKAVOPOULOS, NIKOLAOS",
         ("PRS", "17092"): "WARREN, TJ",
+        ("PAM", "36114"): "REUVERS, NATHAN",
     }
 
 
