@@ -16,7 +16,7 @@ from eurohoops.cli._shared import ModelName, _live, log
 from eurohoops.config import (
     BLEND_REPORT,
     ELOC_CV,
-    ELOR_CV,
+    ELOR_BASELINE_REPORT,
     EUROLEAGUE,
     LIVE_SEASON,
     M2_REPORT,
@@ -43,7 +43,6 @@ from eurohoops.eval.blend_backtest import FOLDS as BLEND_FOLDS
 from eurohoops.eval.blend_backtest import WARMUP_FOLDS as BLEND_WARMUP_FOLDS
 from eurohoops.eval.blend_backtest import run_blend
 from eurohoops.eval.el_spm import ElSpm, choose_model, el_spm_models
-from eurohoops.eval.elor_cv import ElorInputs, cv_check, run_cv
 from eurohoops.eval.m1_backtest import format_m1_table, run_m1_backtest
 from eurohoops.eval.m3_backtest import format_m3_table, run_m3_backtest
 from eurohoops.eval.m5_backtest import (
@@ -62,7 +61,6 @@ from eurohoops.eval.m5_retune import (
 from eurohoops.eval.m6_backtest import M6Inputs, SpmFn, World, format_m6_table, run_m6_backtest
 from eurohoops.eval.m7_backtest import M7Inputs, format_m7_table, run_m7_backtest, scored_splits
 from eurohoops.eval.m7_gate_v2 import format_gate_v2, run_gate_v2
-from eurohoops.eval.pool import default_overlap, format_overlap
 from eurohoops.eval.promotion import LookNotDueError, run_look
 from eurohoops.eval.tracking import (
     default_tracking_uri,
@@ -79,7 +77,6 @@ from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table
 from eurohoops.models.box_impact import STAT_COLUMNS, BoxGrid, box_only_margins, pir_margins
 from eurohoops.models.elo import EloParams
-from eurohoops.models.elor import Appearances, NewcomerPrior, WalkForwardRatings, newcomer_priors
 from eurohoops.models.player_part import (
     ElPlayerRatings,
     PlayerPartError,
@@ -93,7 +90,7 @@ from eurohoops.models.player_seasons import (
     player_ages,
     read_xwalk_file,
 )
-from eurohoops.models.roster import RosterCacheError, read_rosters
+from eurohoops.models.roster import read_rosters
 from eurohoops.models.similarity import BOX_FEATURES, embed, neighbours, raw_features
 from eurohoops.parse.schemas import validated
 from eurohoops.sim.played import regulation_scores
@@ -228,40 +225,7 @@ def _backtest_m5_retune(check_only: bool) -> None:
     typer.echo(f"RUNTIME backtest m5 retune: {time.perf_counter() - started:.0f} s")
 
 
-def _elor_inputs() -> ElorInputs:
-    """ELOR's inputs: every EuroLeague game up to the last fold, the M5 retune frame's M3
-    walk-forward fit (warm-up 2011) and the cached roster lists of the fold seasons."""
-    inputs, frame = _m5_inputs(EUROLEAGUE, retune_backtest_spec(M5_RETUNE))
-    ratings = _el_player_ratings(inputs, frame)
-    try:
-        roster = read_rosters(EUROLEAGUE.raw_dir, ELOR_CV.folds)
-    except RosterCacheError as error:
-        log.error("%s", error)
-        raise typer.Exit(code=1) from error
-    source = WalkForwardRatings(ratings.frame, ratings.wf.lookups, inputs.player_games)
-    return ElorInputs(
-        games=inputs.games,
-        player_games=inputs.player_games,
-        roster=roster,
-        rating=source,
-        has_state=source.has_state,
-        possessions=ratings.possessions,
-        season_end_rating=source.at_season_end,
-    )
-
-
-def _elor_live_priors() -> dict[int, NewcomerPrior]:
-    """The live season's newcomer prior (reported by ``--cv-check`` only): M5's frame up to its
-    last test season, so every season before the live one, and its own M3 walk-forward fit."""
-    inputs, frame = _m5_inputs(EUROLEAGUE, M5)
-    ratings = _el_player_ratings(inputs, frame)
-    source = WalkForwardRatings(ratings.frame, ratings.wf.lookups, inputs.player_games)
-    appearances = Appearances(inputs.games, inputs.player_games)
-    # The fold seasons too: a cross-check that this fit gives the CV frame's fold priors.
-    return newcomer_priors(appearances, source.at_season_end, [*ELOR_CV.folds, LIVE_SEASON])
-
-
-def _live_elo_params_match(params: EloParams = ELOR_CV.elo_params) -> bool:
+def _live_elo_params_match(params: EloParams) -> bool:
     report = EUROLEAGUE.live_backtest.report
     if not report.exists():
         return False
@@ -290,19 +254,17 @@ def _backtest_blend() -> None:
 
 
 def _cv_backtest(model: ModelName, cv: bool, check_only: bool) -> None:
-    """ELOR and ELOC: exactly one of --cv or --cv-check."""
-    if model not in (ModelName.elor, ModelName.eloc) or cv == check_only:
+    """ELOC: exactly one of --cv or --cv-check."""
+    if model is not ModelName.eloc or cv == check_only:
         log.error("%s runs as --model %s with exactly one of --cv or --cv-check", model, model)
         raise typer.Exit(code=1)
-    if model is ModelName.eloc:
-        _backtest_eloc(check_only=check_only)
-    else:
-        _backtest_elor(check_only=check_only)
+    _backtest_eloc(check_only=check_only)
 
 
-def _elor_baseline() -> tuple[float, int]:
-    """ELOR's report: Elo's pooled log loss and scored games, the ELOC sanity check's baseline."""
-    report = json.loads(ELOR_CV.report.read_text(encoding="utf-8"))
+def _elo_baseline() -> tuple[float, int]:
+    """The frozen Elo baseline (``ELOR_BASELINE_REPORT``, written by the retired ELOR protocol):
+    Elo's pooled log loss and scored games, the ELOC sanity check's baseline."""
+    report = json.loads(ELOR_BASELINE_REPORT.read_text(encoding="utf-8"))
     return float(report["elo"]["log_loss"]), int(report["scored_games"])
 
 
@@ -315,8 +277,8 @@ def _backtest_eloc(check_only: bool) -> None:
         if ELOC_CV.report.exists():
             log.error("refusing to run: %s already exists", ELOC_CV.report)
             raise typer.Exit(code=1)
-        if not ELOR_CV.report.exists():
-            log.error("refusing to run: ELOR's report %s is missing", ELOR_CV.report)
+        if not ELOR_BASELINE_REPORT.exists():
+            log.error("refusing to run: the baseline report %s is missing", ELOR_BASELINE_REPORT)
             raise typer.Exit(code=1)
         if not is_clean_tree():
             log.error("refusing to run: the working tree is not clean")
@@ -330,7 +292,7 @@ def _backtest_eloc(check_only: bool) -> None:
         typer.echo(json.dumps(eloc_cv.cv_check(games, ELOC_CV), indent=2))
         typer.echo(f"RUNTIME backtest eloc cv-check: {time.perf_counter() - started:.0f} s")
         return
-    baseline_log_loss, baseline_games = _elor_baseline()
+    baseline_log_loss, baseline_games = _elo_baseline()
     report, detail = eloc_cv.run_cv(
         games,
         spec=ELOC_CV,
@@ -342,36 +304,6 @@ def _backtest_eloc(check_only: bool) -> None:
     detail.to_csv(ELOC_CV.games_report, index=False, lineterminator="\n")
     typer.echo(f"{ELOC_CV.report}\n{json.dumps(report['shadow_criteria'], indent=2)}")
     typer.echo(f"RUNTIME backtest eloc cv: {time.perf_counter() - started:.0f} s")
-
-
-def _backtest_elor(check_only: bool) -> None:
-    """``backtest --model elor --cv`` or ``--cv-check`` (docs/models/elo_roster_prior.md)."""
-    if not _live_elo_params_match():
-        log.error("ELOR's fixed Elo parameters differ from %s", EUROLEAGUE.live_backtest.report)
-        raise typer.Exit(code=1)
-    if not check_only:
-        if ELOR_CV.report.exists():
-            log.error("refusing to run: %s already exists", ELOR_CV.report)
-            raise typer.Exit(code=1)
-        if not is_clean_tree():
-            log.error("refusing to run: the working tree is not clean")
-            raise typer.Exit(code=1)
-        if not _on_origin_main():
-            log.error("refusing to run: HEAD is not the same as origin/main")
-            raise typer.Exit(code=1)
-    started = time.perf_counter()
-    inputs = _elor_inputs()
-    if check_only:
-        live = _elor_live_priors()
-        typer.echo(json.dumps(cv_check(inputs, spec=ELOR_CV, live_priors=live), indent=2))
-        typer.echo(f"RUNTIME backtest elor cv-check: {time.perf_counter() - started:.0f} s")
-        return
-    report, detail = run_cv(inputs, spec=ELOR_CV, git_head=git_head_sha())
-    write_json(ELOR_CV.report, report)
-    detail.to_csv(ELOR_CV.games_report, index=False, lineterminator="\n")
-    typer.echo(f"{ELOR_CV.report}\n{json.dumps(report['selected'], indent=2)}")
-    typer.echo(json.dumps(report["shadow_criteria"], indent=2))
-    typer.echo(f"RUNTIME backtest elor cv: {time.perf_counter() - started:.0f} s")
 
 
 def _backtest_m5(score_test: bool, tuning_only: bool, tracking_uri: str) -> None:
@@ -659,11 +591,10 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
         ModelName,
         typer.Option(
             help=(
-                "elo (live), elor (roster prior CV), m1, m2, m3 (players), m5 (roster), "
+                "elo (live), m1, m2, m3 (players), m5 (roster), "
                 "m6 (projections), m7 (season), wp (in-game win probability, run once), "
                 "eloc (calibrated Elo CV: --cv or --cv-check), "
-                "blend (candidate: Elo + ridge margin, walk-forward; not live), "
-                "pool (equal-weight pool, read-only --check)"
+                "blend (candidate: Elo + ridge margin, walk-forward; not live)"
             )
         ),
     ] = ModelName.elo,
@@ -699,18 +630,11 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
     ] = False,
     cv: Annotated[
         bool,
-        typer.Option(help="ELOR: protocol v1 CV (docs/models/elo_roster_prior.md), run once"),
+        typer.Option(help="ELOC: protocol v1 CV (docs/models/elo_calibrated.md), run once"),
     ] = False,
     cv_check_only: Annotated[
         bool,
-        typer.Option("--cv-check", help="ELOR: read-only inputs check; writes nothing"),
-    ] = False,
-    pool_check: Annotated[
-        bool,
-        typer.Option(
-            "--check",
-            help="POOL: read-only overlap audit of the four components (docs/models/pool.md)",
-        ),
+        typer.Option("--cv-check", help="ELOC: read-only inputs check; writes nothing"),
     ] = False,
     raw_dir: Annotated[
         Path | None,
@@ -718,13 +642,7 @@ def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
     ] = None,
 ) -> None:
     """Tune and score a model vs its baselines; the Elo live report holds the live parameters."""
-    if pool_check or model is ModelName.pool:
-        if model is not ModelName.pool or not pool_check:
-            log.error("POOL runs as --model pool --check (read-only; live logging is gated)")
-            raise typer.Exit(code=1)
-        typer.echo(format_overlap(default_overlap()))
-        return
-    if cv or cv_check_only or model in (ModelName.elor, ModelName.eloc):
+    if cv or cv_check_only or model is ModelName.eloc:
         _cv_backtest(model, cv, cv_check_only)
         return
     if retune or retune_check:
@@ -805,8 +723,6 @@ def promote_check(
             comp.prediction_log,
             comp.manual_pushes,
             Path("reports"),
-            elor_log=comp.elor_prediction_log,
-            pool_log=comp.pool_prediction_log,
         )
     except LookNotDueError as exc:
         typer.echo(f"{exc}. Nothing computed.", err=True)

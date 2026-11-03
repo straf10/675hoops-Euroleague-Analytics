@@ -256,51 +256,6 @@ def test_market_column_without_odds(tmp_path: Path, tuned: TunedModel) -> None:
     assert build_scorecard(log, results(played=True), tuned, NOW)["market"] is None
 
 
-ELOR_LOG = f"""{HEADER}
-G1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.7,4.0,elor,e1,2026-10-01T08:00:00Z
-G2,2026,1,RS,2026-10-01T18:00:00Z,CCC,DDD,0.3,-1.0,elor,e1,2026-10-01T08:00:00Z
-G3,2026,1,RS,2026-10-01T18:00:00Z,EEE,FFF,0.9,9.0,elor,e1,2026-10-01T18:00:00Z
-G4,2026,2,RS,2026-10-08T18:00:00Z,AAA,CCC,0.6,2.0,elor,e1,2026-10-01T08:00:00Z
-"""
-
-
-def test_elor_trial_section_scores_its_own_pre_tipoff_rows(
-    tmp_path: Path, tuned: TunedModel
-) -> None:
-    log, elor = tmp_path / "log.csv", tmp_path / "elor.csv"
-    log.write_text(LOG)
-    elor.write_text(ELOR_LOG)
-    card = build_scorecard(log, results(played=True), tuned, NOW, elor_log_path=elor)
-    section = card["elor"]
-    assert section["trial"] is True
-    assert (section["rows_in_log"], section["rows_excluded_late"]) == (4, 1)  # G3 is late
-    metrics = section["metrics"]
-    # G1: p=.7, home won. G2: p=.3, home won (82-80). G4 is not played.
-    assert metrics["n"] == 2
-    assert metrics["log_loss"] == pytest.approx(-(math.log(0.7) + math.log(0.3)) / 2, abs=1e-6)
-    assert metrics["brier"] == pytest.approx((0.3**2 + 0.7**2) / 2, abs=1e-6)
-    assert metrics["accuracy"] == 0.5  # G1 hit, G2 miss
-    # Elo's headline on the same two games: G1 p=.8, G2 p=.4 (both home wins).
-    same = section["same_games_as_elo"]
-    assert same["n"] == 2
-    assert same["elor_log_loss"] == metrics["log_loss"]
-    assert same["elo_log_loss"] == pytest.approx(-(math.log(0.8) + math.log(0.4)) / 2, abs=1e-6)
-    # the existing keys are untouched
-    assert card["elo"]["n"] == 2
-    assert "elor" not in build_scorecard(log, results(played=True), tuned, NOW)
-
-
-def test_elor_section_without_a_log_is_empty(tmp_path: Path, tuned: TunedModel) -> None:
-    log, elor = tmp_path / "log.csv", tmp_path / "missing.csv"
-    log.write_text(LOG)
-    section = build_scorecard(log, results(played=True), tuned, NOW, elor_log_path=elor)["elor"]
-    assert (section["rows_in_log"], section["metrics"]["n"], section["same_games_as_elo"]["n"]) == (
-        0,
-        0,
-        0,
-    )
-
-
 def m1_log(path: Path, rows: list[tuple[str, float, str]]) -> Path:
     """An M1-format log: (game_id, p_home, predicted_at_utc) rows of G1 to G3."""
     teams = {"G1": ("AAA", "BBB"), "G2": ("CCC", "DDD"), "G3": ("EEE", "FFF")}
@@ -345,13 +300,6 @@ def test_every_section_scores_the_latest_pre_tipoff_row(tmp_path: Path, tuned: T
             ("G3", 0.9, "2026-10-01T18:00:00Z"),
         ],
     )
-    elor = tmp_path / "elor.csv"
-    elor.write_text(
-        f"{HEADER}\n"
-        "G1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.2,1.0,elor,e1,2026-10-01T08:00:00Z\n"
-        "G1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.8,5.0,elor,e1,2026-10-01T12:00:00Z\n"
-        "G2,2026,1,RS,2026-10-01T18:00:00Z,CCC,DDD,0.4,-3.0,elor,e1,2026-10-01T08:00:00Z\n"
-    )
     log = tmp_path / "log.csv"
     log.write_text(LOG)
     card = build_scorecard(
@@ -361,12 +309,9 @@ def test_every_section_scores_the_latest_pre_tipoff_row(tmp_path: Path, tuned: T
         NOW,
         m1_log_path=m1,
         m5_log_path=m1,
-        elor_log_path=elor,
     )
     expected = -(math.log(0.8) + math.log(0.4)) / 2  # later G1 row, then G2
     assert card["m1"]["m1"]["n"] == 2
     assert card["m1"]["m1"]["log_loss"] == pytest.approx(expected, abs=1e-6)
     assert card["m5"]["m5"]["log_loss"] == pytest.approx(expected, abs=1e-6)
-    assert card["elor"]["metrics"]["n"] == 2
-    assert card["elor"]["metrics"]["log_loss"] == pytest.approx(expected, abs=1e-6)
     assert card["m1"]["same_games_as_elo"]["m1_log_loss"] == pytest.approx(expected, abs=1e-6)

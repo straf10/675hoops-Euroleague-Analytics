@@ -25,7 +25,7 @@ from scipy.special import expit
 from eurohoops.eval.forecasts import MKT_KEY, _calls, _market_calls
 from eurohoops.eval.metrics import per_game_log_loss
 
-CLIP = 1e-6  # the logit clip used across the programme (docs/models/pool.md)
+CLIP = 1e-6  # the logit clip used across the programme
 Z95 = 1.959963984540054
 BOOTSTRAP_RESAMPLES = 10_000
 BOOTSTRAP_SEED = 2026

@@ -13,7 +13,6 @@ approximation: the parts add up to the logged `exp_margin` to the decimal.
 | Model | Margin is the sum of | Parts we show |
 |---|---|---|
 | Elo (published now) | `scale × (R_home + home court − R_away)` | home rating, away rating, home court |
-| Elo-R (`elor`) | as Elo, with a roster prior fading over the rounds | ratings, roster-prior share this round, home court |
 | M1 | expected possessions × (home ORtg vs away DRtg − away ORtg vs home DRtg) + home court | pace, each side's offence vs the other's defence, home court |
 | M5 | player part (Σ projected minutes share × M3 rating, scaled by possessions) + team residual + home court + β·rest gap | the players' sum per team, top contributors, who is out vs usual minutes, team residual, rest gap, home court |
 | M5 blend | weights × (M5 core_rest, M1, Elo) | each model's margin and its weight |

@@ -272,6 +272,5 @@ test("text from the data is escaped everywhere", () => {
 test("other models render one line each", () => {
   const html = renderModel(load());
   assert.match(html, /Possession model/);
-  assert.match(html, /Elo \+ roster/);
-  assert.match(html, /PAO 64% · by 3\.9/);
+  assert.doesNotMatch(html, /Elo \+ roster/);
 });

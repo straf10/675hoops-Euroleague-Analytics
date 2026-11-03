@@ -1,3 +1,5 @@
+Retired by owner decision, 2026-11-03. The logged rows stay in predictions/ (append-only); the model no longer runs.
+
 # POOL-c: POOL with a spread parameter on its logit
 
 Status: diagnostic (wired; nothing fitted or evaluated on live data yet).

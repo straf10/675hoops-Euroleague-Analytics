@@ -1,4 +1,4 @@
-"""Roster lists for ELOR (``models/roster.py``): parsing, cache-only reads and membership."""
+"""Roster lists (``models/roster.py``): parsing, cache-only reads and membership."""
 
 from __future__ import annotations
 

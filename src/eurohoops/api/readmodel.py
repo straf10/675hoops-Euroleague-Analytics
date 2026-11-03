@@ -55,7 +55,6 @@ from eurohoops.config import (
     M7_V2,
     MART_PATH,
     PLAYER_XWALK_FILE,
-    POOL3_LIVE_ENABLED,
     SIM_UNGATED,
     SITE_FORECAST_MODEL,
     WP_REPORT,
@@ -359,10 +358,8 @@ FORECAST_MODELS = {
     "elo": "Our model",
     "m1": "M1",
     "m5": "M5",
-    "elor": "Roster Elo (trial)",
     "m5inj": "M5 + injuries (trial)",
     "eloh": "Elo + team home court (trial)",
-    "pool3": "Pool of ELOR, M1, M5 (trial)",
     "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line
 }
 
@@ -402,15 +399,11 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         "elo": store.path(comp.prediction_log),
                         "m1": _path_or_none(store, comp.m1_prediction_log),
                         "m5": _path_or_none(store, comp.m5_prediction_log),
-                        "elor": _path_or_none(store, comp.elor_prediction_log),
                         "m5inj": _path_or_none(store, comp.m5inj_prediction_log)
                         if M5INJ_LIVE_ENABLED
                         else None,
                         "eloh": _path_or_none(store, comp.eloh_prediction_log)
                         if ELOH_LIVE_ENABLED
-                        else None,
-                        "pool3": _path_or_none(store, comp.pool3_prediction_log)
-                        if POOL3_LIVE_ENABLED
                         else None,
                     },
                     FORECAST_MODELS,
@@ -580,7 +573,6 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
             "elo": comp.prediction_log,
             "m1": comp.m1_prediction_log,
             "m5": comp.m5_prediction_log,
-            "elor": comp.elor_prediction_log,
             "m5inj": comp.m5inj_prediction_log,
         }
         models: dict[str, Any] = {}
@@ -1170,7 +1162,6 @@ def report_game_ids(store: Store, competition: str) -> list[str]:
 LOG_MODELS = {
     "m1": "m1_prediction_log",
     "m5": "m5_prediction_log",
-    "elor": "elor_prediction_log",
     "m5inj": "m5inj_prediction_log",
 }
 

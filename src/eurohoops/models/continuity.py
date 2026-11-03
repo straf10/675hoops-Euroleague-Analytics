@@ -1,9 +1,9 @@
 """Roster continuity, minutes-weighted.
 
 A club's returning-minutes share for a season: of last season's minutes for the club, the share
-played by players on this season's roster. Roster membership is the ELOR protocol's
-(``docs/models/elo_roster_prior.md``, ``models/roster.py``): the season roster list, read at the
-season's first-round cutoff. A 25-minute starter who left counts about 25 times a 1-minute player.
+played by players on this season's roster. Roster membership is the season roster list
+(``models/roster.py``), read at the season's first-round cutoff. A 25-minute starter who left
+counts about 25 times a 1-minute player.
 
 A player who moved between two clubs keeps his last-season minutes with the club he played for.
 He is on the new club's roster, but his old minutes are not the new club's, so he adds nothing to

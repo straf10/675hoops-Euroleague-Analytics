@@ -1,3 +1,5 @@
+Retired by owner decision, 2026-11-03. The logged rows stay in predictions/ (append-only); the model no longer runs.
+
 # Equal-weight forecast pool (POOL): four EuroLeague forecasts averaged in logit space
 
 Status: live shadow (`POOL_LIVE_ENABLED = True` in `config.py`).

@@ -31,7 +31,6 @@ from eurohoops.config import (
     ELOC_CV,
     ELOH_FIT,
     ELOH_LIVE_ENABLED,
-    ELOR_CV,
     EUROLEAGUE,
     INJURY_LOG,
     INJURY_RAW_DIR,
@@ -48,14 +47,12 @@ from eurohoops.config import (
     ODDS_CALLS,
     ODDS_RAW_DIR,
     ODDS_TEAMS,
-    POOL3_LIVE_ENABLED,
     SIM_LATEST,
     SIM_LOG,
     SIM_UNGATED,
     Competition,
     M6Backtest,
 )
-from eurohoops.eval.elor_cv import ElorInputs
 from eurohoops.eval.m5_backtest import M5Inputs, PlayerPartFn
 from eurohoops.eval.m6_backtest import M6Inputs, TargetInputs, World, prepare
 from eurohoops.eval.scorecard import build_scorecard
@@ -65,7 +62,6 @@ from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_
 from eurohoops.inputs import INPUT_COLUMNS, backfill_rows
 from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
 from eurohoops.live_eloh import load_eloh, predict_upcoming_eloh
-from eurohoops.live_elor import load_elor, predict_upcoming_elor
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
 from eurohoops.live_m5 import LiveM5, live_spec, load_m5, predict_upcoming_m5
 from eurohoops.live_m5inj import predict_upcoming_m5inj
@@ -79,7 +75,6 @@ from eurohoops.live_m6 import (
     projections_report,
     similarity_report,
 )
-from eurohoops.live_pool import predict_pool, predict_pool3
 from eurohoops.live_sim import (
     LIVE_SIMS,
     latest_report,
@@ -91,9 +86,7 @@ from eurohoops.live_sim import (
 from eurohoops.logs import append_rows, write_json
 from eurohoops.marts import read_games, read_table, read_teams
 from eurohoops.models.availability import read_injuries, read_roster_names
-from eurohoops.models.elor import WalkForwardRatings
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
-from eurohoops.models.roster import RosterCacheError, read_rosters
 from eurohoops.odds import OddsApiError, OddsFetchError, OddsPaths, api_key, record_odds
 from eurohoops.predict import LatePredictionError, logged_keys, predict_upcoming
 from eurohoops.sim.formats import season_format
@@ -248,7 +241,7 @@ def sim_ungated() -> None:
 
 class _LiveFrame:
     """M5's live inputs, frame and M3 walk-forward fit, built once per ``predict`` run on first
-    use and shared by the M5 and ELOR shadow logs (the fit is the slow part)."""
+    use and shared by the M5 shadow logs (the fit is the slow part)."""
 
     def __init__(self, comp: Competition) -> None:
         self._comp = comp
@@ -265,25 +258,6 @@ class _LiveFrame:
         """The live M5 harness inputs and EuroLeague player part (``live_spec``)."""
         inputs, ratings = self.get()
         return inputs, el_player_part(ratings)
-
-    def elor(self) -> ElorInputs:
-        """ELOR's live inputs: the same fit, and the live season's cached roster list."""
-        inputs, ratings = self.get()
-        try:
-            roster = read_rosters(EUROLEAGUE.raw_dir, (LIVE_SEASON,))
-        except RosterCacheError as error:
-            log.error("%s", error)
-            raise typer.Exit(code=1) from error
-        source = WalkForwardRatings(ratings.frame, ratings.wf.lookups, inputs.player_games)
-        return ElorInputs(
-            games=inputs.games,
-            player_games=inputs.player_games,
-            roster=roster,
-            rating=source,
-            has_state=source.has_state,
-            possessions=ratings.possessions,
-            season_end_rating=source.at_season_end,
-        )
 
 
 def _predict_m5inj(
@@ -367,30 +341,6 @@ def _predict_eloh(live: Live, comp: Competition, round_lead_hours: float) -> Non
         log.exception("ELOH skipped: its forecast failed; nothing appended to its log")
 
 
-def _predict_pool(log_path: Path | None) -> None:
-    """POOL: reads the four component logs only; off while POOL_LIVE_ENABLED is False."""
-    if log_path is None:
-        return
-    try:
-        added = predict_pool(log_path=log_path)
-        if added:
-            typer.echo(f"{added} POOL predictions appended to {log_path}")
-    except Exception:  # a shadow model never blocks the Elo, M1 or ELOR logs
-        log.exception("POOL skipped: nothing appended to its log")
-
-
-def _predict_pool3(log_path: Path | None) -> None:
-    """POOL3: reads the ELOR, M1 and M5 logs only; off while POOL3_LIVE_ENABLED is False."""
-    if log_path is None:
-        return
-    try:
-        added = predict_pool3(log_path=log_path)
-        if added:
-            typer.echo(f"{added} POOL3 predictions appended to {log_path}")
-    except Exception:  # a shadow model never blocks the Elo, M1 or ELOR logs
-        log.exception("POOL3 skipped: nothing appended to its log")
-
-
 def predict(
     round_lead_hours: Annotated[
         float, typer.Option(help="Log every round whose first tip-off is within this many hours")
@@ -444,25 +394,6 @@ def predict(
                 raise
             except Exception:  # e.g. marts without the tuning seasons: still never blocks
                 log.exception("M5 skipped: its forecast failed; nothing appended to its log")
-        elor = load_elor(ELOR_CV.report) if comp.elor_prediction_log is not None else None
-        if elor is not None and comp.elor_prediction_log is not None:
-            try:
-                added = predict_upcoming_elor(
-                    live.games,
-                    elor,
-                    frame.elor,
-                    log_path=comp.elor_prediction_log,
-                    season=live.season,
-                    round_lead=timedelta(hours=round_lead_hours),
-                    clock=utc_now,
-                )
-                typer.echo(f"{added} ELOR predictions appended to {comp.elor_prediction_log}")
-            except typer.Exit:  # a shadow model never blocks the Elo and M1 logs
-                log.warning("ELOR skipped: its marts, stints, roster list or reports are missing")
-            except LatePredictionError:
-                raise
-            except Exception:
-                log.exception("ELOR skipped: its forecast failed; nothing appended to its log")
         _predict_m5inj(
             live.games,
             m5=m5,
@@ -473,8 +404,6 @@ def predict(
         )
         _predict_eloc(live.games, live.season, comp, round_lead_hours)
         _predict_eloh(live, comp, round_lead_hours)
-        _predict_pool(comp.pool_prediction_log)
-        _predict_pool3(comp.pool3_prediction_log if POOL3_LIVE_ENABLED else None)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc
@@ -657,10 +586,8 @@ def score() -> None:
         odds_path=comp.odds_log,
         m1_log_path=comp.m1_prediction_log,
         m5_log_path=comp.m5_prediction_log,
-        elor_log_path=comp.elor_prediction_log,
         m5inj_log_path=comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
         eloh_log_path=comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
-        pool3_log_path=comp.pool3_prediction_log if POOL3_LIVE_ENABLED else None,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))

@@ -1,9 +1,9 @@
-"""The EuroLeague player part M5 uses (moved from ``cli.py`` unchanged, for ELOR's roster prior).
+"""The EuroLeague player part M5 uses (moved from ``cli.py`` unchanged).
 
 M3's committed ``rapm_spm`` (``reports/backtest_m3.json`` ``chosen``, never re-tuned) is fitted
 walk-forward once over the frame; the player part is H-c's ``rapm_margins`` with a shares frame.
 ``el_player_ratings`` exposes the walk-forward fit and expected possessions themselves, so the
-ELOR roster prior (``models/elor.py``) rates its own rosters with the very same fit.
+the roster models (``models/roster.py``) rate their rosters with the very same fit.
 """
 
 from __future__ import annotations

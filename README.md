@@ -48,7 +48,7 @@ Elo is the published forecast. Every other game model is a **shadow**: it logs i
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/models-dark.svg">
-  <img alt="Model dependency map: Elo is published; ELOR builds on Elo and M3; M5 builds on M3 and M1; M7 simulates seasons from M1; M5-INJ adjusts M5 for injuries; POOL averages four logs; B0 is the baseline" src="docs/assets/readme/models-light.svg" width="100%">
+  <img alt="Model dependency map: Elo is published; M5 builds on M3 and M1; M7 simulates seasons from M1; M5-INJ adjusts M5 for injuries; B0 is the baseline" src="docs/assets/readme/models-light.svg" width="100%">
 </picture>
 
 EuroLeague numbers unless marked; log loss is lower-is-better.
@@ -57,11 +57,11 @@ EuroLeague numbers unless marked; log loss is lower-is-better.
 |---|---|---|---|
 | **Elo** ([card](docs/models/elo.md)) | the reference; MOV Elo after FiveThirtyEight ([R5](#references)) | Published | Test log loss 0.6293 (2025-26, 402 games), B0 0.6557 |
 | **M2** ([card](docs/models/m2.md)) | shot quality (xPTS) | Research | Validation 0.6333 vs 0.6353; missed its calibration target |
-| **M3** ([card](docs/models/m3.md)) | player impact (RAPM + box-score prior) | Player ratings; feeds M5, ELOR | Test RMSE 11.68, level with box-score-only |
+| **M3** ([card](docs/models/m3.md)) | player impact (RAPM + box-score prior) | Player ratings; feeds M5 | Test RMSE 11.68, level with box-score-only |
 | **M5** ([card](docs/models/m5.md)) | who is expected to play | Shadow, EL flagship candidate | Validation 0.5838 vs M1 0.5877; test tie with M1 |
 | **M5-INJ** ([card](docs/models/m5_inj.md)) | injury reports | Shadow since 2026-10-23 | Live only |
-| **ELOR** ([card](docs/models/elo_roster_prior.md)) | summer roster changes | Shadow | Folds 2015–23: −0.0023 vs Elo, CI [−0.0043, −0.0007] |
-| **POOL** ([card](docs/models/pool.md)) | average of Elo, M1, M5, ELOR | Shadow | Live only |
+| **ELOR** ([card](docs/models/elo_roster_prior.md)) | summer roster changes | Retired 2026-11-03 | Folds 2015–23: −0.0023 vs Elo, CI [−0.0043, −0.0007] |
+| **POOL** ([card](docs/models/pool.md)) | average of Elo, M1, M5, ELOR | Retired 2026-11-03 | Live only, then retired |
 | **M6** ([card](docs/models/m6.md)) | player projections and comparables | Live | Test loss 5.90 vs Marcel 6.06, CI excludes 0 |
 | **M7** ([card](docs/models/m7.md)) | season simulation | Published standings | Brier 0.1117 vs 0.1828 for current standings |
 
@@ -118,6 +118,8 @@ margin      = player_part + h + r_home − r_away
 
 ### ELOR · Elo with a roster prior
 
+*Retired 2026-11-03 by owner decision. The logged rows stay in `predictions/`; the model no longer runs.*
+
 Elo plus a preseason roster rating `P_t` (M3 ratings × projected minutes), faded out over the season.
 
 ```
@@ -125,6 +127,8 @@ w(r) = 0.5 · max(0, 1 − (r − 1)/24)        B_t = R_t + w(r) · (P_t − R_t
 ```
 
 ### POOL
+
+*Retired 2026-11-03 by owner decision. The logged rows stay in `predictions/`; the model no longer runs.*
 
 The average of four logged forecasts in log-odds space, with nothing to tune:
 
@@ -181,7 +185,7 @@ Also reported: **Brier** `mean((p − y)²)`, **ECE** (calibration over 10 bins)
 | B0 | EL | 65 | 0.709 | 53.8% |
 | M1 | EL | 57 | 0.643 | 61.4% |
 | M5 | EL | 37 | 0.645 | 62.2% |
-| ELOR | EL | 13 | 0.589 | 69.2% |
+| ELOR (retired) | EL | 13 | 0.589 | 69.2% |
 | Market (Elo on same games 0.609) | EL | 34 | 0.584 | – |
 
 Shadows started on different dates, so only the paired test below compares them fairly with Elo.

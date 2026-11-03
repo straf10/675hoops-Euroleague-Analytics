@@ -17,8 +17,8 @@ from eurohoops.stats.coach_style import StyleIndex, coach_style
 RECENT = 5  # form games per team, head-to-head meetings listed
 TOP_PLAYERS = 5
 MIN_PLAYER_GAMES = 2
-LABELS = {"m1": "Possession model", "m5": "Player model", "elor": "Elo + roster"}
-OTHER_MODELS = ("m1", "m5", "elor")  # order of the comparison list
+LABELS = {"m1": "Possession model", "m5": "Player model"}
+OTHER_MODELS = ("m1", "m5")  # order of the comparison list
 Show = Callable[[str], str]
 
 

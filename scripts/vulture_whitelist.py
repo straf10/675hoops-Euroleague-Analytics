@@ -96,17 +96,6 @@ from eurohoops.eval.early_totals import build_report  # noqa: E402
 
 build_report
 
-# POOL-c (docs/models/pool_c.md): the two stages are run by scripts/diag_pool_c.py, not the pipeline
-from eurohoops.eval.pool_c import run_eval, run_fit  # noqa: E402
-
-run_eval
-run_fit
-
-# POOL3 screen (experiments/pool3.md): diagnostic, run by scripts/diag_pool3.py, not the pipeline
-from eurohoops.eval.pool3 import member_rows, screen  # noqa: E402
-
-member_rows
-screen
 # ELOH step A (scripts/fit_eloh.py, run once): the fit and its frozen file's writer; the live
 # forecaster reads only reports/eloh_fit.json. TeamEffect's fields are written by asdict.
 from eurohoops.config import ELOH_FIT_SEASONS  # noqa: E402
@@ -143,3 +132,14 @@ standings_findings
 rest_report
 normal_cumulative_prob
 simulate_promotion
+
+# Roster-list diagnostics (models/roster.py): tests only since the ELOR retirement (2026-11-03)
+from eurohoops.models.roster import (  # noqa: E402
+    FIRST_ROUND_RULE,
+    start_date_counts,
+    unmatched_clubs,
+)
+
+FIRST_ROUND_RULE
+start_date_counts
+unmatched_clubs

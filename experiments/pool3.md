@@ -1,3 +1,5 @@
+Retired by owner decision, 2026-11-03. The logged rows stay in predictions/ (append-only); the model no longer runs.
+
 # pool3
 Idea:      Screen POOL's four members for near-duplicates on live EuroLeague games; if Elo and ELOR are nearly identical, log a three-member pool POOL3 (ELOR, M1, M5) as a new shadow, because ELOR = Elo + a fading roster offset gives Elo double weight (docs/research/IDEAS.md C2, approved as written by the owner 2026-10-28).
 Type:      diagnostic screen, then forecaster only if the screen triggers
