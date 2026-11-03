@@ -10,7 +10,7 @@ import {
   share,
   type Headline,
 } from "../lib/forecasts";
-import { leadModel, roundGroups } from "../lib/forecast_rounds";
+import { leadModel, roundGroups, roundId } from "../lib/forecast_rounds";
 import { tip } from "../lib/tip";
 import Calibration from "./Calibration.astro";
 import ForecastGames from "./ForecastGames.astro";
@@ -234,7 +234,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
               <tbody>
                 {rounds.map((g) => {
                   return (
-                    <tr>
+                    <tr id={`round-${comp.key}-${roundId(g.phase, g.round)}`}>
                       <th scope="row">{groupLabel(g.phase, g.round)}</th>
                       <td class="n">{g.models[model].n}</td>
                       {roundModels.map((k) => {

@@ -53,7 +53,7 @@ const dayRange = (r: MatchdayRound) => {
         <header class="head">
           <h4>{recap ? `Round ${recap.round}` : "Last round"}</h4>
           <div class="tally">
-            <p>{card && card.scored > 0 ? `We picked ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
+            <p>{card && card.scored > 0 ? `We called ${card.right} of ${card.scored} right` : "No round has finished yet"}</p>
             {recapMiss !== null && <p class="miss">Average miss: {recapMiss.toFixed(1)} points</p>}
           </div>
         </header>

@@ -68,7 +68,7 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
       g.played && g.hit !== null ? (
         <span
           class:list={["pill", g.hit ? "hit" : "miss"]}
-          aria-label={pickTeam && pickP !== null ? `Picked ${pickTeam.name} at ${pct(pickP)}: ${g.hit ? "right" : "wrong"}` : g.hit ? "Right" : "Wrong"}
+          aria-label={pickTeam && pickP !== null ? `Our call ${pickTeam.name} at ${pct(pickP)}: ${g.hit ? "right" : "wrong"}` : g.hit ? "Right" : "Wrong"}
         >
           <span class="icon" set:html={g.hit ? check : cross} />
           {pickTeam && pickP !== null ? `${pickTeam.code} ${pct(pickP)}` : g.hit ? "Right" : "Wrong"}

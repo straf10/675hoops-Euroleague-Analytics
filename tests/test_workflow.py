@@ -93,7 +93,9 @@ def test_daily_deploys_the_built_site_to_a_cloudflare_worker() -> None:
     assert "needs: build-site" in deploy
     assert "actions/checkout" not in deploy  # the deploy job holds the token, runs no repo code
     assert "CLOUDFLARE_API_TOKEN" in deploy and "CLOUDFLARE_ACCOUNT_ID" in deploy
-    assert "deploy --assets site --name 675hoops" in deploy
+    assert "command: deploy" in deploy
+    # unknown URLs get 404.html, not an empty 404
+    assert '"not_found_handling": "404-page"' in deploy
     assert "wranglerVersion:" in deploy  # pinned
     assert "upload-pages-artifact" not in DAILY and "deploy-pages" not in DAILY
 
