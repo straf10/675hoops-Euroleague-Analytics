@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: "47 7 * * *"
   workflow_dispatch:
+    inputs:
+      # Set by scripts/record_injuries.ps1 after the PC pushes a new injury snapshot: the odds call
+      # and the people refresh (both once a day) are skipped, so the run makes no odds API call.
+      injury_refresh:
+        description: "Injury snapshot refresh (skips the odds and people steps)"
+        type: boolean
+        default: false
 
 concurrency:
   group: daily-predictions
@@ -47,6 +54,7 @@ jobs:
       # refetched once a day (one call; owner, Phase C) so new signings get one. A failure keeps
       # the cached listing and is only a warning.
       - name: Refresh the live season's people listing
+        if: ${{ !inputs.injury_refresh }}
         run: |
           uv run --no-dev eurohoops people \
             || echo "::warning::people refresh failed; the cached listing stays"
@@ -76,6 +84,7 @@ jobs:
       # Market benchmark (EuroLeague only): one The Odds API call. The repository secret is
       # set by the owner; without it the step is skipped with a warning, never failed.
       - name: Record EuroLeague odds
+        if: ${{ !inputs.injury_refresh }}
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
