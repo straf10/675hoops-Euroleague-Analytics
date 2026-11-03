@@ -119,6 +119,15 @@ def test_daily_records_injuries_between_odds_and_prediction() -> None:
     )
 
 
+def test_injury_refresh_runs_make_no_odds_call() -> None:
+    """A PC-triggered run (injury_refresh) skips the odds call and the once-a-day people refresh."""
+    assert "injury_refresh:" in DAILY and "type: boolean" in DAILY
+    assert DAILY.count("if: ${{ !inputs.injury_refresh }}") == 2
+    assert "eurohoops odds" in odds_step()
+    people = DAILY[DAILY.index("- name: Refresh the live") :]
+    assert "if: ${{ !inputs.injury_refresh }}" in people[: people.index("run:")]
+
+
 def test_odds_step_is_skipped_with_a_warning_without_the_secret() -> None:
     step = odds_step()
     assert "ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}" in step

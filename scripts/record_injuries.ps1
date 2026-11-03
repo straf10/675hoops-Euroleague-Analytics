@@ -35,6 +35,46 @@ function Write-Attempt([string]$Status, [int]$Rows, [string]$Sha) {
     Add-Content -Path $AttemptLog -Value $line -Encoding utf8
 }
 
+# After a pushed snapshot, asks daily.yml for a prediction run on it (injury_refresh=true: no odds
+# call). Never fails the recorder: the snapshot is already pushed, so every problem is a warning.
+function Request-DailyRun([string]$Sha) {
+    if ($WhatIf) {
+        Write-Host "[WhatIf] gh workflow run daily.yml --ref main --json (injury_refresh=true)"
+        return
+    }
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+            Write-Warning "gh not found: daily prediction run not triggered (the snapshot is pushed)"
+            Write-Attempt "dispatch_skipped" 0 $Sha
+            return
+        }
+        gh auth status 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "gh is not logged in (run gh auth login): daily prediction run not triggered"
+            Write-Attempt "dispatch_skipped" 0 $Sha
+            return
+        }
+        # --json sends injury_refresh as a JSON boolean (-f would send the string "true").
+        $dOut = ('{"injury_refresh": true}' | gh workflow run daily.yml --ref main --json 2>&1 | ForEach-Object { "$_" }) -join " "
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "gh workflow run failed (exit $LASTEXITCODE): $dOut"
+            Write-Attempt "dispatch_failed" 0 $Sha
+            return
+        }
+        Write-Host "Triggered daily.yml (injury_refresh=true): $dOut"
+        Write-Attempt "dispatch_ok" 0 $Sha
+    }
+    catch {
+        Write-Warning "daily prediction run not triggered: $($_.Exception.Message)"
+        Write-Attempt "dispatch_failed" 0 $Sha
+    }
+    finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
 function Invoke-Step([string]$Label, [scriptblock]$Action) {
     if ($WhatIf) {
         Write-Host "[WhatIf] $Label"
@@ -168,6 +208,7 @@ try {
         }
         $sha = (git rev-parse --short HEAD).Trim()
         Write-Attempt "appended" $rows $sha
+        Request-DailyRun $sha
         exit 0
     }
 

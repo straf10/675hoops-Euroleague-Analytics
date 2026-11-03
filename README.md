@@ -32,7 +32,7 @@ The daily workflow ([`daily.yml`](.github/workflows/daily.yml)) commits `predict
 |---|---|---|
 | EuroLeague API | schedules, box scores, play-by-play, shots, rosters from 2007-08 | undocumented, so everything is cached |
 | The Odds API | EuroLeague bookmaker prices | recorded forward from 2026-09-25; a benchmark, not a betting product |
-| BasketNews | EuroLeague injury report snapshots | recorded several times a day ([`scripts/record_injuries.ps1`](scripts/record_injuries.ps1)) |
+| BasketNews | EuroLeague injury report snapshots | recorded several times a day on the owner's PC, each new snapshot triggers a prediction run ([`scripts/record_injuries.ps1`](scripts/record_injuries.ps1)) |
 
 **Possessions**, the unit behind M1, M3 and M5:
 
