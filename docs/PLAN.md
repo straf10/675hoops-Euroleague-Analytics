@@ -146,7 +146,7 @@ EuroHoops-Analytics/
 Evaluation and promotion rules: CLAUDE.md. Experiment process: workflow.md.
 
 ### 5.1 M0 — Elo baseline
-- 538-style: MOV multiplier, home advantage, season-start reversion (R5); K tuned on tuning seasons. Separate ratings per competition, optional shared rating for Greek clubs in both.
+- 538-style: MOV multiplier, home advantage, season-start reversion (R5); K tuned on tuning seasons. Separate ratings per competition (EuroLeague only since the GBL was removed on 2026-10-28; the shared rating for Greek clubs in both no longer applies).
 - Output: win probability plus (via a fitted linear map) expected margin. Live now.
 
 ### 5.2 M1 — Team efficiency model (possession-based)
@@ -170,7 +170,7 @@ Evaluation and promotion rules: CLAUDE.md. Experiment process: workflow.md.
 3. **Box-score prior ("SPM")**: regress multi-season RAPM on box-score rates (like BPM) on EuroLeague data.
 4. Evaluation: out-of-sample margin prediction of next-N games using minutes-weighted player ratings vs team-only ratings vs PIR (EuroLeague's official index as a naive baseline).
 
-- Team level: competition offset estimated from Greek teams' ratings in both (R19 as prior).
+- Team level: competition offset estimated from Greek teams' ratings in both (R19 as prior). Needs two leagues; the GBL was removed on 2026-10-28.
 - Player level: mixed model of per-100-possession rates (and SPM) with competition fixed effects and player random effects → translation factors per stat, with uncertainty.
 
 ### 5.6 M5 — Game predictor v2 (roster-aware)
@@ -234,7 +234,7 @@ Weeks start Mon 28 Sep 2026. Target load is 20–25 h/week; at 30+ h/week, weeks
 Elo remains the published forecast until R1's promotion test is met. Gains come from new information (availability/injuries, preseason roster turnover) and the odds benchmark (§1.3), not from more tuning on the validation and test splits.
 
 - **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Built: the paired-bootstrap test (`src/eurohoops/eval/promotion.py`), `eurohoops promote-check` (`cli/backtest.py`), run manually by `.github/workflows/promotion-look.yml`. Status: built; no `reports/promotion_*` look is committed yet. The first look is due after EuroLeague round 19.
-- **R2 Season scorecard**: done. Per model and season to date: games, picks right, log loss, Brier, margin MAE, % of margins within 5 and 10 pts, totals MAE. Live for both competitions.
+- **R2 Season scorecard**: done. Per model and season to date: games, picks right, log loss, Brier, margin MAE, % of margins within 5 and 10 pts, totals MAE. Live for the EuroLeague (the GBL was removed on 2026-10-28).
 - **R3 Per-round view**: done. EuroLeague rounds, not calendar weeks.
 - **R4 All-games list**: done. Filterable by round and model; shadow-model start rounds are stated.
 - **R5 M7 gate v2**: passed. Rolling-origin evaluation over 2016–2025, expanding training windows, season-level bootstrap. EuroLeague standings use `simulate` (labelled gated). A loader bug affecting only the 2016-17 selection-season rows was found after the run; the verdict is unchanged.

@@ -84,7 +84,7 @@ Proposal:
   the expected win probability of an average team in that game. The second is easier to read:
   "an average team would win 46% of these games".
 - **Rest**: mean days of rest vs opponent, from `models/rest.py` (already computed for M5; covers
-  both competitions, which matters for Olympiacos and Panathinaikos).
+  EuroLeague games only since the GBL was removed on 2026-10-28; the Olympiacos and Panathinaikos rest point no longer needs two competitions).
 - **Travel**: needs a small static table of arena coordinates (about 25 cities); great-circle km
   between consecutive away venues. Cheap, but descriptive only until a model shows it matters.
 - Show on team pages; add **SoS played** and **SoS remaining** as two sortable columns in the

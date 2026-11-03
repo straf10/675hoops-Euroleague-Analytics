@@ -1,7 +1,7 @@
 # Score distributions and home advantage
 
 Question Q6: Normal, Student-t or count models for margins and totals? Should home advantage vary by team?
-Our setup: M1 uses a Student-t margin (EuroLeague df 7, GBL df 20) and a pace model for totals. There is one home effect for all teams and seasons. Elo's hca is frozen at 90 for the EuroLeague; `docs/models/diag_home_court.md` found the 2026 home-win shortfall consistent with noise.
+Our setup: M1 uses a Student-t margin (EuroLeague df 7; GBL df 20 no longer used, GBL removed 2026-10-28) and a pace model for totals. There is one home effect for all teams and seasons. Elo's hca is frozen at 90 for the EuroLeague; `docs/models/diag_home_court.md` found the 2026 home-win shortfall consistent with noise.
 
 ## What the papers say
 

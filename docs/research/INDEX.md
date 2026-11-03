@@ -7,7 +7,7 @@ Built 2026-10-22 from 32 papers; the 9 off-topic ones were removed 2026-10-23, l
 **Elo** (published forecast, baseline B1).
 - 538-style, with a margin-of-victory multiplier, home advantage, and 25% season-start reversion. EuroLeague k 20 / hca 90; GBL frozen at k 40 / hca 130.
 - EuroLeague test 2025: log loss 0.629327 vs B0 0.655673, a gap of −0.026, CI [−0.0488, −0.0045]; ECE 0.049.
-- GBL test: log loss 0.484529.
+- GBL test (historical; GBL removed 2026-10-28): log loss 0.484529.
 - Weaknesses: no roster or injury information. EuroLeague parameters were tuned on one season (2024), and the reversion sits on the grid edge. No totals.
 
 **M1** (team efficiency, ridge on points per 100 possessions, Student-t margin, pace model).
@@ -17,14 +17,14 @@ Built 2026-10-22 from 32 papers; the 9 off-topic ones were removed 2026-10-23, l
   - It loses to Elo in rounds 1–5 (0.5947 vs 0.5784), because the carry of 0.25 on last season's rows pulls hard to the mean.
   - One home effect for all seasons.
   - No roster information.
-- GBL flagship candidate.
+- Was the GBL flagship candidate; GBL removed 2026-10-28. The EuroLeague flagship is M5.
 
 **M5** (roster-aware: Σ projected-minute share × M3 RAPM, plus a team residual).
 - EuroLeague gate passed: 0.583765 vs M1 0.587714, −0.0039 [−0.0149, 0.0063]. The test is a tie (−0.000015).
 - Totals CRPS −0.914 (significant).
 - Weaknesses:
   - When a top-3 minute-taker is missing (31 games), margin RMSE is +0.84 worse than with oracle minutes.
-  - It failed the GBL check.
+  - It failed the GBL check (historical; GBL removed 2026-10-28).
   - Rest effects are noise.
 - EuroLeague flagship candidate.
 
@@ -35,7 +35,7 @@ Built 2026-10-22 from 32 papers; the 9 off-topic ones were removed 2026-10-23, l
 
 **M7** (season simulator drawing from M1's posterior).
 - v1 failed. v2 passed: Brier −0.000139 vs point_sim, CI upper 0.0038 < 0.005. It is calibrated.
-- Strengths are fixed within a simulation. GBL rules are unverified.
+- Strengths are fixed within a simulation. GBL rules are unverified (GBL removed 2026-10-28).
 
 **Shadows:**
 - ELOR (roster-prior Elo) passed its CV: −0.0023 [−0.0043, −0.0007].
