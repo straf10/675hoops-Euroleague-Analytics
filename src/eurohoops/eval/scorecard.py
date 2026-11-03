@@ -317,7 +317,7 @@ def trial_section(
     *,
     manual_pushes: Sequence[datetime] = (),
 ) -> dict[str, Any]:
-    """A trial model's live scores (ELOR's shadow log): its pre-registered row per finished game
+    """A trial model's live scores (ELOH's shadow log): its pre-registered row per finished game
     (``provable_rows``), scored like the headline (log loss, Brier, hit rate = accuracy), with
     Elo's headline forecast of the same games alongside. Reported only: never the headline, a
     decision or a site forecast. ``elo``: the scored Elo rows of ``build_scorecard``."""
@@ -375,10 +375,8 @@ def build_scorecard(
     odds_path: Path | None = None,
     m1_log_path: Path | None = None,
     m5_log_path: Path | None = None,
-    elor_log_path: Path | None = None,
     m5inj_log_path: Path | None = None,
     eloh_log_path: Path | None = None,
-    pool3_log_path: Path | None = None,
 ) -> dict[str, Any]:
     """Score logged games that have finished; a missing log or no finished games gives n=0.
 
@@ -423,13 +421,6 @@ def build_scorecard(
         ),
         **(
             {}
-            if elor_log_path is None
-            else {
-                "elor": trial_section(elor_log_path, games, headline, manual_pushes=manual_pushes)
-            }
-        ),
-        **(
-            {}
             if m5inj_log_path is None
             else {
                 "m5inj": m1_section(
@@ -442,13 +433,6 @@ def build_scorecard(
             if eloh_log_path is None
             else {
                 "eloh": trial_section(eloh_log_path, games, headline, manual_pushes=manual_pushes)
-            }
-        ),
-        **(
-            {}
-            if pool3_log_path is None
-            else {
-                "pool3": trial_section(pool3_log_path, games, headline, manual_pushes=manual_pushes)
             }
         ),
     }

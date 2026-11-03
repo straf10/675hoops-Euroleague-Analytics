@@ -337,12 +337,10 @@ def test_other_models_list_only_the_models_that_logged_the_game() -> None:
     rows = {
         "m1": {"p_home": 0.61, "exp_margin": 3.2},
         "m5": None,
-        "elor": {"p_home": 0.64, "exp_margin": 3.9},
     }
     out = mr.other_models(rows)
-    assert [m["key"] for m in out] == ["m1", "elor"]
+    assert [m["key"] for m in out] == ["m1"]
     assert out[0]["label"] == "Possession model"
-    assert out[1]["label"] == "Elo + roster"
 
 
 def _coach_rows() -> pd.DataFrame:

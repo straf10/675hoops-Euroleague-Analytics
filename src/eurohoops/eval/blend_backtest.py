@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from scipy import special, stats
 
-from eurohoops.config import ELOR_ELO_PARAMS
+from eurohoops.config import ELO_LIVE_PARAMS
 from eurohoops.eval.metrics import paired_bootstrap_ci_clustered, per_game_log_loss
 from eurohoops.models.continuity import club_share, player_continuity, season_start_roster
 from eurohoops.models.elo import FloatArray, prepare, replay
@@ -42,7 +42,7 @@ WARMUP_FOLDS = tuple(range(2010, 2015))  # the same protocol on earlier seasons,
 BOOTSTRAP_RESAMPLES = 10_000
 BOOTSTRAP_SEED = 20261019
 PROB_FLOOR = 1e-9
-ELO_LIVE = ELOR_ELO_PARAMS  # the published flagship's parameters (k 20, hca 90, reversion 0.25)
+ELO_LIVE = ELO_LIVE_PARAMS  # the published flagship's parameters (k 20, hca 90, reversion 0.25)
 
 
 @dataclass(frozen=True)

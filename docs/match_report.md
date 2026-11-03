@@ -51,8 +51,7 @@ count, so a finished game's report shows what was known before the game. Target 
   },
   "other_models": [
     {"key": "m1", "label": "Possession model", "p_home": 0.61, "exp_margin": 3.2},
-    {"key": "m5", "label": "Player model", "p_home": 0.58, "exp_margin": 2.4},
-    {"key": "elor", "label": "Elo + roster", "p_home": 0.64, "exp_margin": 3.9}
+    {"key": "m5", "label": "Player model", "p_home": 0.58, "exp_margin": 2.4}
   ],
   "form": {
     "home": [{"date": "2026-10-16", "opp": "BAR", "venue": "A", "for": 81, "against": 77, "won": true}],

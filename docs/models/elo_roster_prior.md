@@ -1,3 +1,5 @@
+Retired by owner decision, 2026-11-03. The logged rows stay in predictions/ (append-only); the model no longer runs.
+
 # Elo with a roster prior (ELOR): Elo plus a preseason roster rating
 
 Status: live shadow (logged daily to `predictions/euroleague_elor_2026-27.csv`; not shown on the site; never the published forecast).

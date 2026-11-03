@@ -1,7 +1,7 @@
-"""The shadow-log helpers of ``cli/live.py`` (M5-INJ, ELOC, ELOH, POOL, POOL3) called directly:
+"""The shadow-log helpers of ``cli/live.py`` (M5-INJ, ELOC, ELOH) called directly:
 their gates (flags, missing inputs), what they pass on, what they print, and that a failing
 shadow never blocks the run. ELOH and ELOC run their real forecast on the small synthetic league;
-M5-INJ, POOL and POOL3 are checked as wiring, since their row logic has its own tests.
+M5-INJ is checked as wiring, since its row logic has its own tests.
 
 Every shadow log points at ``tmp_path``. The autouse guard (tests/prediction_guard.py)
 fails any test that changes a file under the repo's ``predictions/`` (rule 1: append-only)."""
@@ -9,7 +9,6 @@ fails any test that changes a file under the repo's ``predictions/`` (rule 1: ap
 import dataclasses
 import json
 import logging
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -46,8 +45,6 @@ def comp(tmp_path: Path) -> Competition:
         eloh_prediction_log=tmp_path / "eloh.csv",
         eloc_prediction_log=tmp_path / "eloc.csv",
         m5inj_prediction_log=tmp_path / "m5inj.csv",
-        pool_prediction_log=tmp_path / "pool.csv",
-        pool3_prediction_log=tmp_path / "pool3.csv",
     )
 
 
@@ -257,7 +254,7 @@ def test_eloc_refuses_a_late_prediction(comp: Competition, monkeypatch: pytest.M
         live_mod._predict_eloc(games, SEASON, comp, 48.0)
 
 
-# --- M5-INJ, POOL, POOL3: wiring (the row logic has its own tests) ---------------------------
+# --- M5-INJ: wiring (the row logic has its own tests) ---------------------------------------
 
 
 def test_m5inj_is_off_without_its_flag_or_m5(
@@ -335,52 +332,3 @@ def test_m5inj_refuses_a_late_prediction_and_swallows_other_failures(
     monkeypatch.setattr(live_mod, "predict_upcoming_m5inj", Recorder(error=RuntimeError("bad")))
     call()
     assert "M5-INJ skipped: its forecast failed" in caplog.text
-
-
-@pytest.mark.parametrize(
-    ("helper", "name"),
-    [(live_mod._predict_pool, "POOL"), (live_mod._predict_pool3, "POOL3")],
-    ids=["pool", "pool3"],
-)
-def test_pool_helpers_write_to_their_log_and_echo_only_new_rows(
-    helper: Callable[[Path | None], None],
-    name: str,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    stub_name = "predict_pool" if name == "POOL" else "predict_pool3"
-    stub = Recorder(result=2)
-    monkeypatch.setattr(live_mod, stub_name, stub)
-    log = tmp_path / "pool.csv"
-
-    helper(None)  # no log configured: nothing is called
-    assert stub.calls == []
-
-    helper(log)
-    assert stub.calls == [((), {"log_path": log})]
-    assert f"2 {name} predictions appended to {log}" in capsys.readouterr().out
-
-    stub.result = 0
-    helper(log)  # nothing due: silent
-    assert "predictions appended" not in capsys.readouterr().out
-
-
-POOL_CASES = [
-    (live_mod._predict_pool, "predict_pool", "POOL"),
-    (live_mod._predict_pool3, "predict_pool3", "POOL3"),
-]
-
-
-@pytest.mark.parametrize("case", POOL_CASES, ids=["pool", "pool3"])
-def test_a_failing_pool_forecast_never_blocks_the_run(
-    case: tuple[Callable[[Path | None], None], str, str],
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    helper, stub_name, label = case
-    monkeypatch.setattr(live_mod, stub_name, Recorder(error=OSError("component log gone")))
-    helper(tmp_path / "pool.csv")
-    assert f"{label} skipped: nothing appended to its log" in caplog.text
-    assert not (tmp_path / "pool.csv").exists()

@@ -1,7 +1,7 @@
-"""The ``predict`` command's handling of the M5 and ELOR shadow logs (missing inputs warn, a late
+"""The ``predict`` command's handling of the M5 shadow log (missing inputs warn, a late
 prediction stops the run, and nothing else is blocked), and the ``backfill-inputs`` command
 (matches, already-present rows, rows that disagree with the Elo log). The Elo forecast is real
-on the synthetic league; M5 and ELOR are stubbed, since their forecasts have their own tests.
+on the synthetic league; M5 is stubbed, since its forecast has its own tests.
 Every log points at tmp_path; the guard in tests/prediction_guard.py checks the repo's logs."""
 
 import csv
@@ -64,26 +64,18 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tuned: Any) -> Iterat
         prediction_log=tmp_path / "elo.csv",
         inputs_log=tmp_path / "inputs.csv",
         m5_prediction_log=tmp_path / "m5.csv",
-        elor_prediction_log=tmp_path / "elor.csv",
         eloc_prediction_log=tmp_path / "eloc.csv",
         eloh_prediction_log=tmp_path / "eloh.csv",
         m5inj_prediction_log=tmp_path / "m5inj.csv",
-        pool_prediction_log=tmp_path / "pool.csv",
-        pool3_prediction_log=tmp_path / "pool3.csv",
     )
     live = Live(games=games, model=tuned, season=SEASON, replay_from=REPLAY_FROM)
     monkeypatch.setattr(live_mod, "EUROLEAGUE", comp)
     monkeypatch.setattr(live_mod, "_live", lambda _comp: live)
     monkeypatch.setattr(live_mod, "utc_now", lambda: now)
     m5 = Recorder()
-    elor = Recorder()
     monkeypatch.setattr(live_mod, "load_m5", lambda _path: object())
-    monkeypatch.setattr(live_mod, "load_elor", lambda _path: object())
     monkeypatch.setattr(live_mod, "predict_upcoming_m5", m5)
-    monkeypatch.setattr(live_mod, "predict_upcoming_elor", elor)
     for helper in ("_predict_m5inj", "_predict_eloc", "_predict_eloh"):
-        monkeypatch.setattr(live_mod, helper, Recorder())
-    for helper in ("_predict_pool", "_predict_pool3"):
         monkeypatch.setattr(live_mod, helper, Recorder())
     yield {
         "comp": comp,
@@ -92,7 +84,6 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tuned: Any) -> Iterat
         "open_ids": open_ids,
         "now": now,
         "m5": m5,
-        "elor": elor,
         "monkeypatch": monkeypatch,
     }
 
@@ -107,47 +98,36 @@ def test_predict_echoes_each_shadow_and_passes_its_log_and_lead(
 ) -> None:
     comp = world["comp"]
     world["m5"].result = 4
-    world["elor"].result = 4
     live_mod.predict()
     out = capsys.readouterr().out
     assert f"4 predictions appended to {comp.prediction_log}" in out
     assert f"4 M5 predictions appended to {comp.m5_prediction_log}" in out
-    assert f"4 ELOR predictions appended to {comp.elor_prediction_log}" in out
     ((args, kwargs),) = world["m5"].calls
     assert args[0] is world["games"] and kwargs["log_path"] == comp.m5_prediction_log
     assert kwargs["season"] == SEASON and kwargs["round_lead"] == timedelta(hours=48)
-    ((args, kwargs),) = world["elor"].calls
-    assert kwargs["log_path"] == comp.elor_prediction_log
     assert sorted(r["game_id"] for r in _rows(comp.prediction_log)) == world["open_ids"]
 
 
-@pytest.mark.parametrize("shadow", ["m5", "elor"])
-def test_a_shadow_missing_its_inputs_warns_and_the_run_goes_on(
-    world: dict[str, Any], shadow: str, caplog: pytest.LogCaptureFixture
+def test_m5_missing_its_inputs_warns_and_the_run_goes_on(
+    world: dict[str, Any], caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.WARNING, logger="eurohoops")
-    world[shadow].error = typer.Exit()
+    world["m5"].error = typer.Exit()
     live_mod.predict()  # returns normally: the Elo log and the other shadows are not blocked
-    label = "M5" if shadow == "m5" else "ELOR"
-    assert f"{label} skipped: its marts" in caplog.text
+    assert "M5 skipped: its marts" in caplog.text
     assert len(_rows(world["comp"].prediction_log)) == len(world["open_ids"])
-    assert not getattr(world["comp"], f"{shadow}_prediction_log").exists()
+    assert not world["comp"].m5_prediction_log.exists()
 
 
-@pytest.mark.parametrize("shadow", ["m5", "elor"])
-def test_a_late_shadow_prediction_refuses_the_run(
-    world: dict[str, Any], shadow: str, caplog: pytest.LogCaptureFixture
+def test_a_late_m5_prediction_refuses_the_run(
+    world: dict[str, Any], caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.ERROR, logger="eurohoops")
-    world[shadow].error = LatePredictionError("stamped at tip-off")
+    world["m5"].error = LatePredictionError("stamped at tip-off")
     with pytest.raises(typer.Exit) as raised:
         live_mod.predict()
     assert raised.value.exit_code == 1
     assert "refusing to log: stamped at tip-off" in caplog.text
-    if shadow == "m5":
-        assert world["elor"].calls == []  # the run stops at the late shadow: ELOR is not reached
-    else:
-        assert len(world["m5"].calls) == 1  # M5 ran before ELOR and its log is untouched
 
 
 def _backfill(world: dict[str, Any], capsys: pytest.CaptureFixture[str]) -> str:

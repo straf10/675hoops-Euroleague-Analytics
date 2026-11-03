@@ -17,7 +17,6 @@ log = logging.getLogger("eurohoops")
 
 class ModelName(StrEnum):
     elo = "elo"
-    elor = "elor"
     eloc = "eloc"
     blend = "blend"
     m1 = "m1"
@@ -27,7 +26,6 @@ class ModelName(StrEnum):
     m6 = "m6"
     m7 = "m7"
     wp = "wp"
-    pool = "pool"
 
 
 def utc_now() -> datetime:

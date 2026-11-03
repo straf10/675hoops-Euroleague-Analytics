@@ -1,4 +1,4 @@
-"""EuroLeague season roster lists for the ELOR roster prior (docs/models/elo_roster_prior.md).
+"""EuroLeague season roster lists (read by M5, the blend candidate, the stats export and the site).
 
 Source: the cached people listing of each season, ``data/raw/euroleague/people/E{season}.json.gz``
 (``ingest.bios``). Only rows with ``type == "J"`` (players) count. Each row gives the player

@@ -22,7 +22,6 @@ def main() -> None:
         "elo": comp.prediction_log,
         "m1": comp.m1_prediction_log,
         "m5": comp.m5_prediction_log,
-        "elor": comp.elor_prediction_log,
     }
     report = benchmark(
         logs, read_games(MART_PATH, comp.name), comp.odds_log, LIVE_SEASON, comp.manual_pushes

@@ -1,3 +1,5 @@
+Retired by owner decision, 2026-11-03. The logged rows stay in predictions/ (append-only); the model no longer runs.
+
 # POOL3: the equal-weight pool of ELOR, M1 and M5 (live shadow)
 
 Status: shadow, logging from merge (`POOL3_LIVE_ENABLED` is True in `config.py`). Spec: `experiments/pool3.md`. Idea: `docs/research/IDEAS.md` §C2. Baseline: POOL (`docs/models/pool.md`).

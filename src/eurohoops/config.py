@@ -130,19 +130,14 @@ class Competition:
     m1: M1Backtest | None = None
     m1_prediction_log: Path | None = None  # live M1 log (E-g), separate from the Elo log
     m5_prediction_log: Path | None = None  # live M5 shadow log (EuroLeague only)
-    elor_prediction_log: Path | None = None  # live ELOR shadow log (EuroLeague only)
     eloc_prediction_log: Path | None = (
         None  # live ELOC shadow log (EuroLeague only; see ELOC_LIVE_ENABLED)
     )
-    pool_prediction_log: Path | None = None  # live POOL shadow log (EuroLeague only, gated)
     m5inj_prediction_log: Path | None = (
         None  # live M5-INJ shadow log (EuroLeague only; see M5INJ_LIVE_ENABLED)
     )
     eloh_prediction_log: Path | None = (
         None  # live ELOH shadow log (EuroLeague only; see ELOH_LIVE_ENABLED)
-    )
-    pool3_prediction_log: Path | None = (
-        None  # live POOL3 shadow log (EuroLeague only; see POOL3_LIVE_ENABLED)
     )
     # Elo model inputs per logged prediction (docs/match_report.md, section 1); append-only
     inputs_log: Path | None = None
@@ -199,12 +194,9 @@ EUROLEAGUE = Competition(
     ),
     m1_prediction_log=Path("predictions/euroleague_m1_2026-27.csv"),
     m5_prediction_log=Path("predictions/euroleague_m5_2026-27.csv"),
-    elor_prediction_log=Path("predictions/euroleague_elor_2026-27.csv"),
     eloc_prediction_log=Path("predictions/euroleague_eloc_2026-27.csv"),
-    pool_prediction_log=Path("predictions/euroleague_pool_2026-27.csv"),
     m5inj_prediction_log=Path("predictions/euroleague_m5inj_2026-27.csv"),
     eloh_prediction_log=Path("predictions/euroleague_eloh_2026-27.csv"),
-    pool3_prediction_log=Path("predictions/euroleague_pool3_2026-27.csv"),
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
 )
 
@@ -214,21 +206,6 @@ M5INJ_LIVE_ENABLED = True
 # Owner decision 2026-11-03 (docs/models/m5_inj.md): the injury snapshot used at a row's cutoff must
 # be at most this many hours older than the cutoff. Older, and no M5-INJ row is written for the run.
 M5INJ_MAX_SNAPSHOT_AGE_HOURS = 6
-
-# POOL (docs/models/pool.md): an equal-weight logarithmic pool of four live EuroLeague logs.
-# Switched on by the owner on 2026-10-17 after approving the protocol (pins re-checked that day).
-POOL_LIVE_ENABLED = True
-# The pinned component versions (the protocol's table). Rows at any other version are ignored.
-POOL_COMPONENTS: dict[str, tuple[Path, str]] = {
-    "elo": (Path("predictions/euroleague_2026-27.csv"), "0.2.0+425e6393"),
-    "m1": (Path("predictions/euroleague_m1_2026-27.csv"), "0.2.0+m1.cbd9aaa3"),
-    "m5": (Path("predictions/euroleague_m5_2026-27.csv"), "0.2.0+m5.d4848a7e"),
-    "elor": (Path("predictions/euroleague_elor_2026-27.csv"), "0.2.0+elor.59b43f20"),
-}
-# POOL3 (docs/models/pool3.md): the equal-weight logarithmic pool of ELOR, M1 and M5 (the pinned
-# components above), switched on at merge after the owner declared it on the 2026-10-28 screen.
-POOL3_LIVE_ENABLED = True
-POOL3_MEMBERS: tuple[str, ...] = ("elor", "m1", "m5")
 
 
 @dataclass(frozen=True)
@@ -386,38 +363,12 @@ M5_RETUNE = M5Retune(
 )
 
 
-# Live Elo's EuroLeague parameters, fixed for ELOR (never searched; checked against the report).
-ELOR_ELO_PARAMS = EloParams(k=20.0, hca=90.0, reversion=0.25)
-
-
-@dataclass(frozen=True)
-class ElorCv:
-    """ELOR protocol v1 (docs/models/elo_roster_prior.md): rolling-origin CV, run once.
-
-    Frozen before any fold is scored: the 12-setting grid (``w0`` x ``n_rounds``), the folds,
-    the simplicity order (smaller ``w0``, then smaller ``n_rounds``), the bootstrap and the
-    criteria. Live Elo's parameters are fixed, never searched."""
-
-    report: Path
-    games_report: Path
-    elo_warmup: tuple[int, ...]
-    folds: tuple[int, ...]
-    w0: tuple[float, ...] = (0.2, 0.35, 0.5)
-    n_rounds: tuple[int, ...] = (4, 8, 16, 24)
-    elo_params: EloParams = ELOR_ELO_PARAMS
-    bootstrap_resamples: int = 10000
-    bootstrap_seed: int = 20261015
-    shadow_log_loss_margin: float = 0.002
-    min_rostered: int = 8  # coverage diagnostic only (--cv-check), never a filter
-    protocol: str = "docs/models/elo_roster_prior.md (protocol v1, build addendum)"
-
-
-ELOR_CV = ElorCv(
-    Path("reports/elor_cv.json"),
-    Path("reports/elor_cv_games.csv"),
-    elo_warmup=_seasons(2007, 2014),
-    folds=_seasons(2015, 2023),
-)
+# Live Elo's EuroLeague parameters (the published flagship's), fixed for ELOC and the blend
+# candidate (never searched; checked against the live backtest report).
+ELO_LIVE_PARAMS = EloParams(k=20.0, hca=90.0, reversion=0.25)
+# The frozen Elo baseline written by the retired ELOR protocol (docs/models/elo_roster_prior.md):
+# its pooled log loss and scored games are the ELOC sanity check's reference. Read only.
+ELOR_BASELINE_REPORT = Path("reports/elor_cv.json")
 # Calibrated Elo (ELOC, docs/models/elo_calibrated.md). The shadow log stays off until the owner
 # approves the protocol and flips this flag: predict then writes nothing for ELOC.
 ELOC_LIVE_ENABLED = False
@@ -437,7 +388,7 @@ class ElocCv:
     folds: tuple[int, ...]
     fit_from: int
     live_fit_seasons: tuple[int, int]  # inclusive; the frozen live (a, b) fit on these seasons
-    elo_params: EloParams = ELOR_ELO_PARAMS  # the published flagship's; never searched
+    elo_params: EloParams = ELO_LIVE_PARAMS  # the published flagship's; never searched
     bootstrap_resamples: int = 10000
     bootstrap_seed: int = 20261015
     shadow_log_loss_margin: float = 0.002

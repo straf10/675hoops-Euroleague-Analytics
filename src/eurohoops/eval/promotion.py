@@ -11,9 +11,7 @@ compute anything before the checkpoint is complete, because a statistic computed
 unplanned peek.
 
 Reported next to the verdict, never in the decision: a round-clustered bootstrap of the same gap
-(``sensitivity_round_clustered``) and, in the EuroLeague, ELOR against Elo and against the
-flagship, and the POOL against Elo (``reported_only``). ``promote`` depends on the verdict's
-inputs alone.
+(``sensitivity_round_clustered``). ``promote`` depends on the verdict's inputs alone.
 """
 
 from collections.abc import Sequence
@@ -281,70 +279,6 @@ def _round_clustered(paired: pd.DataFrame, season: int, diff: FloatArray) -> dic
     }
 
 
-def _reported_gap(
-    a: pd.DataFrame, b: pd.DataFrame, finished: pd.DataFrame, names: tuple[str, str]
-) -> dict[str, Any]:
-    """Mean, game-level CI and n of ``a - b`` log loss on the games both logs cover. Reported only.
-
-    The CI is R1's own (``bootstrap_ci``: same resamples, seed and level).
-    """
-    paired = _join(a, b, finished)
-    if not len(paired):
-        return {"n": 0, "mean_diff": None, "ci_lo": None, "ci_hi": None}
-    loss_a, loss_b = _losses(paired)
-    diff = loss_a - loss_b
-    lo, hi = bootstrap_ci(diff)
-    return {
-        "n": len(paired),
-        f"{names[0]}_log_loss": round(float(loss_a.mean()), 6),
-        f"{names[1]}_log_loss": round(float(loss_b.mean()), 6),
-        "mean_diff": round(float(diff.mean()), 6),
-        "ci_lo": round(lo, 6),
-        "ci_hi": round(hi, 6),
-        "ci_level": CI_LEVEL,
-        "resamples": RESAMPLES,
-        "seed": SEED,
-    }
-
-
-def _reported_only(
-    elor_log: Path,
-    pairing: Pairing,
-    season: int,
-    manual_pushes: Sequence[datetime],
-) -> dict[str, Any]:
-    """ELOR against Elo and against the flagship, on the games each pair logged. Reported only."""
-    elor = _season_provable(elor_log, season, manual_pushes)
-    return {
-        "elor_vs_elo": _reported_gap(elor, pairing.elo, pairing.finished, ("elor", "elo")),
-        "elor_vs_flagship": _reported_gap(
-            elor,
-            pairing.flagship,
-            pairing.finished,
-            ("elor", FLAGSHIPS["euroleague"].lower()),
-        ),
-    }
-
-
-def _pool_vs_elo(
-    pool_log: Path,
-    pairing: Pairing,
-    season: int,
-    manual_pushes: Sequence[datetime],
-) -> dict[str, Any]:
-    """The POOL minus Elo on the games both logged: the look's game-level CI and the round-clustered
-    sensitivity of the same gap. Reported only; never a verdict."""
-    pool = _season_provable(pool_log, season, manual_pushes)
-    block = _reported_gap(pool, pairing.elo, pairing.finished, ("pool", "elo"))
-    paired = _join(pool, pairing.elo, pairing.finished)
-    if paired.empty:
-        block["round_clustered"] = None
-        return block
-    loss_pool, loss_elo = _losses(paired)
-    block["round_clustered"] = _round_clustered(paired, season, loss_pool - loss_elo)
-    return block
-
-
 class LookNotDueError(RuntimeError):
     """A look was asked for before its checkpoint is complete, or a second time."""
 
@@ -358,17 +292,12 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
     elo_log: Path,
     manual_pushes: Sequence[datetime],
     out_dir: Path,
-    *,
-    elor_log: Path | None = None,
-    pool_log: Path | None = None,
 ) -> tuple[Verdict, Path]:
     """Run one look and write ``promotion_<competition>_<season>_look<look>.json`` to ``out_dir``.
 
     The guard comes first: before the checkpoint is complete (or when the look's file already
     exists) nothing is read from the logs or computed. The file holds the verdict's keys, then
-    the reported-only blocks: ``sensitivity_round_clustered`` and, with ``elor_log`` (EuroLeague),
-    ``reported_only`` (ELOR), which also holds ``pool_vs_elo`` with ``pool_log``. Neither feeds
-    ``promote``.
+    the reported-only block ``sensitivity_round_clustered``. It does not feed ``promote``.
     """
     rnd = LOOK_ROUNDS[competition]
     due, why = checkpoint_status(games, season, look, rnd)
@@ -399,11 +328,5 @@ def run_look(  # noqa: PLR0917 -- one look's inputs
     payload["sensitivity_round_clustered"] = _round_clustered(
         pairing.paired, season, flagship_loss - elo_loss
     )
-    if elor_log is not None and competition == "euroleague":
-        payload["reported_only"] = _reported_only(elor_log, pairing, season, manual_pushes)
-    if pool_log is not None and competition == "euroleague":
-        payload.setdefault("reported_only", {})["pool_vs_elo"] = _pool_vs_elo(
-            pool_log, pairing, season, manual_pushes
-        )
     write_json(out, payload)
     return verdict, out
