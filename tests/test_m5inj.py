@@ -3,6 +3,7 @@ renormalised shares, and the shadow log on the synthetic league. Fixtures only, 
 predictions/ paths."""
 
 import csv
+import logging
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -268,10 +269,13 @@ def test_a_failed_m5_gate_logs_nothing(model: LiveM5, tmp_path: Path) -> None:
     assert not log.exists()
 
 
-def test_no_injuries_gives_the_m5_forecasts(model: LiveM5, tmp_path: Path) -> None:
+def test_a_fresh_snapshot_without_outs_gives_the_m5_forecasts(
+    model: LiveM5, tmp_path: Path
+) -> None:
     m5_log, inj_log = tmp_path / "m5.csv", tmp_path / "m5inj.csv"
     assert _run_m5(m5_log, NOW, model) > 0
-    assert _run_m5inj(inj_log, NOW, model, _injury_log([])) == len(_rows(m5_log))
+    fresh = _injury_log([("2022-10-29T07:30:00Z", "GRE", "Alpha Tester", "Ready")])
+    assert _run_m5inj(inj_log, NOW, model, fresh) == len(_rows(m5_log))
     m5, inj = _rows(m5_log), _rows(inj_log)
     assert m5.keys() == inj.keys()
     for game in m5:
@@ -286,7 +290,7 @@ def test_an_out_player_moves_only_his_teams_games(model: LiveM5, tmp_path: Path)
     _run_m5(m5_log, NOW, model)
     m5 = _rows(m5_log)
     team = next(iter(m5.values()))["home"]
-    injured = _injury_log([("2022-10-28T09:00:00Z", team, "Alpha Tester", "Out")])
+    injured = _injury_log([("2022-10-29T04:00:00Z", team, "Alpha Tester", "Out")])
     assert _run_m5inj(inj_log, NOW, model, injured) == len(m5)
     inj = _rows(inj_log)
     moved = {g for g in m5 if m5[g]["p_home"] != inj[g]["p_home"]}
@@ -299,10 +303,69 @@ def test_an_out_player_moves_only_his_teams_games(model: LiveM5, tmp_path: Path)
 def test_a_status_stamped_after_the_cutoff_changes_nothing(model: LiveM5, tmp_path: Path) -> None:
     m5_log, inj_log = tmp_path / "m5.csv", tmp_path / "m5inj.csv"
     _run_m5(m5_log, NOW, model)
-    later = _injury_log([("2022-10-29T09:00:00Z", "GRE", "Alpha Tester", "Out")])
-    _run_m5inj(inj_log, NOW, model, later)  # NOW is 2022-10-29T08:00Z; the snapshot is after it
+    # NOW is 2022-10-29T08:00Z. The fresh pre-cutoff snapshot has no Out; the Out one is after it.
+    later = _injury_log(
+        [
+            ("2022-10-29T07:00:00Z", "GRE", "Alpha Tester", "Ready"),
+            ("2022-10-29T09:00:00Z", "GRE", "Alpha Tester", "Out"),
+        ]
+    )
+    assert _run_m5inj(inj_log, NOW, model, later) == len(_rows(m5_log))
     m5, inj = _rows(m5_log), _rows(inj_log)
     assert {g: r["p_home"] for g, r in inj.items()} == {g: r["p_home"] for g, r in m5.items()}
+
+
+def test_only_a_snapshot_after_the_cutoff_writes_nothing(
+    model: LiveM5, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    log = tmp_path / "m5inj.csv"
+    later = _injury_log([("2022-10-29T09:00:00Z", "GRE", "Alpha Tester", "Out")])
+    with caplog.at_level(logging.WARNING, logger="eurohoops"):
+        assert _run_m5inj(log, NOW, model, later) == 0
+    assert not log.exists()
+    assert "no injury snapshot before" in caplog.text
+
+
+# --- the snapshot's maximum age (owner decision 2026-11-03: at most 6 h before the cutoff) --------
+
+
+def test_a_snapshot_older_than_six_hours_writes_nothing_and_warns(
+    model: LiveM5, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    m5_log, inj_log = tmp_path / "m5.csv", tmp_path / "m5inj.csv"
+    _run_m5(m5_log, NOW, model)
+    stale = _injury_log([("2022-10-29T01:59:59Z", "GRE", "Alpha Tester", "Out")])  # 6 h 0 m 1 s
+    with caplog.at_level(logging.WARNING, logger="eurohoops"):
+        assert _run_m5inj(inj_log, NOW, model, stale) == 0
+    assert not inj_log.exists()
+    assert (
+        "m5inj: latest injury snapshot 2022-10-29T01:59:59Z is 6.0 h old (> 6 h); "
+        "no M5-INJ rows written"
+    ) in caplog.text
+
+
+def test_a_snapshot_exactly_six_hours_old_is_used(model: LiveM5, tmp_path: Path) -> None:
+    # The boundary is inclusive: age == 6 h is fresh.
+    m5_log, inj_log = tmp_path / "m5.csv", tmp_path / "m5inj.csv"
+    _run_m5(m5_log, NOW, model)
+    edge = _injury_log([("2022-10-29T02:00:00Z", "GRE", "Alpha Tester", "Out")])
+    assert _run_m5inj(inj_log, NOW, model, edge) == len(_rows(m5_log))
+
+
+def test_a_stale_latest_snapshot_is_not_replaced_by_an_older_one(
+    model: LiveM5, tmp_path: Path
+) -> None:
+    # The old snapshot has the player Out, but the latest one before the cutoff is stale: no rows,
+    # no fallback to the older snapshot or to M5.
+    log = tmp_path / "m5inj.csv"
+    rows = _injury_log(
+        [
+            ("2022-10-28T09:00:00Z", "GRE", "Alpha Tester", "Out"),
+            ("2022-10-29T00:00:00Z", "GRE", "Alpha Tester", "Ready"),
+        ]
+    )
+    assert _run_m5inj(log, NOW, model, rows) == 0
+    assert not log.exists()
 
 
 def test_the_version_pins_m5_and_the_rule() -> None:
