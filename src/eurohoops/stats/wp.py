@@ -35,6 +35,7 @@ from eurohoops.eval.wp_backtest import (
     build,
     checkpoint_states,
 )
+from eurohoops.logs import pre_registered_rows, read_log
 from eurohoops.models import wp as wpm
 from eurohoops.models.wp import Calibrated
 from eurohoops.models.wp_control import game_parts, team_view
@@ -83,15 +84,11 @@ def fit_frozen(
 
 
 def logged_pre(path: Path) -> dict[str, float]:
-    """Game id -> the logged Elo P(home) in force at tip-off (the latest row logged before it)."""
-    if not path.exists():
-        return {}
-    rows = pd.read_csv(path, dtype={"game_id": str})
-    rows = rows[
-        (rows["model"] == PREDICTED_MODEL) & (rows["predicted_at_utc"] < rows["tipoff_utc"])
-    ]
-    rows = rows.sort_values("predicted_at_utc", kind="stable")
-    pairs = zip(rows["game_id"], rows["p_home"].astype(float), strict=True)
+    """Game id -> the logged Elo P(home) of its pre-registered row (``logs.pre_registered_rows``),
+    the forecast the site shows."""
+    log = read_log(path)
+    rows = pre_registered_rows(log[log["model"] == PREDICTED_MODEL])
+    pairs = zip(rows["game_id"], rows["p_home"], strict=True)
     return {str(gid): float(p) for gid, p in pairs}
 
 

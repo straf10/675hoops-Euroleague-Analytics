@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eurohoops.logs import pre_registered_rows
 from eurohoops.stats.coach_style import StyleIndex, coach_style
 
 RECENT = 5  # form games per team, head-to-head meetings listed
@@ -66,16 +67,17 @@ def _round(value: float | None, digits: int) -> float | None:
 # ---- model ----
 
 
-def model_block(inputs: pd.DataFrame | None, game_id: str, tipoff: pd.Timestamp) -> dict[str, Any]:
-    """The published model's inputs and forecast from the pre-registered snapshot row; never null,
-    with ``available`` false and the reason when there is none."""
+def model_block(inputs: pd.DataFrame | None, game_id: str) -> dict[str, Any]:
+    """The published model's inputs and forecast from the game's pre-registered snapshot row
+    (``logs.pre_registered_rows``); never null, with ``available`` false and the reason when
+    there is none."""
     absent = {"available": False, "reason": None}
     if inputs is None:
         return {**absent, "reason": "no model-input snapshot is recorded for this competition"}
     rows = inputs[inputs["game_id"].astype(str) == game_id]
     if rows.empty:
         return {**absent, "reason": "the model inputs were not recorded for this game"}
-    before = rows[pd.to_datetime(rows["predicted_at_utc"], utc=True) < tipoff]
+    before = pre_registered_rows(rows)
     if before.empty:
         return {**absent, "reason": "the only model-input snapshot was stamped after tip-off"}
     row = before.iloc[0]

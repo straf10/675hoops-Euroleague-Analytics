@@ -1,8 +1,8 @@
 """Season forecast record: every model's provable calls, scored per model, per round and per game.
 
-The site's Forecasts view reads this. A model's calls are the earliest row per game that was
-stamped before tip-off and public before it (the scorecard's own ``not_provable`` rule), joined
-with the game's result. There is no backfill: a model has entries only for the games it logged,
+The site's Forecasts view reads this. A model's calls are its scored rows (``logs.scored_rows``:
+each game's pre-registered row, when it was public before tip-off), joined with the game's
+result. There is no backfill: a model has entries only for the games it logged,
 so it is compared on its own games, and again on the games every compared model logged.
 Codes here are the source's; the site shows display codes (``publish.py``).
 """
@@ -17,8 +17,7 @@ import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.metrics import per_game_log_loss
-from eurohoops.eval.scorecard import provable_rows, read_log
-from eurohoops.logs import TIME_FORMAT
+from eurohoops.logs import TIME_FORMAT, read_log, scored_rows
 
 REGULAR_SEASON = "RS"
 WITHIN_POINTS = (5, 10)  # margin error bands, in points
@@ -51,7 +50,7 @@ def _calls(
     log = read_log(log_path)
     if "exp_total" not in log.columns:
         log = log.assign(exp_total=np.nan)
-    rows = provable_rows(log, manual_pushes)
+    rows = scored_rows(log, manual_pushes)
     rows = rows[rows["season"] == season]
     first_round = int(rows["round"].min()) if len(rows) else None
     finished = _finished(games, season)

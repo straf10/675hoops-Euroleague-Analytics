@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from eurohoops.eval.scorecard import latest_per_model_game, not_provable
+from eurohoops.logs import scored_rows
 
 SEASON_PHASE = "RS"
 BUCKETS = (("1-5", 1, 5), ("6-10", 6, 10), ("11+", 11, None))  # label, first round, last round
@@ -49,19 +49,9 @@ def line_by_game(odds: pd.DataFrame, games: pd.DataFrame) -> tuple[pd.DataFrame,
 
 
 def m1_total_by_game(log: pd.DataFrame, manual_pushes: Sequence[datetime] = ()) -> pd.DataFrame:
-    """Per game, the scored M1 total: the same row the forecast record scores.
-
-    That is the latest row stamped before tip-off, of the earliest model version that logged the
-    game, excluding rows that only became public at or after tip-off (``not_provable``).
-    """
-    log = log.astype({"game_id": str})
-    valid = log[
-        pd.to_datetime(log["predicted_at_utc"], utc=True)
-        < pd.to_datetime(log["tipoff_utc"], utc=True)
-    ]
-    kept = valid[~not_provable(valid, manual_pushes)]
-    latest = latest_per_model_game(kept)
-    first = latest.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
+    """Per game, the scored M1 total: the same row the forecast record scores
+    (``logs.scored_rows``)."""
+    first = scored_rows(log.astype({"game_id": str}), manual_pushes)
     return first[["game_id", "exp_total"]].rename(columns={"exp_total": "m1_total"})
 
 
