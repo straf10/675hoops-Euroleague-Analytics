@@ -19,7 +19,7 @@ from eurohoops.live_m1 import (
     m1_forecasts,
     predict_upcoming_m1,
 )
-from eurohoops.predict import LatePredictionError
+from eurohoops.shadow_log import LatePredictionError
 from tests.conftest import make_games, make_team_games
 from tests.test_m1_backtest import SPEC
 
@@ -46,7 +46,9 @@ def model(
     return replace(loaded, gate_passed=True)
 
 
-def run(history: tuple[pd.DataFrame, pd.DataFrame], model: LiveM1, log: Path, at: datetime) -> int:
+def run(
+    history: tuple[pd.DataFrame, pd.DataFrame], model: LiveM1, log: Path, at: datetime
+) -> int | None:
     return predict_upcoming_m1(
         *history,
         model,
@@ -105,7 +107,7 @@ def test_forecasts_match_the_walk_forward(
 def test_a_failed_gate_logs_nothing(
     history: tuple[pd.DataFrame, pd.DataFrame], model: LiveM1, tmp_path: Path
 ) -> None:
-    assert run(history, replace(model, gate_passed=False), tmp_path / "m1.csv", NOW) == 0
+    assert run(history, replace(model, gate_passed=False), tmp_path / "m1.csv", NOW) is None
     assert not (tmp_path / "m1.csv").exists()
 
 

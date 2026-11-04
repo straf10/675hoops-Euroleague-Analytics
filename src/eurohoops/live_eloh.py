@@ -89,7 +89,7 @@ def predict_upcoming_eloh(
     season: int,
     round_lead: timedelta,
     clock: Callable[[], datetime],
-) -> int:
+) -> int | None:
     """Log confirmed, unplayed ``season`` games of rounds starting within ``round_lead`` that are
     not logged at this model version yet. Returns the rows added."""
 

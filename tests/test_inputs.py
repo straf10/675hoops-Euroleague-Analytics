@@ -8,7 +8,8 @@ import pytest
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.inputs import INPUT_COLUMNS, backfill_rows, elo_strings
 from eurohoops.models.elo import prepare, replay_with_ratings, win_probability
-from eurohoops.predict import logged_keys, predict_upcoming
+from eurohoops.predict import predict_upcoming
+from eurohoops.shadow_log import logged_keys
 from tests.conftest import make_games
 
 NOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)  # round 1 tips off 18:00-18:30 the same day

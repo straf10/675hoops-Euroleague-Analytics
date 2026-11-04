@@ -1,4 +1,5 @@
-"""Golden logs: each shadow model's log, byte for byte, on a fixed synthetic league and clock.
+"""Golden logs: the Elo log (with its inputs snapshot) and each shadow model's log, byte for
+byte, on a fixed synthetic league and clock.
 
 Written before the shadow-log refactor and kept after it: the refactor must not change a column,
 a rounding or a version string (rule 1: the public logs are append-only). The goldens are the
@@ -11,7 +12,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
+from eurohoops.eval.backtest import TunedModel
 from eurohoops.live_eloc import LiveEloc, predict_upcoming_eloc
 from eurohoops.live_eloh import LiveEloh, predict_upcoming_eloh
 from eurohoops.live_m1 import LiveM1, predict_upcoming_m1
@@ -20,6 +23,7 @@ from eurohoops.live_m5inj import predict_upcoming_m5inj
 from eurohoops.models.elo import EloParams
 from eurohoops.models.elo_cal import Calibration
 from eurohoops.models.team_eff import DecayParams, MarginModel
+from eurohoops.predict import predict_upcoming
 from tests import eloc_synthetic as syn
 from tests.conftest import make_games, make_team_games
 from tests.m5_synthetic import fake_player_part
@@ -50,6 +54,27 @@ def elo_league() -> tuple[pd.DataFrame, datetime]:
     games.loc[open_round, "played"] = False
     first = games.loc[open_round, "tipoff_utc"].min()
     return games, (first - pd.Timedelta(hours=10)).to_pydatetime().replace(tzinfo=UTC)
+
+
+def test_elo_log_and_its_inputs_snapshot(
+    tmp_path: Path, tuned: TunedModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(TunedModel, "version", lambda _self: "0.0.0+elo.golden")
+    games, now = elo_league()
+    log, inputs = tmp_path / "elo.csv", tmp_path / "elo_inputs.csv"
+    added = predict_upcoming(
+        games,
+        tuned,
+        log_path=log,
+        season=ELO_SEASON,
+        replay_from=2007,
+        round_lead=timedelta(hours=48),
+        clock=lambda: now,
+        inputs_log=inputs,
+    )
+    assert added == 4
+    check_golden("elo", log)
+    check_golden("elo_inputs", inputs)
 
 
 def test_m1_log(tmp_path: Path) -> None:
@@ -153,6 +178,6 @@ def test_eloh_log(tmp_path: Path) -> None:
 
 
 def test_goldens_are_not_empty() -> None:
-    for name in ("m1", "m5", "m5inj", "eloc", "eloh"):
+    for name in ("elo", "elo_inputs", "m1", "m5", "m5inj", "eloc", "eloh"):
         text = (GOLDEN / f"{name}.csv").read_text(encoding="utf-8")
         assert len(text.splitlines()) > 1, name
