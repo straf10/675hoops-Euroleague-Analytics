@@ -17,10 +17,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from eurohoops.logs import TIME_FORMAT, append_rows
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.team_eff import DecayParams, MarginModel, forecast, prepare_history
-from eurohoops.predict import logged_keys, refuse_late, upcoming_games
+from eurohoops.shadow_log import append_shadow_log
 
 M1_LOG_COLUMNS = (
     "game_id",
@@ -94,6 +93,26 @@ def m1_forecasts(
     )
 
 
+def forecast_strings(
+    *,
+    p_home: float,
+    margin: float,
+    total: float,
+    margin_sigma: float,
+    margin_df: float | None,
+    total_sigma: float,
+) -> dict[str, str]:
+    """The forecast columns of an M1-shaped log row (M1, M5 and M5-INJ share them), as logged."""
+    return {
+        "p_home": f"{p_home:.4f}",
+        "exp_margin": f"{margin:.2f}",
+        "exp_total": f"{total:.2f}",
+        "margin_sigma": f"{margin_sigma:.4f}",
+        "margin_df": "" if margin_df is None or np.isnan(margin_df) else f"{margin_df:g}",
+        "total_sigma": f"{total_sigma:.4f}",
+    }
+
+
 def predict_upcoming_m1(
     games: pd.DataFrame,
     team_games: pd.DataFrame,
@@ -109,46 +128,34 @@ def predict_upcoming_m1(
     ``round_lead`` that are not logged at this model version yet; games without a forecast (no box
     lines) are skipped.
     """
-    if not model.gate_passed:
-        log.info("M1 did not pass its validation gate: not logged")
-        return 0
-    now = clock()
-    fc = m1_forecasts(games, team_games, model, replay_from)
-    g = fc.games
-    upcoming = upcoming_games(g, season, now, round_lead)
-    missing = upcoming & np.isnan(fc.margin)
-    if missing.any():
-        log.warning("M1: %d upcoming games have no forecast (no box lines)", int(missing.sum()))
-    logged = logged_keys(log_path)
-    records = g.to_dict("records")
-    targets = [
-        int(i)
-        for i in np.flatnonzero(upcoming & ~missing)
-        if (str(records[i]["game_id"]), model.version) not in logged
-    ]
-    predicted_at = clock()
-    refuse_late(predicted_at, [(records[i]["game_id"], records[i]["tipoff_utc"]) for i in targets])
-    rows = [
-        {
-            "game_id": records[i]["game_id"],
-            "season": records[i]["season"],
-            "round": records[i]["round"],
-            "phase": records[i]["phase"],
-            "tipoff_utc": records[i]["tipoff_utc"].strftime(TIME_FORMAT),
-            "home": records[i]["home"],
-            "away": records[i]["away"],
-            "p_home": f"{fc.p_home[i]:.4f}",
-            "exp_margin": f"{fc.margin[i]:.2f}",
-            "exp_total": f"{fc.total[i]:.2f}",
-            "margin_sigma": f"{fc.margin_sigma[i]:.4f}",
-            "margin_df": "" if model.margin.df is None else f"{model.margin.df:g}",
-            "total_sigma": f"{model.totals_sigma:.4f}",
-            "model": "m1",
-            "model_version": model.version,
-            "predicted_at_utc": predicted_at.strftime(TIME_FORMAT),
+
+    def forecast(due: pd.DataFrame) -> dict[str, dict[str, str]]:
+        fc = m1_forecasts(games, team_games, model, replay_from)
+        index = {str(g): i for i, g in enumerate(fc.games["game_id"])}
+        wanted = [index[g] for g in due["game_id"].astype(str) if g in index]
+        return {
+            str(fc.games["game_id"].iloc[i]): forecast_strings(
+                p_home=fc.p_home[i],
+                margin=fc.margin[i],
+                total=fc.total[i],
+                margin_sigma=fc.margin_sigma[i],
+                margin_df=model.margin.df,
+                total_sigma=model.totals_sigma,
+            )
+            for i in wanted
+            if not np.isnan(fc.margin[i])
         }
-        for i in targets
-    ]
-    append_rows(log_path, M1_LOG_COLUMNS, rows)
-    log.info("M1: %d rows appended to %s", len(rows), log_path)
-    return len(rows)
+
+    return append_shadow_log(
+        games,
+        forecast,
+        tag="m1",
+        label="M1",
+        version=model.version,
+        columns=M1_LOG_COLUMNS,
+        log_path=log_path,
+        season=season,
+        round_lead=round_lead,
+        clock=clock,
+        skip_reason=None if model.gate_passed else "M1 did not pass its gate: not logged",
+    )

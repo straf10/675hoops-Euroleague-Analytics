@@ -1,0 +1,179 @@
+"""The shadow-log module's interface: what is due, what is stamped, when it refuses.
+
+A fake model supplies the forecast, so these tests do not depend on any real model; the golden
+logs (tests/test_shadow_log_golden.py) pin each model's bytes."""
+
+import csv
+import logging
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+from eurohoops.predict import LatePredictionError
+from eurohoops.shadow_log import append_shadow_log
+
+COLUMNS = (
+    "game_id",
+    "season",
+    "round",
+    "phase",
+    "tipoff_utc",
+    "home",
+    "away",
+    "p_home",
+    "model",
+    "model_version",
+    "predicted_at_utc",
+)
+SEASON = 2026
+NOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
+LEAD = timedelta(hours=48)
+
+
+def league() -> pd.DataFrame:
+    """Round 1 (two confirmed, unplayed games, 10 h out), round 2 far out, one played game."""
+    tip = pd.Timestamp("2026-10-01T18:00:00Z")
+    rows = [
+        ("G1", 1, tip, False),
+        ("G2", 1, tip + pd.Timedelta(hours=2), False),
+        ("G3", 2, tip + pd.Timedelta(days=7), False),
+        ("G0", 1, tip - pd.Timedelta(days=30), True),
+    ]
+    return pd.DataFrame(
+        {
+            "game_id": [r[0] for r in rows],
+            "season": SEASON,
+            "round": [r[1] for r in rows],
+            "phase": "RS",
+            "tipoff_utc": [r[2] for r in rows],
+            "home": "AAA",
+            "away": "BBB",
+            "played": [r[3] for r in rows],
+            "confirmed_date": True,
+        }
+    )
+
+
+def forecast_all(due: pd.DataFrame) -> Mapping[str, Mapping[str, str]]:
+    return {str(g): {"p_home": "0.6000"} for g in due["game_id"]}
+
+
+def run(
+    log: Path,
+    forecast: object = forecast_all,
+    *,
+    version: str = "v1",
+    at: datetime = NOW,
+    skip_reason: str | None = None,
+) -> int:
+    return append_shadow_log(
+        league(),
+        forecast,  # type: ignore[arg-type]
+        tag="fake",
+        label="FAKE",
+        version=version,
+        columns=COLUMNS,
+        log_path=log,
+        season=SEASON,
+        round_lead=LEAD,
+        clock=lambda: at,
+        skip_reason=skip_reason,
+    )
+
+
+def rows(log: Path) -> list[dict[str, str]]:
+    with log.open(newline="", encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def test_logs_the_due_games_of_the_open_round_once(tmp_path: Path) -> None:
+    log = tmp_path / "fake.csv"
+    assert run(log) == 2
+    logged = rows(log)
+    assert [r["game_id"] for r in logged] == ["G1", "G2"]
+    assert {r["model"] for r in logged} == {"fake"} and {r["model_version"] for r in logged} == {
+        "v1"
+    }
+    assert logged[0]["predicted_at_utc"] == "2026-10-01T08:00:00Z"
+    assert logged[0]["tipoff_utc"] == "2026-10-01T18:00:00Z"
+    first = log.read_bytes()
+    assert run(log) == 0  # same version: nothing new
+    assert log.read_bytes() == first
+
+
+def test_a_new_version_is_logged_beside_the_old_one(tmp_path: Path) -> None:
+    log = tmp_path / "fake.csv"
+    run(log)
+    assert run(log, version="v2") == 2
+    assert [r["model_version"] for r in rows(log)] == ["v1", "v1", "v2", "v2"]
+
+
+def test_the_forecast_is_asked_only_for_due_games_and_only_when_there_are_some(
+    tmp_path: Path,
+) -> None:
+    log = tmp_path / "fake.csv"
+    asked: list[list[str]] = []
+
+    def spy(due: pd.DataFrame) -> Mapping[str, Mapping[str, str]]:
+        asked.append(list(due["game_id"]))
+        return forecast_all(due)
+
+    run(log, spy)
+    run(log, spy)  # everything logged: the forecast is not built again
+    assert asked == [["G1", "G2"]]
+
+
+def test_a_gated_off_model_logs_nothing_and_says_why(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    log = tmp_path / "fake.csv"
+
+    def never(_due: pd.DataFrame) -> Mapping[str, Mapping[str, str]]:
+        raise AssertionError("built a forecast for a gated-off model")
+
+    with caplog.at_level(logging.INFO):
+        assert run(log, never, skip_reason="FAKE did not pass: not logged") == 0
+    assert "FAKE did not pass: not logged" in caplog.text
+    assert not log.exists()
+
+
+def test_a_game_without_a_forecast_is_skipped_with_a_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    log = tmp_path / "fake.csv"
+
+    def only_g2(due: pd.DataFrame) -> Mapping[str, Mapping[str, str]]:
+        return {g: v for g, v in forecast_all(due).items() if g == "G2"}
+
+    with caplog.at_level(logging.WARNING):
+        assert run(log, only_g2) == 1
+    assert [r["game_id"] for r in rows(log)] == ["G2"]
+    assert "FAKE: 1 upcoming games have no forecast" in caplog.text
+
+
+def test_a_forecast_with_nothing_to_log_writes_nothing(tmp_path: Path) -> None:
+    log = tmp_path / "fake.csv"
+    assert run(log, lambda _due: None) == 0
+    assert not log.exists()
+
+
+def test_a_stamp_at_or_after_a_tipoff_is_refused_and_nothing_is_written(tmp_path: Path) -> None:
+    log = tmp_path / "fake.csv"
+    reads = iter([NOW, NOW + timedelta(hours=11)])  # select 10 h before, stamp 1 h after tip-off
+    with pytest.raises(LatePredictionError):
+        append_shadow_log(
+            league(),
+            forecast_all,
+            tag="fake",
+            label="FAKE",
+            version="v1",
+            columns=COLUMNS,
+            log_path=log,
+            season=SEASON,
+            round_lead=LEAD,
+            clock=lambda: next(reads),
+        )
+    assert not log.exists()
