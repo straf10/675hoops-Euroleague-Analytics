@@ -21,11 +21,11 @@ import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.inputs import elo_strings
-from eurohoops.logs import TIME_FORMAT, append_rows
 from eurohoops.models import elo
 from eurohoops.models.elo import EloParams
 from eurohoops.models.eloh import load_deltas
-from eurohoops.predict import LOG_COLUMNS, logged_keys, refuse_late, upcoming_games
+from eurohoops.predict import LOG_COLUMNS
+from eurohoops.shadow_log import append_shadow_log
 
 log = logging.getLogger(__name__)
 
@@ -92,36 +92,24 @@ def predict_upcoming_eloh(
 ) -> int:
     """Log confirmed, unplayed ``season`` games of rounds starting within ``round_lead`` that are
     not logged at this model version yet. Returns the rows added."""
-    now = clock()
-    upcoming = upcoming_games(games, season, now, round_lead)
-    logged = logged_keys(log_path)
-    fresh = np.array([(str(g), model.version) not in logged for g in games["game_id"]], dtype=bool)
-    wanted = games[upcoming & fresh]
-    if wanted.empty:
-        return 0
-    fc = {str(f["game_id"]): f for f in eloh_forecasts(games, model, season).to_dict("records")}
-    ok = [(r, fc[str(r["game_id"])]) for r in wanted.to_dict("records") if str(r["game_id"]) in fc]
-    if len(ok) < len(wanted):
-        log.warning("ELOH: %d upcoming games have no forecast", len(wanted) - len(ok))
-    predicted_at = clock()
-    refuse_late(predicted_at, [(r["game_id"], r["tipoff_utc"]) for r, _ in ok])
-    rows = [
-        {
-            "game_id": r["game_id"],
-            "season": r["season"],
-            "round": r["round"],
-            "phase": r["phase"],
-            "tipoff_utc": r["tipoff_utc"].strftime(TIME_FORMAT),
-            "home": r["home"],
-            "away": r["away"],
-            "p_home": f["p_home"],
-            "exp_margin": f["exp_margin"],
-            "model": "eloh",
-            "model_version": model.version,
-            "predicted_at_utc": predicted_at.strftime(TIME_FORMAT),
+
+    def forecast(due: pd.DataFrame) -> dict[str, dict[str, str]]:
+        fc = {str(f["game_id"]): f for f in eloh_forecasts(games, model, season).to_dict("records")}
+        return {
+            g: {"p_home": str(fc[g]["p_home"]), "exp_margin": str(fc[g]["exp_margin"])}
+            for g in due["game_id"].astype(str)
+            if g in fc
         }
-        for r, f in ok
-    ]
-    append_rows(log_path, LOG_COLUMNS, rows)
-    log.info("ELOH: %d rows appended to %s", len(rows), log_path)
-    return len(rows)
+
+    return append_shadow_log(
+        games,
+        forecast,
+        tag="eloh",
+        label="ELOH",
+        version=model.version,
+        columns=LOG_COLUMNS,
+        log_path=log_path,
+        season=season,
+        round_lead=round_lead,
+        clock=clock,
+    )

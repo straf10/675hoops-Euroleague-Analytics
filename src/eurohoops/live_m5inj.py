@@ -19,15 +19,14 @@ from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from eurohoops.config import M5, M5INJ_MAX_SNAPSHOT_AGE_HOURS, M5Backtest
 from eurohoops.eval.common import tagged_version
 from eurohoops.eval.m5_backtest import predict_games
 from eurohoops.live_m1 import M1_LOG_COLUMNS
-from eurohoops.live_m5 import Build, LiveM5, live_spec
-from eurohoops.logs import TIME_FORMAT, append_rows
+from eurohoops.live_m5 import Build, LiveM5, live_spec, m5_strings
+from eurohoops.logs import TIME_FORMAT
 from eurohoops.models.availability import (
     RosterPlayer,
     apply_out,
@@ -36,7 +35,7 @@ from eurohoops.models.availability import (
     out_players,
 )
 from eurohoops.models.elo import FloatArray
-from eurohoops.predict import logged_keys, refuse_late, upcoming_games
+from eurohoops.shadow_log import append_shadow_log
 
 M5INJ_LOG_COLUMNS = M1_LOG_COLUMNS  # the same shape as M5's
 # The declared availability rule (docs/models/m5_inj.md). v2 adds the snapshot maximum age.
@@ -71,76 +70,50 @@ def predict_upcoming_m5inj(
         log.info("M5-INJ: M5 did not pass its validation gate: not logged")
         return 0
     cutoff = clock().replace(microsecond=0)  # the logged stamp's precision, so replays agree
-    upcoming = upcoming_games(games, season, cutoff, round_lead)
     version = m5inj_version(model.version)
-    logged = logged_keys(log_path)
-    fresh = np.array([(str(g), version) not in logged for g in games["game_id"]], dtype=bool)
-    wanted = games[upcoming & fresh]
-    if wanted.empty:
-        return 0
-    matched = match_injuries(injuries, roster)
-    stamp = latest_snapshot(matched, cutoff)
-    max_age = timedelta(hours=M5INJ_MAX_SNAPSHOT_AGE_HOURS)
-    if stamp is None:
-        log.warning("m5inj: no injury snapshot before %s; no M5-INJ rows written", cutoff)
-        return 0
-    age = pd.Timestamp(cutoff) - stamp
-    if age > max_age:
-        log.warning(
-            "m5inj: latest injury snapshot %s is %.1f h old (> %d h); no M5-INJ rows written",
-            stamp.strftime(TIME_FORMAT),
-            age.total_seconds() / 3600,
-            M5INJ_MAX_SNAPSHOT_AGE_HOURS,
-        )
-        return 0
-    out = out_players(matched, cutoff)
-    log.info("M5-INJ: %d players Out at the cutoff %s", len(out), cutoff)
-    target_ids = set(wanted["game_id"].astype(str))
-    inputs, player_part = build()
 
-    def player_part_out(frame: pd.DataFrame, shares: pd.DataFrame) -> FloatArray:
-        # M5's player part on the projected shares with the Out players zeroed (target games only)
-        return player_part(frame, apply_out(shares, target_ids, out))
+    def forecast(due: pd.DataFrame) -> dict[str, dict[str, str]] | None:
+        matched = match_injuries(injuries, roster)
+        stamp = latest_snapshot(matched, cutoff)
+        max_age = timedelta(hours=M5INJ_MAX_SNAPSHOT_AGE_HOURS)
+        if stamp is None:
+            log.warning("m5inj: no injury snapshot before %s; no M5-INJ rows written", cutoff)
+            return None
+        age = pd.Timestamp(cutoff) - stamp
+        if age > max_age:
+            log.warning(
+                "m5inj: latest injury snapshot %s is %.1f h old (> %d h); no M5-INJ rows written",
+                stamp.strftime(TIME_FORMAT),
+                age.total_seconds() / 3600,
+                M5INJ_MAX_SNAPSHOT_AGE_HOURS,
+            )
+            return None
+        out = out_players(matched, cutoff)
+        log.info("M5-INJ: %d players Out at the cutoff %s", len(out), cutoff)
+        target_ids = set(due["game_id"].astype(str))
+        inputs, player_part = build()
 
-    fc = predict_games(
-        inputs,
-        spec=live_spec(spec, season),
-        player_part=player_part_out,
-        choice=model.choice,
-    ).set_index("game_id")
-    rows_in = wanted.to_dict("records")
-    ok = [
-        r
-        for r in rows_in
-        if str(r["game_id"]) in fc.index
-        and np.isfinite(fc.loc[str(r["game_id"]), ["p_home", "exp_margin", "exp_total"]]).all()
-    ]
-    if len(ok) < len(rows_in):
-        log.warning("M5-INJ: %d upcoming games have no forecast", len(rows_in) - len(ok))
-    refuse_late(cutoff, [(r["game_id"], r["tipoff_utc"]) for r in ok])
-    rows = []
-    for r in ok:
-        f = fc.loc[str(r["game_id"])]
-        rows.append(
-            {
-                "game_id": r["game_id"],
-                "season": r["season"],
-                "round": r["round"],
-                "phase": r["phase"],
-                "tipoff_utc": r["tipoff_utc"].strftime(TIME_FORMAT),
-                "home": r["home"],
-                "away": r["away"],
-                "p_home": f"{f['p_home']:.4f}",
-                "exp_margin": f"{f['exp_margin']:.2f}",
-                "exp_total": f"{f['exp_total']:.2f}",
-                "margin_sigma": f"{f['margin_sigma']:.4f}",
-                "margin_df": "" if np.isnan(f["margin_df"]) else f"{f['margin_df']:g}",
-                "total_sigma": f"{f['total_sigma']:.4f}",
-                "model": "m5inj",
-                "model_version": version,
-                "predicted_at_utc": cutoff.strftime(TIME_FORMAT),
-            }
-        )
-    append_rows(log_path, M5INJ_LOG_COLUMNS, rows)
-    log.info("M5-INJ: %d rows appended to %s", len(rows), log_path)
-    return len(rows)
+        def player_part_out(frame: pd.DataFrame, shares: pd.DataFrame) -> FloatArray:
+            # M5's player part on the projected shares with the Out players zeroed (target games)
+            return player_part(frame, apply_out(shares, target_ids, out))
+
+        fc = predict_games(
+            inputs,
+            spec=live_spec(spec, season),
+            player_part=player_part_out,
+            choice=model.choice,
+        ).set_index("game_id")
+        return m5_strings(fc, due)
+
+    return append_shadow_log(
+        games,
+        forecast,
+        tag="m5inj",
+        label="M5-INJ",
+        version=version,
+        columns=M5INJ_LOG_COLUMNS,
+        log_path=log_path,
+        season=season,
+        round_lead=round_lead,
+        clock=lambda: cutoff,  # one read: the stamp is the cutoff the injuries were read at
+    )

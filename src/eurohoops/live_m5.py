@@ -24,9 +24,8 @@ import pandas as pd
 
 from eurohoops.config import M5, M5Backtest
 from eurohoops.eval.m5_backtest import Choice, M5Inputs, PlayerPartFn, predict_games
-from eurohoops.live_m1 import M1_LOG_COLUMNS
-from eurohoops.logs import TIME_FORMAT, append_rows
-from eurohoops.predict import logged_keys, refuse_late, upcoming_games
+from eurohoops.live_m1 import M1_LOG_COLUMNS, forecast_strings
+from eurohoops.shadow_log import append_shadow_log
 
 M5_LOG_COLUMNS = M1_LOG_COLUMNS  # the same shape as M1's: M5 needs nothing more
 
@@ -70,6 +69,26 @@ def m5_forecasts(
     )
 
 
+def m5_strings(fc: pd.DataFrame, due: pd.DataFrame) -> dict[str, dict[str, str]]:
+    """The logged forecast columns of the ``due`` games found in ``fc`` (indexed by ``game_id``);
+    a game without a finite forecast is left out."""
+    by_game = fc.to_dict("index")
+    out: dict[str, dict[str, str]] = {}
+    for game_id in due["game_id"].astype(str):
+        f = by_game.get(game_id)
+        if f is None or not all(np.isfinite(f[c]) for c in ("p_home", "exp_margin", "exp_total")):
+            continue
+        out[game_id] = forecast_strings(
+            p_home=float(f["p_home"]),
+            margin=float(f["exp_margin"]),
+            total=float(f["exp_total"]),
+            margin_sigma=float(f["margin_sigma"]),
+            margin_df=float(f["margin_df"]),
+            total_sigma=float(f["total_sigma"]),
+        )
+    return out
+
+
 def predict_upcoming_m5(
     games: pd.DataFrame,
     model: LiveM5,
@@ -86,52 +105,22 @@ def predict_upcoming_m5(
     games mart; ``build`` makes the harness inputs and the player part, and is called only when
     there is something to log.
     Games without a finite forecast are skipped with a warning."""
-    if not model.gate_passed:
-        log.info("M5 did not pass its validation gate: not logged")
-        return 0
-    now = clock()
-    upcoming = upcoming_games(games, season, now, round_lead)
-    logged = logged_keys(log_path)
-    fresh = np.array([(str(g), model.version) not in logged for g in games["game_id"]], dtype=bool)
-    wanted = games[upcoming & fresh]
-    if wanted.empty:
-        return 0
-    inputs, player_part = build()
-    fc = m5_forecasts(inputs, model, player_part, spec, season).set_index("game_id")
-    rows_in = wanted.to_dict("records")
-    ok = [
-        r
-        for r in rows_in
-        if str(r["game_id"]) in fc.index
-        and np.isfinite(fc.loc[str(r["game_id"]), ["p_home", "exp_margin", "exp_total"]]).all()
-    ]
-    if len(ok) < len(rows_in):
-        log.warning("M5: %d upcoming games have no forecast", len(rows_in) - len(ok))
-    predicted_at = clock()
-    refuse_late(predicted_at, [(r["game_id"], r["tipoff_utc"]) for r in ok])
-    rows = []
-    for r in ok:
-        f = fc.loc[str(r["game_id"])]
-        rows.append(
-            {
-                "game_id": r["game_id"],
-                "season": r["season"],
-                "round": r["round"],
-                "phase": r["phase"],
-                "tipoff_utc": r["tipoff_utc"].strftime(TIME_FORMAT),
-                "home": r["home"],
-                "away": r["away"],
-                "p_home": f"{f['p_home']:.4f}",
-                "exp_margin": f"{f['exp_margin']:.2f}",
-                "exp_total": f"{f['exp_total']:.2f}",
-                "margin_sigma": f"{f['margin_sigma']:.4f}",
-                "margin_df": "" if np.isnan(f["margin_df"]) else f"{f['margin_df']:g}",
-                "total_sigma": f"{f['total_sigma']:.4f}",
-                "model": "m5",
-                "model_version": model.version,
-                "predicted_at_utc": predicted_at.strftime(TIME_FORMAT),
-            }
-        )
-    append_rows(log_path, M5_LOG_COLUMNS, rows)
-    log.info("M5: %d rows appended to %s", len(rows), log_path)
-    return len(rows)
+
+    def forecast(due: pd.DataFrame) -> dict[str, dict[str, str]]:
+        inputs, player_part = build()
+        fc = m5_forecasts(inputs, model, player_part, spec, season).set_index("game_id")
+        return m5_strings(fc, due)
+
+    return append_shadow_log(
+        games,
+        forecast,
+        tag="m5",
+        label="M5",
+        version=model.version,
+        columns=M5_LOG_COLUMNS,
+        log_path=log_path,
+        season=season,
+        round_lead=round_lead,
+        clock=clock,
+        skip_reason=None if model.gate_passed else "M5 did not pass its gate: not logged",
+    )

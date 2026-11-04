@@ -20,12 +20,12 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import ELOC_LIVE_ENABLED, Competition
-from eurohoops.logs import TIME_FORMAT, append_rows
 from eurohoops.models import elo
 from eurohoops.models.elo import EloParams
 from eurohoops.models.elo_cal import Calibration, apply
 from eurohoops.models.elor import margin_scales
-from eurohoops.predict import LOG_COLUMNS, logged_keys, refuse_late, upcoming_games
+from eurohoops.predict import LOG_COLUMNS
+from eurohoops.shadow_log import append_shadow_log
 
 log = logging.getLogger(__name__)
 
@@ -100,46 +100,30 @@ def predict_upcoming_eloc(
     """Log confirmed, unplayed ``season`` games of rounds starting within ``round_lead`` that are
     not logged at this model version yet. Returns the rows added. Nothing is logged unless the CV
     passed."""
-    if not model.passed:
-        log.info("ELOC did not pass its shadow criteria: not logged")
-        return 0
-    now = clock()
-    upcoming = upcoming_games(games, season, now, round_lead)
-    logged = logged_keys(log_path)
-    fresh = np.array([(str(g), model.version) not in logged for g in games["game_id"]], dtype=bool)
-    wanted = games[upcoming & fresh]
-    if wanted.empty:
-        return 0
-    fc = {str(f["game_id"]): f for f in eloc_forecasts(games, model, season).to_dict("records")}
-    rows_in = wanted.to_dict("records")
-    ok = [
-        (r, fc[str(r["game_id"])])
-        for r in rows_in
-        if str(r["game_id"]) in fc
-        and np.isfinite(fc[str(r["game_id"])]["p_home"])
-        and np.isfinite(fc[str(r["game_id"])]["exp_margin"])
-    ]
-    if len(ok) < len(rows_in):
-        log.warning("ELOC: %d upcoming games have no forecast", len(rows_in) - len(ok))
-    predicted_at = clock()
-    refuse_late(predicted_at, [(r["game_id"], r["tipoff_utc"]) for r, _ in ok])
-    rows = [
-        {
-            "game_id": r["game_id"],
-            "season": r["season"],
-            "round": r["round"],
-            "phase": r["phase"],
-            "tipoff_utc": r["tipoff_utc"].strftime(TIME_FORMAT),
-            "home": r["home"],
-            "away": r["away"],
-            "p_home": f"{float(f['p_home']):.4f}",
-            "exp_margin": f"{float(f['exp_margin']):.2f}",
-            "model": "eloc",
-            "model_version": model.version,
-            "predicted_at_utc": predicted_at.strftime(TIME_FORMAT),
+
+    def forecast(due: pd.DataFrame) -> dict[str, dict[str, str]]:
+        fc = eloc_forecasts(games, model, season).to_dict("records")
+        by_game = {str(f["game_id"]): f for f in fc}
+        wanted = (by_game.get(g) for g in due["game_id"].astype(str))
+        return {
+            str(f["game_id"]): {
+                "p_home": f"{float(f['p_home']):.4f}",
+                "exp_margin": f"{float(f['exp_margin']):.2f}",
+            }
+            for f in wanted
+            if f is not None and np.isfinite(f["p_home"]) and np.isfinite(f["exp_margin"])
         }
-        for r, f in ok
-    ]
-    append_rows(log_path, LOG_COLUMNS, rows)
-    log.info("ELOC: %d rows appended to %s", len(rows), log_path)
-    return len(rows)
+
+    return append_shadow_log(
+        games,
+        forecast,
+        tag="eloc",
+        label="ELOC",
+        version=model.version,
+        columns=LOG_COLUMNS,
+        log_path=log_path,
+        season=season,
+        round_lead=round_lead,
+        clock=clock,
+        skip_reason=None if model.passed else "ELOC did not pass its shadow criteria: not logged",
+    )
