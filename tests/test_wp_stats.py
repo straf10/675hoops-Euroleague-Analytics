@@ -179,6 +179,8 @@ def test_logged_pre_takes_the_elo_row_in_force_at_tip_off(tmp_path: Path) -> Non
             ["E2026_2", "elo", "2026-09-02T16:00:00Z", "2026-09-02T12:00:00Z", 0.41],
         ],
         columns=["game_id", "model", "tipoff_utc", "predicted_at_utc", "p_home"],
+    ).assign(
+        season=2026, round=1, phase="RS", home="AAA", away="BBB", exp_margin=0.0, model_version="v1"
     )
     frame.to_csv(path, index=False)
     assert export.logged_pre(path) == {"E2026_1": 0.60, "E2026_2": 0.41}

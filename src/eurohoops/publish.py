@@ -137,7 +137,7 @@ def short_name(competition: str, code: str, full: str) -> str:
 class Section:
     key: str
     title: str
-    log: pd.DataFrame  # the public prediction log, as read from its CSV
+    log: pd.DataFrame  # the public prediction log (``logs.read_log``)
     scorecard: dict[str, Any]
     backtest: dict[str, Any]  # the live backtest report the log's parameters come from
     games: pd.DataFrame
@@ -153,11 +153,11 @@ def _stamp(ts: pd.Timestamp) -> str:
 
 
 def _logged(section: Section) -> list[dict[Hashable, Any]]:
-    """The pre-registered row per game, joined with the game's current state.
+    """The row shown per game (``logs.displayed_rows``), joined with the game's current state.
 
-    That is the latest row stamped before its tip-off, so a game re-logged before tip-off shows
-    its newest pick. A game with only rows stamped at or after tip-off keeps its earliest one,
-    marked ``late``, and is never scored.
+    That is the pre-registered row, the one the scorecard scores: the latest row stamped before
+    tip-off, of the earliest model version that logged the game. A game with only rows stamped at
+    or after tip-off keeps its earliest one, marked ``late``, and is never scored.
     """
     if section.log.empty:
         return []

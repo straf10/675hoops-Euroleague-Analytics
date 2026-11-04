@@ -19,7 +19,7 @@ from eurohoops.config import (
     Competition,
 )
 from eurohoops.eval.backtest import TunedModel, load_tuned_model
-from eurohoops.logs import TIME_FORMAT
+from eurohoops.logs import TIME_FORMAT, read_log
 from eurohoops.marts import read_games, read_teams
 from eurohoops.models.elo import prepare, season_ratings
 from eurohoops.parse.schemas import validated
@@ -30,25 +30,6 @@ from eurohoops.stats.export import (
 )
 
 T = TypeVar("T")
-
-
-PREDICTION_LOG_SCHEMA = pa.DataFrameSchema(
-    {
-        "game_id": pa.Column(str),
-        "season": pa.Column("int64"),
-        "round": pa.Column("int64"),
-        "phase": pa.Column(str),
-        "tipoff_utc": pa.Column(str),
-        "home": pa.Column(str),
-        "away": pa.Column(str),
-        "p_home": pa.Column("float64", pa.Check.in_range(0.0, 1.0)),
-        "exp_margin": pa.Column("float64"),
-        "model": pa.Column(str),
-        "model_version": pa.Column(str),
-        "predicted_at_utc": pa.Column(str),
-    },
-    strict=False,  # M1 and M5 rows carry extra forecast columns
-)
 
 
 class NotFound(LookupError):
@@ -163,27 +144,8 @@ def _team(comp: Competition, code: str, names: Mapping[str, str]) -> dict[str, s
 
 
 def _read_log(store: Store, relative: Path | None) -> pd.DataFrame:
-    """A prediction log (Elo, M1 or M5); empty when the file is missing or has no rows."""
-    path = None if relative is None else store.path(relative)
-    if path is None or not path.exists() or not path.stat().st_size:
-        return validated(
-            pd.DataFrame(columns=list(PREDICTION_LOG_SCHEMA.columns)), PREDICTION_LOG_SCHEMA
-        )
-    return validated(pd.read_csv(path, dtype={"game_id": str}), PREDICTION_LOG_SCHEMA)
-
-
-def _ordered(log: pd.DataFrame) -> pd.DataFrame:
-    """Rows with ``late`` (stamped at or after tip-off), latest stamp first. A game's counted row
-    is its first on-time row (the latest before tip-off), else its first row (the scorecard's
-    rule, ``eval.scorecard.latest_per_model_game``)."""
-    late = pd.to_datetime(log["predicted_at_utc"], utc=True) >= pd.to_datetime(
-        log["tipoff_utc"], utc=True
-    )
-    stamped = pd.to_datetime(log["predicted_at_utc"], utc=True)
-    ordered = log.assign(late=late, _stamped=stamped).sort_values(
-        ["late", "_stamped"], ascending=[True, False], kind="stable"
-    )
-    return ordered.drop(columns="_stamped")
+    """A forecast log under the store (``logs.read_log``); no rows when it is missing."""
+    return read_log(None if relative is None else store.path(relative))
 
 
 def _forecast(row: Mapping[Any, Any]) -> dict[str, Any]:

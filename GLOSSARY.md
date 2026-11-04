@@ -12,14 +12,14 @@ A model's own `predictions/<comp>_<id>_<season>.csv`, written next to the pre-re
 _Avoid_: shadow file
 
 **Pre-registered row**:
-A game's latest log row stamped before its tip-off, from the earliest model version that logged the game. One row per game is scored.
+A game's latest log row stamped before its tip-off, from the earliest model version that logged the game (the version of its first such row). The site shows it, and it is the one row per game scored, when provable. Decided only in `logs.py` (`pre_registered_rows`, `scored_rows`, `displayed_rows`); stamps compare as UTC instants.
 
 **Provable row**:
-A row stamped before tip-off that also reached the public log before tip-off.
+A row stamped before tip-off that also reached the public log before tip-off. A game whose pre-registered row is not provable is shown but not scored; an earlier provable row does not stand in for it.
 _Avoid_: valid row (a valid row is only stamped before tip-off)
 
 **Late row**:
-A row stamped at or after its game's tip-off. Shown on the site as "Logged late"; not scored.
+A row stamped at or after its game's tip-off. Never scored. A game with only late rows shows its earliest one, as "Logged late".
 
 **Live season**:
 The season being forecast (2026-27).

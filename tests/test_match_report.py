@@ -314,7 +314,7 @@ def _inputs(**overrides: object) -> pd.DataFrame:
 
 
 def test_model_block_is_the_pre_registered_snapshot() -> None:
-    block = mr.model_block(_inputs(), "G4", TIP)
+    block = mr.model_block(_inputs(), "G4")
     assert block["available"] is True and block["reason"] is None
     assert block["home_rating"] == 1612.4
     assert block["diff"] == 114.4
@@ -325,11 +325,11 @@ def test_model_block_is_the_pre_registered_snapshot() -> None:
 
 
 def test_missing_snapshot_is_unavailable_with_a_reason() -> None:
-    no_file = mr.model_block(None, "G4", TIP)
+    no_file = mr.model_block(None, "G4")
     assert no_file["available"] is False and "no model-input snapshot" in no_file["reason"]
-    other = mr.model_block(_inputs(game_id="G9"), "G4", TIP)
+    other = mr.model_block(_inputs(game_id="G9"), "G4")
     assert other["available"] is False and other["reason"]
-    late = mr.model_block(_inputs(predicted_at_utc="2026-10-23T08:00:00Z"), "G4", TIP)
+    late = mr.model_block(_inputs(predicted_at_utc="2026-10-23T08:00:00Z"), "G4")
     assert late["available"] is False and "after tip-off" in late["reason"]
 
 

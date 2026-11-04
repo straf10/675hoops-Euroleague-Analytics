@@ -227,7 +227,7 @@ def match_report(store: Store, competition: str, game_id: str) -> dict[str, Any]
             "home": {"code": show(home), "name": names.get(home, home)},
             "away": {"code": show(away), "name": names.get(away, away)},
             "result": result,
-            "model": mr.model_block(_inputs_frame(store, comp), game_id, tipoff),
+            "model": mr.model_block(_inputs_frame(store, comp), game_id),
             "other_models": mr.other_models(
                 {model: _pre_rows(store, comp, model).get(game_id) for model in LOG_MODELS}
             ),

@@ -16,7 +16,6 @@ from eurohoops.api.read.store import (
     _live_model,
     _mart,
     _names,
-    _ordered,
     _read_log,
     _required,
     _stamp,
@@ -31,7 +30,7 @@ from eurohoops.config import (
     Competition,
 )
 from eurohoops.eval.forecasts import build_forecasts
-from eurohoops.logs import displayed_rows
+from eurohoops.logs import displayed_rows, is_late
 from eurohoops.marts import data_volume
 from eurohoops.publish import Section, site_data
 from eurohoops.shadow_log import is_active
@@ -59,11 +58,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
         games = _games(store, comp)
         scorecard = _required(store, comp.scorecard, f"the {comp.name} live scorecard")
         backtest = _required(store, comp.live_backtest.report, f"the {comp.name} Elo backtest")
-        log = (
-            pd.read_csv(store.path(comp.prediction_log), dtype={"game_id": str})
-            if store.path(comp.prediction_log).exists()
-            else pd.DataFrame()
-        )
+        log = _read_log(store, comp.prediction_log)
         model = _live_model(store, comp)
         sections.append(
             Section(
@@ -137,8 +132,9 @@ def upcoming_games(store: Store, competition: str, now: datetime) -> dict[str, A
 
 
 def prediction(store: Store, game_id: str) -> dict[str, Any]:
-    """Every logged forecast of one game, per model: the pre-registered row (the first stamped
-    before tip-off; ``late`` when none was) and the rows logged after it."""
+    """Every logged forecast of one game, per model: the row the site shows
+    (``logs.displayed_rows``: the pre-registered row, else the earliest late row, ``late``) and
+    the game's other rows, oldest first."""
     for comp in (EUROLEAGUE,):
         logs = {
             "elo": comp.prediction_log,
@@ -150,14 +146,21 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
         head: Mapping[Any, Any] | None = None
         for model, relative in logs.items():
             log = _read_log(store, relative)
-            rows = _ordered(log[log["game_id"] == game_id])
+            rows = log[log["game_id"] == game_id]
             if rows.empty:
                 continue
-            records = rows.to_dict("records")
-            head = head or records[0]
+            picked = displayed_rows(rows)  # keeps the log's index
+            (shown,) = picked.to_dict("records")
+            others = rows.drop(index=picked.index)
+            others = others.assign(late=is_late(others)).sort_values(
+                "predicted_at_utc", key=lambda t: pd.to_datetime(t, utc=True), kind="stable"
+            )
+            head = head or shown
             models[model] = {
-                "pre_registered": {**_forecast(records[0]), "late": bool(records[0]["late"])},
-                "later": [{**_forecast(r), "late": bool(r["late"])} for r in records[1:]],
+                "pre_registered": {**_forecast(shown), "late": bool(shown["late"])},
+                "later": [
+                    {**_forecast(r), "late": bool(r["late"])} for r in others.to_dict("records")
+                ],
             }
         if head is not None:
             return {

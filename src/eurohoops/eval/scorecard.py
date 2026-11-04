@@ -11,77 +11,24 @@ import pandas as pd
 from eurohoops.eval.backtest import TunedModel, totals_scores
 from eurohoops.eval.metrics import crps_normal, crps_student_t, per_game_log_loss, score
 from eurohoops.live_m1 import M1_LOG_COLUMNS
-from eurohoops.logs import TIME_FORMAT
+from eurohoops.logs import (
+    TIME_FORMAT,
+    is_late,
+    not_provable,
+    pre_registered_rows,
+    read_log,
+    scored_rows,
+)
 from eurohoops.models.elo import FloatArray
-from eurohoops.predict import LOG_COLUMNS
 
 ROLLING_WINDOW = 50  # scored games per point of the rolling log loss (PLAN §7 monitoring)
 RESULT_GRACE = timedelta(hours=48)  # a logged game without a result after this is flagged
 
 
-def read_log(log_path: Path) -> pd.DataFrame:
-    return (
-        pd.read_csv(log_path, dtype={"game_id": str, "p_home": float, "exp_margin": float})
-        if log_path.exists()
-        else pd.DataFrame(columns=list(LOG_COLUMNS))
-    )
-
-
-def public_at(predicted_at: pd.Series, manual_pushes: Sequence[datetime]) -> pd.Series:
-    """When each row became public: the first manual push at or after its stamp, else its stamp."""
-    public = predicted_at.copy()
-    for pushed in sorted(manual_pushes, reverse=True):
-        public = public.where(predicted_at > pd.Timestamp(pushed), pd.Timestamp(pushed))
-    return public
-
-
-def not_provable(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.Series:
-    """Rows that were stamped before tip-off but only became public at or after it."""
-    predicted_at = pd.to_datetime(log["predicted_at_utc"], utc=True)
-    tipoff = pd.to_datetime(log["tipoff_utc"], utc=True)
-    return (predicted_at < tipoff) & (public_at(predicted_at, manual_pushes) >= tipoff)
-
-
-def latest_per_model_game(rows: pd.DataFrame) -> pd.DataFrame:
-    """One row per (model_version, game): the latest stamped one.
-
-    ``rows`` must already be stamped before tip-off. A game forecast again before its tip-off
-    counts at its latest such row; a game logged by several model versions keeps one row per
-    version, and the caller picks among versions.
-    """
-    stamped = pd.to_datetime(rows["predicted_at_utc"], utc=True)
-    latest = rows.assign(_stamped=stamped).sort_values("_stamped", kind="stable")
-    return latest.drop_duplicates(["model_version", "game_id"], keep="last").drop(
-        columns="_stamped"
-    )
-
-
-def provable_rows(log: pd.DataFrame, manual_pushes: Sequence[datetime]) -> pd.DataFrame:
-    """The pre-registered row per game: the latest provable row stamped before its tip-off, of the
-    earliest model version that logged the game (``latest_per_model_game``). Rows that became
-    public only at or after tip-off are left out. The promotion test, the forecasts and every
-    live section use this selection."""
-    valid = log[
-        pd.to_datetime(log["predicted_at_utc"], utc=True)
-        < pd.to_datetime(log["tipoff_utc"], utc=True)
-    ]
-    kept = valid[~not_provable(valid, manual_pushes)]
-    latest = latest_per_model_game(kept)
-    return latest.sort_values("predicted_at_utc").drop_duplicates("game_id", keep="first")
-
-
 def _scored(rows: pd.DataFrame, games: pd.DataFrame, model: TunedModel) -> pd.DataFrame:
-    """Each game's row joined with its result, in tip-off order, with B0 alongside.
-
-    The row is the latest one before tip-off of the game's earliest model version (see
-    ``latest_per_model_game``).
-    """
-    first = (
-        latest_per_model_game(rows)
-        .sort_values("predicted_at_utc")
-        .drop_duplicates("game_id", keep="first")
-    )
-    scored = first[["game_id", "p_home", "exp_margin"]].merge(
+    """Each game's row (``rows``: one per game) joined with its result, in tip-off order, with B0
+    alongside."""
+    scored = rows[["game_id", "p_home", "exp_margin"]].merge(
         games.loc[
             games["played"] & ~games["forfeit"],
             ["game_id", "season", "tipoff_utc", "home_score", "away_score", "neutral"],
@@ -233,19 +180,11 @@ def m1_section(
     *,
     manual_pushes: Sequence[datetime] = (),
 ) -> dict[str, Any]:
-    """Live M1 scores: its log's pre-registered row per finished game (``provable_rows``), with
+    """Live M1 scores: its log's scored row per finished game (``logs.scored_rows``), with
     the Elo headline forecast of the same game alongside (``elo``: scored Elo rows). ``name`` keys
     the model's blocks (``"m5"`` scores the shadow M5 log, which has the same columns)."""
-    log = (
-        pd.read_csv(m1_log_path, dtype={"game_id": str})
-        if m1_log_path.exists()
-        else pd.DataFrame(columns=list(M1_LOG_COLUMNS))
-    )
-    valid = log[
-        pd.to_datetime(log["predicted_at_utc"], utc=True)
-        < pd.to_datetime(log["tipoff_utc"], utc=True)
-    ]
-    first = provable_rows(log, manual_pushes)
+    log = read_log(m1_log_path, M1_LOG_COLUMNS)
+    first = scored_rows(log, manual_pushes)
     finished = games.loc[
         games["played"] & ~games["forfeit"],
         ["game_id", "tipoff_utc", "home_score", "away_score"],
@@ -288,7 +227,7 @@ def m1_section(
     ids, tipoffs = scored["game_id"].tolist(), scored["tipoff_utc"].tolist()
     return {
         "rows_in_log": len(log),
-        "rows_excluded_late": len(log) - len(valid),
+        "rows_excluded_late": int(is_late(log).sum()),
         name: metrics,
         "same_games_as_elo": {
             "n": len(both),
@@ -314,19 +253,17 @@ def trial_section(
     log_path: Path,
     games: pd.DataFrame,
     elo: pd.DataFrame,
+    name: str,
     *,
     manual_pushes: Sequence[datetime] = (),
 ) -> dict[str, Any]:
-    """A trial model's live scores (ELOH's shadow log): its pre-registered row per finished game
-    (``provable_rows``), scored like the headline (log loss, Brier, hit rate = accuracy), with
+    """A trial model's live scores (ELOH's shadow log): its scored row per finished game
+    (``logs.scored_rows``), scored like the headline (log loss, Brier, hit rate = accuracy), with
     Elo's headline forecast of the same games alongside. Reported only: never the headline, a
-    decision or a site forecast. ``elo``: the scored Elo rows of ``build_scorecard``."""
+    decision or a site forecast. ``elo``: the scored Elo rows of ``build_scorecard``; ``name``:
+    the model's tag, which keys its log loss on the shared games."""
     log = read_log(log_path)
-    valid = log[
-        pd.to_datetime(log["predicted_at_utc"], utc=True)
-        < pd.to_datetime(log["tipoff_utc"], utc=True)
-    ]
-    first = provable_rows(log, manual_pushes)
+    first = scored_rows(log, manual_pushes)
     finished = games.loc[
         games["played"] & ~games["forfeit"],
         ["game_id", "tipoff_utc", "home_score", "away_score"],
@@ -355,11 +292,11 @@ def trial_section(
     return {
         "trial": True,
         "rows_in_log": len(log),
-        "rows_excluded_late": len(log) - len(valid),
+        "rows_excluded_late": int(is_late(log).sum()),
         "metrics": metrics,
         "same_games_as_elo": {
             "n": len(both),
-            "elor_log_loss": mean_loss("p_home"),
+            f"{name}_log_loss": mean_loss("p_home"),
             "elo_log_loss": mean_loss("p_elo"),
         },
     }
@@ -380,28 +317,24 @@ def build_scorecard(
 ) -> dict[str, Any]:
     """Score logged games that have finished; a missing log or no finished games gives n=0.
 
-    Only rows stamped strictly before tip-off count. A game forecast again before tip-off counts
-    at its latest valid row of its model version; if several model versions logged it, the
-    earliest version's row is the pre-registered one. The headline (``elo``/``b0``)
-    also drops rows that became public only after tip-off; ``all_rows`` keeps them. The rolling
-    window, the warnings and the market column (only with ``odds_path``) use the headline rows.
+    Each game counts at its pre-registered row (``logs.pre_registered_rows``): the latest row
+    stamped before tip-off, of the earliest model version that logged it; late rows never count.
+    The headline (``elo``/``b0``) scores it only when it is provable (``logs.scored_rows``);
+    ``all_rows`` scores it either way, and ``games_not_provable`` lists the games it drops. The
+    rolling window, the warnings and the market column (only with ``odds_path``) use the headline.
     """
     log = read_log(log_path)
-    valid = log[
-        pd.to_datetime(log["predicted_at_utc"], utc=True)
-        < pd.to_datetime(log["tipoff_utc"], utc=True)
-    ]
-    hidden = not_provable(valid, manual_pushes)
-    provable_games = set(valid.loc[~hidden, "game_id"])
-    headline = _scored(valid[~hidden], games, model)
+    pre_registered = pre_registered_rows(log)
+    provable = scored_rows(log, manual_pushes)
+    headline = _scored(provable, games, model)
     rolling = rolling_log_loss(headline)
     return {
         "rows_in_log": len(log),
-        "rows_excluded_late": len(log) - len(valid),
-        "rows_not_provable": int(hidden.sum()),
-        "games_not_provable": sorted(set(valid["game_id"]) - provable_games),
+        "rows_excluded_late": int(is_late(log).sum()),
+        "rows_not_provable": int(not_provable(log, manual_pushes).sum()),
+        "games_not_provable": sorted(set(pre_registered["game_id"]) - set(provable["game_id"])),
         **_metrics(headline, model),
-        "all_rows": _metrics(_scored(valid, games, model), model),
+        "all_rows": _metrics(_scored(pre_registered, games, model), model),
         "rolling": {"window": ROLLING_WINDOW, "series": rolling},
         "warnings": monitoring_warnings(rolling, log, games, now),
         "market": None if odds_path is None else market_scores(headline, odds_path),
@@ -432,7 +365,9 @@ def build_scorecard(
             {}
             if eloh_log_path is None
             else {
-                "eloh": trial_section(eloh_log_path, games, headline, manual_pushes=manual_pushes)
+                "eloh": trial_section(
+                    eloh_log_path, games, headline, "eloh", manual_pushes=manual_pushes
+                )
             }
         ),
     }

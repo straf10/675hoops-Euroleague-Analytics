@@ -9,7 +9,7 @@ import pytest
 
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.metrics import crps_normal
-from eurohoops.eval.scorecard import build_scorecard, public_at, rolling_log_loss
+from eurohoops.eval.scorecard import build_scorecard, rolling_log_loss
 from eurohoops.live_m1 import M1_LOG_COLUMNS
 from eurohoops.odds import ODDS_COLUMNS
 from eurohoops.predict import LOG_COLUMNS
@@ -108,15 +108,6 @@ def test_rows_pushed_after_tipoff_leave_the_headline(tmp_path: Path, tuned: Tune
     assert card["all_rows"]["elo"]["log_loss"] == pytest.approx(
         -(math.log(0.8) + math.log(0.4)) / 2, abs=1e-6
     )
-
-
-def test_public_at_takes_the_first_push_at_or_after_the_stamp() -> None:
-    stamps = pd.to_datetime(
-        pd.Series(["2026-10-01T08:00:00Z", "2026-10-01T10:00:00Z", "2026-10-01T13:00:00Z"]),
-        utc=True,
-    )
-    pushes = (datetime(2026, 10, 1, 12, tzinfo=UTC), datetime(2026, 10, 1, 10, tzinfo=UTC))
-    assert public_at(stamps, pushes).dt.hour.tolist() == [10, 10, 13]
 
 
 def test_totals_baseline_and_margin_crps(tmp_path: Path, tuned: TunedModel) -> None:
