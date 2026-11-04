@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from eurohoops.api.readmodel import _ordered
+from eurohoops.api.read.store import _ordered
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.scorecard import _scored, latest_per_model_game, provable_rows
 from eurohoops.predict import LOG_COLUMNS
@@ -71,7 +71,7 @@ def test_scored_row_is_the_latest_forecast_before_tipoff(tuned: TunedModel) -> N
     assert scored["p_home"].tolist() == [0.8]
 
 
-def test_the_readmodel_counts_the_latest_row_before_tipoff_first() -> None:
+def test_the_read_model_counts_the_latest_row_before_tipoff_first() -> None:
     log = log_of(
         [
             row("G1", "2026-10-01T10:00:00Z", "0.6000"),

@@ -16,7 +16,8 @@ from eurohoops.api.export import (
     write_publish,
     write_stats_files,
 )
-from eurohoops.api.readmodel import Store, stats_inputs
+from eurohoops.api.read.stats import stats_inputs
+from eurohoops.api.read.store import Store
 from eurohoops.cli._shared import utc_now
 from eurohoops.config import EUROLEAGUE, MART_PATH, SITE_DATA
 from eurohoops.stats.downloads import DOWNLOADS_DIR, build_downloads, write_downloads

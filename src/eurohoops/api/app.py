@@ -1,4 +1,4 @@
-"""The read-only API (weeks 16-18, L5): FastAPI over ``api.readmodel``.
+"""The read-only API (weeks 16-18, L5): FastAPI over ``api.read``.
 
 Every route is a GET that returns what a read-model function builds from the marts, logs and
 committed reports; no route fits or computes a model, and the app never writes a file. A
@@ -28,8 +28,13 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 
-from eurohoops.api import readmodel
-from eurohoops.api.readmodel import NotFound, Store
+from eurohoops.api.read import forecasts as read_forecasts
+from eurohoops.api.read import players as read_players
+from eurohoops.api.read import report as read_report
+from eurohoops.api.read import simulation as read_simulation
+from eurohoops.api.read import stats as read_stats
+from eurohoops.api.read import teams as read_teams
+from eurohoops.api.read.store import NotFound, Store, jsonable
 
 TAGS = [
     {"name": "site", "description": "The front page's data: forecasts, results, scorecard, Elo."},
@@ -82,7 +87,7 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
 
     def not_found(_: Request, error: Exception) -> Response:
         missing_reason = cast(NotFound, error)  # registered for NotFound only
-        extra = readmodel.jsonable(missing_reason.extra)
+        extra = jsonable(missing_reason.extra)
         return CompactJSON({"detail": missing_reason.reason, **extra}, 404)
 
     def http_error(_: Request, error: Exception) -> Response:
@@ -95,29 +100,29 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     @app.get("/site", tags=["site"], response_class=IndentedJSON, responses=missing)
     def site() -> Response:
         """``site.json``: forecasts, results, scorecard and Elo."""
-        return IndentedJSON(readmodel.site(store, now()))
+        return IndentedJSON(read_forecasts.site(store, now()))
 
     @app.get("/stats", tags=["stats"], response_class=CompactJSON)
     def stats_index() -> Response:
         """The relative path of every stats file."""
-        return CompactJSON(readmodel.stats_index(store, now()))
+        return CompactJSON(read_stats.stats_index(store, now()))
 
     @app.get("/stats/{path:path}", tags=["stats"], response_class=CompactJSON, responses=missing)
     def stats_file(path: str) -> Response:
         """One stats file, e.g. ``meta.json`` or ``seasons/2025/players.json``."""
-        return CompactJSON(readmodel.stats_file(store, path, now()))
+        return CompactJSON(read_stats.stats_file(store, path, now()))
 
     @app.get("/games/upcoming", tags=["games"], response_class=CompactJSON, responses=missing)
     def upcoming_games(competition: str = "euroleague") -> Response:
         """Unplayed live-season games after now, with their pre-registered forecast."""
-        return CompactJSON(readmodel.upcoming_games(store, competition, now()))
+        return CompactJSON(read_forecasts.upcoming_games(store, competition, now()))
 
     @app.get(
         "/predictions/{game_id}", tags=["games"], response_class=CompactJSON, responses=missing
     )
     def prediction(game_id: str) -> Response:
         """Every logged forecast of a game per model: the pre-registered row, then later rows."""
-        return CompactJSON(readmodel.prediction(store, game_id))
+        return CompactJSON(read_forecasts.prediction(store, game_id))
 
     @app.get(
         "/reports/{competition}/{game_id}",
@@ -128,7 +133,7 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     def match_report(competition: str, game_id: str) -> Response:
         """One game's match report: the model's inputs, the other models and the context
         known before tip-off (a finished game keeps its report)."""
-        return CompactJSON(readmodel.match_report(store, competition, game_id))
+        return CompactJSON(read_report.match_report(store, competition, game_id))
 
     @app.get(
         "/teams/{competition}/{team}/ratings",
@@ -138,7 +143,7 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     )
     def team_ratings(competition: str, team: str) -> Response:
         """The team's published Elo rating, change and rank (source team code)."""
-        return CompactJSON(readmodel.team_ratings(store, competition, team))
+        return CompactJSON(read_teams.team_ratings(store, competition, team))
 
     @app.get(
         "/teams/{competition}/{team}/factors",
@@ -148,14 +153,14 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     )
     def team_factors(competition: str, team: str, season: int | None = None) -> Response:
         """Four factors and schedule strength of a season (the latest with box scores)."""
-        return CompactJSON(readmodel.team_factors(store, competition, team, season))
+        return CompactJSON(read_teams.team_factors(store, competition, team, season))
 
     @app.get(
         "/players/{person_id}", tags=["players"], response_class=CompactJSON, responses=missing
     )
     def player(person_id: str) -> Response:
         """A person's seasons, M3 impact snapshots and M2 shot-making."""
-        return CompactJSON(readmodel.player(store, person_id))
+        return CompactJSON(read_players.player(store, person_id))
 
     @app.get(
         "/players/{person_id}/projection",
@@ -165,7 +170,7 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     )
     def player_projection(person_id: str) -> Response:
         """The M6 projection of a person (a committed report; nothing is fitted here)."""
-        return CompactJSON(readmodel.player_projection(store, person_id))
+        return CompactJSON(read_players.player_projection(store, person_id))
 
     @app.get(
         "/players/{person_id}/similar",
@@ -175,13 +180,13 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     )
     def player_similar(person_id: str) -> Response:
         """The players whose shot and box profile is closest to this person's."""
-        return CompactJSON(readmodel.player_similar(store, person_id))
+        return CompactJSON(read_players.player_similar(store, person_id))
 
     @app.get("/rapm", tags=["players"], response_class=CompactJSON, responses=missing)
     def rapm() -> Response:
         """The latest season's EuroLeague RAPM ratings (points per 100 possessions, 90% intervals,
         rank among players at the minimum minutes)."""
-        return CompactJSON(readmodel.rapm_board(store))
+        return CompactJSON(read_players.rapm_board(store))
 
     @app.get(
         "/simulations/latest", tags=["simulations"], response_class=CompactJSON, responses=missing
@@ -189,12 +194,12 @@ def create_app(store: Store, now: Callable[[], datetime]) -> FastAPI:
     def simulation_latest(competition: str = "euroleague") -> Response:
         """The latest season simulation, ``gated: false``, with M7's gate verdict. 404 (with the
         verdict) when no ungated report exists."""
-        return CompactJSON(readmodel.simulation_latest(store, competition))
+        return CompactJSON(read_simulation.simulation_latest(store, competition))
 
     @app.get("/metrics/live", tags=["metrics"], response_class=CompactJSON, responses=missing)
     def metrics_live() -> Response:
         """The live scorecards of the pre-registered forecasts (Elo, B0, M1 and M5 shadow)."""
-        return CompactJSON(readmodel.metrics_live(store))
+        return CompactJSON(read_simulation.metrics_live(store))
 
     return app
 

@@ -19,7 +19,7 @@ from eurohoops.api.export import (
     write_publish,
     write_stats_files,
 )
-from eurohoops.api.readmodel import Store
+from eurohoops.api.read.store import Store
 from tests.api_check import load_script
 from tests.api_tree import NOW, build_tree
 

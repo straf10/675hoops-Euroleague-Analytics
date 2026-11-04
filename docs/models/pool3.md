@@ -31,5 +31,5 @@ No live results yet. The pass bar is the one in `experiments/pool3.md`: on the E
 - Spec (pass bar): `experiments/pool3.md`.
 - Screen: `src/eurohoops/eval/pool3.py`, `scripts/diag_pool3.py`, report `reports/diag_pool3.json`.
 - Forecast and shadow log: `src/eurohoops/live_pool.py` (`predict_pool3`), log `predictions/euroleague_pool3_2026-27.csv` (written only while `POOL3_LIVE_ENABLED` is True).
-- Wiring: `config.py` (`POOL3_LIVE_ENABLED`, `POOL3_MEMBERS`, `pool3_prediction_log`), `cli/live.py` (`_predict_pool3`, and the `pool3` scorecard path), `eval/scorecard.py` (`pool3` trial section), `api/readmodel.py` (`FORECAST_MODELS` label `pool3`), `scripts/checks/api_export.py` (legacy site entry).
+- Wiring: `config.py` (`POOL3_LIVE_ENABLED`, `POOL3_MEMBERS`, `pool3_prediction_log`), `cli/live.py` (`_predict_pool3`, and the `pool3` scorecard path), `eval/scorecard.py` (`pool3` trial section), `api/read/forecasts.py` (`FORECAST_MODELS` label `pool3`), `scripts/checks/api_export.py` (legacy site entry).
 - Tests: `tests/test_pool3.py`, fixtures `tests/fixtures/pool3/`.

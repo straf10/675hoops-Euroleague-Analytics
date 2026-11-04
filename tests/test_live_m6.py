@@ -12,10 +12,7 @@ import pandas as pd
 import pytest
 from scipy import special
 
-from eurohoops.api.readmodel import (
-    PROJECTION_ROWS_SCHEMA,
-    SIMILAR_ROWS_SCHEMA,
-)
+from eurohoops.api.read.players import PROJECTION_ROWS_SCHEMA, SIMILAR_ROWS_SCHEMA
 from eurohoops.config import M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
 from eurohoops.eval.common import round_finite
 from eurohoops.eval.m6_backtest import (

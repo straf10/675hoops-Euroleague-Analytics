@@ -41,5 +41,5 @@ Fit only. There are no live results yet. Scoring is the standard test at the Eur
 - Experiment spec (pass bar): `experiments/eloh.md`.
 - Fit: `scripts/fit_eloh.py`, `src/eurohoops/models/eloh.py`; frozen output `reports/eloh_fit.json`.
 - Forecast and shadow log: `src/eurohoops/live_eloh.py`, log `predictions/euroleague_eloh_2026-27.csv` (written only when `ELOH_LIVE_ENABLED` is True).
-- Wiring: `config.py` (`ELOH_LIVE_ENABLED`, `ELOH_FIT`, `ELOH_FIT_SEASONS`), `cli/live.py` (`_predict_eloh`), `eval/scorecard.py` (`eloh` section), `api/readmodel.py` (`FORECAST_MODELS` label), `scripts/checks/api_export.py` (legacy site entry).
+- Wiring: `config.py` (`ELOH_LIVE_ENABLED`, `ELOH_FIT`, `ELOH_FIT_SEASONS`), `cli/live.py` (`_predict_eloh`), `eval/scorecard.py` (`eloh` section), `api/read/forecasts.py` (`FORECAST_MODELS` label), `scripts/checks/api_export.py` (legacy site entry).
 - Tests: `tests/test_eloh.py`, fixtures `tests/fixtures/eloh/`.

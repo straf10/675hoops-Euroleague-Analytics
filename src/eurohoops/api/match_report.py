@@ -1,6 +1,6 @@
 """Match report builders (``docs/match_report.md`` section 2): pure functions over DataFrames.
 
-``api.readmodel.match_report`` gathers the inputs (memoised per Store) and calls these. Every
+``api.read.report.match_report`` gathers the inputs (memoised per Store) and calls these. Every
 builder filters to what was known at the game's tip-off itself, so a later game can never leak in
 even when the caller passes the whole season. Codes are shown through ``show`` (the display code),
 ratings are rounded to 1 dp, shares to 3 dp and per-game values to 1 dp.

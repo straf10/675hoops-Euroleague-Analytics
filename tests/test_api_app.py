@@ -23,7 +23,7 @@ from typer.testing import CliRunner
 from eurohoops import cli
 from eurohoops.api import app as api_app
 from eurohoops.api.app import CompactJSON, IndentedJSON, create_app
-from eurohoops.api.readmodel import Store
+from eurohoops.api.read.store import Store
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, MART_PATH, SITE_DATA
 from eurohoops.eval.backtest import load_tuned_model

@@ -74,7 +74,7 @@ already in the scored log.
 
 ## 3. Strength of schedule — Partial (travel not built)
 
-Today: one number on team pages (`api/readmodel.py:_schedule_strength`): mean **current** Elo of
+Today: one number on team pages (`api/read/teams.py:_schedule_strength`): mean **current** Elo of
 every opponent on the schedule, played and remaining together.
 
 Proposal:

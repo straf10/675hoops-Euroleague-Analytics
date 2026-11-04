@@ -29,7 +29,7 @@ from eurohoops.api.export import (
     route_for,
     stats_files,
 )
-from eurohoops.api.readmodel import Store
+from eurohoops.api.read.store import Store
 from eurohoops.cli import publish as publish_mod
 from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH
 from tests.api_check import load_script

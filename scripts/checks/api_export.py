@@ -46,7 +46,8 @@ from eurohoops.api.export import (
     write_publish,
     write_stats_files,
 )
-from eurohoops.api.readmodel import FORECAST_MODELS, Store
+from eurohoops.api.read.forecasts import FORECAST_MODELS
+from eurohoops.api.read.store import Store
 from eurohoops.cli._shared import _live
 from eurohoops.cli.publish import utc_now
 from eurohoops.config import (

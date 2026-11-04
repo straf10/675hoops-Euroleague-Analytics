@@ -10,7 +10,7 @@ Usage: uv run python scripts/fit_points_per_win.py   (run from the checkout that
 
 from pathlib import Path
 
-from eurohoops.api.readmodel import Store, _el_games
+from eurohoops.api.read.store import Store, _el_games
 from eurohoops.stats.win_shares import fit_points_per_win, team_seasons_regular
 
 FIRST_SEASON, LAST_SEASON = 2007, 2025

@@ -105,4 +105,4 @@ A past player-season nearest to a player's newest season in standardised box rat
 _Avoid_: twin (the Shot Profile Twin, shot profile only)
 
 **Read model**:
-The one module (`api/readmodel.py`) that turns the marts, logs and committed reports into the JSON the API serves. The static site files are its responses, written in-process.
+The `api/read/` package that turns the marts, logs and committed reports into the JSON the API serves: `store.py` loads them, and one module per domain (forecasts, stats, teams, players, simulation, report) builds the responses. The static site files are its responses, written in-process.

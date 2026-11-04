@@ -3,7 +3,7 @@
 Status: built for EuroLeague only. It is a descriptive stat on the Players page, player pages and Leaders. It feeds no forecast.
 
 ## What it is
-Code: `src/eurohoops/stats/win_shares.py` (formulas, points per win, the fit kept for comparison), `scripts/fit_points_per_win.py` (the fitted comparison constant), `tests/test_win_shares.py` (a hand-computed two-team game). The export runs through `stats/export.py` and `api/readmodel.py`.
+Code: `src/eurohoops/stats/win_shares.py` (formulas, points per win, the fit kept for comparison), `scripts/fit_points_per_win.py` (the fitted comparison constant), `tests/test_win_shares.py` (a hand-computed two-team game). The export runs through `stats/export.py` and `api/read/`.
 
 Dean Oliver's method (*Basketball on Paper*, 2004), as Basketball-Reference publishes it. The formulas are from [ws](https://www.basketball-reference.com/about/ws.html) and [ratings](https://www.basketball-reference.com/about/ratings.html). Oliver's book and datafield.dev part 3 chapter 13 give the derivations.
 
@@ -64,7 +64,7 @@ Correlations are 0.93 to 0.98 and the league sums are 0 to 3% above the wins. Th
 - `src/eurohoops/stats/win_shares.py`: the formulas, `win_shares`, `points_per_win`, `box_win_shares` (validated against `WIN_SHARES_SCHEMA`), `team_check`, and the fitted comparison (`fit_points_per_win`).
 - `scripts/fit_points_per_win.py`: re-derives the comparison constant from the cached schedules.
 - `tests/test_win_shares.py`: formula checks and the two-team hand example.
-- `src/eurohoops/stats/export.py`, `src/eurohoops/api/readmodel.py`: the `win_shares` input, the `ws` object on each players row, the WS fields on each splits row.
+- `src/eurohoops/stats/export.py`, `src/eurohoops/api/read/`: the `win_shares` input, the `ws` object on each players row, the WS fields on each splits row.
 - `web/src/lib/measures.ts` (WS, OWS, DWS, WS/40 on the Players page), `web/src/lib/player.ts` (season table), `web/src/lib/leaders.ts` (a Win shares board), `web/src/lib/glossary.ts`.
 - `tests/fixtures/stats/` (regenerated), `tests/test_stats.py`, `tests/test_api_app.py`, `scripts/checks/api_export.py`.
 

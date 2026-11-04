@@ -26,7 +26,8 @@ from typing import Any
 from fastapi.testclient import TestClient
 from httpx import Response
 
-from eurohoops.api.readmodel import Store, report_game_ids
+from eurohoops.api.read.report import report_game_ids
+from eurohoops.api.read.store import Store
 from eurohoops.config import (
     EUROLEAGUE,
     LIVE_SEASON,

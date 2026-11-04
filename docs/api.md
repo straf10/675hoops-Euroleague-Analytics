@@ -7,23 +7,23 @@ locally with Docker (below), and the static site is built from its answers.
 
 ## Routes
 
-The table lists the route, the read-model function behind it (`api/readmodel.py`) and what it reads.
+The table lists the route, the read-model function behind it (the module under `api/read/` that owns its domain) and what it reads.
 Team codes are the **source** codes (`ULK`, `PAN`, …). Person ids look like `P:003733`.
 
 | Route | Read model | Source |
 |---|---|---|
-| `GET /site` | `site` | the forecasts, results, scorecards and Elo of the EuroLeague (today's `site.json`) |
-| `GET /stats` | `stats_index` | the path of every stats file |
-| `GET /stats/{path}` | `stats_file` | one stats file, e.g. `meta.json`, `seasons/2025/players.json` |
-| `GET /games/upcoming?competition=` | `upcoming_games` | unplayed live-season games with their forecast |
-| `GET /predictions/{game_id}` | `prediction` | every logged forecast of a game per model: the scored row first, then later rows |
-| `GET /teams/{competition}/{team}/ratings` | `team_ratings` | published Elo rating, change and rank |
-| `GET /teams/{competition}/{team}/factors?season=` | `team_factors` | four factors and schedule strength. A missing input is `value: null` with a `reason` |
-| `GET /players/{person_id}` | `player` | the person's seasons, M3 impact (RAPM/SPM with intervals) and M2 shot-making |
-| `GET /players/{person_id}/projection` | `player_projection` | `reports/m6_projections.json` |
-| `GET /players/{person_id}/similar` | `player_similar` | `reports/m6_similarity.json` |
-| `GET /simulations/latest?competition=` | `simulation_latest` | `reports/sim_ungated_{competition}.json`, with `gated: true` for the EuroLeague once M7's gate passed (gate v2), plus M7's verdict and reason |
-| `GET /metrics/live` | `metrics_live` | the live scorecards: Elo, the baseline, M1 and the M5 shadow |
+| `GET /site` | `forecasts.site` | the forecasts, results, scorecards and Elo of the EuroLeague (today's `site.json`) |
+| `GET /stats` | `stats.stats_index` | the path of every stats file |
+| `GET /stats/{path}` | `stats.stats_file` | one stats file, e.g. `meta.json`, `seasons/2025/players.json` |
+| `GET /games/upcoming?competition=` | `forecasts.upcoming_games` | unplayed live-season games with their forecast |
+| `GET /predictions/{game_id}` | `forecasts.prediction` | every logged forecast of a game per model: the scored row first, then later rows |
+| `GET /teams/{competition}/{team}/ratings` | `teams.team_ratings` | published Elo rating, change and rank |
+| `GET /teams/{competition}/{team}/factors?season=` | `teams.team_factors` | four factors and schedule strength. A missing input is `value: null` with a `reason` |
+| `GET /players/{person_id}` | `players.player` | the person's seasons, M3 impact (RAPM/SPM with intervals) and M2 shot-making |
+| `GET /players/{person_id}/projection` | `players.player_projection` | `reports/m6_projections.json` |
+| `GET /players/{person_id}/similar` | `players.player_similar` | `reports/m6_similarity.json` |
+| `GET /simulations/latest?competition=` | `simulation.simulation_latest` | `reports/sim_ungated_{competition}.json`, with `gated: true` for the EuroLeague once M7's gate passed (gate v2), plus M7's verdict and reason |
+| `GET /metrics/live` | `simulation.metrics_live` | the live scorecards: Elo, the baseline, M1 and the M5 shadow |
 | `GET /openapi.json` | FastAPI | the schema; identical across runs |
 
 A route with nothing to return answers **404** with `{"detail": "<reason>"}`. The simulation route

@@ -1,7 +1,7 @@
 """EuroLeague coaches -> ``coaches/index.json`` and ``coaches/<slug>.json`` (the coach pages).
 
 One row per team-game from the cached box scores (``Stats[i].Coach``, the coach of that side).
-Expectation: the pre-game Elo win probability of each side (the history Elo, ``api.readmodel``
+Expectation: the pre-game Elo win probability of each side (the history Elo, ``api.read``
 passes ``p_home``), so ``wins_above_expectation`` = actual wins - sum of those probabilities.
 Games whose box score names no coach are left out (``coverage`` says how many per season).
 Head-to-head: games between two named coaches, listed for pairs with ``H2H_MIN_GAMES`` or more.
