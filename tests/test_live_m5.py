@@ -24,7 +24,7 @@ from eurohoops.live_m5 import (
     load_m5,
     predict_upcoming_m5,
 )
-from eurohoops.predict import LatePredictionError
+from eurohoops.shadow_log import LatePredictionError
 from tests.m5_synthetic import build_inputs, fake_player_part, small_spec
 
 SPEC = small_spec()
@@ -79,7 +79,7 @@ def run(
     inputs: M5Inputs | None = None,
     calls: list[int] | None = None,
     at: datetime = NOW,
-) -> int:
+) -> int | None:
     chosen = live() if inputs is None else inputs
     return predict_upcoming_m5(
         chosen.games,
@@ -133,7 +133,7 @@ def test_the_committed_report_loads() -> None:
 def test_a_failed_gate_logs_nothing_and_builds_nothing(model: LiveM5, tmp_path: Path) -> None:
     calls: list[int] = []
     log = tmp_path / "m5.csv"
-    assert run(replace(model, gate_passed=False), log, calls=calls) == 0
+    assert run(replace(model, gate_passed=False), log, calls=calls) is None
     assert not log.exists() and not calls
 
 

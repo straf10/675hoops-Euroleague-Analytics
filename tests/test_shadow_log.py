@@ -15,8 +15,14 @@ import pytest
 
 from eurohoops import config
 from eurohoops.config import EUROLEAGUE
-from eurohoops.predict import LatePredictionError
-from eurohoops.shadow_log import Shadow, append_shadow_log, is_active, run_shadows
+from eurohoops.shadow_log import (
+    LatePredictionError,
+    Shadow,
+    append_log,
+    append_shadow_log,
+    is_active,
+    run_shadows,
+)
 
 COLUMNS = (
     "game_id",
@@ -71,7 +77,7 @@ def run(
     version: str = "v1",
     at: datetime = NOW,
     skip_reason: str | None = None,
-) -> int:
+) -> int | None:
     return append_shadow_log(
         league(),
         forecast,  # type: ignore[arg-type]
@@ -138,7 +144,7 @@ def test_a_gated_off_model_logs_nothing_and_says_why(
         raise AssertionError("built a forecast for a gated-off model")
 
     with caplog.at_level(logging.INFO):
-        assert run(log, never, skip_reason="FAKE did not pass: not logged") == 0
+        assert run(log, never, skip_reason="FAKE did not pass: not logged") is None
     assert "FAKE did not pass: not logged" in caplog.text
     assert not log.exists()
 
@@ -180,6 +186,56 @@ def test_a_stamp_at_or_after_a_tipoff_is_refused_and_nothing_is_written(tmp_path
             clock=lambda: next(reads),
         )
     assert not log.exists()
+
+
+def _append_as_of(log: Path, reads: list[datetime], as_of: datetime) -> int:
+    ticks = iter(reads)
+    return append_log(
+        league(),
+        forecast_all,
+        tag="fake",
+        label="FAKE",
+        version="v1",
+        columns=COLUMNS,
+        log_path=log,
+        season=SEASON,
+        round_lead=LEAD,
+        clock=lambda: next(ticks),
+        as_of=as_of,
+    )
+
+
+def test_a_model_forecasting_as_of_an_earlier_instant_is_stamped_with_it(tmp_path: Path) -> None:
+    log = tmp_path / "fake.csv"
+    assert _append_as_of(log, [NOW, NOW + timedelta(hours=1)], NOW - timedelta(hours=1)) == 2
+    assert {r["predicted_at_utc"] for r in rows(log)} == {"2026-10-01T07:00:00Z"}
+
+
+def test_an_early_stamp_does_not_excuse_a_write_after_a_tipoff(tmp_path: Path) -> None:
+    """The frozen-stamp case: stamped 10 h before tip-off, but the forecast ran past it."""
+    log = tmp_path / "fake.csv"
+    with pytest.raises(LatePredictionError):
+        _append_as_of(log, [NOW, NOW + timedelta(hours=11)], NOW)
+    assert not log.exists()
+
+
+def test_the_rows_just_appended_are_handed_on(tmp_path: Path) -> None:
+    log = tmp_path / "fake.csv"
+    handed: list[list[str]] = []
+    append_log(
+        league(),
+        forecast_all,
+        tag="fake",
+        label="FAKE",
+        version="v1",
+        columns=COLUMNS,
+        log_path=log,
+        season=SEASON,
+        round_lead=LEAD,
+        clock=lambda: NOW,
+        after_append=lambda written: handed.append([str(r["game_id"]) for r in written]),
+    )
+    assert handed == [["G1", "G2"]]
 
 
 # --- is_active: the one answer to "does this model log?" ----------------------------------------

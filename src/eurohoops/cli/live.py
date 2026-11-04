@@ -87,8 +87,14 @@ from eurohoops.marts import read_games, read_table, read_teams
 from eurohoops.models.availability import read_injuries, read_roster_names
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
 from eurohoops.odds import OddsApiError, OddsFetchError, OddsPaths, api_key, record_odds
-from eurohoops.predict import LatePredictionError, logged_keys, predict_upcoming
-from eurohoops.shadow_log import Shadow, is_active, run_shadows
+from eurohoops.predict import predict_upcoming
+from eurohoops.shadow_log import (
+    LatePredictionError,
+    Shadow,
+    is_active,
+    logged_keys,
+    run_shadows,
+)
 from eurohoops.sim.formats import season_format
 from eurohoops.tipoff import first_tipoff_on
 

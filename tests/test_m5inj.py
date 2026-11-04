@@ -4,8 +4,9 @@ predictions/ paths."""
 
 import csv
 import logging
+from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -25,6 +26,7 @@ from eurohoops.models.availability import (
     parse_roster_names,
     read_injuries,
 )
+from eurohoops.shadow_log import LatePredictionError, Shadow, run_shadows
 from tests.m5_synthetic import PLAYERS_PER_TEAM, TARGET_TEAMS, fake_player_part
 from tests.test_live_m5 import CHOICE, NOW, ROUND_LEAD, SEASON, SPEC, live
 
@@ -220,7 +222,7 @@ def _injury_log(rows: list[tuple[str, str, str, str]]) -> pd.DataFrame:
     )
 
 
-def _run_m5(log: Path, at: datetime, model: LiveM5) -> int:
+def _run_m5(log: Path, at: datetime, model: LiveM5) -> int | None:
     chosen = live()
     return predict_upcoming_m5(
         chosen.games,
@@ -234,7 +236,13 @@ def _run_m5(log: Path, at: datetime, model: LiveM5) -> int:
     )
 
 
-def _run_m5inj(log: Path, at: datetime, model: LiveM5, injuries: pd.DataFrame) -> int:
+def _run_m5inj(
+    log: Path,
+    at: datetime,
+    model: LiveM5,
+    injuries: pd.DataFrame,
+    clock: Callable[[], datetime] | None = None,
+) -> int | None:
     chosen = live()
     return predict_upcoming_m5inj(
         chosen.games,
@@ -245,7 +253,7 @@ def _run_m5inj(log: Path, at: datetime, model: LiveM5, injuries: pd.DataFrame) -
         log_path=log,
         season=SEASON,
         round_lead=ROUND_LEAD,
-        clock=lambda: at,
+        clock=(lambda: at) if clock is None else clock,
         spec=SPEC,
     )
 
@@ -265,7 +273,31 @@ def model() -> LiveM5:
 
 def test_a_failed_m5_gate_logs_nothing(model: LiveM5, tmp_path: Path) -> None:
     log = tmp_path / "m5inj.csv"
-    assert _run_m5inj(log, NOW, replace(model, gate_passed=False), _injury_log([])) == 0
+    assert _run_m5inj(log, NOW, replace(model, gate_passed=False), _injury_log([])) is None
+    assert not log.exists()
+
+
+def test_a_failed_m5_gate_is_an_inactive_outcome_not_a_logged_zero(
+    model: LiveM5, tmp_path: Path
+) -> None:
+    log = tmp_path / "m5inj.csv"
+    gated = replace(model, gate_passed=False)
+    shadow = Shadow("M5-INJ", log, lambda: _run_m5inj(log, NOW, gated, _injury_log([])))
+    said: list[str] = []
+    (outcome,) = run_shadows([shadow], said.append)
+    assert (outcome.status, outcome.rows, said) == ("inactive", 0, [])
+
+
+def test_a_forecast_written_after_a_tipoff_is_refused_though_stamped_at_the_cutoff(
+    model: LiveM5, tmp_path: Path
+) -> None:
+    """The stamp is the injury cutoff, read first; the forecast is slow and the clock passes
+    a tip-off before the rows are written. Nothing is written: the stamp alone would pass."""
+    log = tmp_path / "m5inj.csv"
+    fresh = _injury_log([("2022-10-29T07:30:00Z", "GRE", "Alpha Tester", "Ready")])
+    reads = iter([NOW, NOW, NOW + timedelta(days=30)])  # cutoff, selection, write time
+    with pytest.raises(LatePredictionError):
+        _run_m5inj(log, NOW, model, fresh, clock=lambda: next(reads))
     assert not log.exists()
 
 

@@ -122,7 +122,7 @@ def test_a_failed_shadow_logs_nothing(tmp_path: Path) -> None:
         round_lead=timedelta(hours=48),
         clock=lambda: now.replace(tzinfo=UTC),
     )
-    assert added == 0 and not log.exists()
+    assert added is None and not log.exists()
 
 
 def test_upcoming_games_are_logged_once(tmp_path: Path) -> None:

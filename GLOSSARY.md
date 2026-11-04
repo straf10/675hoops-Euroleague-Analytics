@@ -8,7 +8,7 @@ The public CSV of forecasts (`predictions/*.csv`). Rows are added, never edited 
 _Avoid_: prediction file, history
 
 **Shadow log**:
-A model's own `predictions/<comp>_<id>_<season>.csv`, written next to the pre-registered log once per game and version by the shadow-log module (`shadow_log.py`) while the model is active: its `<ID>_LIVE_ENABLED` flag in `config.py` is on, if it has one, and it has a log path. A late stamp is refused and nothing is written.
+A model's own `predictions/<comp>_<id>_<season>.csv`, written next to the pre-registered log once per game and version by the shadow-log module (`shadow_log.py`) while the model is active: its `<ID>_LIVE_ENABLED` flag in `config.py` is on, if it has one, and it has a log path. The Elo log runs through the same lifecycle. A run whose stamp, or whose clock right before writing, is at or after a tip-off is refused and nothing is written.
 _Avoid_: shadow file
 
 **Pre-registered row**:
