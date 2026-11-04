@@ -51,6 +51,7 @@ from eurohoops.config import (
     Competition,
     M6Backtest,
 )
+from eurohoops.eval.common import gate_passed
 from eurohoops.eval.m5_backtest import M5Inputs, PlayerPartFn
 from eurohoops.eval.m6_backtest import M6Inputs, TargetInputs, World, prepare
 from eurohoops.eval.scorecard import build_scorecard
@@ -145,7 +146,7 @@ def project(
         log.error("no committed M6 report; run: eurohoops backtest --model m6")
         raise typer.Exit(code=1)
     report = json.loads(M6.report.read_text(encoding="utf-8"))
-    if not report["gate"]["passed"]:
+    if not gate_passed(report):
         typer.echo("M6 did not pass its validation gate: the committed reports stay (L-l)")
         return
     chosen = report["chosen"]

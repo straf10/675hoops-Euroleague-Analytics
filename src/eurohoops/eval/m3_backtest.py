@@ -37,7 +37,12 @@ import pandas as pd
 from scipy import special
 
 from eurohoops.config import M3Backtest, M3Grid
-from eurohoops.eval.common import data_sha256, round_finite, tagged_version
+from eurohoops.eval.common import (
+    data_sha256,
+    rmse_diff_bootstrap_ci,
+    round_finite,
+    tagged_version,
+)
 from eurohoops.eval.metrics import per_game_log_loss
 from eurohoops.models.box_impact import BaselineResult
 from eurohoops.models.elo import FloatArray
@@ -413,29 +418,6 @@ def _model_metrics(margin: FloatArray, data: Data, scored: dict[str, BoolArray])
             "sigma": round_finite(sigma),
         }
     return out
-
-
-def rmse_diff_bootstrap_ci(
-    residual_a: FloatArray, residual_b: FloatArray, resamples: int, seed: int
-) -> dict[str, Any] | None:
-    """The 95% percentile CI of RMSE(a) - RMSE(b) over game-index resamples (H-d): RMSE is not
-    a mean of per-game values, so ``eval.metrics.paired_bootstrap_ci`` (built for linear
-    statistics) does not apply -- both RMSEs are recomputed on every resample instead."""
-    n = len(residual_a)
-    if not n:
-        return None
-    point = float(np.sqrt(np.mean(residual_a**2)) - np.sqrt(np.mean(residual_b**2)))
-    rng = np.random.default_rng(seed)
-    idx = rng.integers(0, n, size=(resamples, n))
-    rmse_a = np.sqrt((residual_a[idx] ** 2).mean(axis=1))
-    rmse_b = np.sqrt((residual_b[idx] ** 2).mean(axis=1))
-    low, high = np.percentile(rmse_a - rmse_b, [2.5, 97.5])
-    return {
-        "mean": round_finite(point),
-        "ci95": [round_finite(float(low)), round_finite(float(high))],
-        "resamples": resamples,
-        "seed": seed,
-    }
 
 
 def model_version(tuned: TunedRapm, chosen: str) -> str:

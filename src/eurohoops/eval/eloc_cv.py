@@ -5,7 +5,7 @@ Fold s is scored with ``(a, b)`` fitted on the scored EuroLeague games of season
 s-1 only. Elo is replayed from the first warm-up season with the fixed live parameters, and a
 game's Elo difference uses only games tipped off before it. Scored games: the fold seasons,
 played, not forfeit, not neutral. The paired comparison is game-weighted over whole-season
-resamples (``m7_backtest.cluster_bootstrap_ci``), as ELOR's is.
+resamples (``metrics.cluster_bootstrap_ci``), as ELOR's is.
 """
 
 from __future__ import annotations
@@ -19,8 +19,7 @@ from scipy.special import expit
 
 from eurohoops.config import ElocCv
 from eurohoops.eval.common import round6
-from eurohoops.eval.m7_backtest import cluster_bootstrap_ci
-from eurohoops.eval.metrics import ece, per_game_log_loss
+from eurohoops.eval.metrics import cluster_bootstrap_ci, ece, per_game_log_loss
 from eurohoops.models import elo
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.elo_cal import Calibration, apply, elo_logit, fit

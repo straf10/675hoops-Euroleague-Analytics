@@ -12,6 +12,8 @@ from scipy import special
 
 from eurohoops.models.elo import FloatArray
 
+IntArray = npt.NDArray[np.int64]
+
 
 @dataclass(frozen=True)
 class Metrics:
@@ -178,6 +180,39 @@ def paired_bootstrap_ci(diff: FloatArray, resamples: int, seed: int) -> tuple[fl
     return float(diff.mean()), float(low), float(high)
 
 
+def cluster_ratio_ci(
+    numerator: FloatArray,
+    denominator: FloatArray,
+    cluster: IntArray,
+    resamples: int,
+    seed: int,
+    *,
+    percentiles: tuple[float, float] = (2.5, 97.5),
+) -> tuple[float, float, float]:
+    """The weighted mean ``sum(numerator) / sum(denominator)`` and the percentile CI of it over
+    resamples of whole clusters (ids 0..C-1, drawn with replacement); NaN when empty.
+
+    The one cluster bootstrap behind every clustered interval in the reports: games sharing a
+    round, rows sharing a team or player stay together in a resample.
+    """
+    if not len(numerator):
+        return math.nan, math.nan, math.nan
+    nums = np.bincount(cluster, weights=numerator)
+    dens = np.bincount(cluster, weights=denominator)
+    draw = np.random.default_rng(seed).integers(0, len(nums), size=(resamples, len(nums)))
+    means = nums[draw].sum(axis=1) / dens[draw].sum(axis=1)
+    low, high = np.percentile(means, list(percentiles))
+    return float(numerator.sum() / denominator.sum()), float(low), float(high)
+
+
+def cluster_bootstrap_ci(
+    diff: FloatArray, cluster: IntArray, resamples: int, seed: int
+) -> tuple[float, float, float]:
+    """Mean of ``diff`` and the percentile 95% CI of its mean over resamples of whole clusters
+    (cluster ids 0..C-1, drawn with replacement); NaN for an empty ``diff``."""
+    return cluster_ratio_ci(diff, np.ones(len(diff)), cluster, resamples, seed)
+
+
 def paired_bootstrap_ci_clustered(
     diff: FloatArray,
     clusters: Sequence[object],
@@ -197,13 +232,8 @@ def paired_bootstrap_ci_clustered(
         raise ValueError("every game needs a cluster label")
     if not len(diff):
         return math.nan, math.nan, math.nan
-    codes = pd.factorize(pd.Series(list(clusters)))[0]
-    k = int(codes.max()) + 1
-    sums = np.bincount(codes, weights=diff, minlength=k)
-    sizes = np.bincount(codes, minlength=k).astype(np.float64)
-    rng = np.random.default_rng(seed)
-    pick = rng.integers(0, k, size=(resamples, k))
-    means = sums[pick].sum(axis=1) / sizes[pick].sum(axis=1)
+    codes = pd.factorize(pd.Series(list(clusters)))[0].astype(np.int64)
     tail = 100.0 * (1.0 - level) / 2.0
-    low, high = np.percentile(means, [tail, 100.0 - tail])
-    return float(diff.mean()), float(low), float(high)
+    return cluster_ratio_ci(
+        diff, np.ones(len(diff)), codes, resamples, seed, percentiles=(tail, 100.0 - tail)
+    )

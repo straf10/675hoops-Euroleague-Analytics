@@ -27,7 +27,6 @@ from eurohoops.eval.m7_backtest import (
     BASELINES,
     Z_LIMIT,
     M7Inputs,
-    cluster_bootstrap_ci,
     spiegelhalter_z,
 )
 from eurohoops.eval.m7_gate_v2 import (
@@ -40,6 +39,7 @@ from eurohoops.eval.m7_gate_v2 import (
     run_gate_v2,
     season_cluster_ci,
 )
+from eurohoops.eval.metrics import cluster_bootstrap_ci
 from eurohoops.logs import write_json
 from tests.m7_synthetic import build_inputs, small_spec, synthetic_formats
 

@@ -65,7 +65,7 @@ import pandera.pandas as pa
 
 from eurohoops.config import M7Backtest
 from eurohoops.eval.common import data_sha256, round_finite, table_cell
-from eurohoops.eval.metrics import reliability
+from eurohoops.eval.metrics import cluster_bootstrap_ci, reliability
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.models.elo import EloParams, FloatArray, prepare, season_ratings
 from eurohoops.models.team_eff import (
@@ -776,21 +776,6 @@ def _title_brier(rows: pd.DataFrame) -> float | None:
     square = (known["p_title"] - known["champion"].astype(float)) ** 2
     per_checkpoint = square.groupby([known["season"], known["checkpoint"]]).sum()
     return float(per_checkpoint.groupby(level="season").mean().mean())
-
-
-def cluster_bootstrap_ci(
-    diff: FloatArray, cluster: IntArray, resamples: int, seed: int
-) -> tuple[float, float, float]:
-    """Mean of ``diff`` and the percentile 95% CI of its mean over resamples of whole clusters
-    (cluster ids 0..C-1, drawn with replacement); NaN for an empty ``diff``."""
-    if not len(diff):
-        return math.nan, math.nan, math.nan
-    sums = np.bincount(cluster, weights=diff)
-    counts = np.bincount(cluster).astype(np.float64)
-    draw = np.random.default_rng(seed).integers(0, len(sums), size=(resamples, len(sums)))
-    means = sums[draw].sum(axis=1) / counts[draw].sum(axis=1)
-    low, high = np.percentile(means, [2.5, 97.5])
-    return float(diff.mean()), float(low), float(high)
 
 
 def _brier_differences(

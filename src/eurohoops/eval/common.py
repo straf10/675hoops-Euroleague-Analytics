@@ -3,10 +3,11 @@ package-version model tag, the input-data digest and the console-table cell."""
 
 import hashlib
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from importlib.metadata import version
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from eurohoops.eval.metrics import paired_bootstrap_ci
@@ -34,6 +35,39 @@ def paired_ci(
     return {
         "mean": rounding(mean),
         "ci95": [rounding(low), rounding(high)],
+        "resamples": resamples,
+        "seed": seed,
+    }
+
+
+def gate_passed(report: Mapping[str, Any]) -> bool:
+    """Whether a backtest report's validation gate passed: ``gate.passed`` is exactly ``true``.
+
+    A report without a gate, a gate without a verdict (``null``: undecided) and anything that is
+    not a JSON ``true`` all read as not passed, so a model goes live only on an explicit pass.
+    """
+    gate = report.get("gate")
+    return isinstance(gate, Mapping) and gate.get("passed") is True
+
+
+def rmse_diff_bootstrap_ci(
+    residual_a: FloatArray, residual_b: FloatArray, resamples: int, seed: int
+) -> dict[str, Any] | None:
+    """The 95% percentile CI of RMSE(a) - RMSE(b) over game-index resamples (H-d): RMSE is not
+    a mean of per-game values, so ``eval.metrics.paired_bootstrap_ci`` (built for linear
+    statistics) does not apply -- both RMSEs are recomputed on every resample instead."""
+    n = len(residual_a)
+    if not n:
+        return None
+    point = float(np.sqrt(np.mean(residual_a**2)) - np.sqrt(np.mean(residual_b**2)))
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, n, size=(resamples, n))
+    rmse_a = np.sqrt((residual_a[idx] ** 2).mean(axis=1))
+    rmse_b = np.sqrt((residual_b[idx] ** 2).mean(axis=1))
+    low, high = np.percentile(rmse_a - rmse_b, [2.5, 97.5])
+    return {
+        "mean": round_finite(point),
+        "ci95": [round_finite(float(low)), round_finite(float(high))],
         "resamples": resamples,
         "seed": seed,
     }

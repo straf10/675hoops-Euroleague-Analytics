@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 from eurohoops.config import M6, M6_PROJECTIONS, M6_SIMILARITY, SIM_UNGATED
+from eurohoops.eval.common import gate_passed
 from eurohoops.live_m6 import personal_fields
 
 SHA = re.compile(r"^(?P<path>\S+): sha256 (?P<sha>[0-9a-f]{64})$")
@@ -69,7 +70,7 @@ for path in (M6_PROJECTIONS, M6_SIMILARITY):
     committed = hashlib.sha256(path.read_bytes()).hexdigest()
     print(f"{path.as_posix()} equals today's rebuild: {committed == first.get(path.as_posix())}")
 
-passed = bool(json.loads(M6.report.read_text(encoding="utf-8"))["gate"]["passed"])
+passed = gate_passed(json.loads(M6.report.read_text(encoding="utf-8")))
 workflow = Path(".github/workflows/daily.yml").read_text(encoding="utf-8")
 scheduled = "eurohoops project" in workflow
 ungated = all(line in workflow for line in ("eurohoops sim-ungated\n",))

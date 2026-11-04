@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import M5, M5Backtest
+from eurohoops.eval.common import gate_passed
 from eurohoops.eval.m5_backtest import Choice, M5Inputs, PlayerPartFn, predict_games
 from eurohoops.live_m1 import M1_LOG_COLUMNS, forecast_strings
 from eurohoops.shadow_log import append_shadow_log
@@ -50,7 +51,7 @@ def load_m5(report_path: Path) -> LiveM5 | None:
     return LiveM5(
         choice=Choice(**report["chosen"]["choice"]),
         version=str(report["model_version"]),
-        gate_passed=report.get("gate", {}).get("passed") is True,
+        gate_passed=gate_passed(report),
     )
 
 

@@ -35,10 +35,10 @@ from eurohoops.eval.m7_backtest import (
     M7Inputs,
     _metrics,
     _scores,
-    cluster_bootstrap_ci,
     run_m7_backtest,
     variants,
 )
+from eurohoops.eval.metrics import cluster_bootstrap_ci
 from eurohoops.sim.formats import season_format
 from eurohoops.standings import Format
 

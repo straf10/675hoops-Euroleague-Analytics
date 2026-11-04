@@ -32,7 +32,6 @@ from eurohoops.eval.m6_backtest import (
     cell_key,
     cells,
     choose_cell,
-    cluster_bootstrap_ci,
     format_m6_table,
     gate_block,
     loss_sds,
@@ -50,6 +49,7 @@ from eurohoops.eval.m6_backtest import (
     target_inputs,
     variance_scale,
 )
+from eurohoops.eval.metrics import cluster_ratio_ci
 from eurohoops.eval.tracking import log_m6_backtest
 from eurohoops.logs import write_json
 from eurohoops.models.box_impact import STAT_COLUMNS
@@ -468,11 +468,11 @@ def test_cluster_bootstrap_resamples_whole_clusters() -> None:
     numerator = np.array([1.0, 1.0, 3.0, 3.0])
     denominator = np.ones(4)
     cluster = np.array([0, 0, 1, 1])
-    mean, low, high = cluster_bootstrap_ci(numerator, denominator, cluster, 1000, 7)
+    mean, low, high = cluster_ratio_ci(numerator, denominator, cluster, 1000, 7)
     assert mean == 2.0 and low == 1.0 and high == 3.0
-    again = cluster_bootstrap_ci(numerator, denominator, cluster, 1000, 7)
+    again = cluster_ratio_ci(numerator, denominator, cluster, 1000, 7)
     assert again == (mean, low, high)
-    empty = cluster_bootstrap_ci(np.zeros(0), np.zeros(0), np.zeros(0, dtype=np.int64), 10, 1)
+    empty = cluster_ratio_ci(np.zeros(0), np.zeros(0), np.zeros(0, dtype=np.int64), 10, 1)
     assert all(math.isnan(v) for v in empty)
 
 

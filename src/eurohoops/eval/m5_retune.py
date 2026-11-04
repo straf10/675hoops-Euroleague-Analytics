@@ -19,8 +19,7 @@ from eurohoops.eval.m5_backtest import (
     prepare_context,
     projected_for_option,
 )
-from eurohoops.eval.m7_backtest import cluster_bootstrap_ci
-from eurohoops.eval.metrics import crps_normal, per_game_log_loss
+from eurohoops.eval.metrics import cluster_bootstrap_ci, crps_normal, per_game_log_loss
 from eurohoops.models.m5 import fit_residual
 from eurohoops.models.team_eff import fit_margin_model
 from eurohoops.models.turnover import mixed_team_adjustment, roster_continuity

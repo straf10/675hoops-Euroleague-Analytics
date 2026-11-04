@@ -28,7 +28,6 @@ from eurohoops.eval.m7_backtest import (
     checkpoint_cutoff,
     checkpoint_round,
     choose_variant,
-    cluster_bootstrap_ci,
     elo_strength_scale,
     format_m7_table,
     gate_block,
@@ -46,6 +45,7 @@ from eurohoops.eval.m7_backtest import (
     strength_variance,
     variants,
 )
+from eurohoops.eval.metrics import cluster_bootstrap_ci
 from eurohoops.eval.tracking import default_tracking_uri, log_m7_backtest
 from eurohoops.logs import write_json
 from eurohoops.models.elo import win_probability

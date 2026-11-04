@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 from eurohoops.config import M7Backtest
+from eurohoops.eval.common import gate_passed
 from eurohoops.eval.m7_backtest import (
     Strengths,
     gaussian_sampler,
@@ -97,7 +98,7 @@ def load_sim(report_path: Path, v2_path: Path | None = None) -> LiveSim | None:
         spread=float(chosen["spread"]),
         net=bool(chosen["net"]),
         version=str(report["model_version"]),
-        gate_passed=bool(report.get("gate", {}).get("passed")) or passed_v2,
+        gate_passed=gate_passed(report) or passed_v2,
     )
 
 

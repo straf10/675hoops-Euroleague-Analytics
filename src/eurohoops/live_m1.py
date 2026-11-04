@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.common import gate_passed
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.team_eff import DecayParams, MarginModel, forecast, prepare_history
 from eurohoops.shadow_log import append_shadow_log
@@ -65,7 +66,7 @@ def load_m1(report_path: Path) -> LiveM1 | None:
         margin=MarginModel(margin["variant"], margin["scale"], margin["df"], margin["ref_pace"]),
         totals_sigma=float(tuned["totals_sigma"]),
         version=str(report["model_version"]),
-        gate_passed=bool(report["gate"]["passed"]),
+        gate_passed=gate_passed(report),
     )
 
 

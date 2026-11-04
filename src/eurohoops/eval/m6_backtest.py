@@ -102,7 +102,7 @@ from scipy import special
 from eurohoops.config import M6Backtest
 from eurohoops.eval.common import data_sha256, round_finite, table_cell
 from eurohoops.eval.m7_backtest import checkpoint_cutoff
-from eurohoops.eval.metrics import crps_normal
+from eurohoops.eval.metrics import cluster_ratio_ci, crps_normal
 from eurohoops.models.aging import AgingCurve, aging_curve, apply
 from eurohoops.models.elo import FloatArray
 from eurohoops.models.player_seasons import (
@@ -120,7 +120,6 @@ from eurohoops.models.projection import (
     project,
     variant_params,
 )
-from eurohoops.models.team_eff import IntArray
 from eurohoops.parse.schemas import validated
 
 SPLITS = ("tuning", "validation", "test")
@@ -1072,21 +1071,6 @@ def _rounded(scores: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def cluster_bootstrap_ci(
-    numerator: FloatArray, denominator: FloatArray, cluster: IntArray, resamples: int, seed: int
-) -> tuple[float, float, float]:
-    """The weighted mean ``sum(numerator) / sum(denominator)`` and the percentile 95% CI of it
-    over resamples of whole clusters (ids 0..C-1, drawn with replacement); NaN when empty."""
-    if not len(numerator):
-        return math.nan, math.nan, math.nan
-    nums = np.bincount(cluster, weights=numerator)
-    dens = np.bincount(cluster, weights=denominator)
-    draw = np.random.default_rng(seed).integers(0, len(nums), size=(resamples, len(nums)))
-    means = nums[draw].sum(axis=1) / dens[draw].sum(axis=1)
-    low, high = np.percentile(means, [2.5, 97.5])
-    return float(numerator.sum() / denominator.sum()), float(low), float(high)
-
-
 def loss_difference(
     mine: pd.DataFrame, other: pd.DataFrame, spec: M6Backtest
 ) -> dict[str, Any] | None:
@@ -1101,7 +1085,7 @@ def loss_difference(
     diff = (a["loss"] - b["loss"]).to_numpy(dtype=np.float64)
     people = a.index.get_level_values("person_id")
     cluster = pd.factorize(people)[0].astype(np.int64)
-    mean, low, high = cluster_bootstrap_ci(
+    mean, low, high = cluster_ratio_ci(
         weight * diff, weight, cluster, spec.bootstrap_resamples, spec.bootstrap_seed
     )
     return {

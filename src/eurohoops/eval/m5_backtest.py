@@ -42,9 +42,15 @@ import pandas as pd
 
 from eurohoops.config import M5Backtest
 from eurohoops.eval.backtest import totals_baseline, win_probabilities
-from eurohoops.eval.common import data_sha256, paired_ci, round_finite, table_cell, tagged_version
+from eurohoops.eval.common import (
+    data_sha256,
+    paired_ci,
+    rmse_diff_bootstrap_ci,
+    round_finite,
+    table_cell,
+    tagged_version,
+)
 from eurohoops.eval.m1_backtest import EARLY_ROUNDS, Predictions, _metrics
-from eurohoops.eval.m3_backtest import rmse_diff_bootstrap_ci
 from eurohoops.eval.metrics import crps_normal, per_game_log_loss
 from eurohoops.models.elo import EloParams, FloatArray, prepare, replay
 from eurohoops.models.m5 import apply_platt, blend_by_season, fit_platt, fit_residual
