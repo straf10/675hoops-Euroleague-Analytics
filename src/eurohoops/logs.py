@@ -7,6 +7,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"  # UTC stamps in the logs, the reports and the site data
 
 
@@ -36,6 +38,24 @@ def append_rows(path: Path, columns: Sequence[str], rows: Sequence[Mapping[str, 
         if is_new:
             writer.writeheader()
         writer.writerows(rows)
+
+
+def displayed_rows(log: pd.DataFrame) -> pd.DataFrame:
+    """The one log row shown for each game, with a ``late`` flag (stamped at or after tip-off).
+
+    That is the latest row stamped before the game's tip-off, so a game re-logged before tip-off
+    shows its newest pick. A game with only late rows keeps its earliest one: the moment it was
+    first logged late. Late rows are shown ("Logged late") and never scored. The site build and
+    the API both read the log through this, so they cannot disagree on which row a game shows.
+    """
+    stamps = pd.to_datetime(log["predicted_at_utc"], utc=True)
+    tips = pd.to_datetime(log["tipoff_utc"], utc=True)
+    marked = log.assign(late=stamps >= tips, _stamp=stamps)
+    by_stamp = marked.sort_values("_stamp", kind="stable")
+    on_time = by_stamp[~by_stamp["late"]].drop_duplicates("game_id", keep="last")
+    after = by_stamp[by_stamp["late"]].drop_duplicates("game_id", keep="first")
+    after = after[~after["game_id"].isin(on_time["game_id"])]
+    return pd.concat([on_time, after]).drop(columns="_stamp")
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:

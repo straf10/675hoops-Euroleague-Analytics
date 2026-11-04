@@ -13,7 +13,7 @@ import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.eval.forecasts import REGULAR_SEASON
-from eurohoops.logs import TIME_FORMAT
+from eurohoops.logs import TIME_FORMAT, displayed_rows
 from eurohoops.models.elo import prepare, season_ratings
 from eurohoops.titles import titles_payload
 
@@ -161,13 +161,7 @@ def _logged(section: Section) -> list[dict[Hashable, Any]]:
     """
     if section.log.empty:
         return []
-    stamps = pd.to_datetime(section.log["predicted_at_utc"], utc=True)
-    tips = pd.to_datetime(section.log["tipoff_utc"], utc=True)
-    log = section.log.assign(late=stamps >= tips, _stamp=stamps)
-    on_time = log[~log["late"]].sort_values("_stamp").drop_duplicates("game_id", keep="last")
-    after = log[log["late"]].sort_values("_stamp").drop_duplicates("game_id", keep="first")
-    after = after[~after["game_id"].isin(on_time["game_id"])]
-    first = pd.concat([on_time, after]).drop(columns="_stamp")
+    first = displayed_rows(section.log)
     cols = [
         "game_id",
         "tipoff_utc",

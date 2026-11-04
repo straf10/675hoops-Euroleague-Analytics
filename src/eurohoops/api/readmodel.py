@@ -62,7 +62,7 @@ from eurohoops.eval.backtest import TunedModel, load_tuned_model
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.ingest.bios import el_people_path
 from eurohoops.live_m6 import person_names
-from eurohoops.logs import TIME_FORMAT
+from eurohoops.logs import TIME_FORMAT, displayed_rows
 from eurohoops.marts import data_volume, read_games, read_table, read_teams
 from eurohoops.models.elo import prepare, season_ratings, win_probability
 from eurohoops.models.player_seasons import (
@@ -539,7 +539,7 @@ def upcoming_games(store: Store, competition: str, now: datetime) -> dict[str, A
     games = _games(store, comp)
     names = _names(store, comp)
     log = _read_log(store, comp.prediction_log)
-    first = _ordered(log).drop_duplicates("game_id", keep="first").set_index("game_id")
+    first = displayed_rows(log).set_index("game_id")
     ahead = games[(games["season"] == LIVE_SEASON) & ~games["played"] & (games["tipoff_utc"] > now)]
     rows = []
     for g in ahead.to_dict("records"):
@@ -1182,7 +1182,7 @@ def _pre_rows(store: Store, comp: Competition, model: str) -> dict[str, dict[str
 
     def make() -> dict[str, dict[str, Any]]:
         relative = getattr(comp, LOG_MODELS[model])
-        log = _ordered(_read_log(store, relative)).drop_duplicates("game_id", keep="first")
+        log = displayed_rows(_read_log(store, relative))
         return {
             str(r["game_id"]): {str(k): v for k, v in r.items()} for r in log.to_dict("records")
         }
