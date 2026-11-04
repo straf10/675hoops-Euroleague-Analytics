@@ -11,7 +11,8 @@ only snapshots stamped strictly before it count. The latest of them must be at m
 The shares change only for the games being logged now; every other game of the frame keeps M5's
 shares.
 
-Nothing is written while ``config.M5INJ_LIVE_ENABLED`` is False (checked by the CLI).
+Nothing is written while ``config.M5INJ_LIVE_ENABLED`` is False (``shadow_log.is_active``, checked
+by the CLI).
 """
 
 import logging

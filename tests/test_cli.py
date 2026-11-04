@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
-from eurohoops import cli
+from eurohoops import cli, config
 from eurohoops.cli import backtest as backtest_mod
 from eurohoops.cli import ingest as ingest_mod
 from eurohoops.cli import live as live_mod
@@ -239,6 +239,20 @@ def test_a_failing_m1_forecast_still_lets_the_later_logs_run_but_fails_the_run(
     assert result.exit_code == 1
     assert m5_calls == [1]
     assert EUROLEAGUE.prediction_log.exists()
+
+
+@pytest.mark.usefixtures("pipeline")
+def test_eloh_without_its_fit_file_warns_and_writes_nothing(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    invoke("backtest")
+    monkeypatch.setattr(config, "ELOH_LIVE_ENABLED", True)
+    monkeypatch.setattr(live_mod, "ELOH_FIT", Path("no_fit.json"))
+    result = runner.invoke(cli.app, ["predict"])
+    assert result.exit_code == 0
+    assert "ELOH skipped: no_fit.json is missing" in caplog.text
+    assert EUROLEAGUE.eloh_prediction_log is not None
+    assert not EUROLEAGUE.eloh_prediction_log.exists()
 
 
 def odds_api(status: int) -> httpx.MockTransport:

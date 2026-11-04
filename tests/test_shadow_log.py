@@ -5,15 +5,18 @@ logs (tests/test_shadow_log_golden.py) pin each model's bytes."""
 
 import csv
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
+from eurohoops import config
+from eurohoops.config import EUROLEAGUE
 from eurohoops.predict import LatePredictionError
-from eurohoops.shadow_log import append_shadow_log
+from eurohoops.shadow_log import Shadow, append_shadow_log, is_active, run_shadows
 
 COLUMNS = (
     "game_id",
@@ -177,3 +180,98 @@ def test_a_stamp_at_or_after_a_tipoff_is_refused_and_nothing_is_written(tmp_path
             clock=lambda: next(reads),
         )
     assert not log.exists()
+
+
+# --- is_active: the one answer to "does this model log?" ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("tag", "flag"),
+    [("m5inj", "M5INJ_LIVE_ENABLED"), ("eloc", "ELOC_LIVE_ENABLED"), ("eloh", "ELOH_LIVE_ENABLED")],
+)
+def test_a_flagged_model_is_active_only_while_its_flag_is_on(
+    tag: str, flag: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config, flag, False)
+    assert is_active(tag, EUROLEAGUE) is False
+    monkeypatch.setattr(config, flag, True)
+    assert is_active(tag, EUROLEAGUE) is True
+
+
+def test_a_flagged_model_without_a_log_path_is_never_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(config, "ELOH_LIVE_ENABLED", True)
+    assert is_active("eloh", replace(EUROLEAGUE, eloh_prediction_log=None)) is False
+
+
+def test_m1_and_m5_have_no_flag_only_a_log_path() -> None:
+    assert is_active("m1", EUROLEAGUE) and is_active("m5", EUROLEAGUE)
+    assert not is_active("m1", replace(EUROLEAGUE, m1_prediction_log=None))
+
+
+# --- run_shadows: order, isolation, outcomes ------------------------------------------------
+
+
+def _ok(rows: int | None) -> Callable[[], int | None]:
+    return lambda: rows
+
+
+def _boom(error: Exception) -> Callable[[], int | None]:
+    def run() -> int | None:
+        raise error
+
+    return run
+
+
+def test_active_models_run_in_order_and_say_what_they_appended(tmp_path: Path) -> None:
+    said: list[str] = []
+    shadows = [
+        Shadow("A", tmp_path / "a.csv", _ok(3)),
+        Shadow("B", tmp_path / "b.csv", _ok(None)),  # off here: silent
+        Shadow("C", tmp_path / "c.csv", _ok(0)),
+    ]
+    outcomes = run_shadows(shadows, said.append)
+    assert said == [
+        f"3 A predictions appended to {tmp_path / 'a.csv'}",
+        f"0 C predictions appended to {tmp_path / 'c.csv'}",
+    ]
+    assert [(o.label, o.status, o.rows) for o in outcomes] == [
+        ("A", "logged", 3),
+        ("B", "inactive", 0),
+        ("C", "logged", 0),
+    ]
+
+
+def test_a_failing_model_is_logged_and_the_next_still_runs(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    shadows = [
+        Shadow("A", None, _boom(ValueError("boom"))),
+        Shadow("B", tmp_path / "b.csv", _ok(2)),
+    ]
+    outcomes = run_shadows(shadows, lambda _line: None)
+    assert [(o.label, o.status) for o in outcomes] == [("A", "failed"), ("B", "logged")]
+    assert "A skipped: its forecast failed" in caplog.text
+    assert not any(o.blocking for o in outcomes)
+
+
+def test_a_required_model_failing_is_reported_as_blocking_but_does_not_stop_the_rest(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    shadows = [
+        Shadow("M1", None, _boom(ValueError("boom")), required=True),
+        Shadow("M5", tmp_path / "m5.csv", _ok(1)),
+    ]
+    outcomes = run_shadows(shadows, lambda _line: None)
+    assert [o.status for o in outcomes] == ["failed", "logged"]
+    assert [o.blocking for o in outcomes] == [True, False]
+    assert "M1 failed" in caplog.text
+
+
+@pytest.mark.parametrize("required", [False, True])
+def test_a_late_stamp_is_never_swallowed(tmp_path: Path, required: bool) -> None:
+    later = Shadow("B", tmp_path / "b.csv", _ok(1))
+    shadows = [Shadow("A", None, _boom(LatePredictionError("late")), required=required), later]
+    with pytest.raises(LatePredictionError):
+        run_shadows(shadows, lambda _line: None)

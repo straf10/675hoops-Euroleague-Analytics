@@ -143,3 +143,14 @@ from eurohoops.models.roster import (  # noqa: E402
 FIRST_ROUND_RULE
 start_date_counts
 unmatched_clubs
+
+# shadow-log flags: shadow_log.is_active reads them by name (getattr), which vulture cannot see
+from eurohoops.config import (  # noqa: E402
+    ELOC_LIVE_ENABLED,
+    ELOH_LIVE_ENABLED,
+    M5INJ_LIVE_ENABLED,
+)
+
+ELOC_LIVE_ENABLED
+ELOH_LIVE_ENABLED
+M5INJ_LIVE_ENABLED

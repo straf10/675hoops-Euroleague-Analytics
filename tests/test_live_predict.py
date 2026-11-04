@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 import typer
 
+from eurohoops import config
 from eurohoops.cli import live as live_mod
 from eurohoops.cli._shared import Live
 from eurohoops.config import EUROLEAGUE
@@ -75,8 +76,8 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tuned: Any) -> Iterat
     m5 = Recorder()
     monkeypatch.setattr(live_mod, "load_m5", lambda _path: object())
     monkeypatch.setattr(live_mod, "predict_upcoming_m5", m5)
-    for helper in ("_predict_m5inj", "_predict_eloc", "_predict_eloh"):
-        monkeypatch.setattr(live_mod, helper, Recorder())
+    for flag in ("M5INJ_LIVE_ENABLED", "ELOC_LIVE_ENABLED", "ELOH_LIVE_ENABLED"):
+        monkeypatch.setattr(config, flag, False)  # only M5 is under test
     yield {
         "comp": comp,
         "games": games,

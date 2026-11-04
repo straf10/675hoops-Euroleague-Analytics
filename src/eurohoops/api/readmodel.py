@@ -42,13 +42,11 @@ import pandera.pandas as pa
 
 from eurohoops.api import match_report as mr
 from eurohoops.config import (
-    ELOH_LIVE_ENABLED,
     EUROLEAGUE,
     INJURY_LOG,
     LIVE_SEASON,
     M2_PLAYERS_REPORT,
     M3_PLAYERS_REPORT,
-    M5INJ_LIVE_ENABLED,
     M6_PROJECTIONS,
     M6_SIMILARITY,
     M7,
@@ -80,6 +78,7 @@ from eurohoops.models.rest import rest_features
 from eurohoops.models.roster import read_rosters
 from eurohoops.parse.schemas import validated
 from eurohoops.publish import DISPLAY_CODES, Section, short_name, site_data
+from eurohoops.shadow_log import is_active
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import BoxGames, build_box_games
 from eurohoops.stats.coach_style import StyleIndex, game_styles
@@ -400,10 +399,10 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                         "m1": _path_or_none(store, comp.m1_prediction_log),
                         "m5": _path_or_none(store, comp.m5_prediction_log),
                         "m5inj": _path_or_none(store, comp.m5inj_prediction_log)
-                        if M5INJ_LIVE_ENABLED
+                        if is_active("m5inj", comp)
                         else None,
                         "eloh": _path_or_none(store, comp.eloh_prediction_log)
-                        if ELOH_LIVE_ENABLED
+                        if is_active("eloh", comp)
                         else None,
                     },
                     FORECAST_MODELS,

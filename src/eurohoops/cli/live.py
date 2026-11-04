@@ -30,14 +30,12 @@ from eurohoops.cli.backtest import (
 from eurohoops.config import (
     ELOC_CV,
     ELOH_FIT,
-    ELOH_LIVE_ENABLED,
     EUROLEAGUE,
     INJURY_LOG,
     INJURY_RAW_DIR,
     LIVE_SEASON,
     M3_PLAYERS_REPORT,
     M5,
-    M5INJ_LIVE_ENABLED,
     M6,
     M6_PROJECTIONS,
     M6_SIMILARITY,
@@ -60,10 +58,10 @@ from eurohoops.ingest.bios import el_people_path
 from eurohoops.ingest.http import make_client
 from eurohoops.injuries import InjuryPaths, probe_report, record_injuries, team_name_map
 from eurohoops.inputs import INPUT_COLUMNS, backfill_rows
-from eurohoops.live_eloc import eloc_logging_on, load_eloc, predict_upcoming_eloc
+from eurohoops.live_eloc import load_eloc, predict_upcoming_eloc
 from eurohoops.live_eloh import load_eloh, predict_upcoming_eloh
 from eurohoops.live_m1 import load_m1, predict_upcoming_m1
-from eurohoops.live_m5 import LiveM5, live_spec, load_m5, predict_upcoming_m5
+from eurohoops.live_m5 import live_spec, load_m5, predict_upcoming_m5
 from eurohoops.live_m5inj import predict_upcoming_m5inj
 from eurohoops.live_m6 import (
     inputs_digest,
@@ -89,6 +87,7 @@ from eurohoops.models.availability import read_injuries, read_roster_names
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
 from eurohoops.odds import OddsApiError, OddsFetchError, OddsPaths, api_key, record_odds
 from eurohoops.predict import LatePredictionError, logged_keys, predict_upcoming
+from eurohoops.shadow_log import Shadow, is_active, run_shadows
 from eurohoops.sim.formats import season_format
 from eurohoops.tipoff import first_tipoff_on
 
@@ -260,85 +259,96 @@ class _LiveFrame:
         return inputs, el_player_part(ratings)
 
 
-def _predict_m5inj(
-    games: pd.DataFrame,
-    *,
-    m5: LiveM5 | None,
-    frame: _LiveFrame,
-    comp: Competition,
-    season: int,
-    round_lead_hours: float,
-) -> None:
-    """The M5-INJ shadow log: off unless M5INJ_LIVE_ENABLED (config.py) is set. It needs M5's
-    report and the injury and roster caches. A shadow model never blocks the other logs."""
-    if not M5INJ_LIVE_ENABLED or m5 is None or comp.m5inj_prediction_log is None:
-        return
-    try:
-        added = predict_upcoming_m5inj(
-            games,
+def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Shadow]:
+    """The models that log next to the Elo log, in order. Each ``run`` returns the rows it added,
+    or None when the model is off here (a flag, a missing report or input)."""
+    lead = timedelta(hours=round_lead_hours)
+    frame = _LiveFrame(comp)
+    m1 = None if comp.m1 is None else load_m1(comp.m1.report)
+    m5 = load_m5(M5.report) if comp.m5_prediction_log is not None else None
+
+    def run_m1() -> int | None:
+        if m1 is None or comp.m1_prediction_log is None:
+            return None
+        return predict_upcoming_m1(
+            live.games,
+            _team_games(comp.name),
+            m1,
+            log_path=comp.m1_prediction_log,
+            season=live.season,
+            replay_from=live.replay_from,
+            round_lead=lead,
+            clock=utc_now,
+        )
+
+    def run_m5() -> int | None:
+        if m5 is None or comp.m5_prediction_log is None:
+            return None
+        try:
+            return predict_upcoming_m5(
+                live.games,
+                m5,
+                frame.m5,
+                log_path=comp.m5_prediction_log,
+                season=live.season,
+                round_lead=lead,
+                clock=utc_now,
+            )
+        except typer.Exit:  # a shadow model never blocks the Elo and M1 logs
+            log.warning("M5 skipped: its marts, stints or reports are missing here")
+            return None
+
+    def run_m5inj() -> int | None:
+        if m5 is None or not is_active("m5inj", comp) or comp.m5inj_prediction_log is None:
+            return None
+        return predict_upcoming_m5inj(
+            live.games,
             m5,
             frame.m5,
             injuries=read_injuries(INJURY_LOG),
             roster=read_roster_names(el_people_path(EUROLEAGUE.raw_dir, LIVE_SEASON)),
             log_path=comp.m5inj_prediction_log,
-            season=season,
-            round_lead=timedelta(hours=round_lead_hours),
+            season=live.season,
+            round_lead=lead,
             clock=utc_now,
         )
-        typer.echo(f"{added} M5-INJ predictions appended to {comp.m5inj_prediction_log}")
-    except LatePredictionError:
-        raise
-    except Exception:
-        log.exception("M5-INJ skipped: its forecast failed; nothing appended to its log")
 
-
-def _predict_eloc(
-    games: pd.DataFrame, season: int, comp: Competition, round_lead_hours: float
-) -> None:
-    """The ELOC shadow log: off unless ELOC_LIVE_ENABLED (config.py) is set, and then it needs
-    its CV report. A shadow model never blocks the Elo and M1 logs."""
-    eloc = load_eloc(ELOC_CV.report) if eloc_logging_on(comp) else None
-    if eloc is None or comp.eloc_prediction_log is None:
-        return
-    try:
-        added = predict_upcoming_eloc(
-            games,
+    def run_eloc() -> int | None:
+        eloc = load_eloc(ELOC_CV.report) if is_active("eloc", comp) else None
+        if eloc is None or comp.eloc_prediction_log is None:
+            return None
+        return predict_upcoming_eloc(
+            live.games,
             eloc,
             log_path=comp.eloc_prediction_log,
-            season=season,
-            round_lead=timedelta(hours=round_lead_hours),
+            season=live.season,
+            round_lead=lead,
             clock=utc_now,
         )
-        typer.echo(f"{added} ELOC predictions appended to {comp.eloc_prediction_log}")
-    except LatePredictionError:
-        raise
-    except Exception:
-        log.exception("ELOC skipped: its forecast failed; nothing appended to its log")
 
-
-def _predict_eloh(live: Live, comp: Competition, round_lead_hours: float) -> None:
-    """The ELOH shadow log: off unless ELOH_LIVE_ENABLED (config.py) is set, and then it needs
-    the frozen fit (reports/eloh_fit.json). A shadow model never blocks the Elo and M1 logs."""
-    if not ELOH_LIVE_ENABLED or comp.eloh_prediction_log is None:
-        return
-    eloh = load_eloh(ELOH_FIT, live.model, live.replay_from)
-    if eloh is None:
-        log.warning("ELOH skipped: %s is missing", ELOH_FIT)
-        return
-    try:
-        added = predict_upcoming_eloh(
+    def run_eloh() -> int | None:
+        if not is_active("eloh", comp) or comp.eloh_prediction_log is None:
+            return None
+        eloh = load_eloh(ELOH_FIT, live.model, live.replay_from)
+        if eloh is None:
+            log.warning("ELOH skipped: %s is missing", ELOH_FIT)
+            return None
+        return predict_upcoming_eloh(
             live.games,
             eloh,
             log_path=comp.eloh_prediction_log,
             season=live.season,
-            round_lead=timedelta(hours=round_lead_hours),
+            round_lead=lead,
             clock=utc_now,
         )
-        typer.echo(f"{added} ELOH predictions appended to {comp.eloh_prediction_log}")
-    except LatePredictionError:
-        raise
-    except Exception:
-        log.exception("ELOH skipped: its forecast failed; nothing appended to its log")
+
+    return [
+        Shadow("M1", comp.m1_prediction_log, run_m1, required=True),
+        Shadow("M5", comp.m5_prediction_log, run_m5),
+        Shadow("M5-INJ", comp.m5inj_prediction_log, run_m5inj),
+        Shadow("ELOC", comp.eloc_prediction_log, run_eloc),
+        Shadow("ELOH", comp.eloh_prediction_log, run_eloh),
+    ]
 
 
 def predict(
@@ -361,57 +371,8 @@ def predict(
             inputs_log=comp.inputs_log,
         )
         typer.echo(f"{added} predictions appended to {comp.prediction_log}")
-        m1 = None if comp.m1 is None else load_m1(comp.m1.report)
-        m1_failed = False
-        if m1 is not None and comp.m1_prediction_log is not None:
-            try:
-                added = predict_upcoming_m1(
-                    live.games,
-                    _team_games(comp.name),
-                    m1,
-                    log_path=comp.m1_prediction_log,
-                    season=live.season,
-                    replay_from=live.replay_from,
-                    round_lead=timedelta(hours=round_lead_hours),
-                    clock=utc_now,
-                )
-                typer.echo(f"{added} M1 predictions appended to {comp.m1_prediction_log}")
-            except LatePredictionError:
-                raise
-            except Exception:  # the later logs still run; the exit code below stays non-zero
-                log.exception("M1 failed: nothing appended to its log; the other logs go on")
-                m1_failed = True
-        frame = _LiveFrame(comp)
-        m5 = load_m5(M5.report) if comp.m5_prediction_log is not None else None
-        if m5 is not None and comp.m5_prediction_log is not None:
-            try:
-                added = predict_upcoming_m5(
-                    live.games,
-                    m5,
-                    frame.m5,
-                    log_path=comp.m5_prediction_log,
-                    season=live.season,
-                    round_lead=timedelta(hours=round_lead_hours),
-                    clock=utc_now,
-                )
-                typer.echo(f"{added} M5 predictions appended to {comp.m5_prediction_log}")
-            except typer.Exit:  # a shadow model never blocks the Elo and M1 logs
-                log.warning("M5 skipped: its marts, stints or reports are missing here")
-            except LatePredictionError:
-                raise
-            except Exception:  # e.g. marts without the tuning seasons: still never blocks
-                log.exception("M5 skipped: its forecast failed; nothing appended to its log")
-        _predict_m5inj(
-            live.games,
-            m5=m5,
-            frame=frame,
-            comp=comp,
-            season=live.season,
-            round_lead_hours=round_lead_hours,
-        )
-        _predict_eloc(live.games, live.season, comp, round_lead_hours)
-        _predict_eloh(live, comp, round_lead_hours)
-        if m1_failed:
+        outcomes = run_shadows(_shadows(live, comp, round_lead_hours), typer.echo)
+        if any(o.blocking for o in outcomes):
             raise typer.Exit(code=1)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
@@ -595,8 +556,8 @@ def score() -> None:
         odds_path=comp.odds_log,
         m1_log_path=comp.m1_prediction_log,
         m5_log_path=comp.m5_prediction_log,
-        m5inj_log_path=comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
-        eloh_log_path=comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
+        m5inj_log_path=comp.m5inj_prediction_log if is_active("m5inj", comp) else None,
+        eloh_log_path=comp.eloh_prediction_log if is_active("eloh", comp) else None,
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))

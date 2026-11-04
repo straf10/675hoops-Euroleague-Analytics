@@ -50,10 +50,8 @@ from eurohoops.api.readmodel import FORECAST_MODELS, Store
 from eurohoops.cli._shared import _live
 from eurohoops.cli.publish import utc_now
 from eurohoops.config import (
-    ELOH_LIVE_ENABLED,
     EUROLEAGUE,
     LIVE_SEASON,
-    M5INJ_LIVE_ENABLED,
     MART_PATH,
     SITE_FORECAST_MODEL,
 )
@@ -61,6 +59,7 @@ from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import write_json
 from eurohoops.marts import data_volume, read_games, read_teams
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
+from eurohoops.shadow_log import is_active
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games
 from eurohoops.stats.export import (
@@ -105,8 +104,8 @@ def legacy_site(out: Path, now: datetime) -> None:
                         "elo": comp.prediction_log,
                         "m1": comp.m1_prediction_log,
                         "m5": comp.m5_prediction_log,
-                        "m5inj": comp.m5inj_prediction_log if M5INJ_LIVE_ENABLED else None,
-                        "eloh": comp.eloh_prediction_log if ELOH_LIVE_ENABLED else None,
+                        "m5inj": comp.m5inj_prediction_log if is_active("m5inj", comp) else None,
+                        "eloh": comp.eloh_prediction_log if is_active("eloh", comp) else None,
                     },
                     FORECAST_MODELS,
                     live.games,

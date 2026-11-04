@@ -19,7 +19,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from eurohoops.config import ELOC_LIVE_ENABLED, Competition
 from eurohoops.models import elo
 from eurohoops.models.elo import EloParams
 from eurohoops.models.elo_cal import Calibration, apply
@@ -37,11 +36,6 @@ class LiveEloc:
     first_season: int  # the Elo replay's first season (the CV's first warm-up season)
     version: str
     passed: bool  # every shadow criterion of the CV report
-
-
-def eloc_logging_on(comp: Competition) -> bool:
-    """The ELOC shadow log is written only when the owner has enabled it in ``config.py``."""
-    return ELOC_LIVE_ENABLED and comp.eloc_prediction_log is not None
 
 
 def load_eloc(report_path: Path) -> LiveEloc | None:

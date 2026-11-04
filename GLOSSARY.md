@@ -7,6 +7,10 @@
 The public CSV of forecasts (`predictions/*.csv`). Rows are added, never edited or removed.
 _Avoid_: prediction file, history
 
+**Shadow log**:
+A model's own `predictions/<comp>_<id>_<season>.csv`, written next to the pre-registered log once per game and version by the shadow-log module (`shadow_log.py`) while the model is active: its `<ID>_LIVE_ENABLED` flag in `config.py` is on, if it has one, and it has a log path. A late stamp is refused and nothing is written.
+_Avoid_: shadow file
+
 **Pre-registered row**:
 A game's latest log row stamped before its tip-off, from the earliest model version that logged the game. One row per game is scored.
 
