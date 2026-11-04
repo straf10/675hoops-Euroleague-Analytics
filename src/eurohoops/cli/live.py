@@ -362,18 +362,25 @@ def predict(
         )
         typer.echo(f"{added} predictions appended to {comp.prediction_log}")
         m1 = None if comp.m1 is None else load_m1(comp.m1.report)
+        m1_failed = False
         if m1 is not None and comp.m1_prediction_log is not None:
-            added = predict_upcoming_m1(
-                live.games,
-                _team_games(comp.name),
-                m1,
-                log_path=comp.m1_prediction_log,
-                season=live.season,
-                replay_from=live.replay_from,
-                round_lead=timedelta(hours=round_lead_hours),
-                clock=utc_now,
-            )
-            typer.echo(f"{added} M1 predictions appended to {comp.m1_prediction_log}")
+            try:
+                added = predict_upcoming_m1(
+                    live.games,
+                    _team_games(comp.name),
+                    m1,
+                    log_path=comp.m1_prediction_log,
+                    season=live.season,
+                    replay_from=live.replay_from,
+                    round_lead=timedelta(hours=round_lead_hours),
+                    clock=utc_now,
+                )
+                typer.echo(f"{added} M1 predictions appended to {comp.m1_prediction_log}")
+            except LatePredictionError:
+                raise
+            except Exception:  # the later logs still run; the exit code below stays non-zero
+                log.exception("M1 failed: nothing appended to its log; the other logs go on")
+                m1_failed = True
         frame = _LiveFrame(comp)
         m5 = load_m5(M5.report) if comp.m5_prediction_log is not None else None
         if m5 is not None and comp.m5_prediction_log is not None:
@@ -404,6 +411,8 @@ def predict(
         )
         _predict_eloc(live.games, live.season, comp, round_lead_hours)
         _predict_eloh(live, comp, round_lead_hours)
+        if m1_failed:
+            raise typer.Exit(code=1)
     except LatePredictionError as exc:
         log.error("refusing to log: %s", exc)
         raise typer.Exit(code=1) from exc

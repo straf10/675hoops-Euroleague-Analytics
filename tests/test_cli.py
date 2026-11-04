@@ -217,6 +217,30 @@ def test_a_failing_m5_forecast_never_blocks_the_elo_log(monkeypatch: pytest.Monk
     assert EUROLEAGUE.prediction_log.exists()
 
 
+@pytest.mark.usefixtures("pipeline")
+def test_a_failing_m1_forecast_still_lets_the_later_logs_run_but_fails_the_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invoke("backtest")
+    m5_calls: list[int] = []
+
+    def broken(*_args: object, **_kwargs: object) -> int:
+        raise ValueError("boom")
+
+    def m5_stub(*_args: object, **_kwargs: object) -> int:
+        m5_calls.append(1)
+        return 0
+
+    monkeypatch.setattr(live_mod, "load_m1", lambda _path: object())
+    monkeypatch.setattr(live_mod, "predict_upcoming_m1", broken)
+    monkeypatch.setattr(live_mod, "load_m5", lambda _path: object())
+    monkeypatch.setattr(live_mod, "predict_upcoming_m5", m5_stub)
+    result = runner.invoke(cli.app, ["predict"])
+    assert result.exit_code == 1
+    assert m5_calls == [1]
+    assert EUROLEAGUE.prediction_log.exists()
+
+
 def odds_api(status: int) -> httpx.MockTransport:
     events = [
         {
