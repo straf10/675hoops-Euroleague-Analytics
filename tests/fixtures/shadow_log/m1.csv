@@ -1,0 +1,4 @@
+game_id,season,round,phase,tipoff_utc,home,away,p_home,exp_margin,exp_total,margin_sigma,margin_df,total_sigma,model,model_version,predicted_at_utc
+E2026_1,2026,1,RS,2026-10-01T18:00:00Z,AAA,BBB,0.6286,3.76,168.45,11.0000,7,18.0000,m1,0.0.0+m1.golden,2026-10-01T08:00:00Z
+E2026_2,2026,1,RS,2026-10-01T18:15:00Z,AAA,CCC,0.6281,3.74,168.31,11.0000,7,18.0000,m1,0.0.0+m1.golden,2026-10-01T08:00:00Z
+E2026_3,2026,1,RS,2026-10-01T18:30:00Z,AAA,DDD,0.6278,3.73,168.30,11.0000,7,18.0000,m1,0.0.0+m1.golden,2026-10-01T08:00:00Z
