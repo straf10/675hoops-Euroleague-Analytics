@@ -23,7 +23,7 @@ from eurohoops.parse.possession_report import possession_report
 from eurohoops.parse.stints import validate_sample
 from eurohoops.parse.stints_mart import build_stints_mart, mart_report
 from eurohoops.parse.team_box import build_team_games
-from eurohoops.publish import DISPLAY_CODES
+from eurohoops.publish import team_identity
 
 
 def build() -> None:
@@ -56,9 +56,8 @@ def _team_continuity() -> None:
         live = block["seasons"].get(str(LIVE_SEASON))
         if live is None or live.get("first_season_in_data"):
             continue
-        shown = DISPLAY_CODES.get(competition, {})
         changes = ", ".join(
-            f"{kind} {' '.join(shown.get(e['team'], e['team']) for e in live[kind])}"
+            f"{kind} {' '.join(_shown(competition, e['team']) for e in live[kind])}"
             for kind in ("new", "returning", "left")
             if live[kind]
         )
@@ -66,6 +65,10 @@ def _team_continuity() -> None:
     flagged = sum(len(block["review_name_changes"]) for block in report.values())
     if flagged:
         typer.echo(f"team continuity: {flagged} name changes to review (eurohoops continuity)")
+
+
+def _shown(competition: str, code: str) -> str:
+    return team_identity(competition, code).display_code
 
 
 def continuity() -> None:

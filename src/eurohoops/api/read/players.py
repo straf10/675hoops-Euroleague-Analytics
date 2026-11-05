@@ -6,16 +6,7 @@ from typing import Any
 import pandas as pd
 import pandera.pandas as pa
 
-from eurohoops.api.read.store import (
-    NotFound,
-    Store,
-    _check,
-    _el_box,
-    _mart,
-    _report,
-    _required,
-    jsonable,
-)
+from eurohoops.api.read.store import NotFound, Store, cached, check_rows, jsonable
 from eurohoops.config import (
     EUROLEAGUE,
     M2_PLAYERS_REPORT,
@@ -90,44 +81,30 @@ SIMILAR_ROWS_SCHEMA = pa.DataFrameSchema(
 )
 
 
+@cached
 def _xwalk(store: Store) -> pd.DataFrame:
     """The committed crosswalk file (D25; what CI has), else the ``player_xwalk`` mart."""
-
-    def make() -> pd.DataFrame:
-        if store.path(PLAYER_XWALK_FILE).exists():
-            return read_xwalk_file(store.path(PLAYER_XWALK_FILE))
-        found = read_table(_mart(store), "player_xwalk") if store.path(MART_PATH).exists() else None
-        if found is None:
-            return pd.DataFrame(columns=["person_id", "competition", "source_id"])
-        return found
-
-    return store.memo("xwalk", make)
+    if store.path(PLAYER_XWALK_FILE).exists():
+        return read_xwalk_file(store.path(PLAYER_XWALK_FILE))
+    found = read_table(store.mart(), "player_xwalk") if store.path(MART_PATH).exists() else None
+    if found is None:
+        return pd.DataFrame(columns=["person_id", "competition", "source_id"])
+    return found
 
 
-def _player_games(store: Store) -> dict[str, pd.DataFrame]:
-    def make() -> dict[str, pd.DataFrame]:
-        return {"euroleague": _el_box(store).players}
-
-    return store.memo("player_games", make)
-
-
+@cached
 def _player_seasons(store: Store) -> pd.DataFrame:
-    def make() -> pd.DataFrame:
-        try:
-            return build_player_seasons(_player_games(store), _xwalk(store))
-        except ValueError as empty:
-            raise NotFound(f"no box scores are cached: {empty}") from empty
-
-    return store.memo("player_seasons", make)
+    try:
+        games = {"euroleague": store.euroleague_box().players}
+        return build_player_seasons(games, _xwalk(store))
+    except ValueError as empty:
+        raise NotFound(f"no box scores are cached: {empty}") from empty
 
 
+@cached
 def _person_names(store: Store) -> dict[str, str]:
     """Person id -> display name: the EuroLeague box-score spelling."""
-
-    def make() -> dict[str, str]:
-        return person_names(_el_box(store).players, _xwalk(store))
-
-    return store.memo("person_names", make)
+    return person_names(store.euroleague_box().players, _xwalk(store))
 
 
 @dataclass(frozen=True)
@@ -136,39 +113,35 @@ class Impact:
     rows: dict[str, list[dict[str, Any]]]  # person id -> one dict per season
 
 
+@cached
 def _m3_index(store: Store) -> Impact | None:
-    def make() -> Impact | None:
-        report = _report(store, M3_PLAYERS_REPORT)
-        if report is None:
-            return None
-        records = [
-            {"season": int(season), **p}
-            for season, snapshot in report["seasons"].items()
-            for p in snapshot["players"]
-        ]
-        frame = validated(
-            pd.DataFrame(records, columns=list(M3_ROWS_SCHEMA.columns)), M3_ROWS_SCHEMA
-        )
-        ids = person_ids(frame["player_id"], "euroleague", _xwalk(store))["person_id"]
-        keep = (
-            "season",
-            "o",
-            "d",
-            "total",
-            "sd_total",
-            "ci90_o",
-            "ci90_d",
-            "ci90_total",
-            "minutes",
-            "games",
-            "seen",
-        )
-        rows: dict[str, list[dict[str, Any]]] = {}
-        for pid, record in zip(ids, records, strict=True):
-            rows.setdefault(pid, []).append({k: record[k] for k in keep})
-        return Impact(str(report["units"]), rows)
-
-    return store.memo("m3_index", make)
+    report = store.report(M3_PLAYERS_REPORT)
+    if report is None:
+        return None
+    records = [
+        {"season": int(season), **p}
+        for season, snapshot in report["seasons"].items()
+        for p in snapshot["players"]
+    ]
+    frame = validated(pd.DataFrame(records, columns=list(M3_ROWS_SCHEMA.columns)), M3_ROWS_SCHEMA)
+    ids = person_ids(frame["player_id"], "euroleague", _xwalk(store))["person_id"]
+    keep = (
+        "season",
+        "o",
+        "d",
+        "total",
+        "sd_total",
+        "ci90_o",
+        "ci90_d",
+        "ci90_total",
+        "minutes",
+        "games",
+        "seen",
+    )
+    rows: dict[str, list[dict[str, Any]]] = {}
+    for pid, record in zip(ids, records, strict=True):
+        rows.setdefault(pid, []).append({k: record[k] for k in keep})
+    return Impact(str(report["units"]), rows)
 
 
 # The RAPM leaderboard's floor: box minutes in the rated season. Under it a player has a rating
@@ -181,7 +154,7 @@ def rapm_board(store: Store) -> dict[str, Any]:
     """The latest M3 season's EuroLeague ratings: every player the stints rated, by total, with his
     90% intervals and his rank among the players at ``RAPM_MIN_MINUTES`` (``rank`` null below
     it). Nothing is fitted here."""
-    report = _required(store, M3_PLAYERS_REPORT, "the M3 player ratings")
+    report = store.required_report(M3_PLAYERS_REPORT, "the M3 player ratings")
     season = max(int(s) for s in report["seasons"])
     records = [
         {"season": season, **p} for p in report["seasons"][str(season)]["players"] if p["seen"]
@@ -226,30 +199,26 @@ def rapm_board(store: Store) -> dict[str, Any]:
     return out
 
 
+@cached
 def _m2_index(store: Store) -> Impact | None:
-    def make() -> Impact | None:
-        report = _report(store, M2_PLAYERS_REPORT)
-        if report is None:
-            return None
-        records = report["players"]
-        frame = validated(
-            pd.DataFrame(records, columns=list(M2_ROWS_SCHEMA.columns)), M2_ROWS_SCHEMA
+    report = store.report(M2_PLAYERS_REPORT)
+    if report is None:
+        return None
+    records = report["players"]
+    frame = validated(pd.DataFrame(records, columns=list(M2_ROWS_SCHEMA.columns)), M2_ROWS_SCHEMA)
+    ids = person_ids(frame["shooter"], "euroleague", _xwalk(store))["person_id"]
+    rows: dict[str, list[dict[str, Any]]] = {}
+    for pid, r in zip(ids, records, strict=True):
+        rows.setdefault(pid, []).append(
+            {
+                "season": r["season"],
+                "split": r["split"],
+                "fga": r["fga"],
+                "shot_making": r["shrunk"],
+                "ci90": r["ci90"],
+            }
         )
-        ids = person_ids(frame["shooter"], "euroleague", _xwalk(store))["person_id"]
-        rows: dict[str, list[dict[str, Any]]] = {}
-        for pid, r in zip(ids, records, strict=True):
-            rows.setdefault(pid, []).append(
-                {
-                    "season": r["season"],
-                    "split": r["split"],
-                    "fga": r["fga"],
-                    "shot_making": r["shrunk"],
-                    "ci90": r["ci90"],
-                }
-            )
-        return Impact(str(report["units"]), rows)
-
-    return store.memo("m2_index", make)
+    return Impact(str(report["units"]), rows)
 
 
 def player(store: Store, person_id: str) -> dict[str, Any]:
@@ -295,10 +264,17 @@ def player(store: Store, person_id: str) -> dict[str, Any]:
     return out
 
 
+@cached
+def _checked_projections(store: Store) -> dict[str, Any]:
+    """The M6 projections report; its whole list is validated once per Store, not once per person
+    (the export asks for each)."""
+    report = store.required_report(M6_PROJECTIONS, "the M6 projections")
+    check_rows(report["players"], PROJECTION_ROWS_SCHEMA)
+    return report
+
+
 def player_projection(store: Store, person_id: str) -> dict[str, Any]:
-    report = _required(store, M6_PROJECTIONS, "the M6 projections")
-    # the whole list is validated once per Store, not once per person (the export asks for each)
-    store.memo("checked:m6_projections", lambda: _check(report["players"], PROJECTION_ROWS_SCHEMA))
+    report = _checked_projections(store)
     rows = [
         p
         for p in report["players"]
@@ -324,11 +300,11 @@ def player_projection(store: Store, person_id: str) -> dict[str, Any]:
 
 
 def player_similar(store: Store, person_id: str) -> dict[str, Any]:
-    report = _required(store, M6_SIMILARITY, "the M6 similarity lists")
+    report = store.required_report(M6_SIMILARITY, "the M6 similarity lists")
     if person_id not in report["players"]:
         raise NotFound(f"no similarity list for person_id '{person_id}'")
     rows = report["players"][person_id]
-    _check(rows, SIMILAR_ROWS_SCHEMA)
+    check_rows(rows, SIMILAR_ROWS_SCHEMA)
     rows = [r for r in rows if r["competition"] == EUROLEAGUE.name]
     return {
         "model": report["model"],

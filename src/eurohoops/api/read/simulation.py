@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from eurohoops.api.read.store import NotFound, Store, _competition, _report
+from eurohoops.api.read.store import NotFound, Store
 from eurohoops.config import (
     EUROLEAGUE,
     M7,
@@ -18,13 +18,13 @@ SPIEGELHALTER_LIMIT = (
 def m7_verdict(store: Store) -> dict[str, Any]:
     """M7's gate verdict from its backtest report: ``passed`` and, when it failed, the rules it
     missed in one line."""
-    v2 = _report(store, M7_V2.report)
+    v2 = store.report(M7_V2.report)
     if v2 is not None and v2.get("gate_v2", {}).get("passed"):
         return {
             "passed": True,
             "reason": f"M7 passed its validation gate (gate v2, {M7_V2.report.as_posix()})",
         }
-    report = _report(store, M7.report)
+    report = store.report(M7.report)
     if report is None:
         return {"passed": False, "reason": f"{M7.report.as_posix()} not found: M7 has no verdict"}
     gate = report["gate"]
@@ -57,9 +57,9 @@ def m7_verdict(store: Store) -> dict[str, Any]:
 def simulation_latest(store: Store, competition: str) -> dict[str, Any]:
     """The latest season simulation with M7's verdict; ``gated`` once a gate passed (gate v2,
     docs/models/m7.md)."""
-    comp = _competition(competition)
+    comp = store.competition(competition)
     verdict = m7_verdict(store)
-    report = _report(store, SIM_UNGATED)
+    report = store.report(SIM_UNGATED)
     if report is None:
         raise NotFound(
             f"no ungated simulation report for {comp.name}: {verdict['reason']}",
@@ -73,7 +73,7 @@ def metrics_live(store: Store) -> dict[str, Any]:
     """The live scorecards (Elo, B0, and the M1 and M5 shadow blocks they carry) per competition."""
     cards = []
     for comp in (EUROLEAGUE,):
-        card = _report(store, comp.scorecard)
+        card = store.report(comp.scorecard)
         if card is not None:
             cards.append({"competition": comp.name, "scorecard": card})
     if not cards:

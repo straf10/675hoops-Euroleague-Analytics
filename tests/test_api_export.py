@@ -20,6 +20,7 @@ from eurohoops.api.export import (
     ExportError,
     RawStore,
     Route,
+    api_routes,
     export_files,
     file_for,
     file_key,
@@ -117,6 +118,31 @@ def test_a_route_without_a_file_is_an_error(route: str) -> None:
 def test_a_file_without_a_route_is_an_error(file: str) -> None:
     with pytest.raises(ValueError, match="no route for file"):
         route_for(PurePosixPath(file))
+
+
+def test_team_routes_take_the_source_code_even_when_a_display_code_is_a_source_code(
+    tmp_path: Path,
+) -> None:
+    # BAS shows as KBA, and KBA is also a source code (Baskonia's earlier one): the routes come
+    # from each team's source code, never from turning a display code back into one
+    site = {
+        "competitions": [
+            {
+                "key": "euroleague",
+                "ratings": [
+                    {"code": "KBA", "source_code": "BAS"},
+                    {"code": "KBA", "source_code": "KBA"},
+                    {"code": "FBT", "source_code": "ULK"},
+                ],
+            }
+        ]
+    }
+    teams = [r.path for r in api_routes(Store(tmp_path), site) if r.path.startswith("/teams/")]
+    assert teams == [
+        f"/teams/euroleague/{code}/{what}"
+        for code in ("BAS", "KBA", "ULK")
+        for what in (f"factors?season={LIVE_SEASON}", "ratings")
+    ]
 
 
 def test_a_non_200_response_is_an_error_naming_the_route_and_the_body(tree: Path) -> None:

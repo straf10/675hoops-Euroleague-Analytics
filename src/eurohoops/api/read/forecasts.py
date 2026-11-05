@@ -7,21 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from eurohoops.api.read.store import (
-    NotFound,
-    Store,
-    _competition,
-    _forecast,
-    _games,
-    _live_model,
-    _mart,
-    _names,
-    _read_log,
-    _required,
-    _stamp,
-    _team,
-    jsonable,
-)
+from eurohoops.api.read.store import NotFound, Store, forecast_fields, jsonable, stamp
 from eurohoops.config import (
     EUROLEAGUE,
     LIVE_SEASON,
@@ -55,11 +41,11 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
     scorecard, tuned Elo parameters and games (as ``eurohoops publish`` assembles it)."""
     sections = []
     for title, comp in (("EuroLeague", EUROLEAGUE),):
-        games = _games(store, comp)
-        scorecard = _required(store, comp.scorecard, f"the {comp.name} live scorecard")
-        backtest = _required(store, comp.live_backtest.report, f"the {comp.name} Elo backtest")
-        log = _read_log(store, comp.prediction_log)
-        model = _live_model(store, comp)
+        games = store.games(comp)
+        scorecard = store.required_report(comp.scorecard, f"the {comp.name} live scorecard")
+        backtest = store.required_report(comp.live_backtest.report, f"the {comp.name} Elo backtest")
+        log = store.log(comp.prediction_log)
+        model = store.live_model(comp)
         sections.append(
             Section(
                 key=comp.name,
@@ -68,7 +54,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                 scorecard=scorecard,
                 backtest=backtest,
                 games=games,
-                names=_names(store, comp),
+                names=store.team_names(comp),
                 model=model,
                 season=LIVE_SEASON,
                 replay_from=comp.live_backtest.warmup[0],
@@ -95,17 +81,16 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
             )
         )
     return site_data(
-        sections, now, data_volume(_mart(store), store.path(EUROLEAGUE.raw_dir / "playbyplay"))
+        sections, now, data_volume(store.mart(), store.path(EUROLEAGUE.raw_dir / "playbyplay"))
     )
 
 
 def upcoming_games(store: Store, competition: str, now: datetime) -> dict[str, Any]:
     """The live season's unplayed games that tip off after ``now``, each with its pre-registered
     Elo forecast when one is logged."""
-    comp = _competition(competition)
-    games = _games(store, comp)
-    names = _names(store, comp)
-    log = _read_log(store, comp.prediction_log)
+    comp = store.competition(competition)
+    games = store.games(comp)
+    log = store.log(comp.prediction_log)
     first = displayed_rows(log).set_index("game_id")
     ahead = games[(games["season"] == LIVE_SEASON) & ~games["played"] & (games["tipoff_utc"] > now)]
     rows = []
@@ -118,15 +103,15 @@ def upcoming_games(store: Store, competition: str, now: datetime) -> dict[str, A
                 "phase": g["phase"],
                 "tipoff_utc": jsonable(g["tipoff_utc"]),
                 "tipoff_time_confirmed": bool(g["confirmed_date"]),
-                "home": _team(comp, g["home"], names),
-                "away": _team(comp, g["away"], names),
-                "prediction": None if logged is None else _forecast(logged),
+                "home": store.team(comp, g["home"]),
+                "away": store.team(comp, g["away"]),
+                "prediction": None if logged is None else forecast_fields(logged),
             }
         )
     return {
         "competition": comp.name,
         "season": LIVE_SEASON,
-        "as_of": _stamp(now),
+        "as_of": stamp(now),
         "games": rows,
     }
 
@@ -145,7 +130,7 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
         models: dict[str, Any] = {}
         head: Mapping[Any, Any] | None = None
         for model, relative in logs.items():
-            log = _read_log(store, relative)
+            log = store.log(relative)
             rows = log[log["game_id"] == game_id]
             if rows.empty:
                 continue
@@ -157,9 +142,10 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
             )
             head = head or shown
             models[model] = {
-                "pre_registered": {**_forecast(shown), "late": bool(shown["late"])},
+                "pre_registered": {**forecast_fields(shown), "late": bool(shown["late"])},
                 "later": [
-                    {**_forecast(r), "late": bool(r["late"])} for r in others.to_dict("records")
+                    {**forecast_fields(r), "late": bool(r["late"])}
+                    for r in others.to_dict("records")
                 ],
             }
         if head is not None:
@@ -181,7 +167,7 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
 def _result(store: Store, comp: Competition, game_id: str) -> dict[str, Any] | None:
     if not store.path(MART_PATH).exists():
         return None
-    games = _games(store, comp)
+    games = store.games(comp)
     played = games[(games["game_id"] == game_id) & games["played"]]
     if played.empty:
         return None

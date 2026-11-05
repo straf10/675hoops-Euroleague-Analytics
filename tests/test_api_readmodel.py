@@ -87,11 +87,45 @@ def test_jsonable_unwraps_numpy_and_pandas_scalars() -> None:
 
 def test_a_store_is_a_snapshot_that_loads_each_thing_once(root: Path) -> None:
     fresh_store = Store(root)
-    calls: list[int] = []
-    assert fresh_store.memo("k", lambda: calls.append(1) or 7) == 7
-    assert fresh_store.memo("k", lambda: calls.append(1) or 8) == 7
-    assert calls == [1]
-    assert Store(root) == fresh_store  # equality ignores the memo
+    comp = fresh_store.competition("euroleague")
+    games = fresh_store.games(comp)
+    assert fresh_store.games(comp) is games  # the marts are read once per Store
+    assert fresh_store.report(comp.scorecard) is fresh_store.report(comp.scorecard)
+    assert Store(root).games(comp) is not games  # a new Store sees newer data
+    assert Store(root) == fresh_store  # equality ignores what was loaded
+
+
+def test_cached_keeps_a_derived_value_per_store_and_arguments(root: Path) -> None:
+    calls: list[tuple[int, int]] = []
+
+    @sto.cached
+    def double(store: Store, x: int) -> int:
+        calls.append((id(store), x))
+        return 2 * x
+
+    @sto.cached(key=lambda now: ())
+    def first(store: Store, now: int) -> int:
+        return now
+
+    one, two = Store(root), Store(root)
+    assert [double(one, 1), double(one, 1), double(one, 2), double(two, 1)] == [2, 2, 4, 2]
+    assert calls == [(id(one), 1), (id(one), 2), (id(two), 1)]
+    assert first(one, 5) == 5 and first(one, 6) == 5  # ``key`` ignores ``now``
+
+
+def test_a_store_names_teams_by_source_and_display_code(store: Store) -> None:
+    comp = store.competition("euroleague")
+    assert store.team(comp, "ULK") == {
+        "code": "ULK",
+        "display_code": "FBT",
+        "name": "Fenerbahce Beko Istanbul",
+        "short": "Fenerbahce",
+    }
+    with pytest.raises(NotFound, match="unknown competition 'gbl'"):
+        store.competition("gbl")
+    assert store.report(Path("reports/missing.json")) is None
+    with pytest.raises(NotFound, match=r"missing\.json not found: the thing has not been written"):
+        store.required_report(Path("reports/missing.json"), "the thing")
 
 
 def test_site_is_the_publish_payload(store: Store) -> None:
@@ -105,6 +139,7 @@ def test_site_is_the_publish_payload(store: Store) -> None:
     assert [g["game_id"] for g in el["upcoming"]] == ["E2026_4", "E2026_6"]
     assert el["upcoming"][0]["away"] == {
         "code": "FBT",
+        "source_code": "ULK",
         "name": "Fenerbahce Beko Istanbul",
         "short": "Fenerbahce",
     }
@@ -363,7 +398,7 @@ def test_strength_block_venue_adjusts_each_opponent() -> None:
     ratings = {"A": (1600.0, 0.0), "B": (1500.0, 0.0), "C": (1300.0, 0.0)}
     games = pd.DataFrame({"game_id": ["g1", "g2"], "home": ["A", "A"], "away": ["B", "C"]})
     rest = {("g1", "A"): 2.0, ("g1", "B"): 3.0, ("g2", "A"): 4.0, ("g2", "C"): 5.0}
-    block = tm._strength_block(games, "A", ratings, 90.0, rest)
+    block = tm.strength_block(games, "A", ratings, 90.0, rest)
     # both games at home: adjusted opponents 1410 and 1210, raw mean 1400
     assert block["games"] == 2 and block["home"] == 2 and block["away"] == 0
     assert block["mean_opponent_elo"] == pytest.approx(1400.0)
@@ -377,7 +412,7 @@ def test_strength_block_venue_adjusts_each_opponent() -> None:
     # an away game flips the sign: the opponent is at home, so its rating is raised by the HCA
     away = pd.DataFrame({"game_id": ["g3"], "home": ["D"], "away": ["A"]})
     rest_away = {("g3", "A"): 1.0, ("g3", "D"): 1.0}
-    one = tm._strength_block(away, "A", {**ratings, "D": (1400.0, 0.0)}, 90.0, rest_away)
+    one = tm.strength_block(away, "A", {**ratings, "D": (1400.0, 0.0)}, 90.0, rest_away)
     assert one["mean_opponent_elo_adjusted"] == pytest.approx(1490.0)
     assert one["away"] == 1 and one["home"] == 0
 
