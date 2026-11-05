@@ -1,10 +1,11 @@
-# Runs one pre-registered look of the R1 flagship promotion test (docs/models/m5.md). Manual only:
+# Runs one pre-registered look of the promotion test for every active shadow (CLAUDE.md rule 4,
+# GLOSSARY: promotion check). Manual only:
 # no schedule.
 #
 # Run look 1 once EuroLeague regular-season round 19 is complete, and look 2 once
 # the season's last game is played. An early dispatch is harmless: promote-check refuses before
 # the checkpoint is complete and exits 1 with "Nothing computed.", which fails this run on purpose.
-# A look runs once: a second dispatch refuses because its verdict file already exists.
+# A look runs once: a second dispatch refuses because its verdict files already exist.
 #
 # On success only reports/promotion_*.json is committed and pushed to main. Runs from any other
 # branch stop at the first step. The concurrency group is daily.yml's, so the two never push at once.

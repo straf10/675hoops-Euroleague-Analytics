@@ -5,7 +5,7 @@ over it instead of naming models. A new shadow model is one entry here plus its
 ``live_<id>.py`` forecast, wired into ``cli/live.py``'s ``_shadows``.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -72,3 +72,9 @@ def active_logs(comp: Competition, *, shown: bool = False) -> dict[str, Path]:
         for m in CATALOG
         if m.active() and (m.label is not None or not shown)
     }
+
+
+def active_shadows(comp: Competition, models: Sequence[LiveModel] = SHADOWS) -> dict[str, Path]:
+    """Shadow tag -> log path of every active shadow in ``models``, in catalog order: the models
+    the promotion check tests against the Elo log."""
+    return {m.tag: m.log_path(comp) for m in models if m.active()}

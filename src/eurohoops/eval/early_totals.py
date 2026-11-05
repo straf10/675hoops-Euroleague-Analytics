@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.metrics import paired_bootstrap_ci
 from eurohoops.logs import scored_rows
 
 SEASON_PHASE = "RS"
@@ -55,10 +56,10 @@ def m1_total_by_game(log: pd.DataFrame, manual_pushes: Sequence[datetime] = ()) 
     return first[["game_id", "exp_total"]].rename(columns={"exp_total": "m1_total"})
 
 
-def _ci(values: np.ndarray, idx: np.ndarray) -> list[float]:
-    means = values[idx].mean(axis=1)
-    lo, hi = np.percentile(means, CI_PERCENTILES)
-    return [round(float(lo), _ROUND), round(float(hi), _ROUND)]
+def _ci(values: np.ndarray) -> list[float]:
+    """Both metrics of a bucket use the same seed, so the same resamples."""
+    _, lo, hi = paired_bootstrap_ci(values, N_BOOT, SEED, percentiles=CI_PERCENTILES)
+    return [round(lo, _ROUND), round(hi, _ROUND)]
 
 
 def excludes_zero(ci: list[float] | None) -> bool:
@@ -70,15 +71,13 @@ def _bucket_summary(line_gap: np.ndarray, m1_gap: np.ndarray) -> dict[str, Any]:
     n = len(line_gap)
     if n == 0:
         return {"n": 0, "line": {"mean": None, "ci95": None}, "m1": {"mean": None, "ci95": None}}
-    rng = np.random.default_rng(SEED)
-    idx = rng.integers(0, n, size=(N_BOOT, n))
     return {
         "n": n,
         "line": {
             "mean": round(float(line_gap.mean()), _ROUND),
-            "ci95": _ci(line_gap, idx),
+            "ci95": _ci(line_gap),
         },
-        "m1": {"mean": round(float(m1_gap.mean()), _ROUND), "ci95": _ci(m1_gap, idx)},
+        "m1": {"mean": round(float(m1_gap.mean()), _ROUND), "ci95": _ci(m1_gap)},
     }
 
 

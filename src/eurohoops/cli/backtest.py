@@ -63,6 +63,7 @@ from eurohoops.eval.wp_backtest import format_table as format_wp_table
 from eurohoops.eval.wp_backtest import run as run_wp_backtest
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table
+from eurohoops.model_catalog import active_shadows
 from eurohoops.model_inputs import m5_inputs, m5_player_ratings, m6_inputs, m7_inputs
 from eurohoops.models.box_impact import BoxGrid, box_only_margins, pir_margins
 from eurohoops.models.elo import EloParams
@@ -461,19 +462,19 @@ def promote_check(
         int, typer.Option(help="Pre-registered look: 1 (mid-season), 2 (season end)")
     ] = 1,
 ) -> None:
-    """Flagship promotion test (PLAN R1); refuses before the look's checkpoint is complete."""
+    """Promotion test of every active shadow (CLAUDE.md rule 4); refuses before the look's
+    checkpoint is complete."""
     comp = EUROLEAGUE
-    flagship_log = comp.log_path("m5")
     if look not in (1, 2):
         raise typer.BadParameter("look must be 1 or 2")
     live = _live(comp)
     try:
-        verdict, _ = run_look(
+        result = run_look(
             comp.name,
             look,
             live.games,
             live.season,
-            flagship_log,
+            active_shadows(comp),
             comp.prediction_log,
             comp.manual_pushes,
             Path("reports"),
@@ -481,4 +482,7 @@ def promote_check(
     except LookNotDueError as exc:
         typer.echo(f"{exc}. Nothing computed.", err=True)
         raise typer.Exit(1) from exc
-    typer.echo(json.dumps(verdict.as_dict(), indent=2))
+    for verdict, out in result.verdicts.values():
+        typer.echo(f"{out}\n{json.dumps(verdict.as_dict(), indent=2)}")
+    for tag, why in result.not_tested.items():
+        typer.echo(f"{tag}: not tested: {why}")

@@ -23,7 +23,7 @@ import pandas as pd
 from scipy.special import expit
 
 from eurohoops.eval.forecasts import MKT_KEY, _calls, _market_calls
-from eurohoops.eval.metrics import per_game_log_loss
+from eurohoops.eval.metrics import paired_bootstrap_ci, per_game_log_loss
 
 CLIP = 1e-6  # the logit clip used across the programme
 Z95 = 1.959963984540054
@@ -91,11 +91,8 @@ def encompassing(home_won: np.ndarray, p_market: np.ndarray, p_model: np.ndarray
 
 def paired_gap_ci(model_loss: np.ndarray, mkt_loss: np.ndarray) -> list[float]:
     """Paired bootstrap 95% CI of the mean of (model - MKT) per game, seeded."""
-    gap = model_loss - mkt_loss
-    rng = np.random.default_rng(BOOTSTRAP_SEED)
-    idx = rng.integers(0, len(gap), size=(BOOTSTRAP_RESAMPLES, len(gap)))
-    lo, hi = np.percentile(gap[idx].mean(axis=1), [2.5, 97.5])
-    return [round(float(lo), 6), round(float(hi), 6)]
+    _, lo, hi = paired_bootstrap_ci(model_loss - mkt_loss, BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED)
+    return [round(lo, 6), round(hi, 6)]
 
 
 def _scores(pairs: pd.DataFrame) -> dict[str, Any]:

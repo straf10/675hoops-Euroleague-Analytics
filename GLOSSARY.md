@@ -21,6 +21,12 @@ _Avoid_: valid row (a valid row is only stamped before tip-off)
 **Late row**:
 A row stamped at or after its game's tip-off. Never scored. A game with only late rows shows its earliest one, as "Logged late".
 
+**Promotion check**:
+At each look (after EuroLeague round 19, and season end), every active shadow in the model catalog is tested on its own against the Elo log with the same pairing, bootstrap and pass bar (CLAUDE.md rule 4). One verdict per shadow, in `reports/promotion_<comp>_<season>_<id>_look<N>.json`. A shadow with no paired game gets none. Run once per look; `eval/promotion.py`.
+
+**Version restart**:
+In the promotion check, a shadow counts only the games of its latest `model_version`: the version of its latest-stamped row, stamps read as UTC instants. A new version restarts that shadow's count. Elo is not cut.
+
 **Live season**:
 The season being forecast (2026-27).
 

@@ -26,7 +26,8 @@ MKT_KEY = "mkt"  # the benchmark forecaster: the bookmakers' pre-tip line (docs/
 _NUMERIC = ("p_home", "exp_margin", "exp_total")
 
 
-def _finished(games: pd.DataFrame, season: int) -> pd.DataFrame:
+def finished_games(games: pd.DataFrame, season: int) -> pd.DataFrame:
+    """The season's played games with a result (forfeits excluded): the games a log is scored on."""
     return games.loc[
         games["played"] & ~games["forfeit"] & (games["season"] == season),
         [
@@ -53,7 +54,7 @@ def _calls(
     rows = scored_rows(log, manual_pushes)
     rows = rows[rows["season"] == season]
     first_round = int(rows["round"].min()) if len(rows) else None
-    finished = _finished(games, season)
+    finished = finished_games(games, season)
     scored = rows[["game_id", *_NUMERIC]].astype(dict.fromkeys(_NUMERIC, "float64"))
     scored = scored.merge(finished, on="game_id")
     scored = scored.assign(margin=(scored["home_score"] - scored["away_score"]).astype("float64"))
@@ -79,7 +80,9 @@ def _market_calls(odds_path: Path, games: pd.DataFrame, season: int) -> pd.DataF
         .sort_values("fetched_at_utc")
         .drop_duplicates("game_id", keep="last")[["game_id", "p_home", "fetched_at_utc"]]
     )
-    scored = closing.astype({"p_home": "float64"}).merge(_finished(games, season), on="game_id")
+    scored = closing.astype({"p_home": "float64"}).merge(
+        finished_games(games, season), on="game_id"
+    )
     scored = scored.assign(
         margin=(scored["home_score"] - scored["away_score"]).astype("float64"),
         exp_margin=np.nan,
