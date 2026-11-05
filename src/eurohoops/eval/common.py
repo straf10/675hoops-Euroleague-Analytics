@@ -40,13 +40,14 @@ def paired_ci(
     }
 
 
-def gate_passed(report: Mapping[str, Any]) -> bool:
-    """Whether a backtest report's validation gate passed: ``gate.passed`` is exactly ``true``.
+def gate_passed(report: Mapping[str, Any], key: str = "gate") -> bool:
+    """Whether a backtest report's validation gate passed: ``gate.passed`` (``key`` names the
+    gate's block, e.g. ``gate_v2``) is exactly ``true``.
 
     A report without a gate, a gate without a verdict (``null``: undecided) and anything that is
     not a JSON ``true`` all read as not passed, so a model goes live only on an explicit pass.
     """
-    gate = report.get("gate")
+    gate = report.get(key)
     return isinstance(gate, Mapping) and gate.get("passed") is True
 
 
@@ -73,9 +74,11 @@ def rmse_diff_bootstrap_ci(
     }
 
 
-def tagged_version(tag: str, key: str) -> str:
-    """``<package version>+<tag>.<8 hex of sha256(key)>``: a model version tied to its tuning."""
-    return f"{version('eurohoops')}+{tag}.{hashlib.sha256(key.encode()).hexdigest()[:8]}"
+def tagged_version(tag: str, key: str | bytes) -> str:
+    """``<package version>+<tag>.<8 hex of sha256(key)>``: a model version tied to its tuning
+    (a ``str`` key is hashed as UTF-8)."""
+    raw = key.encode() if isinstance(key, str) else key
+    return f"{version('eurohoops')}+{tag}.{hashlib.sha256(raw).hexdigest()[:8]}"
 
 
 def data_sha256(*frames: pd.DataFrame) -> str:

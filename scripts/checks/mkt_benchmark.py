@@ -18,11 +18,7 @@ from eurohoops.marts import read_games
 def main() -> None:
     comp = EUROLEAGUE
     assert comp.odds_log is not None
-    logs = {
-        "elo": comp.prediction_log,
-        "m1": comp.m1_prediction_log,
-        "m5": comp.m5_prediction_log,
-    }
+    logs = {tag: comp.log_path(tag) for tag in ("elo", "m1", "m5")}
     report = benchmark(
         logs, read_games(MART_PATH, comp.name), comp.odds_log, LIVE_SEASON, comp.manual_pushes
     )

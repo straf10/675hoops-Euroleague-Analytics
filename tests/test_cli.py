@@ -251,8 +251,7 @@ def test_eloh_without_its_fit_file_warns_and_writes_nothing(
     result = runner.invoke(cli.app, ["predict"])
     assert result.exit_code == 0
     assert "ELOH skipped: no_fit.json is missing" in caplog.text
-    assert EUROLEAGUE.eloh_prediction_log is not None
-    assert not EUROLEAGUE.eloh_prediction_log.exists()
+    assert not EUROLEAGUE.log_path("eloh").exists()
 
 
 def odds_api(status: int) -> httpx.MockTransport:
@@ -424,16 +423,16 @@ def test_backtest_m1_writes_a_reproducible_report(small_m1: Path) -> None:
 
     # E7: predict appends M1 rows to its own log (for a passed gate) and never touches Elo's.
     invoke("backtest")
-    assert EUROLEAGUE.m1_prediction_log is not None
+    m1_log_path = EUROLEAGUE.log_path("m1")
     passed = json.loads(EUROLEAGUE.m1.report.read_text(encoding="utf-8"))["gate"]["passed"]
     output = invoke("predict")
     elo_log = EUROLEAGUE.prediction_log.read_bytes()
-    assert EUROLEAGUE.m1_prediction_log.exists() == passed
+    assert m1_log_path.exists() == passed
     if passed:
         assert "3 M1 predictions appended" in output
-        m1_log = EUROLEAGUE.m1_prediction_log.read_bytes()
+        m1_log = m1_log_path.read_bytes()
         assert "0 M1 predictions appended" in invoke("predict")
-        assert EUROLEAGUE.m1_prediction_log.read_bytes() == m1_log
+        assert m1_log_path.read_bytes() == m1_log
     assert EUROLEAGUE.prediction_log.read_bytes() == elo_log
     invoke("score")
     card = json.loads(EUROLEAGUE.scorecard.read_text(encoding="utf-8"))
@@ -444,7 +443,7 @@ def test_backtest_m1_writes_a_reproducible_report(small_m1: Path) -> None:
 
 
 class _Stop(Exception):
-    """Ends a backtest command right after the fake _m5_inputs has recorded its spec."""
+    """Ends a backtest command right after the fake m5_inputs has recorded its spec."""
 
 
 def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
@@ -456,7 +455,7 @@ def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
         specs.append(spec)
         raise _Stop
 
-    monkeypatch.setattr(backtest_mod, "_m5_inputs", fake_inputs)
+    monkeypatch.setattr(backtest_mod, "m5_inputs", fake_inputs)
     result = runner.invoke(cli.app, ["backtest", "--model", "m5", "--retune-check"])
     assert isinstance(result.exception, _Stop), result.output
     (spec,) = specs

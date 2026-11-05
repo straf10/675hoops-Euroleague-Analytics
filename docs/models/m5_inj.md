@@ -96,7 +96,7 @@ Checked `injuries/euroleague_2026-27.csv` (25 snapshots, 2,451 rows, 2026-10-07 
 **Verdict.** The two-week clock is not met (earliest 2026-11-15, if daily snapshots hold). The gaps are a risk for the live test: the rule uses the latest snapshot before the cutoff with no maximum age, so a status could come from a snapshot days old. No logged forecast has done so yet, since the last forecast (10-28) came before the 10-30 gap.
 
 ## Files
-- Code: `src/eurohoops/injuries.py`, `src/eurohoops/models/injury_aliases.csv`, `src/eurohoops/models/rotation.py` (`_drop_absent`), `src/eurohoops/eval/m5_backtest.py`, `src/eurohoops/entity/translit.py` (`latin_key`), `src/eurohoops/config.py` (`M5INJ_LIVE_ENABLED`, `m5inj_prediction_log`).
+- Code: `src/eurohoops/injuries.py`, `src/eurohoops/models/injury_aliases.csv`, `src/eurohoops/models/rotation.py` (`_drop_absent`), `src/eurohoops/eval/m5_backtest.py`, `src/eurohoops/entity/translit.py` (`latin_key`), `src/eurohoops/config.py` (`M5INJ_LIVE_ENABLED`), `src/eurohoops/model_catalog.py` (`m5inj` entry).
 - Data: `injuries/euroleague_2026-27.csv`, `data/raw/euroleague/people/E2026.json.gz`.
 - Log: `predictions/euroleague_m5inj_2026-27.csv`.
 - Tests: `tests/test_m5inj.py`.

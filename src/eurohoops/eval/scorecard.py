@@ -1,6 +1,6 @@
 """Live scorecard: the prediction log joined with results, Elo vs B0."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -19,6 +19,7 @@ from eurohoops.logs import (
     read_log,
     scored_rows,
 )
+from eurohoops.model_catalog import entry
 from eurohoops.models.elo import FloatArray
 
 ROLLING_WINDOW = 50  # scored games per point of the rolling log loss (PLAN §7 monitoring)
@@ -257,7 +258,7 @@ def trial_section(
     *,
     manual_pushes: Sequence[datetime] = (),
 ) -> dict[str, Any]:
-    """A trial model's live scores (ELOH's shadow log): its scored row per finished game
+    """A trial model's live scores (ELOH's or ELOC's shadow log): its scored row per finished game
     (``logs.scored_rows``), scored like the headline (log loss, Brier, hit rate = accuracy), with
     Elo's headline forecast of the same games alongside. Reported only: never the headline, a
     decision or a site forecast. ``elo``: the scored Elo rows of ``build_scorecard``; ``name``:
@@ -310,10 +311,7 @@ def build_scorecard(
     *,
     manual_pushes: Sequence[datetime] = (),
     odds_path: Path | None = None,
-    m1_log_path: Path | None = None,
-    m5_log_path: Path | None = None,
-    m5inj_log_path: Path | None = None,
-    eloh_log_path: Path | None = None,
+    shadow_logs: Mapping[str, Path] | None = None,
 ) -> dict[str, Any]:
     """Score logged games that have finished; a missing log or no finished games gives n=0.
 
@@ -322,6 +320,8 @@ def build_scorecard(
     The headline (``elo``/``b0``) scores it only when it is provable (``logs.scored_rows``);
     ``all_rows`` scores it either way, and ``games_not_provable`` lists the games it drops. The
     rolling window, the warnings and the market column (only with ``odds_path``) use the headline.
+    ``shadow_logs`` (model tag -> log) adds each shadow's block, keyed by its tag, as its
+    ``model_catalog`` section kind says: ``m1_section`` or ``trial_section``.
     """
     log = read_log(log_path)
     pre_registered = pre_registered_rows(log)
@@ -338,36 +338,12 @@ def build_scorecard(
         "rolling": {"window": ROLLING_WINDOW, "series": rolling},
         "warnings": monitoring_warnings(rolling, log, games, now),
         "market": None if odds_path is None else market_scores(headline, odds_path),
-        **(
-            {}
-            if m1_log_path is None
-            else {"m1": m1_section(m1_log_path, games, headline, manual_pushes=manual_pushes)}
-        ),
-        **(
-            {}
-            if m5_log_path is None
-            else {
-                "m5": m1_section(
-                    m5_log_path, games, headline, name="m5", manual_pushes=manual_pushes
-                )
-            }
-        ),
-        **(
-            {}
-            if m5inj_log_path is None
-            else {
-                "m5inj": m1_section(
-                    m5inj_log_path, games, headline, name="m5inj", manual_pushes=manual_pushes
-                )
-            }
-        ),
-        **(
-            {}
-            if eloh_log_path is None
-            else {
-                "eloh": trial_section(
-                    eloh_log_path, games, headline, "eloh", manual_pushes=manual_pushes
-                )
-            }
-        ),
+        **{
+            tag: (
+                m1_section(path, games, headline, name=tag, manual_pushes=manual_pushes)
+                if entry(tag).section == "m1"
+                else trial_section(path, games, headline, tag, manual_pushes=manual_pushes)
+            )
+            for tag, path in (shadow_logs or {}).items()
+        },
     }

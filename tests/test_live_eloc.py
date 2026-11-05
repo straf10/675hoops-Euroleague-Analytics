@@ -9,19 +9,17 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from eurohoops import config
-from eurohoops.config import ELOC_CV, ELOC_LIVE_ENABLED, EUROLEAGUE
+from eurohoops.config import ELOC_CV, ELOC_LIVE_ENABLED
 from eurohoops.live_eloc import (
     LiveEloc,
     eloc_forecasts,
     load_eloc,
     predict_upcoming_eloc,
 )
+from eurohoops.model_catalog import entry
 from eurohoops.models import elo
 from eurohoops.models.elo_cal import Calibration, apply
-from eurohoops.shadow_log import is_active
 from tests import eloc_synthetic as syn
 
 SEASON = 2011
@@ -46,12 +44,7 @@ def _league_with_open_round() -> tuple[pd.DataFrame, datetime]:
 
 def test_the_shadow_log_is_off_by_default() -> None:
     assert ELOC_LIVE_ENABLED is False
-    assert is_active("eloc", EUROLEAGUE) is False
-
-
-def test_the_flag_needs_a_log_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(config, "ELOC_LIVE_ENABLED", True)
-    assert is_active("eloc", EUROLEAGUE) is True
+    assert entry("eloc").active() is False
 
 
 def test_no_report_means_no_model(tmp_path: Path) -> None:
@@ -122,7 +115,7 @@ def test_a_failed_shadow_logs_nothing(tmp_path: Path) -> None:
         round_lead=timedelta(hours=48),
         clock=lambda: now.replace(tzinfo=UTC),
     )
-    assert added == 0 and not log.exists()
+    assert added is None and not log.exists()
 
 
 def test_upcoming_games_are_logged_once(tmp_path: Path) -> None:

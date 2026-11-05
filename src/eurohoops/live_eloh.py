@@ -3,23 +3,23 @@ advantage (experiments/eloh.md), next to (never in) the Elo log.
 
 The forecast is live Elo's (same parameters, same margin scale, same replay start) with the
 home-court advantage of a game set to ``hca + delta[home team]``. The deltas are the frozen fit in
-``reports/eloh_fit.json``; nothing here refits them. The shadow is not displayed on the site.
+``reports/eloh_fit.json``; nothing here refits them. The site and API show it as a trial, never
+the headline (``model_catalog``).
 
-It is logged only when ``ELOH_LIVE_ENABLED`` is set in ``config.py`` (off by default).
+It is logged while ``ELOH_LIVE_ENABLED`` is set in ``config.py`` (on since go-live).
 """
 
-import hashlib
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from eurohoops.eval.backtest import TunedModel
+from eurohoops.eval.common import tagged_version
 from eurohoops.inputs import elo_strings
 from eurohoops.models import elo
 from eurohoops.models.elo import EloParams
@@ -43,13 +43,12 @@ def load_eloh(fit_path: Path, tuned: TunedModel, first_season: int) -> LiveEloh 
     """The frozen fit with live Elo's settings; None when there is no fit file yet."""
     if not fit_path.exists():
         return None
-    digest = hashlib.sha256(fit_path.read_bytes()).hexdigest()[:8]
     return LiveEloh(
         params=tuned.params,
         margin_scale=tuned.margin_scale,
         deltas=load_deltas(fit_path),
         first_season=first_season,
-        version=f"{version('eurohoops')}+eloh.{digest}",
+        version=tagged_version("eloh", fit_path.read_bytes()),
     )
 
 
@@ -89,7 +88,7 @@ def predict_upcoming_eloh(
     season: int,
     round_lead: timedelta,
     clock: Callable[[], datetime],
-) -> int:
+) -> int | None:
     """Log confirmed, unplayed ``season`` games of rounds starting within ``round_lead`` that are
     not logged at this model version yet. Returns the rows added."""
 

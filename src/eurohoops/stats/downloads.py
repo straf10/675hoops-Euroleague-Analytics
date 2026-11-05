@@ -27,10 +27,10 @@ from typing import Any
 import pandas as pd
 import pandera.pandas as pa
 
-from eurohoops.config import SITE_SEASONS
+from eurohoops.config import SITE_SEASONS, season_label
 from eurohoops.parse.games import ATHENS
 from eurohoops.stats.box import STATS
-from eurohoops.stats.export import Inputs, _player_frame, display_name, season_label
+from eurohoops.stats.export import Inputs, _player_frame, display_name
 from eurohoops.stats.shots import BANDS
 
 DOWNLOADS_DIR = Path("web/public/downloads")  # a build output, served at /downloads/

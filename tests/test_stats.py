@@ -24,7 +24,7 @@ from typer.testing import CliRunner
 
 from eurohoops import cli
 from eurohoops.cli import publish as publish_mod
-from eurohoops.config import MART_PATH
+from eurohoops.config import MART_PATH, season_label
 from eurohoops.eval.backtest import load_tuned_model
 from eurohoops.marts import write_tables
 from eurohoops.models.roster import read_rosters
@@ -47,7 +47,6 @@ from eurohoops.stats.export import (
     player_slugs,
     playoff_results,
     regular_season_standings,
-    season_label,
     site_window,
     slugify,
     write_stats,

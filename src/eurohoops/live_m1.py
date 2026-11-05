@@ -124,7 +124,7 @@ def predict_upcoming_m1(
     replay_from: int,
     round_lead: timedelta,
     clock: Callable[[], datetime],
-) -> int:
+) -> int | None:
     """Like the Elo predictor: confirmed, unplayed ``season`` games of rounds starting within
     ``round_lead`` that are not logged at this model version yet; games without a forecast (no box
     lines) are skipped.

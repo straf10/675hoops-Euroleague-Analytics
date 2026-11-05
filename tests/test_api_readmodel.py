@@ -568,6 +568,9 @@ def test_a_passed_gate_v2_gates_the_euroleague_simulation_only(fresh: Path) -> N
     assert "gate v2" in el["gate"]["reason"]
     v2.write_text(json.dumps({"gate_v2": {"passed": False}}), encoding="utf-8")
     assert sm.simulation_latest(Store(fresh), "euroleague")["gated"] is False
+    for truthy in ("yes", 1):  # only a JSON true passes
+        v2.write_text(json.dumps({"gate_v2": {"passed": truthy}}), encoding="utf-8")
+        assert sm.m7_verdict(Store(fresh))["passed"] is False
 
 
 def test_without_an_ungated_report_the_404_states_the_verdict(fresh: Path) -> None:

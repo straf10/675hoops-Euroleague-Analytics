@@ -40,6 +40,7 @@ export interface Metric {
 }
 
 const METRICS: Metric[] = [
+  { key: "record", name: "Record", head: "W–L", about: "Wins and losses. Clubs with the same record are ordered by point difference" },
   { key: "net", name: "Net rating", head: "Net", about: "Offensive rating minus defensive rating, points per 100 possessions" },
   { key: "ortg", name: "Offensive rating", head: "ORtg", about: "Points scored per 100 possessions" },
   { key: "drtg", name: "Defensive rating", head: "DRtg", about: "Points allowed per 100 opponent possessions" },
@@ -61,6 +62,7 @@ const METRICS: Metric[] = [
 
 /** The Metric select's groups, in the order they show. */
 export const METRIC_GROUPS: { label: string; keys: string[] }[] = [
+  { label: "Record", keys: ["record"] },
   { label: "Ratings and pace", keys: ["net", "ortg", "drtg", "pace"] },
   { label: "Shooting and turnovers", keys: ["efg", "tov", "oreb", "ftr", "tpar"] },
   { label: "Opponent", keys: ["oefg", "otov", "dreb", "oftr", "otpar"] },
@@ -78,19 +80,28 @@ export const metricOf = (key: string): Metric | undefined => METRICS.find((m) =>
 /** The better end first: a lower-is-better metric starts ascending, every other one descending. */
 export const bestDir = (key: string): Dir => (betterOf(key) === "lower" ? "asc" : "desc");
 
-/** The table's columns for a metric, in order. */
-export const columnKeys = (metric: string): string[] => (BASE_KEYS.includes(metric) ? BASE_KEYS : [...BASE_KEYS, metric]);
+/** The record sort: the W–L column, which every table shows before the metric columns. */
+export const RECORD = "record";
+
+/** The table's metric columns for a metric, in order (the W–L column is apart: see RECORD). */
+export const columnKeys = (metric: string): string[] =>
+  BASE_KEYS.includes(metric) || metric === RECORD ? BASE_KEYS : [...BASE_KEYS, metric];
 
 /** The phone column group (lib/cols.ts GROUPS.clubs) that holds a metric's column, or -1 for any group. */
 export const phoneGroup = (metric: string): number =>
-  metric === "ortg" || metric === "drtg" ? 1 : metric === "pace" ? 2 : metric.startsWith("sos_") ? 3 : -1;
+  metric === RECORD ? 0 : metric === "ortg" || metric === "drtg" ? 1 : metric === "pace" ? 2 : metric.startsWith("sos_") ? 3 : -1;
 
 /**
  * Rows in the order of a metric. A tie keeps the order the rows came in (net order), and a missing
- * figure goes last whichever way the sort runs.
+ * figure goes last whichever way the sort runs. The record sorts by wins, then point difference.
  */
 export function sortRows(rows: IndexRow[], key: string, dir: Dir): IndexRow[] {
   const sign = dir === "desc" ? -1 : 1;
+  if (key === RECORD)
+    return rows
+      .map((row, i) => ({ row, i }))
+      .sort((a, b) => sign * (a.row.w - b.row.w || (a.row.f.pd ?? 0) - (b.row.f.pd ?? 0)) || a.i - b.i)
+      .map(({ row }) => row);
   const value = (r: IndexRow) => (Number.isFinite(r.f[key]) ? r.f[key] : null);
   return rows
     .map((row, i) => ({ row, i, v: value(row) }))

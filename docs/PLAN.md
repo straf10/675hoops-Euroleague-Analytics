@@ -245,7 +245,7 @@ Elo remains the published forecast until R1's promotion test is met. Gains come 
 
 Dropped: R7 v3 (a v3 rule to name real over-performers). Reason: the board feeds no game model, its useful part is already in M6, and Scouting is hidden on the site.
 
-Logging: each daily run logs every unplayed, confirmed game of any round whose first tip-off is within 48 h (`round_lead_hours`, default 48), so rounds are logged 24–48 h before their first game. A game with unconfirmed time is logged once confirmed, before its tip-off. The latest row before tip-off is the one scored (`predict.upcoming_games` selects games).
+Logging: each daily run logs every unplayed, confirmed game of any round whose first tip-off is within 48 h (`round_lead_hours`, default 48), so rounds are logged 24–48 h before their first game. A game with unconfirmed time is logged once confirmed, before its tip-off. The latest row before tip-off is the one scored (`shadow_log.upcoming_games` selects games).
 
 ### 8.2 Gate calendar (2026-27)
 

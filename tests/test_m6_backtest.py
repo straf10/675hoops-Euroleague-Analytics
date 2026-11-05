@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from eurohoops import model_inputs
 from eurohoops.cli import backtest as backtest_mod
 from eurohoops.config import M3
 from eurohoops.eval import m6_backtest as module
@@ -841,23 +842,23 @@ def _el_spm() -> ElSpm:
 
 
 def _stub_loaders(monkeypatch: pytest.MonkeyPatch, inputs: M6Inputs, tmp_path: Path) -> None:
-    """Point every loader of ``backtest_mod._m6_inputs`` at the synthetic world."""
+    """Point every loader of ``model_inputs.m6_inputs`` at the synthetic world."""
     monkeypatch.chdir(tmp_path)
     games = inputs.games
-    monkeypatch.setattr(backtest_mod, "read_games", lambda _path, name: games[name])
+    monkeypatch.setattr(model_inputs, "read_games", lambda _path, name: games[name])
     tables = {
         "player_xwalk": inputs.xwalk,
         "stints": pd.DataFrame(),
         "stint_game_checks": pd.DataFrame(),
     }
-    monkeypatch.setattr(backtest_mod, "read_table", lambda _path, name, _comp=None: tables[name])
+    monkeypatch.setattr(model_inputs, "read_table", lambda _path, name, _comp=None: tables[name])
 
     class Box:
         def __init__(self, table: pd.DataFrame) -> None:
             self.players = self.table = table
 
     monkeypatch.setattr(
-        backtest_mod, "build_box_games", lambda _raw, _games: Box(inputs.player_games["euroleague"])
+        model_inputs, "build_box_games", lambda _raw, _games: Box(inputs.player_games["euroleague"])
     )
     # birth dates reproducing the synthetic ages
     ages = inputs.ages.drop_duplicates("person_id")
@@ -867,9 +868,9 @@ def _stub_loaders(monkeypatch: pytest.MonkeyPatch, inputs: M6Inputs, tmp_path: P
     }
     bios = inputs.xwalk.assign(birth_date=inputs.xwalk["person_id"].map(born))
     monkeypatch.setattr(
-        backtest_mod, "_m6_bios", lambda: bios[["competition", "source_id", "birth_date"]]
+        model_inputs, "_m6_bios", lambda: bios[["competition", "source_id", "birth_date"]]
     )
-    monkeypatch.setattr(backtest_mod, "el_spm_models", lambda *_args, **_kwargs: _el_spm())
+    monkeypatch.setattr(model_inputs, "el_spm_models", lambda *_args, **_kwargs: _el_spm())
     # the committed reports the wiring reads
     snaps = inputs.brapm.assign(
         player_id=lambda d: d["person_id"].str.removeprefix("P:"), total=lambda d: d["value"]
@@ -889,8 +890,8 @@ def _stub_loaders(monkeypatch: pytest.MonkeyPatch, inputs: M6Inputs, tmp_path: P
         json.dumps({"chosen": {"variant": "rapm_spm"}}), encoding="utf-8"
     )
     (tmp_path / "m3_players.json").write_text(json.dumps(players_json), encoding="utf-8")
-    monkeypatch.setattr(backtest_mod, "M3", replace(M3, report=tmp_path / "m3.json"))
-    monkeypatch.setattr(backtest_mod, "M3_PLAYERS_REPORT", tmp_path / "m3_players.json")
+    monkeypatch.setattr(model_inputs, "M3", replace(M3, report=tmp_path / "m3.json"))
+    monkeypatch.setattr(model_inputs, "M3_PLAYERS_REPORT", tmp_path / "m3_players.json")
     spec = small_spec()
     monkeypatch.setattr(
         backtest_mod,
@@ -941,10 +942,10 @@ def test_the_wired_spm_is_the_models_o_plus_d_on_lagged_league_rates() -> None:
             }
         )
     }
-    league = backtest_mod._league_rates(lines)
+    league = model_inputs.league_rates(lines)
     assert league.loc[("euroleague", 2011), "pts"] == pytest.approx(4.0)
     assert league.loc[("euroleague", 2012), "pts"] == pytest.approx(6.0)  # 100 * 12 / 200
-    frame = backtest_mod._m6_spm(el, league)(rates, 2013)
+    frame = model_inputs.m6_spm(el, league)(rates, 2013)
     model = el.models[2013]
     # 2012 is lagged to 2011's league rate (4), 2013 to 2012's (6)
     features = np.array([[10.0 - 4.0] * len(STAT_COLUMNS), [20.0 - 6.0] * len(STAT_COLUMNS)])
@@ -953,7 +954,7 @@ def test_the_wired_spm_is_the_models_o_plus_d_on_lagged_league_rates() -> None:
     # A season without its own model raises instead of reading a later season's model.
     later = max(el.fit_time) + 1
     with pytest.raises(ValueError, match="no EuroLeague SPM model"):
-        backtest_mod._m6_spm(el, league)(rates, later)
+        model_inputs.m6_spm(el, league)(rates, later)
 
 
 def test_log_m6_backtest_logs_no_later_split_when_tuning_only(

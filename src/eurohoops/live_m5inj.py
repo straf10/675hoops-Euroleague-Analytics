@@ -11,7 +11,7 @@ only snapshots stamped strictly before it count. The latest of them must be at m
 The shares change only for the games being logged now; every other game of the frame keeps M5's
 shares.
 
-Nothing is written while ``config.M5INJ_LIVE_ENABLED`` is False (``shadow_log.is_active``, checked
+Nothing is written while ``config.M5INJ_LIVE_ENABLED`` is False (``model_catalog``, checked
 by the CLI).
 """
 
@@ -62,14 +62,12 @@ def predict_upcoming_m5inj(
     round_lead: timedelta,
     clock: Callable[[], datetime],
     spec: M5Backtest = M5,
-) -> int:
+) -> int | None:
     """Like ``live_m5.predict_upcoming_m5``: confirmed, unplayed ``season`` games of rounds starting
     within ``round_lead`` that are not logged at M5-INJ's version yet. ``injuries`` is the injury
     log and ``roster`` the season's roster names (both read from caches by the caller). ``build``
-    is called only when there is something to log. Nothing is logged unless M5's gate passed."""
-    if not model.gate_passed:
-        log.info("M5-INJ: M5 did not pass its validation gate: not logged")
-        return 0
+    is called only when there is something to log. Nothing is logged unless M5's gate passed.
+    Rows are stamped at the cutoff, but refused if a tip-off passes before they are written."""
     cutoff = clock().replace(microsecond=0)  # the logged stamp's precision, so replays agree
     version = m5inj_version(model.version)
 
@@ -116,5 +114,9 @@ def predict_upcoming_m5inj(
         log_path=log_path,
         season=season,
         round_lead=round_lead,
-        clock=lambda: cutoff,  # one read: the stamp is the cutoff the injuries were read at
+        clock=clock,
+        as_of=cutoff,  # the stamp is the cutoff the injuries were read at
+        skip_reason=None
+        if model.gate_passed
+        else "M5-INJ: M5 did not pass its validation gate: not logged",
     )

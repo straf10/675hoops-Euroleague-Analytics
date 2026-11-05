@@ -9,6 +9,8 @@ from eurohoops.config import (
     M7_V2,
     SIM_UNGATED,
 )
+from eurohoops.eval.common import gate_passed
+from eurohoops.live_sim import GATE_V2_PASSED
 
 SPIEGELHALTER_LIMIT = (
     1.96  # the M7 gate's bound on the pooled |z| (config.M7, reports/m7_progress.md)
@@ -19,11 +21,8 @@ def m7_verdict(store: Store) -> dict[str, Any]:
     """M7's gate verdict from its backtest report: ``passed`` and, when it failed, the rules it
     missed in one line."""
     v2 = store.report(M7_V2.report)
-    if v2 is not None and v2.get("gate_v2", {}).get("passed"):
-        return {
-            "passed": True,
-            "reason": f"M7 passed its validation gate (gate v2, {M7_V2.report.as_posix()})",
-        }
+    if v2 is not None and gate_passed(v2, "gate_v2"):
+        return {"passed": True, "reason": GATE_V2_PASSED}
     report = store.report(M7.report)
     if report is None:
         return {"passed": False, "reason": f"{M7.report.as_posix()} not found: M7 has no verdict"}

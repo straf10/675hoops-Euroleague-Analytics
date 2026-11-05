@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from eurohoops.parse.games import ATHENS
-from eurohoops.predict import LatePredictionError, refuse_late, upcoming_games
+from eurohoops.shadow_log import LatePredictionError, refuse_late, upcoming_games
 from eurohoops.tipoff import first_tipoff_on
 
 

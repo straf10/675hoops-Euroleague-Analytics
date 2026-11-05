@@ -7,42 +7,31 @@ from functools import partial
 from pathlib import Path
 from typing import Annotated
 
-import numpy as np
 import pandas as pd
 import typer
 
 from eurohoops import research
-from eurohoops.cli._shared import ModelName, _live, log
+from eurohoops.cli._shared import ModelName, _live, exit_on_missing_inputs, log
 from eurohoops.config import (
     BLEND_REPORT,
     ELOC_CV,
     ELOR_BASELINE_REPORT,
     EUROLEAGUE,
-    LIVE_SEASON,
-    M2_REPORT,
     M3,
-    M3_PLAYERS_REPORT,
     M5,
     M5_RETUNE,
     M6,
     M7,
     M7_V2,
     MART_PATH,
-    PLAYER_BIOS,
-    PLAYER_XWALK_FILE,
     WP_GAMES_REPORT,
     WP_REPORT,
-    Competition,
-    M5Backtest,
-    M6Backtest,
-    M7Backtest,
 )
 from eurohoops.eval import eloc_cv
 from eurohoops.eval.backtest import format_table, run_backtest
 from eurohoops.eval.blend_backtest import FOLDS as BLEND_FOLDS
 from eurohoops.eval.blend_backtest import WARMUP_FOLDS as BLEND_WARMUP_FOLDS
 from eurohoops.eval.blend_backtest import run_blend
-from eurohoops.eval.el_spm import ElSpm, choose_model, el_spm_models
 from eurohoops.eval.m1_backtest import format_m1_table, run_m1_backtest
 from eurohoops.eval.m3_backtest import format_m3_table, run_m3_backtest
 from eurohoops.eval.m5_backtest import (
@@ -58,8 +47,8 @@ from eurohoops.eval.m5_retune import (
     retune_check,
     run_retune,
 )
-from eurohoops.eval.m6_backtest import M6Inputs, SpmFn, World, format_m6_table, run_m6_backtest
-from eurohoops.eval.m7_backtest import M7Inputs, format_m7_table, run_m7_backtest, scored_splits
+from eurohoops.eval.m6_backtest import format_m6_table, run_m6_backtest
+from eurohoops.eval.m7_backtest import format_m7_table, run_m7_backtest, scored_splits
 from eurohoops.eval.m7_gate_v2 import format_gate_v2, run_gate_v2
 from eurohoops.eval.promotion import LookNotDueError, run_look
 from eurohoops.eval.tracking import (
@@ -72,28 +61,15 @@ from eurohoops.eval.tracking import (
 )
 from eurohoops.eval.wp_backtest import format_table as format_wp_table
 from eurohoops.eval.wp_backtest import run as run_wp_backtest
-from eurohoops.live_m6 import person_names, query_rows
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table
-from eurohoops.models.box_impact import STAT_COLUMNS, BoxGrid, box_only_margins, pir_margins
+from eurohoops.model_inputs import m5_inputs, m5_player_ratings, m6_inputs, m7_inputs
+from eurohoops.models.box_impact import BoxGrid, box_only_margins, pir_margins
 from eurohoops.models.elo import EloParams
 from eurohoops.models.player_part import (
-    ElPlayerRatings,
-    PlayerPartError,
     el_player_part,
-    el_player_ratings,
-)
-from eurohoops.models.player_seasons import (
-    AGES_SCHEMA,
-    build_player_seasons,
-    person_ids,
-    player_ages,
-    read_xwalk_file,
 )
 from eurohoops.models.roster import read_rosters
-from eurohoops.models.similarity import BOX_FEATURES, embed, neighbours, raw_features
-from eurohoops.parse.schemas import validated
-from eurohoops.sim.played import regulation_scores
 from eurohoops.stats.box import build_box_games
 
 
@@ -133,52 +109,11 @@ def _backtest_m3(score_test: bool, tuning_only: bool, tracking_uri: str) -> None
         typer.echo(f"MLflow parent run {run_id}")
 
 
-def _m5_inputs(comp: Competition, spec: M5Backtest) -> tuple[M5Inputs, pd.DataFrame]:
-    """M5's inputs for ``comp``: every game up to the last test season (the live season never
-    enters, so the daily log cannot move the report), M1's committed parameters and comparison
-    Elo. Also returns the backtest frame (M3's order)."""
-    if comp.m1 is None or not comp.m1.report.exists():
-        log.error("no committed M1 report for %s; run: eurohoops backtest --model m1", comp.name)
-        raise typer.Exit(code=1)
-    m1_report = json.loads(comp.m1.report.read_text(encoding="utf-8"))
-    last = spec.test[-1]
-    games = read_games(MART_PATH, comp.name)
-    games = games[games["season"] <= last].reset_index(drop=True)
-    team_games = read_table(MART_PATH, "team_games", comp.name)
-    if team_games is None:
-        log.error("no team_games in the marts; run: eurohoops build")
-        raise typer.Exit(code=1)
-    team_games = team_games[team_games["game_id"].isin(set(games["game_id"]))]
-    player_games = build_box_games(comp.raw_dir, games).players
-    inputs = M5Inputs(
-        games=games,
-        team_games=team_games.reset_index(drop=True),
-        player_games=player_games,
-        tuned_m1=m1_report["tuned"],
-        elo=m1_report["comparison_elo"],
-    )
-    frame = (
-        games[games["season"].between(spec.warmup[0], last)]
-        .sort_values("tipoff_utc")
-        .reset_index(drop=True)
-    )
-    return inputs, frame
-
-
 def _m5_player_part_el(inputs: M5Inputs, frame: pd.DataFrame) -> PlayerPartFn:
     """M3's committed ``rapm_spm`` (``reports/backtest_m3.json`` ``chosen``, never re-tuned),
     fitted walk-forward once over the frame; the player part is H-c's ``rapm_margins``."""
-    return el_player_part(_el_player_ratings(inputs, frame))
-
-
-def _el_player_ratings(inputs: M5Inputs, frame: pd.DataFrame) -> ElPlayerRatings:
-    try:
-        return el_player_ratings(
-            frame, inputs.player_games, inputs.team_games, m3_report=M3.report, mart_path=MART_PATH
-        )
-    except PlayerPartError as error:
-        log.error("%s", error)
-        raise typer.Exit(code=1) from error
+    with exit_on_missing_inputs():
+        return el_player_part(m5_player_ratings(inputs, frame))
 
 
 def _on_origin_main() -> bool:
@@ -203,7 +138,8 @@ def _backtest_m5_retune(check_only: bool) -> None:
             log.error("refusing to run: HEAD is not the same as origin/main")
             raise typer.Exit(code=1)
     retune_spec = retune_backtest_spec(M5_RETUNE)
-    inputs, frame = _m5_inputs(EUROLEAGUE, retune_spec)
+    with exit_on_missing_inputs():
+        inputs, frame = m5_inputs(EUROLEAGUE, retune_spec)
     player_part = _m5_player_part_el(inputs, frame)
     if check_only:
         if not M5.games_report.exists():
@@ -310,7 +246,8 @@ def _backtest_m5(score_test: bool, tuning_only: bool, tracking_uri: str) -> None
     """``backtest --model m5`` (week 14-16 J4): the roster-aware predictor vs M1, Elo and B0."""
     spec, comp = M5, EUROLEAGUE
     started = time.perf_counter()
-    inputs, frame = _m5_inputs(comp, spec)
+    with exit_on_missing_inputs():
+        inputs, frame = m5_inputs(comp, spec)
     player_part = _m5_player_part_el(inputs, frame)
     report, predictions = run_m5_backtest(
         inputs,
@@ -328,37 +265,12 @@ def _backtest_m5(score_test: bool, tuning_only: bool, tracking_uri: str) -> None
         typer.echo(f"MLflow run {run_id}")
 
 
-def _m7_inputs(comp: Competition, spec: M7Backtest, seasons: tuple[int, ...]) -> M7Inputs:
-    """M7's inputs for ``comp``: every game up to the last test season (the live season never
-    enters, so the daily log cannot move the report), M1's committed parameters and comparison
-    Elo, and the EuroLeague's regulation scores of the scored regular seasons."""
-    if comp.m1 is None or not comp.m1.report.exists():
-        log.error("no committed M1 report for %s; run: eurohoops backtest --model m1", comp.name)
-        raise typer.Exit(code=1)
-    m1_report = json.loads(comp.m1.report.read_text(encoding="utf-8"))
-    games = read_games(MART_PATH, comp.name)
-    games = games[games["season"] <= spec.test[-1]].reset_index(drop=True)
-    team_games = read_table(MART_PATH, "team_games", comp.name)
-    if team_games is None:
-        log.error("no team_games in the marts; run: eurohoops build")
-        raise typer.Exit(code=1)
-    team_games = team_games[team_games["game_id"].isin(set(games["game_id"]))]
-    scored = games[(games["phase"] == "RS") & games["season"].isin(seasons)]
-    return M7Inputs(
-        competition=comp.name,
-        games=games,
-        team_games=team_games.reset_index(drop=True),
-        regulation=regulation_scores(comp.raw_dir, scored),
-        tuned_m1=m1_report["tuned"],
-        elo=m1_report["comparison_elo"],
-    )
-
-
 def _backtest_m7(score_test: bool, tuning_only: bool, tracking_uri: str) -> None:
     """``backtest --model m7`` (week 14-16 K4): season simulation vs the real final tables."""
     spec, comp = M7, EUROLEAGUE
     started = time.perf_counter()
-    inputs = _m7_inputs(comp, spec, tuple(scored_splits(spec, tuning_only, score_test)))
+    with exit_on_missing_inputs():
+        inputs = m7_inputs(comp, spec, tuple(scored_splits(spec, tuning_only, score_test)))
     report, rows = run_m7_backtest(
         inputs, spec=spec, tuning_only=tuning_only, score_test=score_test
     )
@@ -376,7 +288,8 @@ def _backtest_m7_v2() -> None:
     once."""
     started = time.perf_counter()
     # every season, the selection one included: its overtime games need their regulation scores
-    inputs = _m7_inputs(EUROLEAGUE, M7, M7_V2.tuning)
+    with exit_on_missing_inputs():
+        inputs = m7_inputs(EUROLEAGUE, M7, M7_V2.tuning)
     report, rows = run_gate_v2(inputs, spec=M7_V2)
     write_json(M7_V2.report, report)
     rows.to_csv(M7_V2.teams_report, index=False, lineterminator="\n")
@@ -402,132 +315,13 @@ def _backtest_wp(raw_dir: Path | None) -> None:
     typer.echo(f"RUNTIME backtest wp: {time.perf_counter() - started:.0f} s")
 
 
-def _m6_brapm(xwalk: pd.DataFrame) -> pd.DataFrame:
-    """The season-end BRAPM snapshots of ``reports/m3_players.json`` as ``IMPACT_SCHEMA`` rows
-    (``total`` and ``sd_total`` of the players the snapshot saw, mapped to persons)."""
-    report = json.loads(M3_PLAYERS_REPORT.read_text(encoding="utf-8"))
-    frames = []
-    for season, block in report["seasons"].items():
-        players = pd.DataFrame(block["players"])
-        players = players[players["seen"]]
-        ids = person_ids(players["player_id"], EUROLEAGUE.name, xwalk)
-        frames.append(
-            pd.DataFrame(
-                {
-                    "person_id": ids["person_id"].to_numpy(),
-                    "competition": EUROLEAGUE.name,
-                    "season": int(season),
-                    "stat": "brapm",
-                    "value": players["total"].to_numpy(dtype="float64"),
-                    "sd": players["sd_total"].to_numpy(dtype="float64"),
-                }
-            )
-        )
-    rows = pd.concat(frames, ignore_index=True)
-    rows = rows.drop_duplicates(["person_id", "competition", "season", "stat"])
-    return rows.sort_values(["season", "person_id"]).reset_index(drop=True)
-
-
-def _league_rates(player_games: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """Per competition and season the league's per-100 rate of each SPM stat (all lines with
-    seconds played, possession-weighted), indexed by (competition, season)."""
-    frames = []
-    for competition, all_lines in player_games.items():
-        lines = all_lines[all_lines["sec"] > 0]
-        sums = lines.groupby("season")[[*STAT_COLUMNS, "poss"]].sum()
-        rates = 100.0 * sums[list(STAT_COLUMNS)].div(sums["poss"], axis=0)
-        frames.append(rates.assign(competition=competition).set_index("competition", append=True))
-    return pd.concat(frames).reorder_levels(["competition", "season"]).sort_index()
-
-
-def _m6_spm(el: ElSpm, league: pd.DataFrame) -> SpmFn:
-    """The injected SPM: ``before_season``'s EuroLeague SPM model (fitted on data before that
-    season; the latest one when there is none for it) applied to each row's per-100 box rates
-    minus the league rate of the row's previous season (never the row's own season: at a
-    checkpoint that would read games after the cutoff; the first season has none and uses
-    its own, which no checkpoint reads); SPM = O + D. Unshrunk rates. A season without its own
-    model raises: falling back to a later model would read data after the season's start."""
-
-    def spm(frame: pd.DataFrame, before_season: int) -> "pd.Series[float]":
-        if before_season not in el.fit_time:
-            raise ValueError(f"no EuroLeague SPM model for season {before_season}")
-        model = choose_model(el, el.fit_time[before_season])
-        if model is None:
-            raise ValueError(f"no EuroLeague SPM model for season {before_season}")
-        base = []
-        cache: dict[tuple[str, int], np.ndarray] = {}  # the base row depends on this pair only
-        for competition, season in zip(frame["competition"], frame["season"], strict=True):
-            key = (competition, int(season))
-            if key not in cache:
-                rates = league.loc[competition]
-                earlier = rates.loc[: key[1] - 1]
-                cache[key] = (earlier if len(earlier) else rates).iloc[-1].to_numpy(dtype="float64")
-            base.append(cache[key])
-        features = frame[list(model.stats)].to_numpy(dtype="float64") - np.array(base)
-        o, d = model.predict(features)
-        return pd.Series(o + d, index=frame.index)
-
-    return spm
-
-
-def _m6_bios() -> pd.DataFrame:
-    if not PLAYER_BIOS.exists():
-        log.error("no player bios; run: eurohoops bios")
-        raise typer.Exit(code=1)
-    return pd.read_parquet(PLAYER_BIOS)
-
-
-def _m6_inputs(spec: M6Backtest, *, live: bool = False) -> M6Inputs:
-    """M6's inputs: the EuroLeague games and player games up to the last test season (the live
-    season never enters, so the daily log cannot move the report), the crosswalk, in-memory ages,
-    the BRAPM snapshots and the SPM wired from M3's EuroLeague models.
-    ``live`` (``eurohoops project``): up to the live season, the committed crosswalk file (D25)
-    and no ages (the chosen variant does not age, and the daily workflow has no bios)."""
-    last = LIVE_SEASON if live else spec.test[-1]
-    el_games = read_games(MART_PATH, EUROLEAGUE.name)
-    games = {EUROLEAGUE.name: el_games[el_games["season"] <= last].reset_index(drop=True)}
-    xwalk = read_xwalk_file(PLAYER_XWALK_FILE) if live else read_table(MART_PATH, "player_xwalk")
-    stints = read_table(MART_PATH, "stints")
-    checks = read_table(MART_PATH, "stint_game_checks")
-    if xwalk is None or stints is None or checks is None:
-        log.error("player_xwalk/stints missing; run: eurohoops entity / stints")
-        raise typer.Exit(code=1)
-    player_games = {
-        EUROLEAGUE.name: build_box_games(EUROLEAGUE.raw_dir, games[EUROLEAGUE.name]).players,
-    }
-    ages = (
-        validated(pd.DataFrame({"person_id": [], "season": [], "age": []}), AGES_SCHEMA)
-        if live
-        else player_ages(_m6_bios(), xwalk, build_player_seasons(player_games, xwalk))
-    )
-    chosen = json.loads(M3.report.read_text(encoding="utf-8"))["chosen"]
-    if chosen["variant"] != "rapm_spm":
-        log.error("M3 chosen variant must be rapm_spm (see reports/backtest_m3.json)")
-        raise typer.Exit(code=1)
-    el = el_spm_models(
-        el_games[el_games["played"]] if live else el_games,
-        player_games[EUROLEAGUE.name],
-        stints,
-        checks,
-        chosen,
-        last=LIVE_SEASON if live else M3.test[-1],
-    )
-    return M6Inputs(
-        games=games,
-        player_games=player_games,
-        xwalk=xwalk,
-        ages=ages,
-        brapm=_m6_brapm(xwalk),
-        spm=_m6_spm(el, _league_rates(player_games)),
-    )
-
-
 def _backtest_m6(score_test: bool, tuning_only: bool, tracking_uri: str) -> None:
     """``backtest --model m6`` (weeks 16-18 L6): player projections vs Marcel and the naive
     baselines, next-season and rest-of-season."""
     spec, comp = M6, EUROLEAGUE
     started = time.perf_counter()
-    inputs = _m6_inputs(spec)
+    with exit_on_missing_inputs():
+        inputs = m6_inputs(spec)
     report, players = run_m6_backtest(
         inputs,
         spec=spec,
@@ -543,46 +337,6 @@ def _backtest_m6(score_test: bool, tuning_only: bool, tracking_uri: str) -> None
     run_id = log_m6_backtest(report, comp.name, tracking_uri)
     if run_id is not None:
         typer.echo(f"MLflow run {run_id}")
-
-
-def _live_names(inputs: M6Inputs) -> dict[str, str]:
-    """Display names: the EuroLeague box spellings."""
-    return person_names(inputs.player_games[EUROLEAGUE.name], inputs.xwalk)
-
-
-def _m2_shots(season: int) -> tuple[pd.DataFrame, pd.DataFrame, str]:
-    """The ``shots`` and ``shot_xpts`` marts up to ``season`` and M2's chosen xPTS variant."""
-    shots, xpts = read_table(MART_PATH, "shots"), read_table(MART_PATH, "shot_xpts")
-    if shots is None or xpts is None:
-        log.error("shots/shot_xpts missing; run: eurohoops shots, backtest --model m2")
-        raise typer.Exit(code=1)
-    variant = str(json.loads(M2_REPORT.read_text(encoding="utf-8"))["gate"]["chosen"])
-    return shots[shots["season"] <= season], xpts, variant
-
-
-def _m6_similar(  # noqa: PLR0917 -- the live inputs, passed through
-    world: World,
-    people: list[str],
-    season: int,
-    shots: pd.DataFrame,
-    xpts: pd.DataFrame,
-    variant: str,
-) -> tuple[pd.DataFrame, list[int], bool]:
-    """Each live person's "plays like" list: his newest complete season with ``min_poss``
-    possessions against every complete season up to ``season``."""
-    joined = shots.merge(
-        xpts.loc[xpts["variant"] == variant, ["game_id", "event", "p_make"]],
-        on=["game_id", "event"],
-    )
-    mapped = person_ids(joined["shooter"], EUROLEAGUE.name, world.inputs.xwalk)["person_id"]
-    frame = joined.assign(person_id=mapped.to_numpy(), xpts=joined["p_make"] * joined["value"])
-    frame = frame[["person_id", "season", "made", "value", "x", "y", "band", "xpts"]]
-    done = world.complete[~world.complete["partial"] & (world.complete["season"] <= season)]
-    pool = sorted(int(s) for s in done["season"].unique())
-    emb = embed(done, frame, pool_seasons=pool, min_poss=M6.min_poss)
-    query = query_rows(world.complete, people, LIVE_SEASON, M6.min_poss)
-    features = raw_features(query, frame[frame["person_id"].isin(set(query["person_id"]))])
-    return neighbours(features, emb), pool, len(emb.features) > len(BOX_FEATURES)
 
 
 def backtest(  # noqa: PLR0911, PLR0912 -- one dispatch return per model
@@ -709,8 +463,8 @@ def promote_check(
 ) -> None:
     """Flagship promotion test (PLAN R1); refuses before the look's checkpoint is complete."""
     comp = EUROLEAGUE
-    flagship_log = comp.m5_prediction_log
-    if look not in (1, 2) or flagship_log is None:
+    flagship_log = comp.log_path("m5")
+    if look not in (1, 2):
         raise typer.BadParameter("look must be 1 or 2")
     live = _live(comp)
     try:

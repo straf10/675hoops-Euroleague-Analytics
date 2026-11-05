@@ -100,7 +100,7 @@ def predict_upcoming_m5(
     round_lead: timedelta,
     clock: Callable[[], datetime],
     spec: M5Backtest = M5,
-) -> int:
+) -> int | None:
     """Like the M1 predictor: confirmed, unplayed ``season`` games of rounds starting within
     ``round_lead`` that are not logged at this model version yet. ``games`` is the competition's
     games mart; ``build`` makes the harness inputs and the player part, and is called only when

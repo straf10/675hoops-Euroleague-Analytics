@@ -45,7 +45,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from eurohoops.config import EUROLEAGUE, SITE_SEASONS
+from eurohoops.config import EUROLEAGUE, SITE_SEASONS, season_label
 from eurohoops.ingest.cache import read_cached
 from eurohoops.ingest.euroleague import RawGame
 from eurohoops.models.continuity import club_share, player_continuity, season_start_roster
@@ -170,10 +170,6 @@ def player_slugs(names: Mapping[str, str]) -> dict[str, str]:
 def site_window(seasons: Iterable[Any]) -> list[int]:
     """The seasons the site publishes: the latest ``SITE_SEASONS`` of those with box lines."""
     return sorted({int(s) for s in seasons})[-SITE_SEASONS:]
-
-
-def season_label(season: int) -> str:
-    return f"{season}-{(season + 1) % 100:02d}"
 
 
 def _num(value: Any) -> int | float:

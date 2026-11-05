@@ -28,11 +28,9 @@ Commit it on the branch. This commit is the record of the pass bar (rule 3).
 Give it the spec and the worktree path. It must:
 - **Forecaster:** follow the M5-INJ change (`git show 837fecd --stat`) as the template. Touch:
   - `src/eurohoops/live_<id>.py`: builds the forecast rows.
-  - `config.py`: log path `predictions/<comp>_<id>_<season>.csv` and `<ID>_LIVE_ENABLED = False`.
-  - `cli/live.py`: a `_predict_<id>` call from `predict`.
-  - `eval/scorecard.py`: a scorecard section.
-  - `api/readmodel.py`: a `FORECAST_MODELS` label.
-  - `scripts/checks/api_export.py`: a `legacy_site` entry.
+  - `config.py`: `<ID>_LIVE_ENABLED = False`.
+  - `model_catalog.py`: one entry (tag, name, site label or None, scorecard section, flag). It sets the log path `predictions/<comp>_<id>_<season>.csv`, the scorecard section and what the site and API show.
+  - `cli/live.py`: a `run_<id>` in `_shadows`.
   - If backtested: `eval/<id>_backtest.py` plus a `--model <id>` branch in `cli/backtest.py` that writes `reports/backtest_<id>.json`.
 - **Diagnostic:** `scripts/diag_<id>.py` plus `src/eurohoops/eval/<id>.py`, writing `reports/diag_<id>.json`.
 - Add `tests/test_<id>.py` with fixtures under `tests/fixtures/<id>/`, covering the forecast on a small fixture and the no-lookahead case (a later game changes no earlier forecast).
@@ -90,7 +88,7 @@ Then the orchestrator decides:
 ## Running several experiments
 - Each experiment gets its own worktree and branch. Run at most **2** at once on this machine (memory), with tests on `-n 4`.
 - Merge one at a time. After each merge, rerun the checklist on main before the next one.
-- Shared files (`config.py`, `readmodel.py`, `api_export.py`, `vulture_whitelist.py`, `cli/live.py`) conflict only by adding lines. Resolve by keeping both sides.
+- Shared files (`config.py`, `model_catalog.py`, `vulture_whitelist.py`, `cli/live.py`) conflict only by adding lines. Resolve by keeping both sides.
 
 ## Subagent brief (copy for each spawn)
 ```
