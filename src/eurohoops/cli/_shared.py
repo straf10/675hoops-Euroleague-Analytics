@@ -1,15 +1,19 @@
 """Helpers shared by the command modules: the model enum and live-season readers."""
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
 import pandas as pd
+import typer
 
 from eurohoops.config import LIVE_SEASON, MART_PATH, Competition
 from eurohoops.eval.backtest import TunedModel, load_tuned_model
 from eurohoops.marts import read_games, read_table
+from eurohoops.model_inputs import InputsMissing
 from eurohoops.parse.team_box import TEAM_GAMES_SCHEMA
 
 log = logging.getLogger("eurohoops")
@@ -26,6 +30,16 @@ class ModelName(StrEnum):
     m6 = "m6"
     m7 = "m7"
     wp = "wp"
+
+
+@contextmanager
+def exit_on_missing_inputs() -> Iterator[None]:
+    """Log a missing model input and exit 1 (the commands that cannot run without it)."""
+    try:
+        yield
+    except InputsMissing as error:
+        log.error("%s", error)
+        raise typer.Exit(code=1) from error
 
 
 def utc_now() -> datetime:

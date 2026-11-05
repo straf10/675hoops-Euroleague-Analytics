@@ -24,7 +24,7 @@ from eurohoops.cli._shared import Live
 from eurohoops.config import EUROLEAGUE
 from eurohoops.inputs import INPUT_COLUMNS
 from eurohoops.predict import predict_upcoming
-from eurohoops.shadow_log import LatePredictionError
+from eurohoops.shadow_log import LatePredictionError, run_shadows
 from tests import eloc_synthetic as syn
 from tests.prediction_guard import real_prediction_logs_untouched  # noqa: F401
 
@@ -124,15 +124,41 @@ def test_predict_echoes_each_shadow_and_passes_its_log_and_lead(
     assert sorted(r["game_id"] for r in _rows(comp.prediction_log)) == predicting["open_ids"]
 
 
+def _reads_its_inputs(*args: Any, **_kwargs: Any) -> int:
+    """A shadow forecast that builds M5's live inputs (``args[2]``) as the real one does."""
+    args[2]()
+    return 0
+
+
 def test_m5_missing_its_inputs_warns_and_the_run_goes_on(
     predicting: dict[str, Any], caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.WARNING, logger="eurohoops")
-    predicting["m5"].error = typer.Exit()
+    # the world's EuroLeague has no M1 report: M5's inputs are missing
+    predicting["monkeypatch"].setattr(live_mod, "predict_upcoming_m5", _reads_its_inputs)
     live_mod.predict()  # returns normally: the Elo log and the other shadows are not blocked
+    assert "no committed M1 report for euroleague" in caplog.text
     assert "M5 skipped: its marts" in caplog.text
     assert len(_rows(predicting["comp"].prediction_log)) == len(predicting["open_ids"])
     assert not predicting["comp"].log_path("m5").exists()
+
+
+def test_m5_and_m5inj_missing_their_inputs_both_sit_the_run_out(
+    predicting: dict[str, Any], caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="eurohoops")
+    mp = predicting["monkeypatch"]
+    mp.setattr(config, "M5INJ_LIVE_ENABLED", True)
+    mp.setattr(live_mod, "read_injuries", lambda _path: pd.DataFrame())
+    mp.setattr(live_mod, "read_roster_names", lambda _path: {})
+    mp.setattr(live_mod, "predict_upcoming_m5", _reads_its_inputs)
+    mp.setattr(live_mod, "predict_upcoming_m5inj", _reads_its_inputs)
+    live = live_mod._live(predicting["comp"])
+    shadows = live_mod._shadows(live, predicting["comp"], 48.0)
+    outcomes = {o.label: o for o in run_shadows(shadows, lambda _line: None)}
+    assert outcomes["M5"].status == outcomes["M5-INJ"].status == "inactive"
+    assert "M5-INJ skipped: its marts" in caplog.text
+    assert not predicting["comp"].log_path("m5inj").exists()
 
 
 def test_a_late_m5_prediction_refuses_the_run(

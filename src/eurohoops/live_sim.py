@@ -24,7 +24,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from eurohoops.config import M7Backtest
+from eurohoops.config import M7_V2, M7Backtest
 from eurohoops.eval.common import gate_passed
 from eurohoops.eval.m7_backtest import (
     Strengths,
@@ -68,6 +68,9 @@ LIVE_SIMS = 10_000
 
 log = logging.getLogger(__name__)
 
+# The gate verdict's reason once gate v2 passed (the ungated report and the API say the same).
+GATE_V2_PASSED = f"M7 passed its validation gate (gate v2, {M7_V2.report.as_posix()})"
+
 
 @dataclass(frozen=True)
 class LiveSim:
@@ -91,7 +94,7 @@ def load_sim(report_path: Path, v2_path: Path | None = None) -> LiveSim | None:
     passed_v2 = (
         v2_path is not None
         and v2_path.exists()
-        and bool(json.loads(v2_path.read_text(encoding="utf-8")).get("gate_v2", {}).get("passed"))
+        and gate_passed(json.loads(v2_path.read_text(encoding="utf-8")), "gate_v2")
     )
     return LiveSim(
         key=str(chosen["key"]),

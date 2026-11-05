@@ -443,7 +443,7 @@ def test_backtest_m1_writes_a_reproducible_report(small_m1: Path) -> None:
 
 
 class _Stop(Exception):
-    """Ends a backtest command right after the fake _m5_inputs has recorded its spec."""
+    """Ends a backtest command right after the fake m5_inputs has recorded its spec."""
 
 
 def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
@@ -455,7 +455,7 @@ def test_backtest_m5_retune_builds_inputs_with_the_retune_spec(
         specs.append(spec)
         raise _Stop
 
-    monkeypatch.setattr(backtest_mod, "_m5_inputs", fake_inputs)
+    monkeypatch.setattr(backtest_mod, "m5_inputs", fake_inputs)
     result = runner.invoke(cli.app, ["backtest", "--model", "m5", "--retune-check"])
     assert isinstance(result.exception, _Stop), result.output
     (spec,) = specs

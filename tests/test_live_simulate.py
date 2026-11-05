@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 import typer
 
+from eurohoops import model_inputs
 from eurohoops.cli import live as live_mod
 from eurohoops.config import EUROLEAGUE
 from eurohoops.eval.m7_backtest import M7Inputs
@@ -72,16 +73,19 @@ def sim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, A
     monkeypatch.setattr(
         live_mod, "season_format", lambda _c, _s: synthetic_formats("euroleague", LIVE)
     )
-    monkeypatch.setattr(live_mod, "read_games", lambda _p, _c: games)
+    monkeypatch.setattr(live_mod, "read_games", lambda _p, _c: games)  # first-tipoff
+    monkeypatch.setattr(model_inputs, "read_games", lambda _p, _c: games)
     monkeypatch.setattr(
-        live_mod, "read_table", lambda _p, table, _c: team_games if table == "team_games" else None
+        model_inputs,
+        "read_table",
+        lambda _p, table, _c: team_games if table == "team_games" else None,
     )
     monkeypatch.setattr(
         live_mod,
         "EUROLEAGUE",
         dataclasses.replace(EUROLEAGUE, m1=dataclasses.replace(EUROLEAGUE.m1, report=m1_report)),
     )
-    monkeypatch.setattr(live_mod, "load_sim", lambda _m7, _v2=None: state["model"])
+    monkeypatch.setattr(model_inputs, "load_sim", lambda _m7, _v2=None: state["model"])
     monkeypatch.setattr(live_mod, "run_live_sim", small_run)
     monkeypatch.setattr(live_mod, "SIM_LOG", tmp_path / "sim_log.csv")
     monkeypatch.setattr(live_mod, "SIM_LATEST", tmp_path / "sim_latest.json")
@@ -243,7 +247,7 @@ def test_sim_ungated_without_a_gate_or_report_exits_1(sim: dict[str, Any]) -> No
 def test_without_team_games_the_run_exits_1(
     sim: dict[str, Any], monkeypatch: pytest.MonkeyPatch, command: str
 ) -> None:
-    monkeypatch.setattr(live_mod, "read_table", lambda _p, _t, _c: None)
+    monkeypatch.setattr(model_inputs, "read_table", lambda _p, _t, _c: None)
     with pytest.raises(typer.Exit) as raised:
         getattr(live_mod, command)()
     assert raised.value.exit_code == 1
@@ -257,7 +261,7 @@ def test_a_finished_regular_season_has_nothing_to_simulate(
     command: str,
 ) -> None:
     played = _synthetic().games.copy()  # every 2021 game is played: no round is left
-    monkeypatch.setattr(live_mod, "read_games", lambda _p, _c: played)
+    monkeypatch.setattr(model_inputs, "read_games", lambda _p, _c: played)
     getattr(live_mod, command)()
     out = capsys.readouterr().out
     assert "the 2021 regular season is over" in out

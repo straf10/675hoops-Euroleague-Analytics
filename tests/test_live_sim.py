@@ -220,6 +220,25 @@ def test_load_sim_counts_a_passed_gate_v2(tmp_path: Path) -> None:
     assert load_sim(v1, v2) == LiveSim("sim_full", 1.0, False, "m7-sim_full-v1", True)
 
 
+@pytest.mark.parametrize("passed", ["yes", 1, None])
+def test_load_sim_reads_gate_v2_as_passed_only_on_true(tmp_path: Path, passed: object) -> None:
+    v1 = tmp_path / "backtest_m7.json"
+    v1.write_text(
+        json.dumps(
+            {
+                "model_version": "m7-sim_full-v1",
+                "chosen": {"key": "sim_full", "spread": 1.0, "net": False},
+                "gate": {"passed": False},
+            }
+        ),
+        encoding="utf-8",
+    )
+    v2 = tmp_path / "backtest_m7_v2.json"
+    v2.write_text(json.dumps({"gate_v2": {"passed": passed}}), encoding="utf-8")
+    loaded = load_sim(v1, v2)
+    assert loaded is not None and not loaded.gate_passed
+
+
 @pytest.mark.parametrize("competition", ["euroleague"])
 def test_same_inputs_same_numbers(competition: str) -> None:
     a, b = _run(competition, n_sims=100), _run(competition, n_sims=100)
