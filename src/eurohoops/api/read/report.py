@@ -24,6 +24,7 @@ from eurohoops.config import (
     Competition,
 )
 from eurohoops.logs import displayed_rows
+from eurohoops.model_catalog import entry
 from eurohoops.publish import DISPLAY_CODES
 from eurohoops.stats.coach_style import StyleIndex, game_styles
 from eurohoops.stats.export import (
@@ -49,13 +50,6 @@ def report_game_ids(store: Store, competition: str) -> list[str]:
     return list(dict.fromkeys(live["game_id"].astype(str)))
 
 
-LOG_MODELS = {
-    "m1": "m1_prediction_log",
-    "m5": "m5_prediction_log",
-    "m5inj": "m5inj_prediction_log",
-}
-
-
 def _inputs_frame(store: Store, comp: Competition) -> pd.DataFrame | None:
     """The model-input snapshot log (``predictions/<comp>_inputs_<season>.csv``), or None."""
 
@@ -72,7 +66,7 @@ def _pre_rows(store: Store, comp: Competition, model: str) -> dict[str, dict[str
     """The pre-registered row of each game in one team model's log (empty when not logged)."""
 
     def make() -> dict[str, dict[str, Any]]:
-        relative = getattr(comp, LOG_MODELS[model])
+        relative = entry(model).log_path(comp)
         log = displayed_rows(_read_log(store, relative))
         return {
             str(r["game_id"]): {str(k): v for k, v in r.items()} for r in log.to_dict("records")
@@ -229,7 +223,7 @@ def match_report(store: Store, competition: str, game_id: str) -> dict[str, Any]
             "result": result,
             "model": mr.model_block(_inputs_frame(store, comp), game_id),
             "other_models": mr.other_models(
-                {model: _pre_rows(store, comp, model).get(game_id) for model in LOG_MODELS}
+                {model: _pre_rows(store, comp, model).get(game_id) for model in mr.OTHER_MODELS}
             ),
             "form": {
                 "home": mr.form(games, home, tipoff, show),

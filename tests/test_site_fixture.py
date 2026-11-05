@@ -125,7 +125,7 @@ def section(tmp: Path, key: str, title: str, seasons: tuple[int, ...]) -> Sectio
     m1_log(log).to_csv(m1_path, index=False)
     odds_path = tmp / f"{key}_odds.csv"
     odds_log(log).to_csv(odds_path, index=False)
-    card = build_scorecard(log_path, games, model, NOW, m1_log_path=m1_path)
+    card = build_scorecard(log_path, games, model, NOW, shadow_logs={"m1": m1_path})
     names = dict(teams_table(games).itertuples(index=False))
     # The synthetic 2027 season has no finished games, so the record is of 2026 (30 logged, 1 late).
     forecasts = build_forecasts(

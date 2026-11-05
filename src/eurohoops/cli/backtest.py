@@ -709,8 +709,8 @@ def promote_check(
 ) -> None:
     """Flagship promotion test (PLAN R1); refuses before the look's checkpoint is complete."""
     comp = EUROLEAGUE
-    flagship_log = comp.m5_prediction_log
-    if look not in (1, 2) or flagship_log is None:
+    flagship_log = comp.log_path("m5")
+    if look not in (1, 2):
         raise typer.BadParameter("look must be 1 or 2")
     live = _live(comp)
     try:

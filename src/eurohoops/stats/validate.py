@@ -20,10 +20,10 @@ import pandas as pd
 import pandera.pandas as pa
 import typer
 
-from eurohoops.config import SPECIAL_SEASONS
+from eurohoops.config import SPECIAL_SEASONS, season_label
 from eurohoops.parse.games import GAMES_SCHEMA
 from eurohoops.stats.box import MISSING_SCHEMA, PLAYER_GAMES_SCHEMA, TEAM_STAT_GAMES_SCHEMA
-from eurohoops.stats.export import Inputs, season_label, site_window
+from eurohoops.stats.export import Inputs, site_window
 from eurohoops.stats.shots import SHOTS_SCHEMA
 
 Severity = Literal["info", "warn", "error"]

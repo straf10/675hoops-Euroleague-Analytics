@@ -4,10 +4,10 @@
 this model version has not logged yet (``logged_keys``), asks the model for its forecast of just
 those games, stamps the rows, refuses them if the stamp or the clock right before writing is at or
 after any tip-off (``LatePredictionError``, nothing written) and appends. ``append_shadow_log`` is
-the same for a shadow model that can be gated off. ``is_active`` answers whether a shadow's log is
-on; ``run_shadows`` runs the active ones in order, isolating failures so one model never blocks
-the next. A model supplies only its forecast; what rows look like, which games are due and when a
-row is late live here (rule 1: logs are append-only).
+the same for a shadow model that can be gated off. ``run_shadows`` runs the shadows in order,
+isolating failures so one model never blocks the next (which models are on: ``model_catalog``).
+A model supplies only its forecast; what rows look like, which games are due and when a row is
+late live here (rule 1: logs are append-only).
 """
 
 import csv
@@ -22,8 +22,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from eurohoops import config
-from eurohoops.config import Competition
 from eurohoops.logs import TIME_FORMAT, append_rows
 
 log = logging.getLogger(__name__)
@@ -175,20 +173,6 @@ def append_shadow_log(
         clock=clock,
         as_of=as_of,
     )
-
-
-# The owner's switch (``config.py``) of each model that has one. M1 and M5 have none: they log
-# whenever their gate-passing report exists.
-_FLAGS = {"m5inj": "M5INJ_LIVE_ENABLED", "eloc": "ELOC_LIVE_ENABLED", "eloh": "ELOH_LIVE_ENABLED"}
-
-
-def is_active(tag: str, comp: Competition) -> bool:
-    """Whether model ``tag`` (``m1``, ``m5``, ``m5inj``, ``eloc``, ``eloh``) logs for ``comp``: it
-    has a log path there and its ``config.py`` flag, if it has one, is on. The one place that
-    answers it, for the CLI, the read model and the export check alike."""
-    flag = _FLAGS.get(tag)
-    on = True if flag is None else bool(getattr(config, flag))
-    return on and getattr(comp, f"{tag}_prediction_log") is not None
 
 
 @dataclass(frozen=True)

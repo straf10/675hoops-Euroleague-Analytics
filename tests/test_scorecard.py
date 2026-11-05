@@ -298,8 +298,7 @@ def test_every_section_scores_the_latest_pre_tipoff_row(tmp_path: Path, tuned: T
         results(played=True),
         tuned,
         NOW,
-        m1_log_path=m1,
-        m5_log_path=m1,
+        shadow_logs={"m1": m1, "m5": m1},
     )
     expected = -(math.log(0.8) + math.log(0.4)) / 2  # later G1 row, then G2
     assert card["m1"]["m1"]["n"] == 2

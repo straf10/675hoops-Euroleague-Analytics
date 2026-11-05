@@ -28,6 +28,7 @@ from eurohoops.config import (
     MART_PATH,
     PLAYER_XWALK_FILE,
     SHOTS_REPORT,
+    season_label,
 )
 from eurohoops.logs import write_json
 from eurohoops.marts import read_games, read_table, write_tables
@@ -283,7 +284,7 @@ def shot_charts() -> None:
     season = M2_SEASONS.validation[0]
     scored = shots_with_xpts(shots_table, xpts)
     scored = scored[scored["season"] == season]
-    label = f"{season}-{(season + 1) % 100:02d}"
+    label = season_label(season)
     xpts_surface(
         scored,
         f"EuroLeague {label}\nexpected points per shot (M2, out of sample)",

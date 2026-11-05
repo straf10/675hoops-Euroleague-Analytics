@@ -7,6 +7,13 @@ from pathlib import Path
 from eurohoops.models.elo import EloParams
 
 LIVE_SEASON = 2026
+
+
+def season_label(season: int) -> str:
+    """``2026`` -> ``"2026-27"``."""
+    return f"{season}-{(season + 1) % 100:02d}"
+
+
 SITE_SEASONS = 20  # site EuroLeague seasons, latest first (20 = all since 2007-08); not model input
 # A refetched live schedule that drops more games than this, or this share of the cached games,
 # is refused: the cached schedule stays and a warning is printed (ingest/euroleague.py).
@@ -120,7 +127,6 @@ class Competition:
     default_seasons: tuple[int, ...]
     live_backtest: Backtest  # its report holds the parameters the live log uses
     history_backtests: tuple[Backtest, ...]  # informational only, never used live
-    prediction_log: Path
     scorecard: Path
     # GitHub push times of log rows committed by hand before the daily workflow took over.
     # A row first became public at the earliest such push at or after its stamp; later rows
@@ -128,19 +134,20 @@ class Competition:
     manual_pushes: tuple[datetime, ...] = ()
     odds_log: Path | None = None  # forward-recorded market consensus
     m1: M1Backtest | None = None
-    m1_prediction_log: Path | None = None  # live M1 log (E-g), separate from the Elo log
-    m5_prediction_log: Path | None = None  # live M5 shadow log (EuroLeague only)
-    eloc_prediction_log: Path | None = (
-        None  # live ELOC shadow log (EuroLeague only; see ELOC_LIVE_ENABLED)
-    )
-    m5inj_prediction_log: Path | None = (
-        None  # live M5-INJ shadow log (EuroLeague only; see M5INJ_LIVE_ENABLED)
-    )
-    eloh_prediction_log: Path | None = (
-        None  # live ELOH shadow log (EuroLeague only; see ELOH_LIVE_ENABLED)
-    )
     # Elo model inputs per logged prediction (docs/match_report.md, section 1); append-only
     inputs_log: Path | None = None
+    log_dir: Path = Path("predictions")  # the live models' logs (model_catalog.py)
+
+    def log_path(self, tag: str) -> Path:
+        """The live season's log of model ``tag``: ``<log_dir>/<comp>_<tag>_<season>.csv``, and
+        ``<log_dir>/<comp>_<season>.csv`` for the Elo log (tag ``elo``)."""
+        infix = "" if tag == "elo" else f"_{tag}"
+        return self.log_dir / f"{self.name}{infix}_{season_label(LIVE_SEASON)}.csv"
+
+    @property
+    def prediction_log(self) -> Path:
+        """The published Elo log."""
+        return self.log_path("elo")
 
     @property
     def raw_dir(self) -> Path:
@@ -176,7 +183,6 @@ EUROLEAGUE = Competition(
             (2024, 2025),
         ),
     ),
-    prediction_log=Path("predictions/euroleague_2026-27.csv"),
     scorecard=Path("reports/live_scorecard.json"),
     # From the repository's activity feed
     # (gh api repos/straf10/675hoops-Euroleague-Analytics/activity).
@@ -192,11 +198,6 @@ EUROLEAGUE = Competition(
         validation=(2023,),
         test=(2024, 2025),
     ),
-    m1_prediction_log=Path("predictions/euroleague_m1_2026-27.csv"),
-    m5_prediction_log=Path("predictions/euroleague_m5_2026-27.csv"),
-    eloc_prediction_log=Path("predictions/euroleague_eloc_2026-27.csv"),
-    m5inj_prediction_log=Path("predictions/euroleague_m5inj_2026-27.csv"),
-    eloh_prediction_log=Path("predictions/euroleague_eloh_2026-27.csv"),
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
 )
 
@@ -290,7 +291,7 @@ SITE_FORECAST_MODEL = "elo"
 ODDS_CALLS = Path("odds/api_calls.csv")
 ODDS_TEAMS = Path("odds/euroleague_teams.csv")
 ODDS_RAW_DIR = Path("data/raw/odds/euroleague")
-INJURY_LOG = Path(f"injuries/euroleague_{LIVE_SEASON}-{(LIVE_SEASON + 1) % 100}.csv")
+INJURY_LOG = Path(f"injuries/euroleague_{season_label(LIVE_SEASON)}.csv")
 INJURY_RAW_DIR = Path("data/raw/basketnews")
 
 
@@ -405,8 +406,7 @@ ELOC_CV = ElocCv(
 )
 
 # ELOH (experiments/eloh.md): live Elo with a per-team home advantage. The team shifts are fitted
-# once on ELOH_FIT_SEASONS (scripts/fit_eloh.py) and frozen in ELOH_FIT. The shadow log stays off
-# until the orchestrator sets ELOH_LIVE_ENABLED.
+# once on ELOH_FIT_SEASONS (scripts/fit_eloh.py) and frozen in ELOH_FIT. Its shadow log is on.
 ELOH_LIVE_ENABLED = True
 ELOH_FIT = Path("reports/eloh_fit.json")
 ELOH_FIT_SEASONS = _seasons(2007, 2023)
@@ -452,7 +452,7 @@ M7_V2 = M7Backtest(
 )
 GATE_V2_MARGIN = 0.005  # non-inferiority margin of the Brier difference to point_sim
 # Live M7 (K8): one append-only simulation log per competition, plus the latest run's report.
-SIM_LOG = Path(f"predictions/euroleague_sim_{LIVE_SEASON}-{(LIVE_SEASON + 1) % 100}.csv")
+SIM_LOG = Path(f"predictions/euroleague_sim_{season_label(LIVE_SEASON)}.csv")
 SIM_LATEST = Path("reports/sim_latest_euroleague.json")
 
 
