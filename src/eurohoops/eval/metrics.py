@@ -166,17 +166,25 @@ def score(
     )
 
 
-def paired_bootstrap_ci(diff: FloatArray, resamples: int, seed: int) -> tuple[float, float, float]:
-    """Mean of ``diff`` and the 95% percentile CI of its mean over paired resamples.
+def paired_bootstrap_ci(
+    diff: FloatArray,
+    resamples: int,
+    seed: int,
+    *,
+    percentiles: tuple[float, float] = (2.5, 97.5),
+) -> tuple[float, float, float]:
+    """Mean of ``diff`` and the percentile CI of its mean over paired resamples (default 95%).
 
-    An empty ``diff`` (a split with no games) gives NaN for all three, without numpy warnings.
+    The one game-level paired bootstrap: each resample draws ``len(diff)`` games with
+    replacement, all resamples in one ``(resamples, n)`` draw from ``seed``. An empty ``diff``
+    (a split with no games) gives NaN for all three, without numpy warnings.
     """
     if not len(diff):
         return math.nan, math.nan, math.nan
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, len(diff), size=(resamples, len(diff)))
     means = diff[idx].mean(axis=1)
-    low, high = np.percentile(means, [2.5, 97.5])
+    low, high = np.percentile(means, list(percentiles))
     return float(diff.mean()), float(low), float(high)
 
 
