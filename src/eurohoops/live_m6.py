@@ -39,7 +39,13 @@ from eurohoops.eval.m6_backtest import (
 )
 from eurohoops.live_sim import completed_rounds
 from eurohoops.models.player_seasons import PROJECTED_STATS, person_ids
-from eurohoops.models.similarity import BOX_FEATURES, SHOT_FEATURES
+from eurohoops.models.similarity import (
+    BOX_FEATURES,
+    SHOT_FEATURES,
+    embed,
+    neighbours,
+    raw_features,
+)
 from eurohoops.stats.export import display_name
 
 AGE_KEYS = re.compile(r"(^age$|_age$|^age_|birth|born|dob)", re.IGNORECASE)
@@ -252,3 +258,31 @@ def query_rows(
     ]
     rows = rows.sort_values(["person_id", "season", "poss"], kind="stable")
     return rows.drop_duplicates("person_id", keep="last").reset_index(drop=True)
+
+
+def similar_players(  # noqa: PLR0917 -- the live inputs, passed through
+    world: World,
+    people: list[str],
+    season: int,
+    shots: pd.DataFrame,
+    xpts: pd.DataFrame,
+    variant: str,
+    *,
+    live_season: int,
+    min_poss: float,
+) -> tuple[pd.DataFrame, list[int], bool]:
+    """Each live person's "plays like" list: his newest complete season with ``min_poss``
+    possessions against every complete season up to ``season``."""
+    joined = shots.merge(
+        xpts.loc[xpts["variant"] == variant, ["game_id", "event", "p_make"]],
+        on=["game_id", "event"],
+    )
+    mapped = person_ids(joined["shooter"], "euroleague", world.inputs.xwalk)["person_id"]
+    frame = joined.assign(person_id=mapped.to_numpy(), xpts=joined["p_make"] * joined["value"])
+    frame = frame[["person_id", "season", "made", "value", "x", "y", "band", "xpts"]]
+    done = world.complete[~world.complete["partial"] & (world.complete["season"] <= season)]
+    pool = sorted(int(s) for s in done["season"].unique())
+    emb = embed(done, frame, pool_seasons=pool, min_poss=min_poss)
+    query = query_rows(world.complete, people, live_season, min_poss)
+    features = raw_features(query, frame[frame["person_id"].isin(set(query["person_id"]))])
+    return neighbours(features, emb), pool, len(emb.features) > len(BOX_FEATURES)

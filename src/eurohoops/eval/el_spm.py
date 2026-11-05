@@ -1,4 +1,4 @@
-"""EuroLeague season SPM models for M6's injected SPM (``cli.backtest._m6_spm``).
+"""EuroLeague season SPM models for M6's injected SPM (``model_inputs.m6_spm``).
 
 Each EuroLeague season gets a ``rapm_spm`` ``SpmModel`` fitted only on EuroLeague stints and box
 rows strictly before that season's first round cutoff (``choose_model`` picks the latest one whose

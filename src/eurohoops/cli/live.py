@@ -18,16 +18,9 @@ from eurohoops.cli._shared import (
     Live,
     _live,
     _team_games,
+    exit_on_missing_inputs,
     log,
     utc_now,
-)
-from eurohoops.cli.backtest import (
-    _el_player_ratings,
-    _live_names,
-    _m2_shots,
-    _m5_inputs,
-    _m6_inputs,
-    _m6_similar,
 )
 from eurohoops.config import (
     ELOC_CV,
@@ -42,7 +35,6 @@ from eurohoops.config import (
     M6_PROJECTIONS,
     M6_SIMILARITY,
     M7,
-    M7_V2,
     MART_PATH,
     ODDS_CALLS,
     ODDS_RAW_DIR,
@@ -71,22 +63,34 @@ from eurohoops.live_m6 import (
     live_checkpoint,
     live_people,
     live_projections,
+    person_names,
     personal_fields,
     player_rows,
     projections_report,
+    similar_players,
     similarity_report,
 )
 from eurohoops.live_sim import (
+    GATE_V2_PASSED,
     LIVE_SIMS,
+    LiveRun,
+    LiveSim,
     latest_report,
-    load_sim,
     log_rows,
     run_live_sim,
     write_live_sim,
 )
 from eurohoops.logs import append_rows, write_json
-from eurohoops.marts import read_games, read_table, read_teams
+from eurohoops.marts import read_games, read_teams
 from eurohoops.model_catalog import SHADOWS
+from eurohoops.model_inputs import (
+    InputsMissing,
+    m2_shots,
+    m5_inputs,
+    m5_player_ratings,
+    m6_inputs,
+    sim_inputs,
+)
 from eurohoops.models.availability import read_injuries, read_roster_names
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
 from eurohoops.odds import OddsApiError, OddsFetchError, OddsPaths, api_key, record_odds
@@ -98,6 +102,7 @@ from eurohoops.shadow_log import (
     run_shadows,
 )
 from eurohoops.sim.formats import season_format
+from eurohoops.standings import Format
 from eurohoops.tipoff import first_tipoff_on
 
 
@@ -158,9 +163,10 @@ def project(
         typer.echo("M6 did not pass its validation gate: the committed reports stay (L-l)")
         return
     chosen = report["chosen"]
-    inputs = _m6_inputs(M6, live=True)
+    with exit_on_missing_inputs():
+        inputs = m6_inputs(M6, live=True)
     world = prepare(inputs)
-    names = _live_names(inputs)
+    names = person_names(inputs.player_games[EUROLEAGUE.name], inputs.xwalk)
     checkpoint, rows, ti = _live_block(inputs, world, EUROLEAGUE, M6, report, chosen)
     live = world.complete[
         (world.complete["season"] == LIVE_SEASON)
@@ -181,9 +187,19 @@ def project(
     if not projections_only:
         m3_seasons = json.loads(M3_PLAYERS_REPORT.read_text(encoding="utf-8"))["seasons"]
         season = max(int(s) for s in m3_seasons)  # D23: the newest complete season
-        shots, xpts, variant = _m2_shots(season)
+        with exit_on_missing_inputs():
+            shots, xpts, variant = m2_shots(season)
         people = sorted({p["person_id"] for p in players})
-        similar, pool, shot_features = _m6_similar(world, people, season, shots, xpts, variant)
+        similar, pool, shot_features = similar_players(
+            world,
+            people,
+            season,
+            shots,
+            xpts,
+            variant,
+            live_season=LIVE_SEASON,
+            min_poss=M6.min_poss,
+        )
         payloads[M6_SIMILARITY] = similarity_report(
             similar, LIVE_SEASON, pool, shot_features, names
         )
@@ -201,28 +217,33 @@ def project(
     typer.echo(f"RUNTIME project: {time.perf_counter() - started:.0f} s")
 
 
+def _live_sim_run() -> tuple[LiveSim, Format, LiveRun | None]:
+    """M7's verdict, the live season's format and its simulation after the completed rounds (None:
+    the regular season is over). Exits 1 when M7's or M1's report or the team games are missing."""
+    with exit_on_missing_inputs():
+        sim = sim_inputs(EUROLEAGUE, LIVE_SEASON)
+    fmt = season_format(EUROLEAGUE.name, LIVE_SEASON)
+    run = run_live_sim(
+        sim.games,
+        sim.team_games,
+        sim.tuned_m1,
+        sim.model,
+        fmt=fmt,
+        season=LIVE_SEASON,
+        spec=M7,
+        n_sims=LIVE_SIMS,
+    )
+    return sim.model, fmt, run
+
+
 def sim_ungated() -> None:
     """The live season simulation for the Standings page (owner, D1): ``simulate``'s run written
     to reports/sim_ungated_euroleague.json whatever M7's gate says; labelled gated once a gate
     passed (gate v2 did, 2026-10-09). Never appends to the simulation log; rewritten only when the
     number of completed rounds changed (its time stamp is the cutoff), so a day without a completed
     round changes nothing."""
-    model = load_sim(M7.report, M7_V2.report)
-    if EUROLEAGUE.m1 is None or model is None or not EUROLEAGUE.m1.report.exists():
-        log.error("no committed M7 or M1 report; run: eurohoops backtest --model m7")
-        raise typer.Exit(code=1)
     started = time.perf_counter()
-    games = read_games(MART_PATH, EUROLEAGUE.name)
-    games = games[games["season"] <= LIVE_SEASON].reset_index(drop=True)
-    team_games = read_table(MART_PATH, "team_games", EUROLEAGUE.name)
-    if team_games is None:
-        log.error("no team_games in the marts; run: eurohoops build")
-        raise typer.Exit(code=1)
-    fmt = season_format(EUROLEAGUE.name, LIVE_SEASON)
-    tuned = json.loads(EUROLEAGUE.m1.report.read_text(encoding="utf-8"))["tuned"]
-    run = run_live_sim(
-        games, team_games, tuned, model, fmt=fmt, season=LIVE_SEASON, spec=M7, n_sims=LIVE_SIMS
-    )
+    model, fmt, run = _live_sim_run()
     path = SIM_UNGATED
     if run is None:
         typer.echo(f"{EUROLEAGUE.name}: the {LIVE_SEASON} regular season is over; {path} stays")
@@ -238,7 +259,7 @@ def sim_ungated() -> None:
         return
     report = latest_report(run, model, fmt, LIVE_SEASON, run.cutoff.to_pydatetime())
     if model.gate_passed:
-        reason = f"M7 passed its validation gate (gate v2, {M7_V2.report.as_posix()})"
+        reason = GATE_V2_PASSED
     else:
         reason = f"M7 failed its validation gate ({M7.report.as_posix()}): this run is not gated"
     write_json(path, {**report, "gated": gated, "gate": {"passed": gated, "reason": reason}})
@@ -258,14 +279,20 @@ class _LiveFrame:
     def get(self) -> tuple[M5Inputs, ElPlayerRatings]:
         if self._built is None:
             spec = live_spec(M5, LIVE_SEASON)
-            inputs, frame = _m5_inputs(self._comp, spec)
-            self._built = (inputs, _el_player_ratings(inputs, frame))
+            inputs, frame = m5_inputs(self._comp, spec)
+            self._built = (inputs, m5_player_ratings(inputs, frame))
         return self._built
 
     def m5(self) -> tuple[M5Inputs, PlayerPartFn]:
         """The live M5 harness inputs and EuroLeague player part (``live_spec``)."""
         inputs, ratings = self.get()
         return inputs, el_player_part(ratings)
+
+
+def _skip_missing(name: str, error: InputsMissing) -> None:
+    """A shadow model without its inputs sits the run out: the missing input, then the skip."""
+    log.error("%s", error)
+    log.warning("%s skipped: its marts, stints or reports are missing here", name)
 
 
 def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Shadow]:
@@ -303,24 +330,28 @@ def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Sha
                 round_lead=lead,
                 clock=utc_now,
             )
-        except typer.Exit:  # a shadow model never blocks the Elo and M1 logs
-            log.warning("M5 skipped: its marts, stints or reports are missing here")
+        except InputsMissing as error:  # a shadow model never blocks the Elo and M1 logs
+            _skip_missing("M5", error)
             return None
 
     def run_m5inj(log_path: Path) -> int | None:
         if m5 is None:
             return None
-        return predict_upcoming_m5inj(
-            live.games,
-            m5,
-            frame.m5,
-            injuries=read_injuries(INJURY_LOG),
-            roster=read_roster_names(el_people_path(EUROLEAGUE.raw_dir, LIVE_SEASON)),
-            log_path=log_path,
-            season=live.season,
-            round_lead=lead,
-            clock=utc_now,
-        )
+        try:
+            return predict_upcoming_m5inj(
+                live.games,
+                m5,
+                frame.m5,
+                injuries=read_injuries(INJURY_LOG),
+                roster=read_roster_names(el_people_path(EUROLEAGUE.raw_dir, LIVE_SEASON)),
+                log_path=log_path,
+                season=live.season,
+                round_lead=lead,
+                clock=utc_now,
+            )
+        except InputsMissing as error:
+            _skip_missing("M5-INJ", error)
+            return None
 
     def run_eloc(log_path: Path) -> int | None:
         eloc = load_eloc(ELOC_CV.report)
@@ -516,22 +547,8 @@ def simulate(
     """Simulate the rest of the live regular season (M7, K8) after the completed rounds; the log
     is appended only when the EuroLeague M7 gate (v1 or v2) passed and the round is not logged
     yet."""
-    model = load_sim(M7.report, M7_V2.report)
-    if EUROLEAGUE.m1 is None or model is None or not EUROLEAGUE.m1.report.exists():
-        log.error("no committed M7 or M1 report; run: eurohoops backtest --model m7")
-        raise typer.Exit(code=1)
     started = time.perf_counter()
-    games = read_games(MART_PATH, EUROLEAGUE.name)
-    games = games[games["season"] <= LIVE_SEASON].reset_index(drop=True)
-    team_games = read_table(MART_PATH, "team_games", EUROLEAGUE.name)
-    if team_games is None:
-        log.error("no team_games in the marts; run: eurohoops build")
-        raise typer.Exit(code=1)
-    fmt = season_format(EUROLEAGUE.name, LIVE_SEASON)
-    tuned = json.loads(EUROLEAGUE.m1.report.read_text(encoding="utf-8"))["tuned"]
-    run = run_live_sim(
-        games, team_games, tuned, model, fmt=fmt, season=LIVE_SEASON, spec=M7, n_sims=LIVE_SIMS
-    )
+    model, fmt, run = _live_sim_run()
     if run is None:
         typer.echo(
             f"{EUROLEAGUE.name}: the {LIVE_SEASON} regular season is over; nothing to simulate"

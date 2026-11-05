@@ -473,7 +473,7 @@ def test_the_cli_writes_the_report_and_rows(
     report, rows = _run()
     spec = replace(backtest_mod.M7_V2, report=tmp_path / "r.json", teams_report=tmp_path / "t.csv")
     monkeypatch.setattr(backtest_mod, "M7_V2", spec)
-    monkeypatch.setattr(backtest_mod, "_m7_inputs", lambda *_: _inputs("base"))
+    monkeypatch.setattr(backtest_mod, "m7_inputs", lambda *_: _inputs("base"))
     monkeypatch.setattr(backtest_mod, "run_gate_v2", lambda *_, **__: (report, rows))
     result = CliRunner().invoke(cli.app, ["backtest", "--model", "m7", "--gate-v2"])
     assert result.exit_code == 0, result.output

@@ -64,10 +64,10 @@ def project_world(
 ) -> Path:
     """The CLI with the synthetic inputs and a passed M6 report under tmp_path (cwd too)."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(live_mod, "_m6_inputs", lambda _spec, live=False: inputs)
+    monkeypatch.setattr(live_mod, "m6_inputs", lambda _spec, live=False: inputs)
     # the synthetic box lines carry no display names: each person is named by its id
     monkeypatch.setattr(
-        live_mod, "_live_names", lambda data: {p: p for p in data.xwalk["person_id"]}
+        live_mod, "person_names", lambda _players, xwalk: {p: p for p in xwalk["person_id"]}
     )
     monkeypatch.setattr(live_mod, "M6", replace(M6, report=_report(tmp_path)))
     return tmp_path
