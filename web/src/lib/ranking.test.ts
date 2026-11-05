@@ -60,7 +60,19 @@ test("a metric outside the base columns gets a column after Pace", () => {
   assert.deepEqual(columnKeys("efg"), ["ortg", "drtg", "net", "pace", "sos_played", "sos_ahead", "efg"]);
 });
 
+test("the record sorts by wins, ties by point difference, both ways", () => {
+  const club = (code: string, w: number, pd: number): IndexRow => ({ code, name: code, w, l: 10 - w, f: { pd } });
+  const table = [club("A", 6, 20), club("B", 8, -5), club("C", 6, 45), club("D", 3, 60), club("E", 6, 20)];
+  assert.equal(bestDir("record"), "desc");
+  assert.equal(codes(sortRows(table, "record", "desc")), "B C A E D");
+  assert.equal(codes(sortRows(table, "record", "asc")), "D A E C B");
+  assert.deepEqual(columnKeys("record"), columnKeys("net"));
+  assert.equal(headingOf("record"), "By record");
+  assert.deepEqual(fromQuery("?metric=record", [2025], 2025), { season: 2025, metric: "record", dir: "desc" });
+});
+
 test("the phone group that shows a metric's column", () => {
+  assert.equal(phoneGroup("record"), 0);
   assert.equal(phoneGroup("ortg"), 1);
   assert.equal(phoneGroup("pace"), 2);
   assert.equal(phoneGroup("net"), -1);
