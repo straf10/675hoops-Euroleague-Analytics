@@ -4,12 +4,12 @@
 import { signClass } from "./delta";
 import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
-import { columnKeys, metricOf, type Dir, type IndexRow } from "./ranking";
+import { RECORD, columnKeys, metricOf, type Dir, type IndexRow } from "./ranking";
 import { elo } from "./strength";
 
-/** The head: rank, club, W–L (not sortable), then one sortable column per metric in columnKeys. */
+/** The head: rank, club, then one sortable column for W–L (RECORD) and one per metric in columnKeys. */
 export const clubHeadHtml = (metric: string, dir: Dir): string => {
-  const cols = columnKeys(metric).map((key) => {
+  const cols = [RECORD, ...columnKeys(metric)].map((key) => {
     const m = metricOf(key)!;
     const on = key === metric;
     const sort = on ? (dir === "desc" ? "descending" : "ascending") : "none";
@@ -18,11 +18,7 @@ export const clubHeadHtml = (metric: string, dir: Dir): string => {
       `<button type="button" data-sort="${key}"${dataTip(tip`<b>${m.name}</b><br>${m.about}`)}>${m.head}</button></th>`
     );
   });
-  const wl = dataTip(tip`<b>W–L</b><br>Wins and losses`);
-  return (
-    `<tr><th scope="col" class="num">#</th><th scope="col">Club</th>` +
-    `<th scope="col" class="num"><span${wl} tabindex="0">W–L</span></th>${cols.join("")}</tr>`
-  );
+  return `<tr><th scope="col" class="num">#</th><th scope="col">Club</th>${cols.join("")}</tr>`;
 };
 
 /** One figure as the table shows it: one decimal, Net signed and carrying the Sign Colour Rule class. */
@@ -45,7 +41,7 @@ export const clubRowsHtml = (base: string, season: number | undefined, rows: Ind
         .join("");
       return (
         `<tr><td class="num muted">${i + 1}</td><th scope="row"><a href="${href}"><span class="code">${esc(r.code)}</span>${esc(r.name)}</a></th>` +
-        `<td class="num">${r.w}–${r.l}</td>${figures}</tr>`
+        `<td class="num${metric === RECORD ? " strong" : ""}">${r.w}–${r.l}</td>${figures}</tr>`
       );
     })
     .join("");
