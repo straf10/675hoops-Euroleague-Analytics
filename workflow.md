@@ -67,10 +67,12 @@ Then the orchestrator decides:
 From the next daily run, the shadow logs and is scored automatically. Nothing else to do until a checkpoint.
 
 ## Step 6 — Checkpoint (orchestrator, at each checkpoint in rule 4)
-Spawn one runner per live shadow, in parallel. Each one:
-- pairs the shadow's log with the published model's log on the shared finished games (`eval/promotion.py` `paired_log_losses`);
+Run `eurohoops promote-check --look <N>` once (or dispatch `promotion-look.yml`). For every active shadow in the model catalog it:
+- pairs the shadow's log with the published model's log on the shared finished games (`eval/promotion.py` `pair_logs`);
 - computes the standard test (`bootstrap_ci`, `promotion_verdict`);
-- writes `reports/checkpoint_<id>_<comp>_look<N>.json`.
+- writes `reports/promotion_<comp>_<season>_<id>_look<N>.json`.
+
+A shadow with no paired game gets no file; the command names it.
 
 
 Then the orchestrator decides:

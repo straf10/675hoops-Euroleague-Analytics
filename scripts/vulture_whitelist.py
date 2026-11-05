@@ -64,10 +64,10 @@ from eurohoops.stats.export import OTHER_RESULTS, RESULTS  # noqa: E402
 RESULTS
 OTHER_RESULTS
 
-# R1 promotion verdict: fields are written to reports/promotion_*.json for the owner and site
+# Promotion verdict: fields are written to reports/promotion_*.json for the owner and site
 from eurohoops.eval.promotion import Verdict  # noqa: E402
 
-Verdict.flagship_log_loss
+Verdict.shadow_log_loss
 Verdict.elo_log_loss
 Verdict.mean_diff
 Verdict.ci_lo

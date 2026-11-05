@@ -233,7 +233,7 @@ Weeks start Mon 28 Sep 2026. Target load is 20–25 h/week; at 30+ h/week, weeks
 
 Elo remains the published forecast until R1's promotion test is met. Gains come from new information (availability/injuries, preseason roster turnover) and the odds benchmark (§1.3), not from more tuning on the validation and test splits.
 
-- **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Built: the paired-bootstrap test (`src/eurohoops/eval/promotion.py`), `eurohoops promote-check` (`cli/backtest.py`), run manually by `.github/workflows/promotion-look.yml`. Status: built; no `reports/promotion_*` look is committed yet. The first look is due after EuroLeague round 19.
+- **R1 Flagship promotion rule**: rule written into `docs/models/m5.md` and `m1.md`. Built: the paired-bootstrap test (`src/eurohoops/eval/promotion.py`), `eurohoops promote-check` (`cli/backtest.py`), run manually by `.github/workflows/promotion-look.yml`. Every active shadow in the model catalog is tested at each look, one verdict each (owner decision, 2026-11-05). Status: built; no `reports/promotion_*` look is committed yet. The first look is due after EuroLeague round 19.
 - **R2 Season scorecard**: done. Per model and season to date: games, picks right, log loss, Brier, margin MAE, % of margins within 5 and 10 pts, totals MAE. Live for the EuroLeague (the GBL was removed on 2026-10-28).
 - **R3 Per-round view**: done. EuroLeague rounds, not calendar weeks.
 - **R4 All-games list**: done. Filterable by round and model; shadow-model start rounds are stated.
