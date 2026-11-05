@@ -14,6 +14,7 @@ import pytest
 from eurohoops.config import ELOH_LIVE_ENABLED, EUROLEAGUE
 from eurohoops.eval.backtest import TunedModel
 from eurohoops.live_eloh import LiveEloh, eloh_forecasts, load_eloh, predict_upcoming_eloh
+from eurohoops.model_catalog import entry
 from eurohoops.models import elo
 from eurohoops.models.elo import EloParams, prepare, replay, win_probability
 from eurohoops.models.eloh import fit_from_stats, fit_home_effects, load_deltas
@@ -132,7 +133,7 @@ def test_load_eloh_reads_the_frozen_deltas_and_names_its_fit() -> None:
 def test_the_shadow_log_is_live() -> None:
     # switched on at go-live (workflow.md step 5); logged from the merge onward
     assert ELOH_LIVE_ENABLED is True
-    assert EUROLEAGUE.eloh_prediction_log == Path("predictions/euroleague_eloh_2026-27.csv")
+    assert entry("eloh").log_path(EUROLEAGUE) == Path("predictions/euroleague_eloh_2026-27.csv")
 
 
 # ---- the forecast ----------------------------------------------------------------------------

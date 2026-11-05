@@ -6,21 +6,17 @@ logs (tests/test_shadow_log_golden.py) pin each model's bytes."""
 import csv
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from eurohoops import config
-from eurohoops.config import EUROLEAGUE
 from eurohoops.shadow_log import (
     LatePredictionError,
     Shadow,
     append_log,
     append_shadow_log,
-    is_active,
     run_shadows,
 )
 
@@ -236,34 +232,6 @@ def test_the_rows_just_appended_are_handed_on(tmp_path: Path) -> None:
         after_append=lambda written: handed.append([str(r["game_id"]) for r in written]),
     )
     assert handed == [["G1", "G2"]]
-
-
-# --- is_active: the one answer to "does this model log?" ----------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("tag", "flag"),
-    [("m5inj", "M5INJ_LIVE_ENABLED"), ("eloc", "ELOC_LIVE_ENABLED"), ("eloh", "ELOH_LIVE_ENABLED")],
-)
-def test_a_flagged_model_is_active_only_while_its_flag_is_on(
-    tag: str, flag: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(config, flag, False)
-    assert is_active(tag, EUROLEAGUE) is False
-    monkeypatch.setattr(config, flag, True)
-    assert is_active(tag, EUROLEAGUE) is True
-
-
-def test_a_flagged_model_without_a_log_path_is_never_active(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(config, "ELOH_LIVE_ENABLED", True)
-    assert is_active("eloh", replace(EUROLEAGUE, eloh_prediction_log=None)) is False
-
-
-def test_m1_and_m5_have_no_flag_only_a_log_path() -> None:
-    assert is_active("m1", EUROLEAGUE) and is_active("m5", EUROLEAGUE)
-    assert not is_active("m1", replace(EUROLEAGUE, m1_prediction_log=None))
 
 
 # --- run_shadows: order, isolation, outcomes ------------------------------------------------

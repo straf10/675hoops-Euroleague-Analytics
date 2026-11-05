@@ -32,16 +32,12 @@ from eurohoops.config import (
 from eurohoops.eval.forecasts import build_forecasts
 from eurohoops.logs import displayed_rows, is_late
 from eurohoops.marts import data_volume
+from eurohoops.model_catalog import CATALOG, active_logs
 from eurohoops.publish import Section, site_data
-from eurohoops.shadow_log import is_active
 
 # The page leads with SITE_FORECAST_MODEL; the team models appear only in its small comparison.
 FORECAST_MODELS = {
-    "elo": "Our model",
-    "m1": "M1",
-    "m5": "M5",
-    "m5inj": "M5 + injuries (trial)",
-    "eloh": "Elo + team home court (trial)",
+    **{m.tag: m.label for m in CATALOG if m.label is not None},
     "mkt": "MKT",  # benchmark: the bookmakers' pre-tip line
 }
 
@@ -73,17 +69,7 @@ def site(store: Store, now: datetime) -> dict[str, Any]:
                 season=LIVE_SEASON,
                 replay_from=comp.live_backtest.warmup[0],
                 forecasts=build_forecasts(
-                    {
-                        "elo": store.path(comp.prediction_log),
-                        "m1": _path_or_none(store, comp.m1_prediction_log),
-                        "m5": _path_or_none(store, comp.m5_prediction_log),
-                        "m5inj": _path_or_none(store, comp.m5inj_prediction_log)
-                        if is_active("m5inj", comp)
-                        else None,
-                        "eloh": _path_or_none(store, comp.eloh_prediction_log)
-                        if is_active("eloh", comp)
-                        else None,
-                    },
+                    {tag: store.path(path) for tag, path in active_logs(comp, shown=True).items()},
                     FORECAST_MODELS,
                     games,
                     LIVE_SEASON,
@@ -136,12 +122,7 @@ def prediction(store: Store, game_id: str) -> dict[str, Any]:
     (``logs.displayed_rows``: the pre-registered row, else the earliest late row, ``late``) and
     the game's other rows, oldest first."""
     for comp in (EUROLEAGUE,):
-        logs = {
-            "elo": comp.prediction_log,
-            "m1": comp.m1_prediction_log,
-            "m5": comp.m5_prediction_log,
-            "m5inj": comp.m5inj_prediction_log,
-        }
+        logs = active_logs(comp, shown=True)
         models: dict[str, Any] = {}
         head: Mapping[Any, Any] | None = None
         for model, relative in logs.items():

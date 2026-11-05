@@ -5,7 +5,9 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -84,6 +86,7 @@ from eurohoops.live_sim import (
 )
 from eurohoops.logs import append_rows, write_json
 from eurohoops.marts import read_games, read_table, read_teams
+from eurohoops.model_catalog import SHADOWS
 from eurohoops.models.availability import read_injuries, read_roster_names
 from eurohoops.models.player_part import ElPlayerRatings, el_player_part
 from eurohoops.odds import OddsApiError, OddsFetchError, OddsPaths, api_key, record_odds
@@ -91,7 +94,6 @@ from eurohoops.predict import predict_upcoming
 from eurohoops.shadow_log import (
     LatePredictionError,
     Shadow,
-    is_active,
     logged_keys,
     run_shadows,
 )
@@ -267,36 +269,36 @@ class _LiveFrame:
 
 
 def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Shadow]:
-    """The models that log next to the Elo log, in order. Each ``run`` returns the rows it added,
-    or None when the model is off here (a flag, a missing report or input)."""
+    """The catalog's shadow models, in its order. Each ``run`` returns the rows it added, or None
+    when the model is off here (its flag, a missing report or input)."""
     lead = timedelta(hours=round_lead_hours)
     frame = _LiveFrame(comp)
     m1 = None if comp.m1 is None else load_m1(comp.m1.report)
-    m5 = load_m5(M5.report) if comp.m5_prediction_log is not None else None
+    m5 = load_m5(M5.report)
 
-    def run_m1() -> int | None:
-        if m1 is None or comp.m1_prediction_log is None:
+    def run_m1(log_path: Path) -> int | None:
+        if m1 is None:
             return None
         return predict_upcoming_m1(
             live.games,
             _team_games(comp.name),
             m1,
-            log_path=comp.m1_prediction_log,
+            log_path=log_path,
             season=live.season,
             replay_from=live.replay_from,
             round_lead=lead,
             clock=utc_now,
         )
 
-    def run_m5() -> int | None:
-        if m5 is None or comp.m5_prediction_log is None:
+    def run_m5(log_path: Path) -> int | None:
+        if m5 is None:
             return None
         try:
             return predict_upcoming_m5(
                 live.games,
                 m5,
                 frame.m5,
-                log_path=comp.m5_prediction_log,
+                log_path=log_path,
                 season=live.season,
                 round_lead=lead,
                 clock=utc_now,
@@ -305,8 +307,8 @@ def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Sha
             log.warning("M5 skipped: its marts, stints or reports are missing here")
             return None
 
-    def run_m5inj() -> int | None:
-        if m5 is None or not is_active("m5inj", comp) or comp.m5inj_prediction_log is None:
+    def run_m5inj(log_path: Path) -> int | None:
+        if m5 is None:
             return None
         return predict_upcoming_m5inj(
             live.games,
@@ -314,28 +316,26 @@ def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Sha
             frame.m5,
             injuries=read_injuries(INJURY_LOG),
             roster=read_roster_names(el_people_path(EUROLEAGUE.raw_dir, LIVE_SEASON)),
-            log_path=comp.m5inj_prediction_log,
+            log_path=log_path,
             season=live.season,
             round_lead=lead,
             clock=utc_now,
         )
 
-    def run_eloc() -> int | None:
-        eloc = load_eloc(ELOC_CV.report) if is_active("eloc", comp) else None
-        if eloc is None or comp.eloc_prediction_log is None:
+    def run_eloc(log_path: Path) -> int | None:
+        eloc = load_eloc(ELOC_CV.report)
+        if eloc is None:
             return None
         return predict_upcoming_eloc(
             live.games,
             eloc,
-            log_path=comp.eloc_prediction_log,
+            log_path=log_path,
             season=live.season,
             round_lead=lead,
             clock=utc_now,
         )
 
-    def run_eloh() -> int | None:
-        if not is_active("eloh", comp) or comp.eloh_prediction_log is None:
-            return None
+    def run_eloh(log_path: Path) -> int | None:
         eloh = load_eloh(ELOH_FIT, live.model, live.replay_from)
         if eloh is None:
             log.warning("ELOH skipped: %s is missing", ELOH_FIT)
@@ -343,18 +343,27 @@ def _shadows(live: Live, comp: Competition, round_lead_hours: float) -> list[Sha
         return predict_upcoming_eloh(
             live.games,
             eloh,
-            log_path=comp.eloh_prediction_log,
+            log_path=log_path,
             season=live.season,
             round_lead=lead,
             clock=utc_now,
         )
 
+    runs: dict[str, Callable[[Path], int | None]] = {
+        "m1": run_m1,
+        "m5": run_m5,
+        "m5inj": run_m5inj,
+        "eloc": run_eloc,
+        "eloh": run_eloh,
+    }
     return [
-        Shadow("M1", comp.m1_prediction_log, run_m1, required=True),
-        Shadow("M5", comp.m5_prediction_log, run_m5),
-        Shadow("M5-INJ", comp.m5inj_prediction_log, run_m5inj),
-        Shadow("ELOC", comp.eloc_prediction_log, run_eloc),
-        Shadow("ELOH", comp.eloh_prediction_log, run_eloh),
+        Shadow(
+            m.name,
+            m.log_path(comp),
+            partial(runs[m.tag], m.log_path(comp)) if m.active() else lambda: None,
+            required=m.required,
+        )
+        for m in SHADOWS
     ]
 
 
@@ -561,10 +570,7 @@ def score() -> None:
         utc_now(),
         manual_pushes=comp.manual_pushes,
         odds_path=comp.odds_log,
-        m1_log_path=comp.m1_prediction_log,
-        m5_log_path=comp.m5_prediction_log,
-        m5inj_log_path=comp.m5inj_prediction_log if is_active("m5inj", comp) else None,
-        eloh_log_path=comp.eloh_prediction_log if is_active("eloh", comp) else None,
+        shadow_logs={m.tag: m.log_path(comp) for m in SHADOWS if m.active()},
     )
     write_json(comp.scorecard, card)
     typer.echo(json.dumps(card, indent=2))

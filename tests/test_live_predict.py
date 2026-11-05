@@ -63,13 +63,8 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tuned: Any) -> Iterat
     comp = dataclasses.replace(
         EUROLEAGUE,
         m1=None,  # M1 is not under test: no report is read
-        m1_prediction_log=None,
-        prediction_log=tmp_path / "elo.csv",
+        log_dir=tmp_path,
         inputs_log=tmp_path / "inputs.csv",
-        m5_prediction_log=tmp_path / "m5.csv",
-        eloc_prediction_log=tmp_path / "eloc.csv",
-        eloh_prediction_log=tmp_path / "eloh.csv",
-        m5inj_prediction_log=tmp_path / "m5inj.csv",
     )
     live = Live(games=games, model=tuned, season=SEASON, replay_from=REPLAY_FROM)
     monkeypatch.setattr(live_mod, "EUROLEAGUE", comp)
@@ -122,9 +117,9 @@ def test_predict_echoes_each_shadow_and_passes_its_log_and_lead(
     live_mod.predict()
     out = capsys.readouterr().out
     assert f"4 predictions appended to {comp.prediction_log}" in out
-    assert f"4 M5 predictions appended to {comp.m5_prediction_log}" in out
+    assert f"4 M5 predictions appended to {comp.log_path('m5')}" in out
     ((args, kwargs),) = predicting["m5"].calls
-    assert args[0] is predicting["games"] and kwargs["log_path"] == comp.m5_prediction_log
+    assert args[0] is predicting["games"] and kwargs["log_path"] == comp.log_path("m5")
     assert kwargs["season"] == SEASON and kwargs["round_lead"] == timedelta(hours=48)
     assert sorted(r["game_id"] for r in _rows(comp.prediction_log)) == predicting["open_ids"]
 
@@ -137,7 +132,7 @@ def test_m5_missing_its_inputs_warns_and_the_run_goes_on(
     live_mod.predict()  # returns normally: the Elo log and the other shadows are not blocked
     assert "M5 skipped: its marts" in caplog.text
     assert len(_rows(predicting["comp"].prediction_log)) == len(predicting["open_ids"])
-    assert not predicting["comp"].m5_prediction_log.exists()
+    assert not predicting["comp"].log_path("m5").exists()
 
 
 def test_a_late_m5_prediction_refuses_the_run(

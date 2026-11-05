@@ -7,18 +7,17 @@ are that report's frozen ``live_fit``. Elo is replayed from the CV's first warm-
 same fixed parameters, as the CV did. The shadow is not displayed on the site.
 """
 
-import hashlib
 import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.common import tagged_version
 from eurohoops.models import elo
 from eurohoops.models.elo import EloParams
 from eurohoops.models.elo_cal import Calibration, apply
@@ -50,14 +49,13 @@ def load_eloc(report_path: Path) -> LiveEloc | None:
         "elo_params": report["elo_params"],
         "elo_warmup": report["elo_warmup"],
     }
-    digest = hashlib.sha256(json.dumps(frozen, sort_keys=True).encode()).hexdigest()[:8]
     return LiveEloc(
         calibration=Calibration(
             float(live["a"]), float(live["b"]), int(live["games"]), int(live["iterations"])
         ),
         elo_params=EloParams(**report["elo_params"]),
         first_season=int(report["elo_warmup"][0]),
-        version=f"{version('eurohoops')}+eloc.{digest}",
+        version=tagged_version("eloc", json.dumps(frozen, sort_keys=True)),
         passed=report.get("shadow_criteria", {}).get("all") is True,
     )
 

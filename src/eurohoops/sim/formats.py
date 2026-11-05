@@ -6,6 +6,7 @@ from the API games feed. 2026-27 is ``standings``'
 ``EUROLEAGUE_2026``, unchanged.
 """
 
+from eurohoops.config import season_label
 from eurohoops.standings import EUROLEAGUE_2026, Format, Series
 
 _BYLAWS_2025 = (
@@ -24,10 +25,6 @@ _EXCLUDED: dict[tuple[str, int], str] = {
     ("euroleague", 2019): "2019-20 was cancelled (COVID-19)",
     ("euroleague", 2021): "2021-22 had Russian clubs removed mid-season",
 }
-
-
-def _label(season: int) -> str:
-    return f"{season}-{(season + 1) % 100:02d}"
 
 
 def _euroleague(season: int) -> Format:
@@ -51,7 +48,7 @@ def _euroleague(season: int) -> Format:
         series = (Series("play-in", 1), *series)
     return Format(
         competition="euroleague",
-        season=_label(season),
+        season=season_label(season),
         teams=teams,
         regular_season_rounds=rounds,
         playoffs_direct=direct,
@@ -78,11 +75,11 @@ def season_format(competition: str, season: int) -> Format:
         return EUROLEAGUE_2026
     if (competition, season) in _EXCLUDED:
         raise ValueError(
-            f"{competition} {_label(season)} is not scored: {_EXCLUDED[competition, season]}"
+            f"{competition} {season_label(season)} is not scored: {_EXCLUDED[competition, season]}"
         )
     if season in _EUROLEAGUE_SEASONS:
         return _euroleague(season)
-    raise ValueError(f"no verified format for {competition} {_label(season)}")
+    raise ValueError(f"no verified format for {competition} {season_label(season)}")
 
 
 def cut_lines(fmt: Format) -> dict[str, tuple[int, ...]]:
