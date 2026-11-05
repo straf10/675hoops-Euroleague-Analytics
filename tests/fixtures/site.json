@@ -16,11 +16,13 @@
           "predicted_at_utc": "2027-10-01T08:00:00Z",
           "home": {
             "code": "AAA",
+            "source_code": "AAA",
             "name": "Team AAA & Co",
             "short": "Team AAA & Co"
           },
           "away": {
             "code": "BBB",
+            "source_code": "BBB",
             "name": "Team BBB & Co",
             "short": "Team BBB & Co"
           },
@@ -37,11 +39,13 @@
           "predicted_at_utc": "2027-10-01T08:15:00Z",
           "home": {
             "code": "AAA",
+            "source_code": "AAA",
             "name": "Team AAA & Co",
             "short": "Team AAA & Co"
           },
           "away": {
             "code": "CCC",
+            "source_code": "CCC",
             "name": "Team CCC & Co",
             "short": "Team CCC & Co"
           },
@@ -58,11 +62,13 @@
           "predicted_at_utc": "2027-10-01T08:30:00Z",
           "home": {
             "code": "AAA",
+            "source_code": "AAA",
             "name": "Team AAA & Co",
             "short": "Team AAA & Co"
           },
           "away": {
             "code": "DDD",
+            "source_code": "DDD",
             "name": "Team DDD & Co",
             "short": "Team DDD & Co"
           },
@@ -79,11 +85,13 @@
           "predicted_at_utc": "2027-10-08T08:00:00Z",
           "home": {
             "code": "AAA",
+            "source_code": "AAA",
             "name": "Team AAA & Co",
             "short": "Team AAA & Co"
           },
           "away": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
@@ -104,11 +112,13 @@
               "predicted_at_utc": "2027-10-01T08:00:00Z",
               "home": {
                 "code": "AAA",
+                "source_code": "AAA",
                 "name": "Team AAA & Co",
                 "short": "Team AAA & Co"
               },
               "away": {
                 "code": "BBB",
+                "source_code": "BBB",
                 "name": "Team BBB & Co",
                 "short": "Team BBB & Co"
               },
@@ -126,11 +136,13 @@
               "predicted_at_utc": "2027-10-01T08:15:00Z",
               "home": {
                 "code": "AAA",
+                "source_code": "AAA",
                 "name": "Team AAA & Co",
                 "short": "Team AAA & Co"
               },
               "away": {
                 "code": "CCC",
+                "source_code": "CCC",
                 "name": "Team CCC & Co",
                 "short": "Team CCC & Co"
               },
@@ -148,11 +160,13 @@
               "predicted_at_utc": "2027-10-01T08:30:00Z",
               "home": {
                 "code": "AAA",
+                "source_code": "AAA",
                 "name": "Team AAA & Co",
                 "short": "Team AAA & Co"
               },
               "away": {
                 "code": "DDD",
+                "source_code": "DDD",
                 "name": "Team DDD & Co",
                 "short": "Team DDD & Co"
               },
@@ -175,11 +189,13 @@
               "predicted_at_utc": "2027-10-08T08:00:00Z",
               "home": {
                 "code": "AAA",
+                "source_code": "AAA",
                 "name": "Team AAA & Co",
                 "short": "Team AAA & Co"
               },
               "away": {
                 "code": "EEE",
+                "source_code": "EEE",
                 "name": "Team EEE & Co",
                 "short": "Team EEE & Co"
               },
@@ -202,11 +218,13 @@
           "predicted_at_utc": "2026-12-03T19:30:00Z",
           "home": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
           "away": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
@@ -225,11 +243,13 @@
           "predicted_at_utc": "2026-12-03T08:15:00Z",
           "home": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
           "away": {
             "code": "DDD",
+            "source_code": "DDD",
             "name": "Team DDD & Co",
             "short": "Team DDD & Co"
           },
@@ -248,11 +268,13 @@
           "predicted_at_utc": "2026-12-03T08:00:00Z",
           "home": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
           "away": {
             "code": "CCC",
+            "source_code": "CCC",
             "name": "Team CCC & Co",
             "short": "Team CCC & Co"
           },
@@ -271,11 +293,13 @@
           "predicted_at_utc": "2026-11-26T08:30:00Z",
           "home": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
           "away": {
             "code": "BBB",
+            "source_code": "BBB",
             "name": "Team BBB & Co",
             "short": "Team BBB & Co"
           },
@@ -294,11 +318,13 @@
           "predicted_at_utc": "2026-11-26T08:15:00Z",
           "home": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
           "away": {
             "code": "AAA",
+            "source_code": "AAA",
             "name": "Team AAA & Co",
             "short": "Team AAA & Co"
           },
@@ -317,11 +343,13 @@
           "predicted_at_utc": "2026-11-26T08:00:00Z",
           "home": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
           "away": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
@@ -340,11 +368,13 @@
           "predicted_at_utc": "2026-11-19T08:30:00Z",
           "home": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
           "away": {
             "code": "DDD",
+            "source_code": "DDD",
             "name": "Team DDD & Co",
             "short": "Team DDD & Co"
           },
@@ -363,11 +393,13 @@
           "predicted_at_utc": "2026-11-19T08:15:00Z",
           "home": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
           "away": {
             "code": "CCC",
+            "source_code": "CCC",
             "name": "Team CCC & Co",
             "short": "Team CCC & Co"
           },
@@ -386,11 +418,13 @@
           "predicted_at_utc": "2026-11-19T08:00:00Z",
           "home": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
           "away": {
             "code": "BBB",
+            "source_code": "BBB",
             "name": "Team BBB & Co",
             "short": "Team BBB & Co"
           },
@@ -409,11 +443,13 @@
           "predicted_at_utc": "2026-11-12T08:30:00Z",
           "home": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
           "away": {
             "code": "AAA",
+            "source_code": "AAA",
             "name": "Team AAA & Co",
             "short": "Team AAA & Co"
           },
@@ -432,11 +468,13 @@
           "predicted_at_utc": "2026-11-12T08:15:00Z",
           "home": {
             "code": "DDD",
+            "source_code": "DDD",
             "name": "Team DDD & Co",
             "short": "Team DDD & Co"
           },
           "away": {
             "code": "FFF",
+            "source_code": "FFF",
             "name": "Team FFF & Co",
             "short": "Team FFF & Co"
           },
@@ -455,11 +493,13 @@
           "predicted_at_utc": "2026-11-12T08:00:00Z",
           "home": {
             "code": "DDD",
+            "source_code": "DDD",
             "name": "Team DDD & Co",
             "short": "Team DDD & Co"
           },
           "away": {
             "code": "EEE",
+            "source_code": "EEE",
             "name": "Team EEE & Co",
             "short": "Team EEE & Co"
           },
@@ -907,6 +947,7 @@
       "ratings": [
         {
           "code": "BBB",
+          "source_code": "BBB",
           "name": "Team BBB & Co",
           "short": "Team BBB & Co",
           "rating": 1614.1,
@@ -914,6 +955,7 @@
         },
         {
           "code": "EEE",
+          "source_code": "EEE",
           "name": "Team EEE & Co",
           "short": "Team EEE & Co",
           "rating": 1530.7,
@@ -921,6 +963,7 @@
         },
         {
           "code": "CCC",
+          "source_code": "CCC",
           "name": "Team CCC & Co",
           "short": "Team CCC & Co",
           "rating": 1508.7,
@@ -928,6 +971,7 @@
         },
         {
           "code": "AAA",
+          "source_code": "AAA",
           "name": "Team AAA & Co",
           "short": "Team AAA & Co",
           "rating": 1500.2,
@@ -935,6 +979,7 @@
         },
         {
           "code": "DDD",
+          "source_code": "DDD",
           "name": "Team DDD & Co",
           "short": "Team DDD & Co",
           "rating": 1435.1,
@@ -942,6 +987,7 @@
         },
         {
           "code": "FFF",
+          "source_code": "FFF",
           "name": "Team FFF & Co",
           "short": "Team FFF & Co",
           "rating": 1411.2,
@@ -1802,11 +1848,13 @@
             "tipoff_utc": "2026-12-03T18:15:00Z",
             "home": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
             "away": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
@@ -1832,11 +1880,13 @@
             "tipoff_utc": "2026-12-03T18:00:00Z",
             "home": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
             "away": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
@@ -1862,11 +1912,13 @@
             "tipoff_utc": "2026-11-26T18:30:00Z",
             "home": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
             "away": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
@@ -1892,11 +1944,13 @@
             "tipoff_utc": "2026-11-26T18:15:00Z",
             "home": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
             "away": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
@@ -1922,11 +1976,13 @@
             "tipoff_utc": "2026-11-26T18:00:00Z",
             "home": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
             "away": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
@@ -1952,11 +2008,13 @@
             "tipoff_utc": "2026-11-19T18:30:00Z",
             "home": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
             "away": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
@@ -1982,11 +2040,13 @@
             "tipoff_utc": "2026-11-19T18:15:00Z",
             "home": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
             "away": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
@@ -2012,11 +2072,13 @@
             "tipoff_utc": "2026-11-19T18:00:00Z",
             "home": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
             "away": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
@@ -2042,11 +2104,13 @@
             "tipoff_utc": "2026-11-12T18:30:00Z",
             "home": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
             "away": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
@@ -2072,11 +2136,13 @@
             "tipoff_utc": "2026-11-12T18:15:00Z",
             "home": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
             "away": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
@@ -2102,11 +2168,13 @@
             "tipoff_utc": "2026-11-12T18:00:00Z",
             "home": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
             "away": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
@@ -2132,11 +2200,13 @@
             "tipoff_utc": "2026-11-05T18:30:00Z",
             "home": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
             "away": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
@@ -2162,11 +2232,13 @@
             "tipoff_utc": "2026-11-05T18:15:00Z",
             "home": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
             "away": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
@@ -2192,11 +2264,13 @@
             "tipoff_utc": "2026-11-05T18:00:00Z",
             "home": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
             "away": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
@@ -2222,11 +2296,13 @@
             "tipoff_utc": "2026-10-29T18:30:00Z",
             "home": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
             "away": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
@@ -2252,11 +2328,13 @@
             "tipoff_utc": "2026-10-29T18:15:00Z",
             "home": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
             "away": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
@@ -2282,11 +2360,13 @@
             "tipoff_utc": "2026-10-29T18:00:00Z",
             "home": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
             "away": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
@@ -2312,11 +2392,13 @@
             "tipoff_utc": "2026-10-22T18:30:00Z",
             "home": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
             "away": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
@@ -2342,11 +2424,13 @@
             "tipoff_utc": "2026-10-22T18:15:00Z",
             "home": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
             "away": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
@@ -2372,11 +2456,13 @@
             "tipoff_utc": "2026-10-22T18:00:00Z",
             "home": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
             "away": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
@@ -2402,11 +2488,13 @@
             "tipoff_utc": "2026-10-15T18:30:00Z",
             "home": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
             "away": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
@@ -2432,11 +2520,13 @@
             "tipoff_utc": "2026-10-15T18:15:00Z",
             "home": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
             "away": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
@@ -2462,11 +2552,13 @@
             "tipoff_utc": "2026-10-15T18:00:00Z",
             "home": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
             "away": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
@@ -2492,11 +2584,13 @@
             "tipoff_utc": "2026-10-08T18:30:00Z",
             "home": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
             "away": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
@@ -2522,11 +2616,13 @@
             "tipoff_utc": "2026-10-08T18:15:00Z",
             "home": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
             "away": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
@@ -2552,11 +2648,13 @@
             "tipoff_utc": "2026-10-08T18:00:00Z",
             "home": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
             "away": {
               "code": "EEE",
+              "source_code": "EEE",
               "name": "Team EEE & Co",
               "short": "Team EEE & Co"
             },
@@ -2582,11 +2680,13 @@
             "tipoff_utc": "2026-10-01T18:30:00Z",
             "home": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
             "away": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
@@ -2612,11 +2712,13 @@
             "tipoff_utc": "2026-10-01T18:15:00Z",
             "home": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
             "away": {
               "code": "CCC",
+              "source_code": "CCC",
               "name": "Team CCC & Co",
               "short": "Team CCC & Co"
             },
@@ -2642,11 +2744,13 @@
             "tipoff_utc": "2026-10-01T18:00:00Z",
             "home": {
               "code": "AAA",
+              "source_code": "AAA",
               "name": "Team AAA & Co",
               "short": "Team AAA & Co"
             },
             "away": {
               "code": "BBB",
+              "source_code": "BBB",
               "name": "Team BBB & Co",
               "short": "Team BBB & Co"
             },
@@ -2881,11 +2985,13 @@
           "biggest_miss": {
             "winner": {
               "code": "DDD",
+              "source_code": "DDD",
               "name": "Team DDD & Co",
               "short": "Team DDD & Co"
             },
             "loser": {
               "code": "FFF",
+              "source_code": "FFF",
               "name": "Team FFF & Co",
               "short": "Team FFF & Co"
             },
@@ -2947,11 +3053,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
                 "away": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
@@ -2967,11 +3075,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
                 "away": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
@@ -2987,11 +3097,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
                 "away": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
@@ -3014,11 +3126,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
                 "away": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
@@ -3034,11 +3148,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
                 "away": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
@@ -3054,11 +3170,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
                 "away": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
@@ -3081,11 +3199,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
                 "away": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
@@ -3101,11 +3221,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
                 "away": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
@@ -3121,11 +3243,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
                 "away": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
@@ -3148,11 +3272,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
                 "away": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
@@ -3168,11 +3294,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
                 "away": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
@@ -3188,11 +3316,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
                 "away": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
@@ -3215,11 +3345,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
                 "away": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
@@ -3235,11 +3367,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
                 "away": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
@@ -3255,11 +3389,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
                 "away": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
@@ -3282,11 +3418,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
                 "away": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
@@ -3302,11 +3440,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
                 "away": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
@@ -3322,11 +3462,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
                 "away": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
@@ -3349,11 +3491,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
                 "away": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
@@ -3369,11 +3513,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
                 "away": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
@@ -3389,11 +3535,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
                 "away": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
@@ -3416,11 +3564,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
                 "away": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
@@ -3436,11 +3586,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
                 "away": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
@@ -3456,11 +3608,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
                 "away": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
@@ -3483,11 +3637,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },
                 "away": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
@@ -3503,11 +3659,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
                 "away": {
                   "code": "AAA",
+                  "source_code": "AAA",
                   "name": "Team AAA & Co",
                   "short": "Team AAA & Co"
                 },
@@ -3523,11 +3681,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
                 "away": {
                   "code": "BBB",
+                  "source_code": "BBB",
                   "name": "Team BBB & Co",
                   "short": "Team BBB & Co"
                 },
@@ -3550,11 +3710,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
                 "away": {
                   "code": "CCC",
+                  "source_code": "CCC",
                   "name": "Team CCC & Co",
                   "short": "Team CCC & Co"
                 },
@@ -3570,11 +3732,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
                 "away": {
                   "code": "DDD",
+                  "source_code": "DDD",
                   "name": "Team DDD & Co",
                   "short": "Team DDD & Co"
                 },
@@ -3590,11 +3754,13 @@
                 "tipoff_time_confirmed": true,
                 "home": {
                   "code": "FFF",
+                  "source_code": "FFF",
                   "name": "Team FFF & Co",
                   "short": "Team FFF & Co"
                 },
                 "away": {
                   "code": "EEE",
+                  "source_code": "EEE",
                   "name": "Team EEE & Co",
                   "short": "Team EEE & Co"
                 },

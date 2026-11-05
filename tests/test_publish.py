@@ -14,9 +14,11 @@ from eurohoops.publish import (
     DISPLAY_CODES,
     SHORT_NAMES,
     Section,
+    Team,
     section_data,
     short_name,
     site_data,
+    team_identity,
 )
 from tests.conftest import make_games
 
@@ -124,6 +126,28 @@ def test_display_codes_rename_only_what_the_site_shows(monkeypatch: MonkeyPatch)
     assert "AAA" not in rated
     teams = {t["code"] for g in data["upcoming"] + data["results"] for t in (g["home"], g["away"])}
     assert "AAA" not in teams
+
+
+def test_a_team_carries_its_source_code_and_its_display_code() -> None:
+    # Baskonia's source code BAS shows as KBA, which is also the source code Baskonia used earlier
+    assert team_identity("euroleague", "BAS", {"BAS": "Baskonia Vitoria"}) == Team(
+        code="BAS", display_code="KBA", name="Baskonia Vitoria", short="Baskonia"
+    )
+    assert team_identity("euroleague", "KBA") == Team("KBA", "KBA", "KBA", "Baskonia")
+    assert team_identity("gbl", "PAN") == Team("PAN", "PAN", "PAN", "PAN")  # no renames there
+
+
+def test_site_teams_keep_the_source_code_when_display_codes_collide(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    # AAA shows as BBB, the source code of another club in the same season
+    monkeypatch.setitem(DISPLAY_CODES, "euroleague", {"AAA": "BBB"})
+    data = section_data(section(), NOW)
+    shown_as_bbb = sorted(r["source_code"] for r in data["ratings"] if r["code"] == "BBB")
+    assert shown_as_bbb == ["AAA", "BBB"]
+    for game in data["upcoming"] + data["results"]:
+        for team in (game["home"], game["away"]):
+            assert team["code"] == ("BBB" if team["source_code"] == "AAA" else team["source_code"])
 
 
 def test_display_codes_are_unique_per_competition() -> None:

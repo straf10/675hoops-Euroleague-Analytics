@@ -35,7 +35,6 @@ from eurohoops.config import (
     M6_SIMILARITY,
     SITE_DATA,
 )
-from eurohoops.publish import DISPLAY_CODES
 
 WEB_DIR = SITE_DATA.parent.parent.parent  # web/
 DATA_DIR = PurePosixPath(SITE_DATA.parent.relative_to(WEB_DIR).as_posix())  # src/data
@@ -162,27 +161,14 @@ def export_files(
     return files
 
 
-def _report(store: Store, relative: Path) -> dict[str, Any]:
-    path = store.path(relative)
-    report: dict[str, Any] = (
-        json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"players": []}
-    )
-    return report
-
-
-def _source_codes(competition: str) -> dict[str, str]:
-    """Display code -> source code (``DISPLAY_CODES`` maps the other way)."""
-    return {shown: code for code, shown in DISPLAY_CODES.get(competition, {}).items()}
-
-
 def api_routes(store: Store, site: Mapping[str, Any]) -> list[Route]:
     """The routes behind ``src/data/api/``: simulations, metrics, every projected or
     similar person, and every team of the live season (from the ``/site`` ratings)."""
     routes = [Route(f"/simulations/latest?competition={EUROLEAGUE.name}", optional=True)]
     routes.append(Route("/metrics/live", optional=True))
     routes.append(Route("/rapm", optional=True))
-    projected = _report(store, M6_PROJECTIONS)["players"]
-    similar = _report(store, M6_SIMILARITY)["players"]
+    projected = (store.report(M6_PROJECTIONS) or {"players": []})["players"]
+    similar = (store.report(M6_SIMILARITY) or {"players": []})["players"]
     people = [row["person_id"] for row in projected if row["competition"] == EUROLEAGUE.name]
     routes += [Route(f"/players/{person}/projection", optional=True) for person in people]
     routes += [
@@ -192,10 +178,8 @@ def api_routes(store: Store, site: Mapping[str, Any]) -> list[Route]:
     for game_id in report_game_ids(store, EUROLEAGUE.name):  # the site shows EuroLeague only
         routes.append(Route(f"/reports/{EUROLEAGUE.name}/{game_id}", optional=True))
     for section in site["competitions"]:
-        source = _source_codes(section["key"])
         for rating in section["ratings"]:
-            shown = rating["code"]
-            base = f"/teams/{section['key']}/{source.get(shown, shown)}"
+            base = f"/teams/{section['key']}/{rating['source_code']}"
             routes.append(Route(f"{base}/factors?season={LIVE_SEASON}", optional=True))
             routes.append(Route(f"{base}/ratings", optional=True))
     return routes

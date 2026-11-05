@@ -15,17 +15,7 @@ import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 
-from eurohoops.api.read.store import (
-    NotFound,
-    Store,
-    _competition,
-    _el_box,
-    _elo,
-    _games,
-    _live_model,
-    _names,
-    _team,
-)
+from eurohoops.api.read.store import NotFound, Store, cached
 from eurohoops.config import (
     LIVE_SEASON,
     Competition,
@@ -51,18 +41,18 @@ TEAM_LINES_SCHEMA = pa.DataFrameSchema(
 
 
 def _known_team(store: Store, comp: Competition, code: str) -> dict[str, str]:
-    games = _games(store, comp)
+    games = store.games(comp)
     if code not in {*games["home"], *games["away"]}:
         raise NotFound(f"unknown team '{code}' in {comp.name}")
-    return _team(comp, code, _names(store, comp))
+    return store.team(comp, code)
 
 
 def team_ratings(store: Store, competition: str, team: str) -> dict[str, Any]:
     """The team's published Elo (as ``site.json`` lists it): rating, change since the season's
     start and rank among the live season's teams. M1's strengths are not published."""
-    comp = _competition(competition)
+    comp = store.competition(competition)
     info = _known_team(store, comp, team)
-    table = _elo(store, comp, LIVE_SEASON)
+    table = store.elo(comp, LIVE_SEASON)
     if team not in table:
         raise NotFound(f"'{team}' has no game in the {comp.name} {LIVE_SEASON} season")
     order = sorted(table, key=lambda t: (-round(table[t][0], 1), t))
@@ -85,15 +75,12 @@ def team_ratings(store: Store, competition: str, team: str) -> dict[str, Any]:
     }
 
 
+@cached
 def _team_lines(store: Store, comp: Competition) -> tuple[pd.DataFrame | None, str]:
     """Team box lines (``TEAM_LINES_SCHEMA``) of the EuroLeague, or None and why not."""
-
-    def make() -> tuple[pd.DataFrame | None, str]:
-        teams = _el_box(store).teams
-        lines = teams.assign(fga=teams["fg2a"] + teams["fg3a"])
-        return validated(lines[list(TEAM_LINES_SCHEMA.columns)], TEAM_LINES_SCHEMA), ""
-
-    return store.memo(f"team_lines:{comp.name}", make)
+    teams = store.euroleague_box().teams
+    lines = teams.assign(fga=teams["fg2a"] + teams["fg3a"])
+    return validated(lines[list(TEAM_LINES_SCHEMA.columns)], TEAM_LINES_SCHEMA), ""
 
 
 def _factor(numerator: float, denominator: float, what: str) -> dict[str, Any]:
@@ -142,23 +129,21 @@ SCHEDULE_RATING = (
 )
 
 
-def _schedule_rest(store: Store, comp: Competition) -> dict[tuple[str, str], float]:
-    """Days of rest (``rest.py``) of each side of every EuroLeague game in the mart.
+@cached
+def schedule_rest(store: Store, comp: Competition) -> dict[tuple[str, str], float]:
+    """Days of rest (``rest.py``) of each side of every game in the competition's mart, keyed by
+    (game id, source code).
 
     The schedule counts as history here (every row is treated as played), so a fixture's rest is
     the days since the previous fixture, whether or not that game has been played yet."""
-
-    def make() -> dict[tuple[str, str], float]:
-        long = rest_features(_games(store, comp).assign(played=True))
-        return {
-            (str(g), str(t)): float(d)
-            for g, t, d in zip(long["game_id"], long["team"], long["days_rest"], strict=True)
-        }
-
-    return store.memo(f"schedule_rest:{comp.name}", make)
+    long = rest_features(store.games(comp).assign(played=True))
+    return {
+        (str(g), str(t)): float(d)
+        for g, t, d in zip(long["game_id"], long["team"], long["days_rest"], strict=True)
+    }
 
 
-def _strength_block(
+def strength_block(
     games: pd.DataFrame,
     team: str,
     ratings: Mapping[str, tuple[float, float]],
@@ -192,10 +177,10 @@ def _schedule_strength(store: Store, comp: Competition, team: str, season: int) 
     few (``SCHEDULE_NEXT``). Each block is empty, with a reason, when it has no games."""
     out: dict[str, Any] = {"rating": SCHEDULE_RATING, "next": SCHEDULE_NEXT}
     try:
-        ratings = _elo(store, comp, season)
-        hca = _live_model(store, comp).params.hca
-        games = _games(store, comp)
-        rest = _schedule_rest(store, comp)
+        ratings = store.elo(comp, season)
+        hca = store.live_model(comp).params.hca
+        games = store.games(comp)
+        rest = schedule_rest(store, comp)
     except NotFound as missing:
         empty = {"games": 0, "reason": missing.reason}
         return {**out, "played": empty, "remaining": empty, "next5": empty}
@@ -209,7 +194,7 @@ def _schedule_strength(store: Store, comp: Competition, team: str, season: int) 
             return {"games": 0, "reason": f"no scheduled games in {season}"}
         if frame.empty:
             return {"games": 0, "reason": reason}
-        return _strength_block(frame, team, ratings, hca, rest)
+        return strength_block(frame, team, ratings, hca, rest)
 
     return {
         **out,
@@ -222,7 +207,7 @@ def _schedule_strength(store: Store, comp: Competition, team: str, season: int) 
 def team_factors(store: Store, competition: str, team: str, season: int | None) -> dict[str, Any]:
     """The four factors and schedule strength of a team's season (latest with box scores when
     ``season`` is None); a missing input gives ``value: null`` and a ``reason``."""
-    comp = _competition(competition)
+    comp = store.competition(competition)
     info = _known_team(store, comp, team)
     lines, why = _team_lines(store, comp)
     own = None if lines is None else lines[lines["team"] == team]

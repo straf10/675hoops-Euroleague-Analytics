@@ -134,6 +134,29 @@ def short_name(competition: str, code: str, full: str) -> str:
 
 
 @dataclass(frozen=True)
+class Team:
+    """A club as every output names it. ``code`` is the source code (data, logs, API routes);
+    ``display_code`` is what the site shows in its place (``DISPLAY_CODES``)."""
+
+    code: str
+    display_code: str
+    name: str
+    short: str
+
+
+def team_identity(competition: str, code: str, names: Mapping[str, str] | None = None) -> Team:
+    """The one place a source code meets its display code and names (``names`` is source code ->
+    full name; the name falls back to the code, the short name to the name).
+
+    A display code can be another club's source code (Baskonia ``BAS`` shows as ``KBA``, the
+    source code Baskonia used earlier), so a display code is never turned back into a source code:
+    whatever needs the source code carries it."""
+    name = (names or {}).get(code, code)
+    shown = DISPLAY_CODES.get(competition, {}).get(code, code)
+    return Team(code, shown, name, short_name(competition, code, name))
+
+
+@dataclass(frozen=True)
 class Section:
     key: str
     title: str
@@ -178,9 +201,15 @@ def _logged(section: Section) -> list[dict[Hashable, Any]]:
 
 
 def _team(section: Section, code: str) -> dict[str, str]:
-    shown = DISPLAY_CODES.get(section.key, {}).get(code, code)
-    name = section.names.get(code, code)
-    return {"code": shown, "name": name, "short": short_name(section.key, code, name)}
+    """A team in ``site.json``: ``code`` is the display code the page shows, ``source_code`` the
+    one the API's team routes take."""
+    team = team_identity(section.key, code, section.names)
+    return {
+        "code": team.display_code,
+        "source_code": team.code,
+        "name": team.name,
+        "short": team.short,
+    }
 
 
 def _game(section: Section, g: dict[Hashable, Any]) -> dict[str, Any]:

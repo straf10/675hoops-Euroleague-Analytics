@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from eurohoops.api.read.store import NotFound, Store, _el_box, _el_games
+from eurohoops.api.read.store import NotFound, Store, cached
 from eurohoops.config import (
     EUROLEAGUE,
     LIVE_SEASON,
@@ -33,43 +33,40 @@ from eurohoops.stats.win_shares import box_win_shares
 from eurohoops.stats.wp import WpLines, logged_pre, wp_lines
 
 
+@cached
 def stats_inputs(store: Store) -> Inputs:
     """The stats site's inputs, built once per Store (the validation reads the same frames)."""
-
-    def make() -> Inputs:
-        games, teams = _el_games(store)
-        box = _el_box(store)
-        window = site_window(box.players["season"].unique())
-        played = games[games["played"] & games["season"].isin(window)]
-        raw = store.path(EUROLEAGUE.raw_dir)
-        seasons = (int(s) for s in box.players["season"].unique())
-        cached = [s for s in seasons if el_people_path(raw, s).exists()]
-        # Every played game's assists, not only the site window: the splits keep full careers, and
-        # Win Shares need the assisted field goals of every box score.
-        assists = game_assists(raw, games[games["played"]])
-        return Inputs(
-            games=games,
-            names=dict(teams.itertuples(index=False)),
-            box=box,
-            shots=build_shots(raw, games),
-            codes=DISPLAY_CODES[EUROLEAGUE.name],
-            live_season=LIVE_SEASON,
-            official_standings=load_cached_standings(raw),
-            positions=season_positions(raw, games_by_club(box.players)),
-            runs=game_runs(raw, played),
-            roster=read_rosters(raw, sorted(cached)),
-            units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
-            assists=assists,
-            win_shares=box_win_shares(box.players, box.teams),
-            wp=_wp_lines(store, games),
-            coaches=_coach_games(store, games),
-            styles=_coach_styles(store, games),
-        )
-
-    return store.memo("stats_inputs", make)
+    games, teams = store.euroleague_games()
+    box = store.euroleague_box()
+    window = site_window(box.players["season"].unique())
+    played = games[games["played"] & games["season"].isin(window)]
+    raw = store.path(EUROLEAGUE.raw_dir)
+    seasons = (int(s) for s in box.players["season"].unique())
+    rostered = [s for s in seasons if el_people_path(raw, s).exists()]
+    # Every played game's assists, not only the site window: the splits keep full careers, and
+    # Win Shares need the assisted field goals of every box score.
+    assists = game_assists(raw, games[games["played"]])
+    return Inputs(
+        games=games,
+        names=dict(teams.itertuples(index=False)),
+        box=box,
+        shots=build_shots(raw, games),
+        codes=DISPLAY_CODES[EUROLEAGUE.name],
+        live_season=LIVE_SEASON,
+        official_standings=load_cached_standings(raw),
+        positions=season_positions(raw, games_by_club(box.players)),
+        runs=game_runs(raw, played),
+        roster=read_rosters(raw, sorted(rostered)),
+        units=load_units(raw, games, window, DISPLAY_CODES[EUROLEAGUE.name]),
+        assists=assists,
+        win_shares=box_win_shares(box.players, box.teams),
+        wp=_wp_lines(store),
+        coaches=coach_rows(store, games),
+        styles=_coach_styles(store),
+    )
 
 
-def _coach_games(store: Store, games: pd.DataFrame) -> pd.DataFrame | None:
+def coach_rows(store: Store, games: pd.DataFrame) -> pd.DataFrame | None:
     """Team-game coach rows with the walk-forward history Elo's pre-game probabilities (its tuned
     parameters, replayed from the first warm-up season); None without the history report."""
     history = EUROLEAGUE.history_backtests[0]
@@ -79,35 +76,35 @@ def _coach_games(store: Store, games: pd.DataFrame) -> pd.DataFrame | None:
     return coach_games(store.path(EUROLEAGUE.raw_dir), with_elo(games, params, history.warmup[0]))
 
 
-def _coach_styles(store: Store, games: pd.DataFrame) -> StyleIndex | None:
-    """Per-game coaching style from the cached play-by-play and box scores, once per Store; None
-    without the coach history report (no coach pages)."""
-
-    def make() -> StyleIndex:
-        return game_styles(store.path(EUROLEAGUE.raw_dir), games)
-
+def _coach_styles(store: Store) -> StyleIndex | None:
+    """Per-game coaching style of the EuroLeague games from the cached play-by-play and box scores,
+    once per Store; None without the coach history report (no coach pages)."""
     if not store.path(EUROLEAGUE.history_backtests[0].report).exists():
         return None
-    return store.memo("coach_styles", make)
+    return _game_styles(store)
 
 
-def _wp_lines(store: Store, games: pd.DataFrame) -> WpLines | None:
-    """The frozen WP v1 lines (stats/wp.py), once per Store; None without its gate report."""
-
-    def make() -> WpLines | None:
-        if not store.path(WP_REPORT).exists():
-            return None
-        report = json.loads(store.path(WP_REPORT).read_text(encoding="utf-8"))
-        logged = logged_pre(store.path(EUROLEAGUE.prediction_log))
-        return wp_lines(games, store.path(EUROLEAGUE.raw_dir), report, logged)
-
-    return store.memo("wp_lines", make)
+@cached
+def _game_styles(store: Store) -> StyleIndex:
+    return game_styles(store.path(EUROLEAGUE.raw_dir), store.euroleague_games()[0])
 
 
+@cached
+def _wp_lines(store: Store) -> WpLines | None:
+    """The frozen WP v1 lines (stats/wp.py) of the EuroLeague games, once per Store; None without
+    its gate report."""
+    if not store.path(WP_REPORT).exists():
+        return None
+    report = json.loads(store.path(WP_REPORT).read_text(encoding="utf-8"))
+    logged = logged_pre(store.path(EUROLEAGUE.prediction_log))
+    return wp_lines(store.euroleague_games()[0], store.path(EUROLEAGUE.raw_dir), report, logged)
+
+
+@cached(key=lambda now: ())
 def stats_payloads(store: Store, now: datetime) -> dict[str, dict[str, Any]]:
     """Every stats file by relative path (``stats.export.build_payloads``), built once per Store;
-    ``meta.json`` carries the time of that build."""
-    return store.memo("stats", lambda: build_payloads(stats_inputs(store), now))
+    ``meta.json`` carries the time of that (first) build."""
+    return build_payloads(stats_inputs(store), now)
 
 
 def stats_index(store: Store, now: datetime) -> dict[str, Any]:

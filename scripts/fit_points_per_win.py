@@ -10,7 +10,7 @@ Usage: uv run python scripts/fit_points_per_win.py   (run from the checkout that
 
 from pathlib import Path
 
-from eurohoops.api.read.store import Store, _el_games
+from eurohoops.api.read.store import Store
 from eurohoops.stats.win_shares import fit_points_per_win, team_seasons_regular
 
 FIRST_SEASON, LAST_SEASON = 2007, 2025
@@ -18,7 +18,7 @@ FIRST_SEASON, LAST_SEASON = 2007, 2025
 
 def main() -> None:
     store = Store(root=Path.cwd(), from_cache=True)
-    games, _ = _el_games(store)
+    games, _ = store.euroleague_games()
     seasons = team_seasons_regular(games)
     seasons = seasons[seasons["season"].between(FIRST_SEASON, LAST_SEASON)]
     fit = fit_points_per_win(seasons)

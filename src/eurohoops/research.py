@@ -273,7 +273,7 @@ def shot_charts() -> None:
     surface, and actual minus expected for the declared teams and the top-FGA players."""
     from eurohoops.eval.shot_charts import residual_chart, xpts_surface  # noqa: PLC0415
     from eurohoops.eval.team_shot_quality import shots_with_xpts  # noqa: PLC0415
-    from eurohoops.publish import DISPLAY_CODES  # noqa: PLC0415
+    from eurohoops.publish import team_identity  # noqa: PLC0415
 
     tables = {n: read_table(MART_PATH, n) for n in ("shots", "shot_xpts", "shooters")}
     if any(t is None for t in tables.values()):
@@ -292,7 +292,7 @@ def shot_charts() -> None:
     )
     names = dict(zip(shooters["shooter"], shooters["name"], strict=True))
     for team in M2_CHART_TEAMS:
-        shown = DISPLAY_CODES[EUROLEAGUE.name].get(team, team)
+        shown = team_identity(EUROLEAGUE.name, team).display_code
         residual_chart(
             scored[scored["team"] == team],
             f"{shown} {label}\nactual minus expected points per shot",

@@ -2,7 +2,10 @@ import type { Forecasts } from "./forecasts";
 import type { MatchdayRound } from "./matchday";
 
 export interface Team {
+  /** The display code (publish.DISPLAY_CODES). */
   code: string;
+  /** The source code the API's team routes take; absent in data built before it was added. */
+  source_code?: string;
   name: string;
   /** The short club name (publish.SHORT_NAMES); absent in data built before short names. */
   short?: string;
