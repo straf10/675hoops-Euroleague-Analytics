@@ -1,0 +1,68 @@
+{
+  "experiment": "eurocup",
+  "model": "m1",
+  "seasons": {
+    "warmup": [
+      2011,
+      2012,
+      2013,
+      2014
+    ],
+    "tuning": [
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022
+    ],
+    "test": [
+      2023,
+      2024,
+      2025
+    ]
+  },
+  "validation": "none (no gate for EuroCup; spec addendum)",
+  "team_games_missing_by_season": {
+    "2007": 321,
+    "2008": 148,
+    "2009": 154,
+    "2010": 153,
+    "2012": 1,
+    "2013": 6,
+    "2014": 1,
+    "2015": 1,
+    "2016": 3,
+    "2022": 1,
+    "2026": 96
+  },
+  "n_shared_test_games": 586,
+  "log_loss_shared_test": {
+    "m1": 0.606184,
+    "elo": 0.617999,
+    "b0": 0.685836
+  },
+  "tuned_variant": "student_t_const",
+  "pairwise": {
+    "m1_minus_elo": {
+      "n": 586,
+      "mean": -0.011816,
+      "ci97_5": [
+        -0.025693,
+        0.001838
+      ],
+      "verdict": "no ranking"
+    },
+    "m1_minus_b0": {
+      "n": 586,
+      "mean": -0.079652,
+      "ci97_5": [
+        -0.11436,
+        -0.043723
+      ],
+      "verdict": "m1 ranks above b0"
+    }
+  }
+}

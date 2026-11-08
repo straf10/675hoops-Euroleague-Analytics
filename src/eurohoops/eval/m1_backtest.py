@@ -246,7 +246,11 @@ class Baselines:
 
 def baselines(games: pd.DataFrame, data: Data, spec: M1Backtest) -> Baselines:
     """The comparison Elo (re-tuned on the M1 tuning seasons) and B0, on the same games."""
-    elo_spec = Backtest(spec.report, spec.warmup, spec.tuning, spec.validation, grid=spec.elo_grid)
+    # The comparison Elo replays up to the last scored season: validation, or the test seasons when
+    # there is no validation split (EuroCup, experiments/eurocup.md addendum).
+    elo_spec = Backtest(
+        spec.report, spec.warmup, spec.tuning, spec.validation or spec.test, grid=spec.elo_grid
+    )
     tuned = run_backtest(games, elo_spec)["tuned"]
     params = EloParams(k=tuned["k"], hca=tuned["hca"], reversion=tuned["reversion"])
     diffs = replay(prepare(data.games), params)

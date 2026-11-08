@@ -138,3 +138,16 @@ def test_full_report_without_pbp_cache(raw: Path) -> None:
     assert report["euroleague_pbp_sample"] is None  # no EuroLeague PBP cached
     assert len(report["missing_games"]) == 4
     assert report["points_mismatches"] == []
+
+
+def test_team_games_read_the_box_scores_of_the_given_code(raw: Path) -> None:
+    # The same box scores cached under the EuroCup code U: found only with code="U".
+    cache(raw.parent / "eurocup" / "boxscore" / "U2023" / "1.json.gz", json.dumps(BOX).encode())
+    eurocup = raw.parent / "eurocup"
+    games = frame([("U2023_1", 2023, 1, "RED", "ASV", 94, 73)])
+    as_u = build_team_games(games, eurocup, competition="eurocup", code="U")
+    assert as_u.table["game_id"].tolist() == ["U2023_1", "U2023_1"]
+    assert set(as_u.table["competition"]) == {"eurocup"}
+    as_e = build_team_games(games, eurocup, competition="eurocup")  # code E: no E2023 folder
+    assert as_e.table.empty
+    assert len(as_e.missing) == 1

@@ -21,7 +21,7 @@ from eurohoops.parse.possessions import box_possessions
 from eurohoops.parse.schemas import box_count, validated
 from eurohoops.parse.stints import overtimes
 
-COMPETITIONS = ("euroleague",)
+COMPETITIONS = ("euroleague", "eurocup")
 SOURCES = ("euroleague_box",)
 COUNTS = ("points", "fga", "fta", "oreb", "dreb", "tov")
 REGULATION_MINUTES = 40.0
@@ -111,8 +111,8 @@ def euroleague_lines(box: dict[str, Any]) -> tuple[dict[str, Line], float] | str
     return lines, minutes
 
 
-def _euroleague(root: Path, game: _Game) -> tuple[list[Line], float, str] | str:
-    path = root / "boxscore" / f"E{game.season}" / f"{game.code}.json.gz"
+def _euroleague(root: Path, game: _Game, code: str) -> tuple[list[Line], float, str] | str:
+    path = root / "boxscore" / f"{code}{game.season}" / f"{game.code}.json.gz"
     if not path.exists():
         return "no cached box score (ingest --details)"
     parsed = euroleague_lines(json.loads(read_cached(path)))
@@ -171,12 +171,16 @@ def _rows(game: _Game, lines: list[Line], minutes: float, source: str) -> list[d
     ]
 
 
-def build_team_games(euroleague: pd.DataFrame, raw_dir: Path) -> TeamGames:
-    """``team_games`` and the missing-game list of EuroLeague (games: marts table)."""
+def build_team_games(
+    euroleague: pd.DataFrame, raw_dir: Path, *, competition: str = "euroleague", code: str = "E"
+) -> TeamGames:
+    """``team_games`` and the missing-game list of one competition (games: marts table).
+
+    ``code`` is the API code of the cached box scores (E EuroLeague, U EuroCup)."""
     rows: list[dict[str, Any]] = []
     missing: list[dict[str, Any]] = []
-    for game in _games(euroleague, "euroleague"):
-        found = _euroleague(raw_dir, game)
+    for game in _games(euroleague, competition):
+        found = _euroleague(raw_dir, game, code)
         if isinstance(found, str):
             reason = found
         else:

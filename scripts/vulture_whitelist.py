@@ -158,3 +158,13 @@ elo_pregame
 holm
 margin_residual_test
 pregame_features
+
+# EuroCup diagnostic (experiments/eurocup.md): scripts/diag_eurocup.py is the caller
+from eurohoops.eval.eurocup import elo_vs_b0  # noqa: E402
+
+elo_vs_b0
+
+# EuroCup M1 diagnostic (spec addendum): scripts/diag_eurocup_m1.py is the caller
+from eurohoops.eval.eurocup import m1_vs_elo_b0  # noqa: E402
+
+m1_vs_elo_b0
