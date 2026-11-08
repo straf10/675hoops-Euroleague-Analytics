@@ -9,4 +9,4 @@ Pass bar:  Elo ranks above B0 only if mean(g) <= -0.01 AND the upper bound of th
 Scope:     M1 and M5 are NOT run here. Their backtests read EuroLeague-only inputs (E{season} box-score and play-by-play cache paths, the EuroLeague stints mart, and player ratings from the EuroLeague-fitted M3). Extending them is an owner decision (see the report).
            Step 5 (Elo carry-over between EuroCup and EuroLeague) is out of scope.
            EuroCup is research only: no live log, no site change, no daily workflow change.
-Result:    (step 7)
+Result:    pass for Elo over B0 (diagnostic verdict: "elo ranks above b0"). Test 2023-26, n = 586 shared games: mean gap (Elo - B0) -0.0689, 97.5% CI -0.1032..-0.0336, log loss Elo 0.6180, B0 0.6869. Tuning 2015-22 (descriptive, n = 1557): gap -0.0586. M1 and M5 not run (owner decision). Details: docs/models/diag_eurocup.md.

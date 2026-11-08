@@ -7,13 +7,16 @@ import typer
 from eurohoops.cli._shared import log
 from eurohoops.config import (
     BIO_EL_SEASONS,
+    EUROCUP,
     EUROLEAGUE,
     LIVE_SEASON,
     PLAYER_BIOS,
     SITE_SEASONS,
+    Competition,
 )
 from eurohoops.ingest import euroleague
 from eurohoops.ingest.bios import build_bios, ingest_bios, refresh_people
+from eurohoops.ingest.euroleague import RawGame
 from eurohoops.ingest.http import Fetcher, make_client
 from eurohoops.parse.games import (
     build_games_table,
@@ -45,12 +48,28 @@ def ingest(
             "history: run a plain ingest before build, or M5 cannot run"
         ),
     ] = False,
+    competition: Annotated[
+        str,
+        typer.Option(
+            help="euroleague (default) or eurocup (research only: experiments/eurocup.md)"
+        ),
+    ] = "euroleague",
+    fetch_missing: Annotated[
+        bool,
+        typer.Option(
+            help="Seeding only: fetch a finished season's schedule that is not cached yet (once)"
+        ),
+    ] = False,
 ) -> None:
     """Fetch EuroLeague results into the raw cache and rebuild the staging tables.
 
     With no season options the default seasons are staged (2007 to the live one).
     Past seasons are read from the raw cache only; the live season goes to the network.
+    ``--competition eurocup`` stages EuroCup into its own files; the EuroLeague files are untouched.
     """
+    comp = _COMPETITIONS.get(competition)
+    if comp is None:
+        raise typer.BadParameter(f"unknown competition {competition!r}; use euroleague or eurocup")
     try:
         extra = [int(arg) for arg in ctx.args]
     except ValueError as exc:
@@ -61,27 +80,57 @@ def ingest(
     if current_only:
         chosen = [LIVE_SEASON]
     else:
-        chosen = sorted({*(seasons or []), *extra, *history}) or list(EUROLEAGUE.default_seasons)
+        chosen = sorted({*(seasons or []), *extra, *history}) or list(comp.default_seasons)
     with make_client() as client:
         fetcher = Fetcher(client, euroleague.MIN_INTERVAL_S)
         try:
             schedules = euroleague.ingest_seasons(
-                fetcher, EUROLEAGUE.raw_dir, chosen, details, LIVE_SEASON
+                fetcher,
+                comp.raw_dir,
+                chosen,
+                details,
+                LIVE_SEASON,
+                code=comp.code,
+                fetch_missing=fetch_missing,
             )
         except euroleague.PastSeasonNotCachedError as exc:
             log.error("%s", exc)
             raise typer.Exit(code=1) from exc
+    if comp is EUROCUP:
+        schedules = _without_tied_finals(schedules)
     games, teams = build_games_table(schedules), build_teams_table(schedules)
     team_seasons = build_team_seasons(schedules)
-    write_table(games, EUROLEAGUE.staging_games)
-    write_table(teams, EUROLEAGUE.staging_teams)
-    write_table(team_seasons, EUROLEAGUE.staging_team_seasons)
+    write_table(games, comp.staging_games)
+    write_table(teams, comp.staging_teams)
+    write_table(team_seasons, comp.staging_team_seasons)
     log.info(
         "wrote %d games (%d played) to %s",
         len(games),
         games["played"].sum(),
-        EUROLEAGUE.staging_games,
+        comp.staging_games,
     )
+
+
+_COMPETITIONS: dict[str, Competition] = {"euroleague": EUROLEAGUE, "eurocup": EUROCUP}
+
+
+def _without_tied_finals(schedules: dict[int, list[RawGame]]) -> dict[int, list[RawGame]]:
+    """Leave out EuroCup games played with equal final scores. A basketball game cannot end level
+    and the schedule still names a winner, so the real score is unknown: such a game is not rated
+    (experiments/eurocup.md). EuroLeague has no such game; its schema would reject one."""
+    kept: dict[int, list[RawGame]] = {}
+    for season, games in schedules.items():
+        ties = [g for g in games if g["played"] and g["local"]["score"] == g["road"]["score"]]
+        if ties:
+            log.warning(
+                "EuroCup %d: %d played games with equal scores left out: %s",
+                season,
+                len(ties),
+                ", ".join(g["identifier"] for g in ties),
+            )
+        tied = {g["identifier"] for g in ties}
+        kept[season] = [g for g in games if g["identifier"] not in tied]
+    return kept
 
 
 def ingest_bios_command() -> None:

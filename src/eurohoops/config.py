@@ -137,6 +137,7 @@ class Competition:
     # Elo model inputs per logged prediction (docs/match_report.md, section 1); append-only
     inputs_log: Path | None = None
     log_dir: Path = Path("predictions")  # the live models' logs (model_catalog.py)
+    code: str = "E"  # the API's competition code: season and game URLs and cache names use it
 
     def log_path(self, tag: str) -> Path:
         """The live season's log of model ``tag``: ``<log_dir>/<comp>_<tag>_<season>.csv``, and
@@ -199,6 +200,22 @@ EUROLEAGUE = Competition(
         test=(2024, 2025),
     ),
     inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
+)
+
+# EuroCup (API code U): research data only (experiments/eurocup.md). It has no live log, no
+# published model and no site page; its scorecard path is never written.
+EUROCUP = Competition(
+    name="eurocup",
+    code="U",
+    default_seasons=_seasons(2007, LIVE_SEASON),
+    live_backtest=Backtest(
+        Path("reports/diag_eurocup.json"),
+        warmup=_seasons(2007, 2014),
+        tuning=_seasons(2015, 2022),
+        test=(2023, 2024, 2025),
+    ),
+    history_backtests=(),
+    scorecard=Path("reports/eurocup_unused_scorecard.json"),
 )
 
 # M5-INJ (docs/models/m5_inj.md): gate committed by the owner on 2026-10-23, logging on from then.

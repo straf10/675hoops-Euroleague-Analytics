@@ -10,7 +10,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from eurohoops.config import EUROLEAGUE
+from eurohoops.config import EUROCUP, EUROLEAGUE
 from eurohoops.parse.games import TEAMS_SCHEMA, conform
 
 
@@ -22,7 +22,8 @@ def _sql(path: Path, **files: Path) -> str:
 
 
 def build_marts(mart_path: Path, sql_dir: Path) -> None:
-    """(Re)build the games and teams marts from the EuroLeague staging files."""
+    """(Re)build the games and teams marts from the EuroLeague staging files, then append the
+    EuroCup rows when its staging files exist (a rebuild without them drops EuroCup rows)."""
     mart_path.parent.mkdir(parents=True, exist_ok=True)
     with duckdb.connect(str(mart_path)) as con:
         con.execute(
@@ -32,6 +33,14 @@ def build_marts(mart_path: Path, sql_dir: Path) -> None:
                 euroleague_teams=EUROLEAGUE.staging_teams,
             )
         )
+        if EUROCUP.staging_games.exists() and EUROCUP.staging_teams.exists():
+            con.execute(
+                _sql(
+                    sql_dir / "games_eurocup.sql",
+                    eurocup_games=EUROCUP.staging_games,
+                    eurocup_teams=EUROCUP.staging_teams,
+                )
+            )
 
 
 def data_volume(mart_path: Path, playbyplay_dir: Path | None = None) -> dict[str, int]:

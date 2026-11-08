@@ -1,8 +1,8 @@
 """EuroLeague ingestion into an immutable, gzip-compressed raw cache.
 
-Cache layout (``root`` = data/raw/euroleague):
-  schedule/E{season}.json.gz                  final for past seasons; the live one is refreshed
-  {endpoint}/E{season}/{game_code}.json.gz    completed games only; written once, never refetched
+Cache layout (``root`` = data/raw/<competition>; ``code`` = the API competition code, E or U):
+  schedule/{code}{season}.json.gz               final for past seasons; the live one is refreshed
+  {endpoint}/{code}{season}/{game_code}.json.gz completed games only; written once, never refetched
 "Already have it" is a file-existence check; there is no index file.
 """
 
@@ -17,8 +17,10 @@ from eurohoops.config import SCHEDULE_MAX_DROP_GAMES, SCHEDULE_MAX_DROP_SHARE
 from eurohoops.ingest.cache import read_cached, write_atomic
 from eurohoops.ingest.http import Fetcher
 
-SCHEDULE_URL = "https://api-live.euroleague.net/v2/competitions/E/seasons/E{season}/games"
-DETAIL_URL = "https://live.euroleague.net/api/{endpoint}?gamecode={game_code}&seasoncode=E{season}"
+SCHEDULE_URL = "https://api-live.euroleague.net/v2/competitions/{code}/seasons/{code}{season}/games"
+DETAIL_URL = (
+    "https://live.euroleague.net/api/{endpoint}?gamecode={game_code}&seasoncode={code}{season}"
+)
 DETAIL_ENDPOINTS = ("Boxscore", "PlaybyPlay", "Points")
 MIN_INTERVAL_S = 1.0
 
@@ -104,23 +106,31 @@ def _cached_games(path: Path) -> list[RawGame] | None:
 
 
 def _load_schedule(
-    fetcher: Fetcher, root: Path, season: int, live_season: int, stats: CacheStats
+    fetcher: Fetcher,
+    root: Path,
+    season: int,
+    live_season: int,
+    stats: CacheStats,
+    *,
+    code: str,
+    fetch_missing: bool,
 ) -> list[RawGame]:
     """Past seasons are final even with unplayed games (2019-20 cancelled, 2021-22 voided).
 
-    Only the live season goes to the network: a finished season missing from the cache is an
-    error, never a fetch.
+    The live season goes to the network. A finished season missing from the cache is an error,
+    never a fetch, unless ``fetch_missing`` (seeding a new competition): then it is fetched once.
     """
-    path = root / "schedule" / f"E{season}.json.gz"
+    path = root / "schedule" / f"{code}{season}.json.gz"
     if season < live_season:
-        if not path.exists():
+        if path.exists():
+            stats.schedule_hits += 1
+            return _schedule_games(read_cached(path))
+        if not fetch_missing:
             raise PastSeasonNotCachedError(
-                f"EuroLeague {season} schedule is not in the raw cache ({path}): restore the cache"
+                f"{code}{season} schedule is not in the raw cache ({path}): restore the cache"
             )
-        stats.schedule_hits += 1
-        return _schedule_games(read_cached(path))
     cached = _cached_games(path)
-    payload = fetcher.get(SCHEDULE_URL.format(season=season))
+    payload = fetcher.get(SCHEDULE_URL.format(code=code, season=season))
     stats.schedule_fetches += 1
     try:
         games = _checked_schedule(payload)
@@ -129,12 +139,10 @@ def _load_schedule(
         # The cache stays as it is: the run goes on with the cached schedule.
         kept = cached or []
         log.warning(
-            "EuroLeague %d schedule rejected: %s; cached %d games kept", season, exc, len(kept)
+            "%s%d schedule rejected: %s; cached %d games kept", code, season, exc, len(kept)
         )
         if cached is None:
-            log.warning(
-                "EuroLeague %d has no cached schedule: this run has no games for it", season
-            )
+            log.warning("%s%d has no cached schedule: this run has no games for it", code, season)
         _annotate(
             "Schedule rejected", f"{season} {exc}: cached {len(kept)} games, new {exc.new_games}"
         )
@@ -144,37 +152,59 @@ def _load_schedule(
 
 
 def _fetch_details(
-    fetcher: Fetcher, root: Path, season: int, games: list[RawGame], stats: CacheStats
+    fetcher: Fetcher,
+    root: Path,
+    season: int,
+    games: list[RawGame],
+    stats: CacheStats,
+    *,
+    code: str,
 ) -> None:
     for game in games:
         if not game["played"]:
             continue
         game_code = _game_code(game["gameCode"])
         for endpoint in DETAIL_ENDPOINTS:
-            path = root / endpoint.lower() / f"E{season}" / f"{game_code}.json.gz"
+            path = root / endpoint.lower() / f"{code}{season}" / f"{game_code}.json.gz"
             if path.exists():
                 stats.detail_hits += 1
                 continue
-            url = DETAIL_URL.format(endpoint=endpoint, game_code=game_code, season=season)
+            url = DETAIL_URL.format(
+                endpoint=endpoint, game_code=game_code, season=season, code=code
+            )
             payload = fetcher.get(url)
             stats.detail_fetches += 1
             if payload.strip():
                 write_atomic(path, payload)
             else:
                 stats.detail_empty += 1
-                log.warning("empty %s body for E%d game %s", endpoint, season, game_code)
+                log.warning("empty %s body for %s%d game %s", endpoint, code, season, game_code)
 
 
 def ingest_seasons(
-    fetcher: Fetcher, root: Path, seasons: list[int], details: bool, live_season: int
+    fetcher: Fetcher,
+    root: Path,
+    seasons: list[int],
+    details: bool,
+    live_season: int,
+    *,
+    code: str = "E",
+    fetch_missing: bool = False,
 ) -> dict[int, list[RawGame]]:
-    """Return raw schedules per season; with ``details``, also cache detail JSON of played games."""
+    """Return raw schedules per season; with ``details``, also cache detail JSON of played games.
+
+    ``code`` is the API competition code (E EuroLeague, U EuroCup); E is the default.
+    ``fetch_missing`` lets a finished season with no cached schedule be fetched once.
+    """
     stats = CacheStats()
     schedules = {
-        season: _load_schedule(fetcher, root, season, live_season, stats) for season in seasons
+        season: _load_schedule(
+            fetcher, root, season, live_season, stats, code=code, fetch_missing=fetch_missing
+        )
+        for season in seasons
     }
     if details:
         for season, games in schedules.items():
-            _fetch_details(fetcher, root, season, games, stats)
+            _fetch_details(fetcher, root, season, games, stats, code=code)
     log.info(stats.summary())
     return schedules

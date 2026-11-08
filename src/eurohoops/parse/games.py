@@ -15,6 +15,8 @@ import pandera.pandas as pa
 from eurohoops.ingest.euroleague import RawGame
 
 PHASES = ("RS", "TS", "PI", "PO", "FF")
+# EuroCup knockout rounds (API codes) read as the playoffs; EuroLeague never sends these codes.
+PHASE_CODES = {"L32": "PO", "L16": "PO", "8F": "PO", "4F": "PO", "2F": "PO", "Final": "PO"}
 DTYPES: dict[str, Any] = {
     "game_id": str,
     "season": "int64",
@@ -179,7 +181,7 @@ def _row(season: int, game: RawGame) -> dict[str, Any]:
         "game_id": game["identifier"],
         "season": season,
         "game_code": game["gameCode"],
-        "phase": game["phaseType"]["code"],
+        "phase": PHASE_CODES.get(game["phaseType"]["code"], game["phaseType"]["code"]),
         "round": game["round"],
         "round_label": game["roundAlias"],
         "tipoff_utc": pd.to_datetime(game["utcDate"], format="ISO8601", utc=True),
@@ -189,7 +191,7 @@ def _row(season: int, game: RawGame) -> dict[str, Any]:
         "home_score": game["local"]["score"] if played else None,
         "away_score": game["road"]["score"] if played else None,
         "played": played,
-        "forfeit": False,
+        "forfeit": played and {game["local"]["score"], game["road"]["score"]} == {20, 0},
         "neutral": neutral or game["phaseType"]["code"] == "FF",
         "confirmed_date": _flag(game, "confirmedDate"),
         "venue": _venue_field(game, "name"),
