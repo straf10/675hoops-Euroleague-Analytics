@@ -24,7 +24,7 @@ const { panels, chosen, minutes, margin } = Astro.props;
 const cellsOf = (c: Clutch): [string, string, string][] => [
   ["Minutes", c.minutes.toFixed(1), "Minutes on court in clutch time"],
   ["Points", String(c.pts), "His own points in clutch time"],
-  ["Net rating", c.net === null ? "–" : signed(c.net), "His team's points scored minus allowed per 100 possessions while he was on court in clutch time"],
+  ["Net rating", c.net === null ? "-" : signed(c.net), "His team's points scored minus allowed per 100 possessions while he was on court in clutch time"],
 ];
 const options = panels.map((p) => ({ value: p.season, label: p.label, selected: p.season === chosen }));
 ---

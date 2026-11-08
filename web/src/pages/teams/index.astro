@@ -167,7 +167,7 @@ const seasons = m ? [...m.seasons].reverse() : [];
           {uncoded.map((u) => (
             <li>
               <span class="row">
-                <span class="code" aria-hidden="true">–</span>
+                <span class="code" aria-hidden="true">-</span>
                 <span class="nm">{u.club}</span>
                 <span class="n" title="No EuroLeague season since 2007-08 in our data">pre-2007</span>
                 <span class="t" title="EuroLeague titles, all-time since 1958">({u.titles})</span>
@@ -222,19 +222,70 @@ const seasons = m ? [...m.seasons].reverse() : [];
       return seasons[String(n)];
     };
 
+    // Each club's dot centre, relative to its chart's SVG, in screen pixels. Read before a redraw.
+    type Spot = Map<string, { x: number; y: number }>;
+    const spots = (chart: HTMLElement | null): Spot => {
+      const spot: Spot = new Map();
+      const svg = chart?.querySelector("svg");
+      if (!svg) return spot;
+      const origin = svg.getBoundingClientRect();
+      svg.querySelectorAll<SVGGElement>("g.pt[data-key]").forEach((g) => {
+        const r = g.getBoundingClientRect();
+        spot.set(g.dataset.key!, { x: r.left + r.width / 2 - origin.left, y: r.top + r.height / 2 - origin.top });
+      });
+      return spot;
+    };
+    // After the redraw, each club's dot starts at its old place and slides to the new one.
+    // transform only; WAAPI, so a switch made mid-slide starts from where the dot is now.
+    const slide = (chart: HTMLElement | null, was: Spot) => {
+      const svg = chart?.querySelector("svg");
+      if (!svg) return;
+      const origin = svg.getBoundingClientRect();
+      const k = svg.getScreenCTM()?.a || 1; // screen pixels per chart unit (uniform scale)
+      const moves: [SVGGElement, number, number][] = [];
+      svg.querySelectorAll<SVGGElement>("g.pt[data-key]").forEach((g) => {
+        const p = was.get(g.dataset.key!);
+        if (!p) return;
+        const r = g.getBoundingClientRect();
+        moves.push([g, (p.x - (r.left + r.width / 2 - origin.left)) / k, (p.y - (r.top + r.height / 2 - origin.top)) / k]);
+      });
+      for (const [g, dx, dy] of moves) {
+        if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05)
+          g.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 200, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+      }
+    };
+
     // Redraws the table, the heading and the charts from the view, then writes the view to the query string.
-    const paint = async () => {
+    // The season switch passes animate = true, so the dots slide; the first draw and the sort do not.
+    const paint = async (sorted = false, animate = false) => {
       const wanted = view.season;
       const s = await loadSeason(wanted);
       if (!s || view.season !== wanted) return; // a later switch has taken over
+      // Read the dots' places before any write, so the switch can slide them (see slide).
+      const was = animate && !matchMedia("(prefers-reduced-motion: reduce)").matches ? [spots(ratings), spots(pace)] : undefined;
       season.value = String(view.season);
       metric.value = view.metric;
       title.textContent = headingOf(view.metric);
       caption.textContent = captionOf(s.label, view.metric);
       thead.innerHTML = clubHeadHtml(view.metric, view.dir);
+      // A column sort slides each row from its old place to its new one (FLIP, transform only).
+      const before = sorted ? new Map([...body.rows].map((r) => [r.dataset.key, r.getBoundingClientRect().top] as const)) : undefined;
       body.innerHTML = clubRowsHtml(base, view.season === open ? undefined : view.season, sortRows(s.rows, view.metric, view.dir), view.metric);
+      if (before && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        for (const r of body.rows) {
+          const was = before.get(r.dataset.key);
+          if (was === undefined) continue;
+          const dy = was - r.getBoundingClientRect().top;
+          if (Math.abs(dy) > 0.5)
+            r.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 200, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+        }
+      }
       if (ratings) ratings.innerHTML = ratingsChart(plotOf(s), s.label);
       if (pace) pace.innerHTML = paceChart(plotOf(s), s.label);
+      if (was) {
+        slide(ratings, was[0]);
+        slide(pace, was[1]);
+      }
       // On a phone, the column group that holds the ranked column shows.
       const at = phoneGroup(view.metric);
       if (at >= 0 && groups[at]) groups[at].checked = true;
@@ -243,7 +294,7 @@ const seasons = m ? [...m.seasons].reverse() : [];
 
     season.addEventListener("change", () => {
       view = { ...view, season: Number(season.value) };
-      void paint();
+      void paint(false, true);
     });
     // A new metric starts from its best end (lowest for defensive rating, highest for the rest).
     metric.addEventListener("change", () => {
@@ -257,7 +308,7 @@ const seasons = m ? [...m.seasons].reverse() : [];
       // The same head again flips the order; another head starts from its best end.
       const dir = key === view.metric ? (view.dir === "desc" ? "asc" : "desc") : bestDir(key);
       view = { ...view, metric: key, dir };
-      void paint();
+      void paint(true);
       (thead.querySelector(`[data-sort="${key}"]`) as HTMLElement | null)?.focus({ preventScroll: true });
     });
     if (location.search) void paint();
@@ -314,10 +365,12 @@ const seasons = m ? [...m.seasons].reverse() : [];
     stroke-width: 0.75;
     opacity: 0.55;
   }
-  .scatter .pt:hover .edge {
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    opacity: 1;
+  @media (hover: hover) and (pointer: fine) {
+    .scatter .pt:hover .edge {
+      stroke: var(--ink);
+      stroke-width: 1.5;
+      opacity: 1;
+    }
   }
   .scatter .pt:focus-visible .edge {
     stroke: var(--data-1);

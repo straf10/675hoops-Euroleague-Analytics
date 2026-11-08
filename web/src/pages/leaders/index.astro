@@ -103,6 +103,7 @@ const description =
     seasonField.hidden = career;
 
     let pending = 0;
+    let painted = false;
     const update = async () => {
       const ticket = ++pending;
       host.setAttribute("aria-busy", "true");
@@ -110,6 +111,13 @@ const description =
         const pool = await load(career ? "career" : String(season));
         if (ticket !== pending) return;
         boardsEl.innerHTML = boardsHtml(boards(entries(pool), pool.most, career), cfg.base, season, career);
+        if (painted) {
+          boardsEl.classList.remove("swapped");
+          void boardsEl.offsetWidth;
+          boardsEl.classList.add("swapped");
+          setTimeout(() => boardsEl.classList.remove("swapped"), 400);
+        }
+        painted = true;
         errorEl.hidden = true;
         history.replaceState(null, "", `${location.pathname}?${career ? "scope=career" : `season=${season}`}`);
       } catch {

@@ -37,7 +37,7 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
   </time>
   <span class:list={["team away", { won: g.played && !homeWon, fav: !g.played && g.p_home !== null && !homePick }]}>
     <b>{g.away.code}</b>
-    <span class="name">{g.away.name}</span>
+    <span class="name" title={g.away.name}>{g.away.name}</span>
   </span>
   {
     g.played ? (
@@ -61,7 +61,7 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
   }
   <span class:list={["team home", { won: g.played && homeWon, fav: !g.played && g.p_home !== null && homePick }]}>
     <b>{g.home.code}</b>
-    <span class="name">{g.home.name}</span>
+    <span class="name" title={g.home.name}>{g.home.name}</span>
   </span>
   <span class="verdict">
     {

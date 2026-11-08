@@ -99,5 +99,13 @@ const cell = (key: string, v: number) => (Number.isNaN(v) ? "n/a" : key === "win
     .standings.zoned .zone {
       display: none;
     }
+    /* The club stays beside the rank while the table scrolls sideways (same as the Leaders boards). */
+    .standings thead th:nth-child(2),
+    .standings tbody th {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--page);
+    }
   }
 </style>

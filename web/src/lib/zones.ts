@@ -112,7 +112,7 @@ export function sideDots(file: ClubShots, side: ClubSide, picked: ReadonlySet<Zo
   return out;
 }
 
-const pct = (m: number, n: number) => (n ? ((100 * m) / n).toFixed(1) : "–");
+const pct = (m: number, n: number) => (n ? ((100 * m) / n).toFixed(1) : "-");
 const signed = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(1)}`;
 
 /** Table rows: one per zone, with FGA, FG%, share of the side's attempts, points per shot and FG%
@@ -131,9 +131,9 @@ export function zoneRowsHtml(file: ClubShots, side: ClubSide, picked: ReadonlySe
       `<th scope="row">${label}</th>` +
       `<td class="num">${att}</td>` +
       `<td class="num">${pct(made, att)}</td>` +
-      `<td class="num">${all ? `${((100 * att) / all).toFixed(1)}%` : "–"}</td>` +
-      `<td class="num">${att ? (pts / att).toFixed(2) : "–"}</td>` +
-      `<td class="num ${cls}">${diff === null ? "–" : signed(diff)}</td>` +
+      `<td class="num">${all ? `${((100 * att) / all).toFixed(1)}%` : "-"}</td>` +
+      `<td class="num">${att ? (pts / att).toFixed(2) : "-"}</td>` +
+      `<td class="num ${cls}">${diff === null ? "-" : signed(diff)}</td>` +
       `</tr>`
     );
   }).join("");

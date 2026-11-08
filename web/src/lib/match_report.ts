@@ -164,12 +164,12 @@ const isNum = (v: number | null | undefined): v is number => v !== null && v !==
 
 /** 1612.4 -> "1,612" (digits 0); thousands separators, fixed decimals. */
 export function num(v: number | null | undefined, digits = 0): string {
-  return isNum(v) ? numberFormat(digits).format(v) : "–";
+  return isNum(v) ? numberFormat(digits).format(v) : "-";
 }
 
 /** Signed for the eye: +114, −2.3 (a true minus), and no sign at zero after rounding. */
 export function signedNum(v: number | null | undefined, digits = 0): string {
-  if (!isNum(v)) return "–";
+  if (!isNum(v)) return "-";
   const rounded = Number(v.toFixed(digits));
   const s = numberFormat(digits).format(Math.abs(rounded));
   return rounded > 0 ? `+${s}` : rounded < 0 ? `−${s}` : s;
@@ -180,9 +180,9 @@ export function pctText(p: number, digits = 0): string {
   return `${numberFormat(digits).format(p * 100)}%`;
 }
 
-/** The value of one stat row in its own format; "–" when missing. */
+/** The value of one stat row in its own format; "-" when missing. */
 export function formatValue(v: number | null | undefined, f: Format): string {
-  if (!isNum(v)) return "–";
+  if (!isNum(v)) return "-";
   switch (f) {
     case "signed1":
       return signedNum(v, 1);
@@ -283,7 +283,7 @@ export function renderModel(r: MatchReport): string {
     r.other_models.length > 0
       ? `<div class="mr-others"><p class="mr-sub">Other models</p><ul class="eq">${r.other_models
           .map((o) =>
-            row("", o.label, isNum(o.p_home) ? callText(o.p_home, o.exp_margin, home, away) : "–"),
+            row("", o.label, isNum(o.p_home) ? callText(o.p_home, o.exp_margin, home, away) : "-"),
           )
           .join("")}</ul></div>`
       : "";
@@ -414,7 +414,7 @@ export function renderCoaches(r: MatchReport, base = ""): string {
     if (!coach) return `<span class="mr-muted">Not recorded</span>`;
     return coach.slug ? `<a href="${esc(base)}/coaches/${esc(coach.slug)}/">${esc(coach.name)}</a>` : esc(coach.name);
   };
-  const recText = (rec: Rec | null): string => (rec ? `${rec.wins}–${rec.losses}` : "–");
+  const recText = (rec: Rec | null): string => (rec ? `${rec.wins}–${rec.losses}` : "-");
   const rows = [
     row("Coach", coachText(c.away), coachText(c.home), "who"),
     row("This season", recText(c.away?.season ?? null), recText(c.home?.season ?? null)),

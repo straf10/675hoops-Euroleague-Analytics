@@ -125,15 +125,15 @@ export function factorRows(t: TeamSeason, metrics: Metric[]): FactorRow[] {
 
 /** The orange bar runs from the league average to the club. */
 const barStyle = (r: FactorRow) =>
-  `left:${Math.min(r.me, r.avg).toFixed(2)}%;width:${Math.abs(r.me - r.avg).toFixed(2)}%`;
+  `--x:${Math.min(r.me, r.avg).toFixed(2)};--w:${(Math.abs(r.me - r.avg) / 100).toFixed(4)}`;
 
 export const factorRowHtml = (r: FactorRow) =>
   `<div class="ff-row" data-key="${r.key}"><span class="ff-name"><span${dataTip(tip`<b>${r.name}</b><br>${r.about}`)} tabindex="0">${esc(r.name)}</span></span>` +
   `<span class="ff-val">${r.value}</span><span class="ff-rank">${r.rank}</span>` +
   `<span class="ff-rail"><span class="ff-bar" style="${barStyle(r)}"></span>` +
-  `<span class="ff-med" style="left:${r.med.toFixed(2)}%"${dataTip(r.medTip)} tabindex="0"></span>` +
-  `<span class="ff-avg" style="left:${r.avg.toFixed(2)}%"${dataTip(r.avgTip)} tabindex="0"></span>` +
-  `<span class="ff-me" style="left:${r.me.toFixed(2)}%"${dataTip(r.meTip)} tabindex="0"></span></span>` +
+  `<span class="ff-med" style="--x:${r.med.toFixed(2)}"${dataTip(r.medTip)} tabindex="0"></span>` +
+  `<span class="ff-avg" style="--x:${r.avg.toFixed(2)}"${dataTip(r.avgTip)} tabindex="0"></span>` +
+  `<span class="ff-me" style="--x:${r.me.toFixed(2)}"${dataTip(r.meTip)} tabindex="0"></span></span>` +
   `<span class="ff-delta">${r.delta}</span></div>`;
 
 /** Patch a rendered row in place so its marks slide to the new season's places. */
@@ -148,7 +148,7 @@ export function patchFactorRow(row: HTMLElement, r: FactorRow) {
     [".ff-me", r.me, r.meTip],
   ] as const) {
     const mark = row.querySelector<HTMLElement>(cls)!;
-    mark.style.left = `${at.toFixed(2)}%`;
+    mark.style.setProperty("--x", at.toFixed(2));
     mark.dataset.tip = text;
   }
 }

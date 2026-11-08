@@ -572,7 +572,7 @@ export function coachRowsHtml(rows: CoachRow[], view: CoachView, placement = tru
         .join("");
       return (
         `<tr><th scope="row"><a href="${esc(r.href)}">${esc(r.name)}</a></th>` +
-        `<td class="club">${esc(r.clubs.join(", ") || "–")}</td>${cells}</tr>`
+        `<td class="club">${esc(r.clubs.join(", ") || "-")}</td>${cells}</tr>`
       );
     })
     .join("");

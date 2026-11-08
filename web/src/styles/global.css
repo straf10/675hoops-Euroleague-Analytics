@@ -27,7 +27,12 @@
   position: absolute;
   inset: -6px;
 }
-.info-tip:hover,
+@media (hover: hover) and (pointer: fine) {
+  .info-tip:hover {
+    color: var(--ink);
+    border-color: var(--ink-2);
+  }
+}
 .info-tip:focus-visible {
   color: var(--ink);
   border-color: var(--ink-2);
@@ -161,17 +166,40 @@
   box-sizing: border-box;
 }
 
+/* Page-to-page crossfade. Browsers without support keep the instant swap. First load does not animate. */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0ms;
+  }
+}
+
 html {
   -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent; /* no grey flash on tap; controls keep :active feedback */
   scroll-padding-top: 72px;
   scrollbar-color: var(--rule-strong) var(--page);
   background: var(--page);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
+  /* viewport-fit=cover: keep landscape content clear of the notch sides */
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
   background: var(--page);
   color: var(--ink);
   font: 400 1rem/1.5 var(--font);
@@ -190,6 +218,30 @@ body {
   border-radius: 4px;
 }
 
+/* Touch: taps on controls fire at once (no double-tap zoom wait), and a long press on a button
+   does not select its label. Text content stays selectable. */
+a,
+button,
+label,
+summary,
+[role="button"] {
+  touch-action: manipulation;
+}
+button,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* iOS zooms the page on focus when a text control's font is under 16px, and does not zoom back.
+   Touch screens only: the desktop keeps the 13px control type. */
+@media (pointer: coarse) {
+  input[type="search"],
+  select {
+    font-size: 16px !important;
+  }
+}
+
 a {
   color: inherit;
   text-decoration-color: var(--rule-strong);
@@ -199,6 +251,13 @@ a {
 }
 @media (hover: hover) and (pointer: fine) {
   a:hover {
+    text-decoration-color: currentColor;
+  }
+}
+/* Touch has no hover: a tapped link shows its press as the same ink underline (colour only, no motion).
+   Reduced motion already sets every transition to 0ms above. */
+@media (hover: none) {
+  a:active {
     text-decoration-color: currentColor;
   }
 }
@@ -349,7 +408,7 @@ svg.icon {
   transition:
     background-color 180ms var(--ease-out),
     color 180ms var(--ease-out),
-    transform 140ms ease-out;
+    transform 140ms var(--ease-out);
 }
 .seg label:active {
   transform: scale(0.97);
@@ -414,7 +473,7 @@ svg.icon {
   transform: translateY(2px) scale(0.98);
   transform-origin: bottom center;
   transition:
-    opacity 125ms ease-out,
+    opacity 125ms var(--ease-out),
     transform 125ms var(--ease-out);
 }
 .tip[data-open] {
@@ -423,6 +482,9 @@ svg.icon {
 }
 .tip[data-instant] {
   transition-duration: 0ms;
+}
+.tip[data-below] {
+  transform-origin: top center;
 }
 .tip b {
   font-weight: 600;
@@ -440,19 +502,6 @@ svg.icon {
   }
 }
 
-/* The end fade of a table box that still scrolls sideways, run on the box's own scroll timeline
-   (stats.css, the Players page, Results): it lifts once scrolled to the end, and a box that fits
-   has no timeline, so it is never masked. Not motion, so reduced motion keeps it. */
-@keyframes edge-fade {
-  0%,
-  96% {
-    mask-image: linear-gradient(to left, transparent, #000 32px);
-  }
-  100% {
-    mask-image: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -462,6 +511,108 @@ svg.icon {
   *::after {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
+/* A table box that still scrolls sideways shows an end fade until it is scrolled to the end.
+   Set by a class (no animation). A box that fits never gets the class. */
+.scroll.edge {
+  mask-image: linear-gradient(to left, transparent, #000 32px);
+}
+
+/* Leaders boards fade and rise in when a scope or season change swaps them (JS adds "swapped"). */
+.boards.swapped .board {
+  animation: board-in 200ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+@keyframes board-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* A shot filter change dims the court briefly while it redraws (JS adds "redraw" to #shots). */
+#shots.redraw #court-dots,
+#shots.redraw #court-freq,
+#shots.redraw #court-quality {
+  animation: redraw-in 150ms var(--ease-out);
+}
+@keyframes redraw-in {
+  from {
+    opacity: 0.35;
+  }
+}
+
+/* A team tab switch by pointer click fades its panel in (JS sets data-tab-moved on html). Keyboard and hash loads do not. */
+:root[data-tab-moved] .tabpanel:not([hidden]) {
+  animation: panel-in 150ms var(--ease-out);
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Compare table body fades when the column count changes (JS adds "fade" to the rebuilt tbody). */
+tbody.fade {
+  animation: board-fade 150ms var(--ease-out);
+}
+@keyframes board-fade {
+  from {
+    opacity: 0.5;
+  }
+}
+
+/* A disclosure's content fades in when it opens. Opacity only; neither details is open at render. */
+details.log[open] > :not(summary),
+details.more[open] > :not(summary) {
+  animation: disclosure-in 150ms var(--ease-out);
+}
+@keyframes disclosure-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The win-probability scrub tooltip fades and rises in and out (JS sets data-open). */
+.wp-tip {
+  opacity: 0;
+  transform: translateY(2px) scale(0.98);
+  transform-origin: bottom center;
+  transition:
+    opacity 125ms var(--ease-out),
+    transform 125ms var(--ease-out);
+  pointer-events: none;
+}
+.wp-tip[data-open] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Compare empty states fade in when shown. No movement. */
+#empty:not([hidden]),
+#team-empty:not([hidden]) {
+  animation: empty-in 200ms var(--ease-out);
+}
+@keyframes empty-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Home blocks fade in on arrival. Opacity only; no stagger. Not applied to tables or charts. */
+@media (prefers-reduced-motion: no-preference) {
+  main section.band,
+  main section.numbers {
+    animation: block-in 200ms var(--ease-out) both;
+  }
+}
+@keyframes block-in {
+  from {
+    opacity: 0;
   }
 }
 

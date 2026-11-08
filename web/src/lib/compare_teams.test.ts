@@ -128,8 +128,8 @@ test("figure: one decimal, net signed, shares with a percent sign, a dash for no
   assert.equal(figure("net", 4.24), "+4.2");
   assert.equal(figure("net", -3), "−3.0");
   assert.equal(figure("rim_share", 41.26), "41.3%");
-  assert.equal(figure("ortg", NaN), "–");
-  assert.equal(figure("ortg", undefined), "–");
+  assert.equal(figure("ortg", NaN), "-");
+  assert.equal(figure("ortg", undefined), "-");
 });
 
 test("POLYGON_AXES: eight axes, each with the metric's name and about text", () => {

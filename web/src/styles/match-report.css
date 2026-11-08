@@ -21,12 +21,18 @@
   font-size: 0.8125rem;
   cursor: pointer;
   border-radius: 6px;
+  transition: transform 140ms var(--ease-out);
+}
+.report-toggle:active {
+  transform: scale(0.97);
 }
 .report-toggle[hidden] {
   display: none;
 }
-.report-toggle:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .report-toggle:hover {
+    color: var(--ink);
+  }
 }
 .report-toggle:focus-visible {
   outline: 2px solid var(--data-1);
@@ -47,14 +53,12 @@
   transform: rotate(180deg);
 }
 
-/* Collapsed by grid rows, not display, so the open can animate; hidden from the tree when closed. */
+/* Height snaps (grid row); the reveal is a fade and a 4px move, so no layout property animates. Hidden from the tree when closed. */
 .report {
   display: grid;
   grid-template-rows: 0fr;
   visibility: hidden;
-  transition:
-    grid-template-rows 220ms var(--ease-out),
-    visibility 220ms;
+  transition: visibility 220ms;
 }
 .report.open {
   grid-template-rows: 1fr;
@@ -66,6 +70,15 @@
 }
 .report-body {
   min-width: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+.report.open .report-body {
+  opacity: 1;
+  transform: none;
 }
 /* The gap between the toggle and the report's first heading; inside the clipped inner, so it collapses with the panel. */
 .report.open .report-body {
@@ -74,6 +87,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .report,
+  .report-inner,
+  .report-body,
   .report-toggle .chev {
     transition: none;
   }
@@ -352,8 +367,10 @@
   text-decoration-color: var(--rule-strong);
   text-underline-offset: 3px;
 }
-.mr-table a:hover {
-  text-decoration-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mr-table a:hover {
+    text-decoration-color: var(--ink);
+  }
 }
 .mr-table .best {
   color: var(--ink);

@@ -289,7 +289,10 @@ const description = "Up to five EuroLeague players side by side, a season each o
         const table = $("heads").parentElement!;
         table.querySelectorAll("tbody").forEach((t) => t.remove());
         table.insertAdjacentHTML("beforeend", bodyHtml(g, cols));
+        const changed = table.style.getPropertyValue("--cols") !== String(cols.length) && table.style.getPropertyValue("--cols") !== "";
         table.style.setProperty("--cols", String(cols.length));
+        if (changed && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+          table.querySelectorAll("tbody").forEach((t) => t.classList.add("fade"));
         $("board").hidden = cols.length === 0;
         $("note").hidden = cols.length === 0;
         $("empty").hidden = cols.length > 0;
@@ -298,7 +301,7 @@ const description = "Up to five EuroLeague players side by side, a season each o
           (cols.length === 0 ? `Up to ${MAX} players.` : cols.length === 1 ? "Add another player to compare." : `${cols.length} of ${MAX} players.`) + missing;
         // The leader dots arrive where they now belong.
         if (!matchMedia("(prefers-reduced-motion: reduce)").matches && shown.length)
-          table.querySelectorAll<HTMLElement>(".lead-dot").forEach((d) => d.animate([{ transform: "scale(0.4)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 160, easing: "ease-out" }));
+          table.querySelectorAll<HTMLElement>(".lead-dot").forEach((d) => d.animate([{ transform: "scale(0.9)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 160, easing: "cubic-bezier(0.23, 1, 0.32, 1)" }));
         shown = picks;
         document.dispatchEvent(new CustomEvent("compare:picks", { detail: { scope, picks: cols.map((c) => ({ slug: c.card.slug, season: c.season, name: c.card.name })) } }));
         syncForm();
@@ -535,7 +538,6 @@ const description = "Up to five EuroLeague players side by side, a season each o
     box-shadow: inset 0 0 0 1px var(--rule-strong);
     color: var(--ink);
     font: 500 0.8125rem/1 var(--font);
-    transition: box-shadow 150ms ease;
   }
   input[type="search"]::placeholder {
     color: var(--muted);
@@ -687,6 +689,9 @@ const description = "Up to five EuroLeague players side by side, a season each o
     font-weight: 600;
     line-height: 1.25;
     text-decoration: none;
+    /* Long names wrap inside their column instead of running into the next one. */
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   @media (hover: hover) and (pointer: fine) {
     .h2h :global(th.card .nm:hover) {
@@ -731,10 +736,10 @@ const description = "Up to five EuroLeague players side by side, a season each o
     transition:
       background-color 150ms ease,
       color 150ms ease,
-      transform 140ms ease-out;
+      transform 140ms var(--ease-out);
   }
   .h2h :global(.drop:active) {
-    transform: scale(0.94);
+    transform: scale(0.96);
   }
   .h2h :global(.drop:focus-visible) {
     outline: 2px solid var(--data-1);

@@ -67,7 +67,7 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
                 <td class="date rd">{groupLabel(g.phase, g.phase === "RS" ? g.round : null).replace("Round ", "")}</td>
                 <td class="date">{athensDay(g.tipoff_utc)}</td>
                 <td class:list={["team r", { won: homeWon }]}>
-                  <span class="name">{g.home.name}</span>
+                  <span class="name" title={g.home.name}>{g.home.name}</span>
                   <b>{g.home.code}</b>
                 </td>
                 <td class="c score">
@@ -77,7 +77,7 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
                 </td>
                 <td class:list={["team", { won: !homeWon }]}>
                   <b>{g.away.code}</b>
-                  <span class="name">{g.away.name}</span>
+                  <span class="name" title={g.away.name}>{g.away.name}</span>
                 </td>
                 <td class="call">
                   {c ? (

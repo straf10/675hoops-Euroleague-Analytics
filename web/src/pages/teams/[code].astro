@@ -542,10 +542,21 @@ const bandHead = [
       }[ev.key];
       if (next === undefined) return;
       ev.preventDefault();
+      delete document.documentElement.dataset.tabMoved; // keyboard: switch at once, no fade
       pick(shown[next].dataset.tab!, true, true);
     });
-    tabs.forEach((t) => t.addEventListener("click", () => pick(t.dataset.tab!, true)));
-    window.addEventListener("hashchange", () => pick(location.hash.slice(1), false));
+    tabs.forEach((t) =>
+      t.addEventListener("click", (e) => {
+        // Only a pointer click fades the panel. Enter or Space fires click with detail 0.
+        if ((e as MouseEvent).detail > 0) document.documentElement.dataset.tabMoved = "";
+        else delete document.documentElement.dataset.tabMoved;
+        pick(t.dataset.tab!, true);
+      }),
+    );
+    window.addEventListener("hashchange", () => {
+      delete document.documentElement.dataset.tabMoved; // hash loads switch at once
+      pick(location.hash.slice(1), false);
+    });
 
     // The Schedule tab exists for the live season only, as its panel did.
     function syncSchedule(s: string) {
@@ -758,6 +769,13 @@ const bandHead = [
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
+    transition:
+      color 150ms ease,
+      border-bottom-color 150ms ease,
+      transform 140ms var(--ease-out);
+  }
+  .tablist [role="tab"]:active {
+    transform: scale(0.97);
   }
   .tablist [role="tab"][aria-selected="true"] {
     color: var(--ink);
@@ -1012,6 +1030,7 @@ const bandHead = [
   .side :global(.ff-rail) {
     position: relative;
     height: 24px;
+    container-type: inline-size;
   }
   .side :global(.ff-rail)::before {
     content: "";
@@ -1032,8 +1051,12 @@ const bandHead = [
   .side :global(.ff-bar) {
     position: absolute;
     top: 50%;
+    left: 0;
+    width: 100%;
     height: 3px;
     translate: 0 -50%;
+    transform-origin: 0 50%;
+    transform: translateX(calc(var(--x) * 1cqw)) scaleX(var(--w));
     border-radius: 1.5px;
     background: var(--data-1);
   }
@@ -1058,18 +1081,20 @@ const bandHead = [
     background: var(--data-1);
     box-shadow: 0 0 0 2px var(--page);
   }
+  .side :global(:is(.ff-me, .ff-avg, .ff-med)) {
+    left: 0;
+    transform: translateX(calc(var(--x) * 1cqw));
+  }
   .side :global(:is(.ff-me, .ff-avg, .ff-med):focus-visible) {
     outline: 2px solid var(--data-1);
     outline-offset: 3px;
   }
   @media (prefers-reduced-motion: no-preference) {
     .side :global(:is(.ff-me, .ff-avg, .ff-med)) {
-      transition: left 200ms var(--ease-out);
+      transition: transform 200ms var(--ease-out);
     }
     .side :global(.ff-bar) {
-      transition:
-        left 200ms var(--ease-out),
-        width 200ms var(--ease-out);
+      transition: transform 200ms var(--ease-out);
     }
   }
 

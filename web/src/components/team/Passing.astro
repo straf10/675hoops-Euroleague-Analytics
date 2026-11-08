@@ -235,17 +235,19 @@ const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
       for (const n of nodes) n.classList.toggle("on", ends.includes(Number(n.dataset.i)));
       svg.classList.add("dim");
     };
+    // Pointer hover dims only with a fine pointer. A touch tap sets focus, which dims for keyboard too.
+    const fine = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     for (const n of nodes) {
       const i = Number(n.dataset.i);
-      n.addEventListener("pointerenter", () => focusPlayer(i));
+      n.addEventListener("pointerenter", () => fine() && focusPlayer(i));
       n.addEventListener("focus", () => focusPlayer(i));
-      n.addEventListener("pointerleave", reset);
+      n.addEventListener("pointerleave", () => fine() && reset());
       n.addEventListener("blur", reset);
     }
     for (const e of edges) {
       const hit = e.querySelector(".hit");
-      hit?.addEventListener("pointerenter", () => focusEdge(e));
-      hit?.addEventListener("pointerleave", reset);
+      hit?.addEventListener("pointerenter", () => fine() && focusEdge(e));
+      hit?.addEventListener("pointerleave", () => fine() && reset());
     }
   }
   for (const svg of document.querySelectorAll<SVGSVGElement>("svg[data-net]")) wire(svg);

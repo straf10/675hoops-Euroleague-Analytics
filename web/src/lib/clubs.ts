@@ -23,7 +23,7 @@ export const clubHeadHtml = (metric: string, dir: Dir): string => {
 
 /** One figure as the table shows it: one decimal, Net signed and carrying the Sign Colour Rule class. */
 const cell = (key: string, v: number): string => {
-  if (!Number.isFinite(v)) return "–";
+  if (!Number.isFinite(v)) return "-";
   if (key === "net") return `<span class="${signClass(v)}">${signed(v)}</span>`;
   if (key === "returning") return `${Math.round(v)}%`;
   if (key.startsWith("sos_")) return elo(v);
@@ -40,7 +40,7 @@ export const clubRowsHtml = (base: string, season: number | undefined, rows: Ind
         .map((key) => `<td class="num${key === metric ? " strong" : ""}">${cell(key, r.f[key])}</td>`)
         .join("");
       return (
-        `<tr><td class="num muted">${i + 1}</td><th scope="row"><a href="${href}"><span class="code">${esc(r.code)}</span>${esc(r.name)}</a></th>` +
+        `<tr data-key="${r.code}"><td class="num muted">${i + 1}</td><th scope="row"><a href="${href}"><span class="code">${esc(r.code)}</span>${esc(r.name)}</a></th>` +
         `<td class="num${metric === RECORD ? " strong" : ""}">${r.w}–${r.l}</td>${figures}</tr>`
       );
     })

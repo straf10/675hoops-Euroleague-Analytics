@@ -32,6 +32,10 @@ import { ZONES } from "../../lib/zones";
     font: inherit;
     font-size: 0.8125rem;
     cursor: pointer;
+    transition: transform 140ms var(--ease-out);
+  }
+  .chip:active {
+    transform: scale(0.97);
   }
   .chip[aria-pressed="true"] {
     border-color: var(--ink);

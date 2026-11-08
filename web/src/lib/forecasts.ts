@@ -107,7 +107,7 @@ export const groupLabel = (phase: string, round: number | null) =>
 /** The value of the games filter for a round or phase group. */
 export const groupKey = (phase: string, round: number | null) => (round === null ? phase : `${phase}-${round}`);
 
-export const dash = "–";
+export const dash = "-";
 export const share = (x: number | null) => (x === null ? dash : `${Math.round(x * 100)}%`);
 
 /** "Round 3" -> "R3" for chart ticks; a postseason phase keeps a short name. */

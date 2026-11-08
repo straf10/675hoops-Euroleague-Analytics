@@ -100,6 +100,6 @@ export function careerAchievements(entries: AchEntry[], statTitles: StatTitle[] 
 }
 
 export function formatRate(rate: number | null): string {
-  if (rate === null) return "–";
+  if (rate === null) return "-";
   return `${Math.round(rate * 100)}%`;
 }

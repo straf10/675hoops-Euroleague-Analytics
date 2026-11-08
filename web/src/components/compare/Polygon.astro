@@ -265,6 +265,10 @@ const pools = ((await meta())?.seasons ?? []).map((s) => s.season);
     font-size: 0.8125rem;
     cursor: pointer;
     touch-action: manipulation;
+    transition: transform 140ms var(--ease-out);
+  }
+  .chip:active {
+    transform: scale(0.97);
   }
   .chip[aria-pressed="true"] {
     background: var(--sunk);

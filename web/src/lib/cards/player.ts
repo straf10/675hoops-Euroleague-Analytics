@@ -170,7 +170,7 @@ function countMade(dots: number[]): number {
   return made;
 }
 
-const pct1 = (made: number, att: number) => (att ? `${((100 * made) / att).toFixed(1)}%` : "–");
+const pct1 = (made: number, att: number) => (att ? `${((100 * made) / att).toFixed(1)}%` : "-");
 
 function twinBlock(twins: { query: string; list: CardTwin[] }, attempts: number, made: number): string {
   const b: string[] = [];

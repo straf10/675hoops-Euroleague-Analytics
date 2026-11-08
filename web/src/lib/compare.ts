@@ -90,7 +90,7 @@ function value(m: Measure, t: Totals, rate: CRate): number | null {
 }
 
 function text(m: Measure, v: number | null, rate: CRate): string {
-  if (v === null || !Number.isFinite(v)) return "–";
+  if (v === null || !Number.isFinite(v)) return "-";
   const digits = m.kind === "count" && rate === "total" ? 0 : m.digits;
   const body = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
   if (v < 0 && Number(Math.abs(v).toFixed(digits)) !== 0) return `−${body}`;
@@ -245,7 +245,7 @@ function achievementBody(cols: Col[]): string {
           "The furthest stage his club reached that season, if he played at least one game for the club.",
           cols.map((c) => {
             const s = seasonAchievement(c.card.achievements ?? [], c.season);
-            if (!s) return "–";
+            if (!s) return "-";
             const label = esc(REACHED_LABEL[s.reached]);
             return s.clubs > 1 ? `${label}<small class="club"> with ${esc(s.club)}</small>` : label;
           }),
@@ -255,7 +255,7 @@ function achievementBody(cols: Col[]): string {
           "The stats he led the EuroLeague in that season, per game, among qualified players.",
           cols.map((c) => {
             const titles = seasonTitles(c.card.statTitles ?? [], c.season);
-            return titles.length ? esc(titles.join(", ")) : "–";
+            return titles.length ? esc(titles.join(", ")) : "-";
           }),
         ),
       ];

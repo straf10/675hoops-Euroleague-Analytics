@@ -168,4 +168,8 @@ const unitNote = current ? minimumNote("units", current.minimums) : "";
   .sort[aria-pressed="true"] {
     font-weight: 600;
   }
+  /* Five names in one row would make the table wider than a phone; they wrap at the commas instead. */
+  .lineups-table :global(tbody th) {
+    white-space: normal;
+  }
 </style>

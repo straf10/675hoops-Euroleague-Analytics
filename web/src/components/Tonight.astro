@@ -30,12 +30,12 @@ const rounds = [...new Set(games.map((g) => g.round))].sort((a, b) => a - b);
           return (
             <li class="game" id={g.game_id} style={`--p:${(g.p_home * 100).toFixed(1)};--i:${i}`}>
               <time class="when" datetime={g.tipoff_utc}>
-                {athensTime(g.tipoff_utc)}
+                {g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC"}
                 <small>{athensDay(g.tipoff_utc)}</small>
               </time>
               <span class:list={["team away", { fav: !homeFav }]}>
                 <b>{g.away.code}</b>
-                <span class="name">{g.away.name}</span>
+                <span class="name" title={g.away.name}>{g.away.name}</span>
               </span>
               <span
                 class="split"
@@ -52,7 +52,7 @@ const rounds = [...new Set(games.map((g) => g.round))].sort((a, b) => a - b);
               </span>
               <span class:list={["team home", { fav: homeFav }]}>
                 <b>{g.home.code}</b>
-                <span class="name">{g.home.name}</span>
+                <span class="name" title={g.home.name}>{g.home.name}</span>
               </span>
               <span class="margin">
                 {fav.team.code} <span>by {margin}</span>
@@ -212,10 +212,10 @@ const rounds = [...new Set(games.map((g) => g.round))].sort((a, b) => a - b);
   .seg-home {
     height: 100%;
   }
-  /* Each call grows out of even odds when the panel appears (load and competition switch). */
+  /* Each call fades in from even odds, staggered by segment. Opacity only: no layout property animates. */
   @keyframes from-even {
     from {
-      flex-basis: 50%;
+      opacity: 0.4;
     }
   }
   .seg-away {

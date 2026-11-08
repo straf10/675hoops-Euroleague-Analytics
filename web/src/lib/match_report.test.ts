@@ -98,7 +98,7 @@ test("numbers format as percent, signed gap and thousands separator", () => {
   assert.equal(signedNum(0.04, 1), "0.0");
   assert.equal(num(1612.4, 0), "1,612");
   assert.equal(formatValue(6.1, "signed1"), "+6.1");
-  assert.equal(formatValue(null, "num1"), "–");
+  assert.equal(formatValue(null, "num1"), "-");
   assert.equal(formatValue(1.05, "num2"), "1.05");
 });
 

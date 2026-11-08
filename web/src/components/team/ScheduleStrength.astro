@@ -101,7 +101,7 @@ const empty = cols.filter((c) => c.block.games === 0);
               <InfoTip text={r.info} />
             </th>
             {cols.map((c) => (
-              <td class="num">{c.block.games === 0 && !r.always ? "–" : r.value(c.block)}</td>
+              <td class="num">{c.block.games === 0 && !r.always ? "-" : r.value(c.block)}</td>
             ))}
           </tr>
         ))

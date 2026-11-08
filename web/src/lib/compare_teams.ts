@@ -117,7 +117,7 @@ const ordinal = (n: number) => {
 
 /** A figure as the table shows it: one decimal; Net signed; shares with a percent sign. */
 export function figure(key: string, v: number | undefined): string {
-  if (v === undefined || !Number.isFinite(v)) return "–";
+  if (v === undefined || !Number.isFinite(v)) return "-";
   if (key === "net") return signed(v);
   if (key.endsWith("_share")) return `${v.toFixed(1)}%`;
   return v.toFixed(1);

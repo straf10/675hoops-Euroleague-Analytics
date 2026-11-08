@@ -110,7 +110,7 @@ function disc(c: { code: string; name: string }, px: number, py: number, detail:
   const top = (py - R).toFixed(1);
   const bottom = (py + R).toFixed(1);
   return (
-    `<g class="pt" tabindex="0" role="img" aria-label="${esc(c.name)} (${esc(c.code)}): ${esc(detail)}"${dataTip(tip`<b>${c.code}</b> ${c.name}<br>${detail}`)}>` +
+    `<g class="pt" data-key="${esc(c.code)}" tabindex="0" role="img" aria-label="${esc(c.name)} (${esc(c.code)}): ${esc(detail)}"${dataTip(tip`<b>${c.code}</b> ${c.name}<br>${detail}`)}>` +
     `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${trim}"/>` +
     `<path d="M${cx} ${top}A${R} ${R} 0 0 0 ${cx} ${bottom}Z" fill="${body}"/>` +
     `<circle class="edge" cx="${cx}" cy="${cy}" r="${R}"/></g>`

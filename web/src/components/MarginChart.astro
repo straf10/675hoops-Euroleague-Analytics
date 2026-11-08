@@ -235,9 +235,13 @@ const xTicks = [1, 10, 20, 30, 40, 50].filter((t) => t <= n);
     cursor: default;
     outline: none;
   }
-  .hit:hover .dot,
   .hit:focus-visible .dot {
     transform: scale(2.4);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .hit:hover .dot {
+      transform: scale(2.4);
+    }
   }
   .hit:focus-visible .target {
     stroke: var(--data-1);

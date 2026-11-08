@@ -225,6 +225,15 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
         zone.hidden = picked.size === 0;
       }
     };
+    // A user change redraws the court with a short fade from 0.35 (never blank). Not on the first draw.
+    const flash = () => {
+      const shots = document.getElementById("shots");
+      if (!shots) return;
+      shots.classList.remove("redraw");
+      void shots.offsetWidth;
+      shots.classList.add("redraw");
+      setTimeout(() => shots.classList.remove("redraw"), 200);
+    };
     document.querySelectorAll<HTMLButtonElement>("#shots .chip").forEach((chip) =>
       chip.addEventListener("click", async () => {
         const z = chip.dataset.zone as Zone | "";
@@ -235,14 +244,14 @@ const card = current ? { path: `/cards/players/${data.slug}.png`, width: 1080, h
           c.setAttribute("aria-pressed", String(c.dataset.zone ? picked.has(c.dataset.zone as Zone) : picked.size === 0)),
         );
         const s = (await load()).seasons.find((x) => x.season === shotYear);
-        if (s) drawShots(s);
+        if (s) (drawShots(s), flash());
       }),
     );
     document.addEventListener("change", async (e) => {
       const input = e.target as HTMLInputElement;
       if (input.name === "shot-filter" || input.name === "shot-view") {
         const s = (await load()).seasons.find((x) => x.season === shotYear);
-        if (s) drawShots(s);
+        if (s) (drawShots(s), flash());
         return;
       }
       const select = e.target as HTMLSelectElement;

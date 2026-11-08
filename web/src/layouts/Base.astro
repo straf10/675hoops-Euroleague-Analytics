@@ -61,7 +61,7 @@ const footLinks = [
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)" />
@@ -174,10 +174,22 @@ const footLinks = [
           : matchMedia("(prefers-color-scheme: dark)").matches;
       const label = () =>
         btn.setAttribute("aria-label", isDark() ? "Switch to light theme" : "Switch to dark theme");
+      // The status bar follows a remembered choice too; with no choice, the media-scoped tags follow the system.
+      const paintBar = (theme: string | undefined) => {
+        if (!theme) return;
+        const colour = theme === "dark" ? "#0e0e0d" : "#f9f9f7";
+        document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((m) => (m.content = colour));
+      };
       label();
+      paintBar(root.dataset.theme);
       btn.addEventListener("click", () => {
         const next = isDark() ? "light" : "dark";
-        root.dataset.theme = next;
+        const flip = () => {
+          root.dataset.theme = next;
+        };
+        if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(flip);
+        else flip();
+        paintBar(next);
         try {
           localStorage.setItem("eh-theme", next);
         } catch {
@@ -227,6 +239,21 @@ const footLinks = [
         { passive: true },
       );
 
+      // Table boxes: mark a box that still scrolls sideways (not yet at its end) with class "edge".
+      const edgeState = (el: HTMLElement) =>
+        el.classList.toggle("edge", el.scrollWidth > el.clientWidth + 1 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+      const edgeAll = () => document.querySelectorAll<HTMLElement>(".scroll").forEach(edgeState);
+      document.addEventListener("scroll", (e) => {
+        const t = e.target as HTMLElement;
+        if (t?.classList?.contains("scroll")) edgeState(t);
+      }, { capture: true, passive: true });
+      addEventListener("resize", edgeAll, { passive: true });
+      // Tooltip text is rewritten on every hover; those writes cannot change a table box's edge.
+      new MutationObserver((records) => {
+        if (records.some((r) => !(r.target as Element).closest?.("#tip, .wp-tip"))) edgeAll();
+      }).observe(document.body, { childList: true, subtree: true });
+      edgeAll();
+
       // Tooltips: any element with data-tip. The first one waits, later ones open instantly.
       const tip = document.getElementById("tip") as HTMLDivElement;
       let timer = 0;
@@ -238,7 +265,9 @@ const footLinks = [
         let x = r.left + r.width / 2 - t.width / 2;
         x = Math.max(8, Math.min(x, innerWidth - t.width - 8));
         let y = r.top - t.height - 8;
-        if (y < 8) y = r.bottom + 8;
+        const below = y < 8;
+        if (below) y = r.bottom + 8;
+        tip.toggleAttribute("data-below", below);
         tip.style.translate = `${Math.round(x)}px ${Math.round(y)}px`;
       };
       const show = (el: Element, now?: boolean) => {
@@ -316,6 +345,7 @@ const footLinks = [
     position: sticky;
     top: 0;
     z-index: 40;
+    padding-top: env(safe-area-inset-top, 0px); /* under the notch, the bar paints and the links stay clear */
     background: color-mix(in srgb, var(--page) 88%, transparent);
     backdrop-filter: saturate(1.4) blur(10px);
     -webkit-backdrop-filter: saturate(1.4) blur(10px);
@@ -383,7 +413,7 @@ const footLinks = [
     transition:
       background-color 150ms ease,
       color 150ms ease,
-      transform 140ms ease-out;
+      transform 140ms var(--ease-out);
   }
   @media (hover: hover) and (pointer: fine) {
     .icon-btn:hover {
@@ -392,7 +422,7 @@ const footLinks = [
     }
   }
   .icon-btn:active {
-    transform: scale(0.94);
+    transform: scale(0.96);
   }
   .when-dark {
     display: none;
@@ -414,6 +444,7 @@ const footLinks = [
 
   .foot {
     margin-top: 96px;
+    padding-bottom: env(safe-area-inset-bottom, 0px); /* clear of the home indicator */
     border-top: 1px solid var(--rule);
     color: var(--muted);
     font-size: 0.8125rem;

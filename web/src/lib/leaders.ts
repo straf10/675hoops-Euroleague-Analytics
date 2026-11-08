@@ -100,7 +100,7 @@ export function valueOf(key: string, t: Totals, mode: Mode): number | null {
 
 function text(key: string, v: number | null, mode: Mode): string {
   const m = measure(key);
-  if (v === null || !Number.isFinite(v)) return "–";
+  if (v === null || !Number.isFinite(v)) return "-";
   const digits = m.kind === "count" && mode === "total" ? 0 : m.digits;
   const body = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
   if (v < 0 && Number(Math.abs(v).toFixed(digits)) !== 0) return `−${body}`;

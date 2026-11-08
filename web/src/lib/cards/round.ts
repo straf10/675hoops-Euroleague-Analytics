@@ -80,7 +80,7 @@ function logLoss(games: { p: number; home_won: boolean }[]): number {
   return -games.reduce((s, g) => s + Math.log(g.home_won ? g.p : 1 - g.p), 0) / games.length;
 }
 
-const sign3 = (x: number | null) => (x === null ? "–" : x.toFixed(3));
+const sign3 = (x: number | null) => (x === null ? "-" : x.toFixed(3));
 
 /** Tip-off clock in Athens, as the site shows it. */
 const clock = (iso: string) => athensTime(iso);

@@ -19,7 +19,7 @@ interface Props {
   chosen: number;
 }
 const { panels, chosen } = Astro.props;
-const shown = (net: boolean, v: number | null) => (v === null ? "–" : net ? signed(v) : v.toFixed(1));
+const shown = (net: boolean, v: number | null) => (v === null ? "-" : net ? signed(v) : v.toFixed(1));
 const rowsOf = (view: OnOffView) => {
   const { on, off } = view;
   return [
@@ -85,7 +85,7 @@ const options = panels.map((p) => ({ value: p.season, label: p.label, selected: 
                   <td class="num strong"><span class={r.net ? signClass(r.on) : undefined}>{shown(r.net, r.on)}</span></td>
                   <td class="num"><span class={r.net ? signClass(r.off) : undefined}>{shown(r.net, r.off)}</span></td>
                   <td class="num diff">
-                    {r.on !== null && r.off !== null ? <Fragment set:html={deltaHtml(r.on - r.off, { better: r.better, versus: "off the floor" })} /> : "–"}
+                    {r.on !== null && r.off !== null ? <Fragment set:html={deltaHtml(r.on - r.off, { better: r.better, versus: "off the floor" })} /> : "-"}
                   </td>
                 </tr>
               ))}

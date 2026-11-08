@@ -380,7 +380,7 @@ export function rated(m: Measure, t: Totals, rate: Rate): number | null {
 }
 
 export function format(m: Measure, v: number | null): string {
-  if (v === null || !Number.isFinite(v)) return "–";
+  if (v === null || !Number.isFinite(v)) return "-";
   const text = Math.abs(v).toFixed(m.digits);
   if (m.signed && v > 0) return `+${text}`;
   if (v < 0 && Number(text) !== 0) return `−${text}`;

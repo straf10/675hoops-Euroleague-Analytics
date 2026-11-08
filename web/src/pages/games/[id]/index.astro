@@ -307,7 +307,7 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
               <circle class="wp-probe-dot" cx="0" cy="0" r="4" />
             </g>
           </svg>
-          <div class="wp-tip" role="status" hidden></div>
+          <div class="wp-tip" role="status"></div>
         </figure>
         <p class="note">
           Home at the top. Vertical rules mark the quarters and any overtime. Model: <a href={`${REPO}/blob/main/docs/models/wp_card.md`}>WP v1</a>, the in-game
@@ -433,7 +433,7 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
     let touchOpen = false;
 
     const hide = (): void => {
-      tip.hidden = true;
+      tip.removeAttribute("data-open");
       probe.setAttribute("hidden", "");
       current = -1;
     };
@@ -444,6 +444,9 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
       return nearestIndex(points, frac * g.end);
     };
     const show = (i: number): void => {
+      // Read the layout before the first write: a write first forces a layout on every pointer move.
+      const figRect = figure.getBoundingClientRect();
+      const svgRect = svg.getBoundingClientRect();
       const [elapsed, homeScore, awayScore, wp] = points[i];
       const x = xAt(g, elapsed);
       const y = yAt(g, wp);
@@ -459,10 +462,8 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
       const chance = document.createElement("div");
       chance.textContent = `${data.home} win chance ${percent(wp)}`;
       tip.replaceChildren(head, score, chance);
-      const figRect = figure.getBoundingClientRect();
-      const svgRect = svg.getBoundingClientRect();
       const px = svgRect.left - figRect.left + (x / g.width) * svgRect.width;
-      tip.hidden = false;
+      tip.setAttribute("data-open", "");
       const width = tip.offsetWidth;
       tip.style.left = `${Math.min(Math.max(px - width / 2, 0), figure.clientWidth - width)}px`;
       current = i;
@@ -470,7 +471,7 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
 
     hit.addEventListener("pointerdown", (e) => {
       touchOpen = e.pointerType === "touch";
-      if (touchOpen && !tip.hidden) {
+      if (touchOpen && tip.hasAttribute("data-open")) {
         hide();
         touchOpen = false;
         return;

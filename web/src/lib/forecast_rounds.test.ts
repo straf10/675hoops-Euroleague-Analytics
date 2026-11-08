@@ -131,9 +131,9 @@ test("a game row prints the call, its verdict and the score side that won", () =
 
 test("an open game with no verdict shows the call only; a game the model skipped shows a dash", () => {
   const withoutVerdict = gameRowHtml(games[2], "other", icons);
-  assert.match(withoutVerdict, /<td class="call">50% <span class="mg">\+3\.2<\/span><span class="dash">–<\/span><\/td>/);
+  assert.match(withoutVerdict, /<td class="call">50% <span class="mg">\+3\.2<\/span><span class="dash">-<\/span><\/td>/);
   const skipped = gameRowHtml(games[4], "ours", icons);
-  assert.match(skipped, /<td class="call">–<\/td>/);
+  assert.match(skipped, /<td class="call">-<\/td>/);
 });
 
 test("team names are escaped in a row", () => {

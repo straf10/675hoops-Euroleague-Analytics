@@ -78,7 +78,7 @@ test("no entries give no rates", () => {
     playoffRate: null,
     statTitles: 0,
   });
-  assert.equal(formatRate(c.playoffRate), "–");
+  assert.equal(formatRate(c.playoffRate), "-");
 });
 
 test("stat titles are counted per title and listed by season", () => {

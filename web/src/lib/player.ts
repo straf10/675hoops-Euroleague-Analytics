@@ -44,8 +44,8 @@ export const totalsOf = (fields: string[], values: number[]): Totals =>
   Object.fromEntries(fields.map((f, i) => [f, values[i]]));
 
 const one = (x: number) => x.toFixed(1);
-const pct = (num: number, den: number) => (den > 0 ? `${((100 * num) / den).toFixed(1)}` : "–");
-export const perGame = (t: Totals, x: number) => (t.gp ? one(x / t.gp) : "–");
+const pct = (num: number, den: number) => (den > 0 ? `${((100 * num) / den).toFixed(1)}` : "-");
+export const perGame = (t: Totals, x: number) => (t.gp ? one(x / t.gp) : "-");
 export const ts = (t: Totals) => pct(t.pts, 2 * (t.fg2a + t.fg3a + 0.44 * t.fta));
 
 /** Season-by-season rows: per game, with the career line computed from summed totals. */
@@ -65,7 +65,7 @@ export const SEASON_COLS: { head: string; about: string; cell: (t: Totals) => st
   { head: "FT%", about: "Free throws made per attempt", cell: (t) => pct(t.ftm, t.fta) },
   { head: "TS%", about: "True shooting: PTS / (2 × (FGA + 0.44 × FTA))", cell: ts },
   // A season total, not per game: the column reads as WS in its own right.
-  { head: "WS", about: "Win shares this season: a season total, not per game", cell: (t) => (t.ws === undefined ? "–" : one(t.ws)) },
+  { head: "WS", about: "Win shares this season: a season total, not per game", cell: (t) => (t.ws === undefined ? "-" : one(t.ws)) },
 ];
 
 // ---- Shot quality -------------------------------------------------------------------------
@@ -140,7 +140,7 @@ export function bandRows(b: Bands, league: Bands, up: string, down: string, inve
         diff === null || Math.abs(diff) < 2.5
           ? ""
           : `<span class="car ${good ? "up" : "down"}" aria-hidden="true">${diff > 0 ? up : down}</span>`;
-      return `<tr><th scope="row">${label}<small>${range}</small></th><td class="num">${att}</td><td class="num">${share(b, key).toFixed(0)}%</td><td class="num muted">${share(league, key).toFixed(0)}%</td><td class="num">${mine === null ? "–" : mine.toFixed(1)}</td><td class="num muted">${theirs === null ? "–" : theirs.toFixed(1)}</td><td class="num diff">${mark}${diff === null ? "–" : signed(diff)}</td></tr>`;
+      return `<tr><th scope="row">${label}<small>${range}</small></th><td class="num">${att}</td><td class="num">${share(b, key).toFixed(0)}%</td><td class="num muted">${share(league, key).toFixed(0)}%</td><td class="num">${mine === null ? "-" : mine.toFixed(1)}</td><td class="num muted">${theirs === null ? "-" : theirs.toFixed(1)}</td><td class="num diff">${mark}${diff === null ? "-" : signed(diff)}</td></tr>`;
     })
     .join("");
 }
