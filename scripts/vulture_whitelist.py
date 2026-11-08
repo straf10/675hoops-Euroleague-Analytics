@@ -143,3 +143,18 @@ from eurohoops.models.roster import (  # noqa: E402
 FIRST_ROUND_RULE
 start_date_counts
 unmatched_clubs
+
+# Residual diagnostics (eval/residuals.py, scripts/diag_residuals.py): research only, never live
+from eurohoops.eval.residuals import (  # noqa: E402
+    binned_residuals,
+    elo_pregame,
+    holm,
+    margin_residual_test,
+    pregame_features,
+)
+
+binned_residuals
+elo_pregame
+holm
+margin_residual_test
+pregame_features
