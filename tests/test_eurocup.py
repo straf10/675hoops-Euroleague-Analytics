@@ -8,8 +8,6 @@ import pytest
 
 from eurohoops.config import Backtest
 from eurohoops.eval.eurocup import (
-    B0_ABOVE_ELO,
-    ELO_ABOVE_B0,
     NO_RANKING,
     elo_vs_b0,
     ranking_verdict,
@@ -105,18 +103,23 @@ def test_elo_vs_b0_scores_only_test_seasons_and_names_a_verdict() -> None:
     assert result["games"]["test"] == int(games["season"].isin([2010, 2011]).sum())
     assert result["games"]["tuning"] == int(games["season"].isin([2008, 2009]).sum())
     assert result["gap_elo_minus_b0"]["test"]["n"] == result["games"]["test"]
-    assert result["verdict"] in {ELO_ABOVE_B0, B0_ABOVE_ELO, NO_RANKING}
+    assert result["verdict"] in {"elo ranks above b0", "b0 ranks above elo", NO_RANKING}
 
 
 @pytest.mark.parametrize(
     ("mean", "lower", "upper", "verdict"),
     [
-        (-0.02, -0.03, -0.005, ELO_ABOVE_B0),  # mean far enough and CI below zero
+        (-0.02, -0.03, -0.005, "elo ranks above b0"),  # mean far enough and CI below zero
         (-0.02, -0.03, 0.001, NO_RANKING),  # CI reaches zero
         (-0.005, -0.02, -0.001, NO_RANKING),  # mean smaller than the bar
-        (0.02, 0.003, 0.04, B0_ABOVE_ELO),
+        (0.02, 0.003, 0.04, "b0 ranks above elo"),
         (0.02, -0.003, 0.04, NO_RANKING),
     ],
 )
 def test_pass_bar(mean: float, lower: float, upper: float, verdict: str) -> None:
-    assert ranking_verdict(mean, lower, upper) == verdict
+    assert ranking_verdict(mean, lower, upper, "elo", "b0") == verdict
+
+
+def test_verdict_names_the_compared_models() -> None:
+    assert ranking_verdict(-0.02, -0.03, -0.005, "m1", "elo") == "m1 ranks above elo"
+    assert ranking_verdict(0.02, 0.003, 0.04, "m1", "b0") == "b0 ranks above m1"

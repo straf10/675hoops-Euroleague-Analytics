@@ -192,5 +192,14 @@
     }
   },
   "pass_bar": "Elo above B0 if the test mean gap <= -0.01 and the 97.5% paired bootstrap upper bound < 0; B0 above Elo if the mean gap >= 0.01 and the lower bound > 0; else no ranking. Tuning block is descriptive only.",
-  "verdict": "elo ranks above b0"
+  "verdict": "elo ranks above b0",
+  "m5": {
+    "status": "not scored: deferred by owner decision 2026-11-08 (needs EuroCup M3 port)"
+  },
+  "m1": {
+    "report": "reports/diag_eurocup_m1.json",
+    "status": "scored on shared test games; see that file",
+    "m1_minus_elo_verdict": "no ranking",
+    "m1_minus_b0_verdict": "m1 ranks above b0"
+  }
 }

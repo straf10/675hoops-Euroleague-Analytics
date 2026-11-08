@@ -60,6 +60,12 @@ def ingest(
             help="Seeding only: fetch a finished season's schedule that is not cached yet (once)"
         ),
     ] = False,
+    box_and_pbp_only: Annotated[
+        bool,
+        typer.Option(
+            help="With --details, fetch only Boxscore and PlaybyPlay (EuroCup M1/M5 inputs)"
+        ),
+    ] = False,
 ) -> None:
     """Fetch EuroLeague results into the raw cache and rebuild the staging tables.
 
@@ -92,10 +98,15 @@ def ingest(
                 LIVE_SEASON,
                 code=comp.code,
                 fetch_missing=fetch_missing,
+                endpoints=_BOX_PBP if box_and_pbp_only else euroleague.DETAIL_ENDPOINTS,
             )
         except euroleague.PastSeasonNotCachedError as exc:
             log.error("%s", exc)
             raise typer.Exit(code=1) from exc
+    if box_and_pbp_only:
+        # Fetch-only mode: a season subset must not overwrite the full staged schedule.
+        log.info("box scores and play-by-play cached; staging not rewritten")
+        return
     if comp is EUROCUP:
         schedules = _without_tied_finals(schedules)
     games, teams = build_games_table(schedules), build_teams_table(schedules)
@@ -112,6 +123,7 @@ def ingest(
 
 
 _COMPETITIONS: dict[str, Competition] = {"euroleague": EUROLEAGUE, "eurocup": EUROCUP}
+_BOX_PBP = ("Boxscore", "PlaybyPlay")
 
 
 def _without_tied_finals(schedules: dict[int, list[RawGame]]) -> dict[int, list[RawGame]]:

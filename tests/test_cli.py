@@ -491,3 +491,31 @@ def test_continuity_needs_team_seasons_in_the_marts() -> None:
     invoke("build")  # the synthetic pipeline stages no team seasons
     result = runner.invoke(cli.app, ["continuity"])
     assert result.exit_code == 1
+
+
+@pytest.mark.usefixtures("workdir")
+def test_box_and_pbp_only_fetch_never_rewrites_staging(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A season subset in fetch-only mode must leave the staged schedule files alone.
+    calls: list[dict[str, object]] = []
+
+    def fake_ingest_seasons(*args: object, **kwargs: object) -> dict[int, list[object]]:
+        calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(ingest_mod.euroleague, "ingest_seasons", fake_ingest_seasons)
+    result = runner.invoke(
+        cli.app,
+        [
+            "ingest",
+            "--competition",
+            "eurocup",
+            "--details",
+            "--box-and-pbp-only",
+            "--seasons",
+            "2011",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert calls[0]["endpoints"] == ("Boxscore", "PlaybyPlay")
+    assert not config.EUROCUP.staging_games.exists()
+    assert not config.EUROCUP.staging_teams.exists()

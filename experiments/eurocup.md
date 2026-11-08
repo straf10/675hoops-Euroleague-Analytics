@@ -32,3 +32,13 @@ Pairwise comparisons (all with the same pass-bar form as above: mean gap <= -0.0
 Each gap uses only the games that both models score (shared games). For pair 2 and 3 that is the test games with valid stints.
 
 Result: (step 7, appended below this line)
+Addendum result (appended; the pass bars above are unchanged):
+- M5 vs Elo: not scored: deferred by owner decision 2026-11-08 (needs EuroCup M3 port).
+- M5 vs M1: not scored: deferred by owner decision 2026-11-08 (needs EuroCup M3 port).
+- M1 vs Elo and M1 vs B0: see the M1 result below (filled after the run).
+M1 result (appended after the run; test seasons 2023-24..2025-26; 586 shared test games, all with team box lines; M1 variant chosen on tuning: student_t_const; no validation gate):
+- Log loss: M1 0.6062, Elo 0.6180, B0 0.6858.
+- M1 vs Elo (gap = M1 - Elo): mean -0.0118, 97.5% CI -0.0257..+0.0018. Verdict: no ranking (mean passes the bar, CI upper bound is above 0).
+- M1 vs B0 (gap = M1 - B0): mean -0.0797, 97.5% CI -0.1144..-0.0437. Verdict: m1 ranks above b0.
+- M5 vs Elo and M5 vs M1: not scored: deferred by owner decision 2026-11-08 (needs EuroCup M3 port).
+Details: reports/diag_eurocup_m1.json; docs/models/diag_eurocup.md.

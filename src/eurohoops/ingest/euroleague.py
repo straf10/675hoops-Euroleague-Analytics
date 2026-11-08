@@ -159,12 +159,13 @@ def _fetch_details(
     stats: CacheStats,
     *,
     code: str,
+    endpoints: tuple[str, ...] = DETAIL_ENDPOINTS,
 ) -> None:
     for game in games:
         if not game["played"]:
             continue
         game_code = _game_code(game["gameCode"])
-        for endpoint in DETAIL_ENDPOINTS:
+        for endpoint in endpoints:
             path = root / endpoint.lower() / f"{code}{season}" / f"{game_code}.json.gz"
             if path.exists():
                 stats.detail_hits += 1
@@ -190,6 +191,7 @@ def ingest_seasons(
     *,
     code: str = "E",
     fetch_missing: bool = False,
+    endpoints: tuple[str, ...] = DETAIL_ENDPOINTS,
 ) -> dict[int, list[RawGame]]:
     """Return raw schedules per season; with ``details``, also cache detail JSON of played games.
 
@@ -205,6 +207,6 @@ def ingest_seasons(
     }
     if details:
         for season, games in schedules.items():
-            _fetch_details(fetcher, root, season, games, stats, code=code)
+            _fetch_details(fetcher, root, season, games, stats, code=code, endpoints=endpoints)
     log.info(stats.summary())
     return schedules

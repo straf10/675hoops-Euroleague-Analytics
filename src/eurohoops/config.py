@@ -216,6 +216,14 @@ EUROCUP = Competition(
     ),
     history_backtests=(),
     scorecard=Path("reports/eurocup_unused_scorecard.json"),
+    # M1 (experiments/eurocup.md addendum): box scores exist from 2011-12; no validation gate
+    m1=M1Backtest(
+        Path("reports/diag_eurocup_m1.json"),
+        warmup=_seasons(2011, 2014),
+        tuning=_seasons(2015, 2022),
+        validation=(),
+        test=(2023, 2024, 2025),
+    ),
 )
 
 # M5-INJ (docs/models/m5_inj.md): gate committed by the owner on 2026-10-23, logging on from then.
