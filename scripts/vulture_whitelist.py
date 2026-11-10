@@ -96,6 +96,12 @@ from eurohoops.eval.early_totals import build_report  # noqa: E402
 
 build_report
 
+# B3 injury-status diagnostic (scripts/diag_injstatus.py, research only). Module import: the
+# name build_report is already listed above for early_totals.
+from eurohoops.eval import injstatus  # noqa: E402
+
+injstatus.build_report
+
 # ELOH step A (scripts/fit_eloh.py, run once): the fit and its frozen file's writer; the live
 # forecaster reads only reports/eloh_fit.json. TeamEffect's fields are written by asdict.
 from eurohoops.config import ELOH_FIT_SEASONS  # noqa: E402
