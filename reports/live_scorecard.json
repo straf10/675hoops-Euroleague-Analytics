@@ -1,5 +1,5 @@
 {
-  "rows_in_log": 103,
+  "rows_in_log": 113,
   "rows_excluded_late": 0,
   "rows_not_provable": 2,
   "games_not_provable": [
@@ -696,7 +696,7 @@
     "b0_log_loss": 0.699378
   },
   "m1": {
-    "rows_in_log": 90,
+    "rows_in_log": 100,
     "rows_excluded_late": 0,
     "m1": {
       "n": 90,
@@ -1039,7 +1039,7 @@
     }
   },
   "m5": {
-    "rows_in_log": 70,
+    "rows_in_log": 80,
     "rows_excluded_late": 0,
     "m5": {
       "n": 70,
@@ -1262,7 +1262,7 @@
     }
   },
   "m5inj": {
-    "rows_in_log": 43,
+    "rows_in_log": 53,
     "rows_excluded_late": 0,
     "m5inj": {
       "n": 33,
@@ -1359,7 +1359,7 @@
   },
   "eloh": {
     "trial": true,
-    "rows_in_log": 24,
+    "rows_in_log": 34,
     "rows_excluded_late": 0,
     "metrics": {
       "n": 24,
