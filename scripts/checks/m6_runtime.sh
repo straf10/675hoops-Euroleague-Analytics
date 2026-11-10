@@ -14,7 +14,7 @@ timed() {  # $1 = cache file
   echo $(( $(date +%s) - start ))
 }
 el=$(timed m6_runtime_s)
-git checkout -q -- reports/backtest_m6.json reports/backtest_m6_players.csv 2>/dev/null
+git checkout -q -- reports/backtest_m6.json 2>/dev/null
 start=$(date +%s)
 uv run eurohoops project --dry-run >/dev/null 2>&1 || exit 1
 proj=$(( $(date +%s) - start ))

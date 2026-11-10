@@ -48,3 +48,6 @@ mlruns/
 /docs/research/papers/
 /docs/assets/pipeline-explainer.html
 /docs/assets/pipeline_explainer_gen.py
+
+# Large per-player M6 backtest output; regenerate with `uv run eurohoops backtest --model m6`
+reports/backtest_m6_players.csv

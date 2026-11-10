@@ -276,7 +276,7 @@ Batches, run one at a time by agents, each reviewed, checklist-green and merged 
 |---|---|---|
 | 1 Model trim | Retire POOL, POOL3, ELOR as above | Done (ac5d666) |
 | 2 Front end | Share images for played games, forecast and team pages; forecast grid without sideways scroll on phones; chart labels above 11 px; remaining "picked" wording on /forecasts and the glossary; social links (once the accounts exist) | Planned |
-| 3 Back end | Daily-job failure alert (GitHub issue on a failed run or a soft-failed step); season derived from the date instead of hard-coded 2026; repo cleanup (one-off scripts, stop committing the 24.6 MB `reports/backtest_m6_players.csv`, vulture whitelist); Dockerfile and API kept, documented and built in CI | Planned |
+| 3 Back end | Daily-job failure alert (GitHub issue on a failed run or a soft-failed step); season derived from the date instead of hard-coded 2026; repo cleanup (one-off scripts, stop committing the 24.6 MB `reports/backtest_m6_players.csv`, vulture whitelist); Dockerfile and API kept, documented and built in CI | Done 2026-11-10 except the season derived from the date (25 files use `LIVE_SEASON`; log names are hard-coded; open, not urgent before 2027-28). `reports/backtest_m6_players.csv` is now untracked and ignored; 14 unreferenced screenshots and old checklist-run files were deleted |
 | 4 README | Results first (live record, chart, link), short, a glossary for model names, correct test count | Planned |
 | 5 Social content generator | See below | Next session (2026-11-04) |
 | 6 Posting automation | See below | After batch 5 |

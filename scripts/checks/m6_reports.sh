@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Checklist item 56: backtest_m6.json complete with its gate block (loss differences with CIs,
 # coverage per stat), the movers slice and the rest-of-season blocks; two EuroLeague runs give
-# byte-identical JSON and per-player CSV, equal to the committed ones; verdict < validation < test in git. Times
+# byte-identical JSON and per-player CSV, the JSON equal to the committed one (the CSV is untracked, 24.6 MB); verdict < validation < test in git. Times
 # the EuroLeague run for item 58.
 cd "$ROOT" || exit 1
 f=reports/backtest_m6.json
@@ -16,7 +16,7 @@ cp "$f" "$SCRATCH/m6_run1.json"; cp "$g" "$SCRATCH/m6_run1.csv"
 uv run eurohoops backtest --model m6 $flag --tracking-uri "$uri" >"$SCRATCH/m6_out.txt" 2>&1 || { tail -5 "$SCRATCH/m6_out.txt"; exit 1; }
 cmp -s "$f" "$SCRATCH/m6_run1.json" && cmp -s "$g" "$SCRATCH/m6_run1.csv" \
   && echo "$f, $g: two runs byte-identical" || { echo "M6 runs differ"; exit 1; }
-git diff --quiet -- "$f" "$g" && echo "$f, $g: equal the committed files" \
+git diff --quiet -- "$f" && echo "$f: equals the committed file" \
   || { echo "M6 report differs from the committed one"; exit 1; }
 uv run python -c "
 import json
