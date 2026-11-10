@@ -221,7 +221,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
               <thead>
                 <tr>
                   <th scope="col">Round</th>
-                  <th scope="col" class="n">
+                  <th scope="col" class="n games">
                     Games
                   </th>
                   {roundModels.map((k) => (
@@ -236,14 +236,15 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                   return (
                     <tr id={`round-${comp.key}-${roundId(g.phase, g.round)}`}>
                       <th scope="row">{groupLabel(g.phase, g.round)}</th>
-                      <td class="n">{g.models[model].n}</td>
+                      <td class="n games">{g.models[model].n}</td>
                       {roundModels.map((k) => {
                         const r = g.models[k];
                         return (
                           <td class="n">
                             {r ? (
                               <>
-                                {rightText(r)}
+                                <span class="long">{rightText(r)}</span>
+                                <span class="short">{r.picks === 0 ? dash : `${r.right}/${r.picks}`}</span>
                                 <span class="bri">{score3(r.brier)}</span>
                               </>
                             ) : (
@@ -401,6 +402,9 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
   table.plain th[data-tip] {
     cursor: help;
   }
+  table.plain .short {
+    display: none;
+  }
 
   @media (max-width: 560px) {
     .big {
@@ -409,15 +413,32 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
     .mid {
       font-size: 2rem;
     }
-    /* Record tables fit a phone: no 28rem floor, narrower gutters, cells may wrap. */
+    /* Record tables fit a phone: no 28rem floor, narrow gutters, headers may wrap at spaces.
+       The round table drops its Games column (each cell shows the game count), shows calls as
+       "7/10", and puts the Brier score under them. */
     table.plain {
       min-width: 0;
+      font-size: 0.8125rem;
     }
     table.plain th,
     table.plain td,
     table.plain tbody th {
-      padding-right: 12px;
+      padding-right: 5px;
       white-space: normal;
+    }
+    table.plain th {
+      font-size: 0.6875rem;
+    }
+    table.plain tbody th {
+      white-space: nowrap;
+    }
+    table.plain .games,
+    table.plain .long {
+      display: none;
+    }
+    table.plain .short,
+    table.plain .bri {
+      display: block;
     }
   }
 
