@@ -267,13 +267,14 @@ An audit found the project strong on rigour and weak on reach: no analytics, no 
 - **Site.** Forecasts first: home and navigation lead with this round's calls and the running record. Stats pages stay as support; no new stats pages.
 - **Portfolio.** For ML engineering and sports analytics roles equally: the README for engineers (system and rigour), one blog post for analysts (what a season of calls taught).
 - **Done 2026-11-03:** Cloudflare Web Analytics, Sentry and Google Search Console set up by the owner; CSP allows the analytics and Sentry hosts; branded 404 for unknown URLs (Worker `not_found_handling: 404-page`); feed items link to their round; About says "since 2007-08"; home uses "call" wording and explains Brier and log loss; visitor-facing empty states.
-- **Open (owner):** the Cloudflare analytics beacon is not injected (the site is a Worker, not Pages): add the snippet with the site token, and a privacy line on the About page (REACH decision 10).
+- **Analytics beacon (checked 2026-11-10):** injected. The live home page and About page load `static.cloudflareinsights.com/beacon.min.js` with the site token in the served HTML (fetched with a browser User-Agent; the owner's 2026-11-03 note says the beacon is auto-injected).
+- **Open (owner):** a privacy line on the About page (REACH decision 10). Not in `web/src/pages/about/index.astro` on 2026-11-10, and not on the live About page.
 
 Batches, run one at a time by agents, each reviewed, checklist-green and merged before the next:
 
 | Batch | Scope | Status |
 |---|---|---|
-| 1 Model trim | Retire POOL, POOL3, ELOR as above | In progress |
+| 1 Model trim | Retire POOL, POOL3, ELOR as above | Done (ac5d666) |
 | 2 Front end | Share images for played games, forecast and team pages; forecast grid without sideways scroll on phones; chart labels above 11 px; remaining "picked" wording on /forecasts and the glossary; social links (once the accounts exist) | Planned |
 | 3 Back end | Daily-job failure alert (GitHub issue on a failed run or a soft-failed step); season derived from the date instead of hard-coded 2026; repo cleanup (one-off scripts, stop committing the 24.6 MB `reports/backtest_m6_players.csv`, vulture whitelist); Dockerfile and API kept, documented and built in CI | Planned |
 | 4 README | Results first (live record, chart, link), short, a glossary for model names, correct test count | Planned |
