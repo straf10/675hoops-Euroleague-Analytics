@@ -4,6 +4,7 @@
 import raw from "../../data/site.json";
 import type { Competition, SiteData } from "../format";
 import { gameSvg } from "./game";
+import { resultSvg } from "./result";
 import { openRoundSvg, recapSvg } from "./round";
 import { openRoundCards, recapCards, roundCardNames, utcStamp } from "./rounds";
 
@@ -26,6 +27,24 @@ function modelName(c: Competition): string {
 /** Game preview cards: one per logged game still to play. */
 export function gameCards(c: Competition) {
   return c.upcoming.map((g) => ({ id: g.game_id, game: g, loggedAt: utcStamp(g.predicted_at_utc) }));
+}
+
+/** Result cards: one per played game of the live season. */
+export function resultCards(c: Competition) {
+  return c.results;
+}
+
+/** Whether a played game has a result card, by its game id. */
+export function hasResultCard(id: string): boolean {
+  return euroleague()?.results.some((r) => r.game_id === id) ?? false;
+}
+
+/** The SVG of one result card by its game id, or null. */
+export function resultSvgFor(id: string): string | null {
+  const c = euroleague();
+  const game = c?.results.find((r) => r.game_id === id);
+  if (!c || !game) return null;
+  return resultSvg(game, modelName(c));
 }
 
 /** The SVG of a round card by its route name ("round-4" for an open round, "round-4-recap" for a

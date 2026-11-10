@@ -31,6 +31,7 @@ import {
 const REPO = "https://github.com/straf10/675hoops-Euroleague-Analytics";
 import { sportsEvent, type JsonLdObject } from "../../../lib/jsonld";
 import { gameTitle, percent as chancePercent, preGameHomeChance, type PreGameRow } from "../../../lib/gametitle";
+import { hasResultCard } from "../../../lib/cards/site";
 import site from "../../../data/site.json";
 
 // The headline model's calls for every EuroLeague game, logged before tip-off (read-only).
@@ -181,7 +182,11 @@ const controlLabels: Record<(typeof CONTROL_ORDER)[number], string> = {
 };
 ---
 
-<Base title={title} description={description}>
+<Base
+  title={title}
+  description={description}
+  image={hasResultCard(gameId) ? { path: `/cards/results/${gameId}.png`, width: 1200, height: 630 } : undefined}
+>
   {
     jsonLd && <JsonLd data={jsonLd} />
   }
