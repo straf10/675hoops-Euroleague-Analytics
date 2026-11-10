@@ -8,7 +8,7 @@ Rule in force for 2026-27: R1 v1, unchanged.
 Code: `scripts/r1_power.py` (writes `reports/r1_power.json`), `src/eurohoops/eval/r1_power.py`, `tests/test_r1_power.py`. The rule itself is `eval/promotion.py`. The bootstrap upper bound here equals `bootstrap_ci` exactly.
 
 **R1 rule.** Promote at the first look where the two-sided 97.5% paired-bootstrap CI of the mean per-game log-loss gap (flagship minus Elo) has an upper bound below 0, and the mean is -0.01 or lower. 10,000 resamples, seed 20261009.
-- EuroLeague: M5 vs Elo, looks after round 19 and at season end.
+- Applied by `eurohoops promote-check`: every active shadow is tested against Elo, each with its own paired bootstrap (`eval/promotion.py`, `run_look`). Looks: after EuroLeague round 19 and at season end. This report models one pair, M5 vs Elo.
 
 **Per-game gap SD.** From the backtest per-game files (`reports/backtest_m5_games.csv`), using the variants the R1 look reports use. The per-game means reproduce the published validation and test values.
 
