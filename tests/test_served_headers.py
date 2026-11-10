@@ -51,7 +51,7 @@ INLINE_STYLES = (
     "sha256-3VHKYji75kuiFssporufcP+6w5EcyUUt4PlBkzIUaNw=",
     "sha256-RiaHRjII1AWyN9iza9wc/54k0/fNNUEBUFuwO9EGwPs=",
     "sha256-Ve+uJcTrDrjKm+oHxbdk4urfzA7dyEa8XxkyIyT4qAM=",
-    "sha256-PqlzF5K7IdVI+JPJgsxUJ/6scFiNFJbSY4kLIUwdhQ8=",
+    "sha256-AnA5/QwE7jIxgQUJ6eigcKCnlKoqx9SYGqEJg9AN4d0=",
     "sha256-SAukp5KlkzID2R3tCbohD0UIQYp5W2IK53Vt2jxNNDc=",
 )
 # The one inline event handler value (onsubmit="return false" on the six forms).
