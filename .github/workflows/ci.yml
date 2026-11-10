@@ -110,3 +110,12 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  # Builds the API image from the Dockerfile (docs/api.md). It does not run or push the image.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the API image (no push)
+        run: docker build --tag eurohoops-api:ci .

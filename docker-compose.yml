@@ -12,6 +12,10 @@ services:
       - ./data:/srv/eurohoops/data:ro
       - ./reports:/srv/eurohoops/reports:ro
       - ./predictions:/srv/eurohoops/predictions:ro
+      # committed inputs the routes read: the player crosswalk, the odds log, the injury log
+      - ./entity:/srv/eurohoops/entity:ro
+      - ./odds:/srv/eurohoops/odds:ro
+      - ./injuries:/srv/eurohoops/injuries:ro
     read_only: true
     tmpfs:
       - /tmp

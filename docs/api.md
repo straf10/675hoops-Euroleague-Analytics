@@ -34,11 +34,16 @@ also adds M7's verdict to its 404 body. No birth date or age is in any response.
 ```bash
 docker compose up            # builds the image, then serves http://localhost:8000
 # http://localhost:8000/docs  is the interactive schema
+docker build -t eurohoops-api .   # the image alone (the Dockerfile at the repository root)
 ```
 
-`docker-compose.yml` mounts `data/`, `reports/` and `predictions/` **read-only** into a read-only
-container, so the API cannot write a file even by mistake. `data/` is not in the repository, so run
+`docker-compose.yml` mounts `data/`, `reports/`, `predictions/`, `entity/`, `odds/` and `injuries/`
+**read-only** into a read-only container, so the API cannot write a file even by mistake. The API
+binds to `127.0.0.1` on the host, and it has no auth. `data/` is not in the repository, so run
 the pipeline first (`uv run eurohoops ingest`, then `build`; see the README).
+
+The `ci.yml` job `docker` runs `docker build` on pull requests, on pushes to main and nightly. It does not run the
+container or push the image.
 
 Without Docker:
 
