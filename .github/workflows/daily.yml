@@ -259,3 +259,37 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.149.0"
           command: deploy
+
+  # Opens an issue (or comments on the open one) when a job or step of this run failed. A step that
+  # is continue-on-error and failed shows as a failed step here, though its job still passes.
+  # Only this job has a write token for issues; it reads the run's jobs and steps through gh.
+  alert:
+    needs: [predict, build-site, deploy-page]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open or update the failure issue
+        run: |
+          failed=$(gh api --paginate "repos/$REPO/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion == "failure")
+              | "- job \(.name): " + ([.steps[]? | select(.conclusion == "failure") | .name] | join(", "))')
+          if [ -z "$failed" ]; then
+            echo "No failed job or step in this run."
+            exit 0
+          fi
+          body=$(printf 'The daily run failed. Failed jobs and steps:\n\n%s\n\nRun: %s\n' "$failed" "$RUN_URL")
+          existing=$(gh issue list --repo "$REPO" --state open --search 'in:title "Daily run failed"' \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "$body"
+          else
+            gh issue create --repo "$REPO" --title "Daily run failed" --body "$body"
+          fi
