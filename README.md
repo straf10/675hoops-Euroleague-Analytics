@@ -88,7 +88,7 @@ uv run pytest -q -n auto --dist loadfile --cov=eurohoops --cov-fail-under=85
 uv run vulture src scripts/vulture_whitelist.py --min-confidence 60
 ```
 
-TESTCOUNT_PLACEHOLDER tests run in CI.
+1,816 tests run in CI (checked 2026-11-10).
 
 ## Repository layout
 
