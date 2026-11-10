@@ -36,7 +36,21 @@ A rounds 1–5 CI entirely below 0 is reported as "early shift, opposite directi
 **Command.** `uv run python scripts/diag_early_totals.py --season 2026`. It reads `data/marts/eurohoops.duckdb`, `odds/euroleague_2026-27.csv` and `predictions/euroleague_m1_2026-27.csv` read-only, and writes only the report JSON.
 
 ## Results
-None yet.
+Run 2026-11-10 on live 2026-27 data: `uv run python scripts/diag_early_totals.py --season 2026`. Report: `reports/diag_early_totals.json`.
+
+Scored games: 100 (rounds 1–10). No line: 46. No M1 total: 10. Odds snapshots after tip-off ignored: 0.
+
+| Bucket | Games | With line | With M1 | n (shared) | Line mean, 95% CI | M1 mean, 95% CI |
+|---|---|---|---|---|---|---|
+| 1–5 | 50 | 25 | 40 | 22 | −0.375, [−6.83, 6.53] | 0.383, [−6.51, 7.74] |
+| 6–10 | 50 | 29 | 50 | 29 | 0.241, [−7.24, 7.48] | −0.322, [−7.89, 6.99] |
+| 11+ | 0 | 0 | 0 | 0 | not testable | not testable |
+
+Verdict per the script: early bias present = no (line), no (M1). Early shift opposite = no (line), no (M1).
+
+**Pass bar: not met for rounds 1–5.** Both CIs include 0, so neither the line nor M1 passes the rounds 1–5 test. **Rounds 11+ not testable yet** (0 games). Re-run after round 11 is played.
+
+Limits seen in this run: only 22 games share a line and an M1 total in rounds 1–5. The CI half-width is about ±6.5 points, far wider than the expected bias size.
 
 ## Files
 - Script: `scripts/diag_early_totals.py` (to be run).

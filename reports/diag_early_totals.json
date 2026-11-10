@@ -1,0 +1,75 @@
+{
+  "season": 2026,
+  "games": {
+    "scored": 100,
+    "no_line": 46,
+    "no_m1": 10,
+    "odds_snapshots_after_tipoff_ignored": 0
+  },
+  "buckets": {
+    "1-5": {
+      "games": 50,
+      "with_line": 25,
+      "with_m1": 40,
+      "n": 22,
+      "line": {
+        "mean": -0.375,
+        "ci95": [
+          -6.82983,
+          6.534091
+        ]
+      },
+      "m1": {
+        "mean": 0.383182,
+        "ci95": [
+          -6.513227,
+          7.742795
+        ]
+      }
+    },
+    "6-10": {
+      "games": 50,
+      "with_line": 29,
+      "with_m1": 50,
+      "n": 29,
+      "line": {
+        "mean": 0.241379,
+        "ci95": [
+          -7.241379,
+          7.48319
+        ]
+      },
+      "m1": {
+        "mean": -0.321724,
+        "ci95": [
+          -7.891388,
+          6.986241
+        ]
+      }
+    },
+    "11+": {
+      "games": 0,
+      "with_line": 0,
+      "with_m1": 0,
+      "n": 0,
+      "line": {
+        "mean": null,
+        "ci95": null
+      },
+      "m1": {
+        "mean": null,
+        "ci95": null
+      }
+    }
+  },
+  "verdict": {
+    "line": {
+      "early_bias_present": false,
+      "early_shift_opposite": false
+    },
+    "m1": {
+      "early_bias_present": false,
+      "early_shift_opposite": false
+    }
+  }
+}
