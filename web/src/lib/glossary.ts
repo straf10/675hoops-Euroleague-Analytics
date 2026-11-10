@@ -317,7 +317,7 @@ export const TERMS: GlossaryTerm[] = [
   },
   {
     id: "picks-right",
-    term: "Picks right, Picked the winner",
+    term: "Called right",
     group: "Forecasts",
     def: "How often the favourite won. A forecast is right when the side given more than a 50% chance wins the game.",
     shownOn: [FC],

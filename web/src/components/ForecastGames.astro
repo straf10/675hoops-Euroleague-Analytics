@@ -272,6 +272,20 @@ const groups = [...new Map(games.map((g) => [keyOf(g), g])).entries()].map(([val
     th {
       padding-right: 8px;
     }
+    /* No fixed 640px floor on phones: the columns share the width and the date and call wrap. */
+    table {
+      min-width: 0;
+      table-layout: auto;
+    }
+    .w-date,
+    .w-score,
+    .w-call {
+      width: auto;
+    }
+    td.date,
+    td.call {
+      white-space: normal;
+    }
   }
   @media (max-width: 720px) {
     .team .name {

@@ -67,7 +67,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
             <p class="who">{label}</p>
             <p class="big">{share(ours.right_pct)}</p>
             <p class="what">
-              Picked the winner in <b>{rightText(ours)}</b> games
+              Our call was right in <b>{rightText(ours)}</b> games
             </p>
           </div>
         </section>
@@ -126,7 +126,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                     Games
                   </th>
                   <th scope="col" class="n">
-                    Picked the winner
+                    Called right
                   </th>
                   <th
                     scope="col"
@@ -179,7 +179,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
                       Games
                     </th>
                     <th scope="col" class="n">
-                      Picked the winner
+                      Called right
                     </th>
                     <th scope="col" class="n">
                       Brier score
@@ -210,7 +210,7 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
         <section aria-labelledby={`fc-rounds-${comp.key}`}>
           <h3 id={`fc-rounds-${comp.key}`}>Round by round</h3>
           <p class="sub">
-            Newest first. Each cell is the winners picked, then the Brier score (lower is better). Every model
+            Newest first. Each cell is the calls right, then the Brier score (lower is better). Every model
             is counted on the games it called.
           </p>
           <div class="scroll">
@@ -408,6 +408,16 @@ const hasContent = !!(fc && model && season && season.n > 0 && ours);
     }
     .mid {
       font-size: 2rem;
+    }
+    /* Record tables fit a phone: no 28rem floor, narrower gutters, cells may wrap. */
+    table.plain {
+      min-width: 0;
+    }
+    table.plain th,
+    table.plain td,
+    table.plain tbody th {
+      padding-right: 12px;
+      white-space: normal;
     }
   }
 
