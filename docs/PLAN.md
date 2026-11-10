@@ -2,6 +2,8 @@
 
 *Target roles: ML Engineer + Sports Analyst*
 
+*The live season is derived from the date (`season_for` in `src/eurohoops/config.py`, from 1 August); `EUROHOOPS_SEASON` overrides it.*
+
 ---
 
 ## 0. Pitch

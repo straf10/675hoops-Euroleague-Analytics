@@ -11,13 +11,13 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from eurohoops.config import EUROLEAGUE, MART_PATH
+from eurohoops.config import EUROLEAGUE, LIVE_SEASON, MART_PATH, season_label
 from eurohoops.eval.early_totals import build_report
 from eurohoops.logs import write_json
 
 REPO = Path(__file__).resolve().parent.parent
-ODDS = REPO / "odds" / "euroleague_2026-27.csv"
-M1_LOG = REPO / "predictions" / "euroleague_m1_2026-27.csv"
+ODDS = REPO / "odds" / f"euroleague_{season_label(LIVE_SEASON)}.csv"
+M1_LOG = REPO / "predictions" / f"euroleague_m1_{season_label(LIVE_SEASON)}.csv"
 OUT_JSON = REPO / "reports" / "diag_early_totals.json"
 
 

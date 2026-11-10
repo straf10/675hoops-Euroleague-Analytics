@@ -1,17 +1,31 @@
 """Competitions, their seasons, backtest splits and file locations (relative to the repo root)."""
 
+import os
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from eurohoops.models.elo import EloParams
-
-LIVE_SEASON = 2026
 
 
 def season_label(season: int) -> str:
     """``2026`` -> ``"2026-27"``."""
     return f"{season}-{(season + 1) % 100:02d}"
+
+
+def season_for(d: date) -> str:
+    """The season holding ``d``: from 1 August ``2026-27``, until 31 July ``2025-26``."""
+    start = d.year if d.month >= 8 else d.year - 1
+    return season_label(start)
+
+
+def _live_season() -> int:
+    """Live season start year; the ``EUROHOOPS_SEASON`` label (e.g. ``2026-27``) overrides it."""
+    label = os.environ.get("EUROHOOPS_SEASON") or season_for(date.today())
+    return int(label.split("-")[0])
+
+
+LIVE_SEASON = _live_season()
 
 
 SITE_SEASONS = 20  # site EuroLeague seasons, latest first (20 = all since 2007-08); not model input
@@ -191,7 +205,7 @@ EUROLEAGUE = Competition(
         datetime(2026, 9, 24, 16, 24, 29, tzinfo=UTC),  # branch creation, round-1 rows v0.1.0
         datetime(2026, 9, 24, 20, 29, 32, tzinfo=UTC),  # round-1 rows v0.2.0
     ),
-    odds_log=Path("odds/euroleague_2026-27.csv"),
+    odds_log=Path(f"odds/euroleague_{season_label(LIVE_SEASON)}.csv"),
     m1=M1Backtest(
         Path("reports/backtest_m1.json"),
         warmup=_seasons(2007, 2014),
@@ -199,7 +213,7 @@ EUROLEAGUE = Competition(
         validation=(2023,),
         test=(2024, 2025),
     ),
-    inputs_log=Path("predictions/euroleague_inputs_2026-27.csv"),
+    inputs_log=Path(f"predictions/euroleague_inputs_{season_label(LIVE_SEASON)}.csv"),
 )
 
 # EuroCup (API code U): research data only (experiments/eurocup.md). It has no live log, no

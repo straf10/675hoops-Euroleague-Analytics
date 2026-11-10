@@ -1,8 +1,12 @@
 import json
+import os
 import shutil
 import time
 from pathlib import Path
 from typing import Any
+
+# Pin the live season before eurohoops.config reads it, so tests do not drift with the date.
+os.environ["EUROHOOPS_SEASON"] = "2026-27"
 
 import numpy as np
 import pandas as pd

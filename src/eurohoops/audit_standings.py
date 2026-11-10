@@ -12,10 +12,11 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 from eurohoops.audit import Finding
+from eurohoops.config import LIVE_SEASON, season_label
 
 POINTS_REGULATION = "points are regulation only: standings omit the overtime points"
 SEASON_CANCELLED = "season cancelled (COVID, 2019-20): no final standings were published"
-LIVE = "live season 2026-27: standings not final yet"
+LIVE = f"live season {season_label(LIVE_SEASON)}: standings not final yet"
 FROM_RESULTS = (
     "no standings file; the site ranks the season from its results "
     "(stats.export.regular_season_standings falls back to standings.rank)"
@@ -185,7 +186,7 @@ def standings_findings(
             continue
         if season == 2019:
             reasons[SEASON_CANCELLED] = reasons.get(SEASON_CANCELLED, 0) + 1
-        elif season == 2026:
+        elif season == LIVE_SEASON:
             reasons[LIVE] = reasons.get(LIVE, 0) + 1
         else:
             reasons[FROM_RESULTS] = reasons.get(FROM_RESULTS, 0) + 1
