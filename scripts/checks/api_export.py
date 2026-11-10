@@ -57,9 +57,11 @@ from eurohoops.config import (
     SITE_FORECAST_MODEL,
 )
 from eurohoops.eval.forecasts import build_forecasts
+from eurohoops.ingest.bios import el_people_path
 from eurohoops.logs import write_json
 from eurohoops.marts import data_volume, read_games, read_teams
 from eurohoops.model_catalog import active_logs
+from eurohoops.models.roster import read_rosters
 from eurohoops.publish import DISPLAY_CODES, Section, site_data
 from eurohoops.stats.assists import game_assists
 from eurohoops.stats.box import build_box_games
@@ -67,6 +69,7 @@ from eurohoops.stats.export import (
     Inputs,
     build_payloads,
     load_cached_games,
+    load_cached_standings,
     site_window,
     write_stats,
 )
@@ -131,6 +134,8 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
         teams = read_teams(MART_PATH, EUROLEAGUE.name)
     box = build_box_games(raw_dir, games)
     assists = game_assists(raw_dir, games[games["played"]])
+    seasons = (int(s) for s in box.players["season"].unique())
+    rostered = [s for s in seasons if el_people_path(raw_dir, s).exists()]
     inputs = Inputs(
         games=games,
         names=dict(teams.itertuples(index=False)),
@@ -153,6 +158,8 @@ def legacy_stats(out: Path, now: datetime, raw_dir: Path, *, from_cache: bool) -
         ),
         assists=assists,
         win_shares=box_win_shares(box.players, box.teams),
+        official_standings=load_cached_standings(raw_dir),
+        roster=read_rosters(raw_dir, sorted(rostered)),
     )
     write_stats(out, build_payloads(inputs, now))
 
