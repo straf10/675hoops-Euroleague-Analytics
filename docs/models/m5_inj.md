@@ -68,7 +68,8 @@ Matching counts by BasketNews status (1,031 rows, 11 snapshots):
 
 Latest snapshot (2026-10-22 11:00Z): 86 of 102 rows match and 16 do not, 13 of them `Out` (of 43 `Out` rows).
 
-No scored results yet.
+The live score is in `reports/live_scorecard.json` (key `m5inj`) and is updated by each daily run.
+On 2026-11-10 it was n = 33, log loss 0.683324, against Elo 0.648105 on the same games.
 
 ## Feed audit (2026-11-03)
 Checked `injuries/euroleague_2026-27.csv` (25 snapshots, 2,451 rows, 2026-10-07 to 2026-11-03 11:00Z). Read-only; no code or log changed.

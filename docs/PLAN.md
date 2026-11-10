@@ -40,7 +40,7 @@ Options: OddsPortal archives (JS-heavy, ToS grey), The Odds API historical (paid
 
 ### 1.4 Not usable / out of scope
 - Tracking data (SportVU-style) is not public for Europe, so no EPV or defensive-tracking models.
-- No official pre-game injury or availability feed. BasketNews injury reports have been recorded from the owner's PC since 2026-10-07 but no model uses them yet (§5.6).
+- No official pre-game injury or availability feed. BasketNews injury reports have been recorded from the owner's PC since 2026-10-07. Only the M5-INJ shadow uses them (`docs/models/m5_inj.md`).
 
 ---
 
@@ -176,7 +176,7 @@ Evaluation and promotion rules: CLAUDE.md. Experiment process: workflow.md.
 - Player level: mixed model of per-100-possession rates (and SPM) with competition fixed effects and player random effects → translation factors per stat, with uncertainty.
 
 ### 5.6 M5 — Game predictor v2 (roster-aware)
-- Availability: no injury feed used yet (BasketNews snapshots recorded since 2026-10-07, not used by any model). Two variants are reported: (a) projected roster (from recent rotations; usable live), (b) oracle roster (who actually played; upper bound, labelled as such, not used for the live log).
+- Availability: no injury feed used by M5 (BasketNews snapshots recorded since 2026-10-07; only the M5-INJ shadow uses them, `docs/models/m5_inj.md`). Two variants are reported: (a) projected roster (from recent rotations; usable live), (b) oracle roster (who actually played; upper bound, labelled as such, not used for the live log).
 - Blend with M1 and Elo; pick by log loss on validation; recalibrate.
 - Outputs: P(win), expected margin (spread), expected total with distribution → over/under probabilities for any line.
 
