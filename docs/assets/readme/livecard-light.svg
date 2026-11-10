@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 300" width="560" height="300" role="img" aria-labelledby="livecard-title livecard-desc"><title id="livecard-title">Live record chart</title><desc id="livecard-desc">Elo and the home-win baseline on 98 live games. Elo log loss 0.639 against 0.718; Elo Brier 0.225 against 0.262. Lower is better.</desc><style>svg{--paper:#f9f9f7;--ink:#111110;--ink-soft:#52514e;--muted:#6d6b66}
+svg text{font-family:'Geist','Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif}
+svg .title{font-size:14px;font-weight:600;fill:#111110}
+svg .note{font-size:12px;font-style:italic;fill:#6d6b66}
+svg .group{font-size:12px;font-weight:600;fill:#111110}
+svg .lab{font-size:12px;fill:#52514e}
+svg .val{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600}
+svg .foot{font-size:11px;fill:#6d6b66}</style><rect width="100%" height="100%" rx="8" fill="#f9f9f7"/><text x="24" y="30" class="title">Live record, data to 8 Nov 2026 · n = 98 games</text>
+<text x="24" y="50" class="note">Lower is better</text>
+<text x="24" y="84" class="group">Log loss</text>
+<text x="24" y="110" class="lab">Elo (published)</text>
+<rect x="176" y="94" width="271.7" height="26" rx="3" fill="#d9590b"/>
+<text x="439.7" y="112" class="val" text-anchor="end" fill="#111110">0.639</text>
+<text x="24" y="144" class="lab">Home-win baseline</text>
+<rect x="176" y="128" width="305.3" height="26" rx="3" fill="#c3c2b7"/>
+<text x="473.3" y="146" class="val" text-anchor="end" fill="#111110">0.718</text>
+<text x="24" y="186" class="group">Brier score</text>
+<text x="24" y="212" class="lab">Elo (published)</text>
+<rect x="176" y="196" width="254.9" height="26" rx="3" fill="#d9590b"/>
+<text x="422.9" y="214" class="val" text-anchor="end" fill="#111110">0.225</text>
+<text x="24" y="246" class="lab">Home-win baseline</text>
+<rect x="176" y="230" width="297.1" height="26" rx="3" fill="#c3c2b7"/>
+<text x="465.1" y="248" class="val" text-anchor="end" fill="#111110">0.262</text>
+<line x1="176" y1="88" x2="176" y2="262" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="282" class="foot">Bars start at 0. Figures: reports/live_scorecard.json.</text></svg>
