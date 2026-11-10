@@ -10,12 +10,17 @@ Live site: https://675hoops.com/ · "6.75" is the FIBA three-point distance in m
 
 Data through **8 November 2026**. **98 EuroLeague games** scored in the 2026-27 season.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/livecard-dark.svg">
+  <img src="docs/assets/readme/livecard-light.svg" width="560" height="300" alt="Bar chart of live scores. Elo: log loss 0.639, Brier 0.225. Home-win baseline: log loss 0.718, Brier 0.262. Lower is better.">
+</picture>
+
 | Forecaster | Games | Log loss (lower is better) | Brier (lower is better) | Called right |
 |---|---:|---:|---:|---:|
 | **Elo** (our published model) | 98 | 0.639 | 0.225 | 60% |
 | Home-win baseline (always the home side) | 98 | 0.718 | 0.262 | 52% |
 
-Source: the figures on https://675hoops.com/ as read on 10 November 2026. The game count matches a local count of the scored rows in `predictions/euroleague_2026-27.csv` (100 games logged, 2 not scored because their forecast was not public before tip-off).
+The numbers come from [`reports/live_scorecard.json`](reports/live_scorecard.json), which the daily run rebuilds. The same figures are on the live site at https://675hoops.com/. The game count matches a local count of the scored rows in `predictions/euroleague_2026-27.csv` (100 games logged, 2 not scored because their forecast was not public before tip-off).
 
 ## How it works
 
