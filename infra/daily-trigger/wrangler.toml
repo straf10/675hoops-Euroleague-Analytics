@@ -1,0 +1,13 @@
+name = "hoops675-daily-trigger"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+[triggers]
+# 05:17 UTC, after the last game of the night, before the European morning.
+crons = ["17 5 * * *"]
+
+[vars]
+REPO = "straf10/675hoops-Euroleague-Analytics"
+WORKFLOW = "daily.yml"
+REF = "main"
