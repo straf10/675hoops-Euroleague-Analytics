@@ -26,12 +26,13 @@ INLINE_CLASSIC_SCRIPTS = (
     "sha256-pyGYNgq1qjnE74Nfn7vOjYILf+6aXRdAYQ9KW1PMqq0=",
 )
 INLINE_MODULE_SCRIPTS = (
-    "sha256-xgSk0IDYYG/DS1VIRnl114BfaFMXTQKVoXm7t1vJry8=",
-    "sha256-nKSaiUdtxwgVa14cQMj3eRojfWbYQ7EtqBx2JlGYbb0=",
-    "sha256-ad2rG/N15GvMqs0XOyqzRv1u/RowYSJNOMih+bS9WuA=",
     "sha256-EGBjaXg8dtKFMiUnFzns5J6Ig0uUlMfnaHZb5KaA+LI=",
     "sha256-EHIzbbOJQ4Ko4zjCvFuDvGdjhgq/zu/6c+m3ubvyVIE=",
     "sha256-aTvU5lg6RK40Uw3jBonx1QPgoAWus+ZvLuIEEHnW2y8=",
+    "sha256-1r9OM0aBN/v81yeR84p3f4Ln+eEemhxyOM3sEoV3FaY=",
+    "sha256-HWi/qCyAmq7zSN363PLNZjc6i0aIdijKzgCqMhD1wK4=",
+    "sha256-pWfZIqSLn4cQzVAaqAZZPjhMlR5P87Uq/FENUr/8S+I=",
+    "sha256-FiufgVSux4vYcK+IXqHUxfTADb0NRTpmCkPBpUdXcqQ=",
 )
 # Third parties: Cloudflare Web Analytics (beacon script injected at the edge, and the endpoint it
 # reports to) and the Sentry ingest host from PUBLIC_SENTRY_DSN.
@@ -46,13 +47,12 @@ INLINE_STYLES = (
     "sha256-E1ERnBcJxUL3Plf46fcXhYOoEnSSSW6G1vNhqHbGObc=",
     "sha256-gpr1Z9U9/Z8o+u3Zx+u+fW9KImdXNZkJxI1W29dRbo8=",
     "sha256-BRkE0xdd7PtFxOVHUDaUQWqGyP01OuLMgv8CFnAPpfQ=",
-    "sha256-93BxOspgmc9pWaf5BNjt3eBaq6PDnW4HrnkFqrXL4Ec=",
     "sha256-3ZQr6yisei1eayV0w85Tn4+Ie+uCebE/NS8jxw92Vfg=",
     "sha256-3VHKYji75kuiFssporufcP+6w5EcyUUt4PlBkzIUaNw=",
     "sha256-RiaHRjII1AWyN9iza9wc/54k0/fNNUEBUFuwO9EGwPs=",
     "sha256-Ve+uJcTrDrjKm+oHxbdk4urfzA7dyEa8XxkyIyT4qAM=",
-    "sha256-BzJzNqBsVuVqGclxropbafd008EOtOo18GVG9fHLckU=",
-    "sha256-1xByH+lTH9WsDA3AnikgiQ+CeT4fqaNpfm2iFCq/3YI=",
+    "sha256-PqlzF5K7IdVI+JPJgsxUJ/6scFiNFJbSY4kLIUwdhQ8=",
+    "sha256-SAukp5KlkzID2R3tCbohD0UIQYp5W2IK53Vt2jxNNDc=",
 )
 # The one inline event handler value (onsubmit="return false" on the six forms).
 INLINE_HANDLER = "sha256-GZIcz60Uwd6wT3vaYke/atSr53TehbYAPepOa3d03Vw="
