@@ -174,3 +174,8 @@ elo_vs_b0
 from eurohoops.eval.eurocup import m1_vs_elo_b0  # noqa: E402
 
 m1_vs_elo_b0
+
+# mref diagnostic (experiments/mref.md): scripts/diag_mref.py is the caller
+from eurohoops.eval.mref import build_report as mref_build_report  # noqa: E402
+
+mref_build_report

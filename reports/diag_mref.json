@@ -1,0 +1,24 @@
+{
+  "season": 2026,
+  "look": 1,
+  "last_round": 19,
+  "status": "look 1 not due: 90 game(s) of rounds 1-19 are not played yet",
+  "models": {
+    "m1": {
+      "n": 51,
+      "gap_sd": 0.013458
+    },
+    "m5": {
+      "n": 41,
+      "gap_sd": 0.030974
+    },
+    "m5inj": {
+      "n": 20,
+      "gap_sd": 0.047315
+    },
+    "eloh": {
+      "n": 14,
+      "gap_sd": 0.0227
+    }
+  }
+}
