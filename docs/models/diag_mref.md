@@ -34,4 +34,6 @@ Before a checkpoint is complete, the report gives only `n` and the standard devi
 - Tests: `tests/test_mref.py`.
 
 ## Results
-None yet. Look 1 not due.
+Look 1 is not due: 90 games of rounds 1-19 are not played yet. The first report (`reports/diag_mref.json`) gives only n and the SD of the gap: M1 51 games (SD 0.0135), M5 41 (0.0310), M5-INJ 20 (0.0473), ELOH 14 (0.0227). No mean, CI or verdict is reported yet.
+
+At about 5 shared games per round for M1, the 100-game minimum is not certain to be met at Look 1. A model with fewer than 100 shared games gets "not testable".
