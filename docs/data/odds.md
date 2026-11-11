@@ -42,6 +42,8 @@ now in the map with `verified=yes`; the other 29 candidates stay `verified=no`.
 | `odds/api_calls.csv` | one row per API call: status, cost, used, remaining, events, rows written | yes |
 | `odds/euroleague_teams.csv` | explicit API team name → EuroLeague code map | yes |
 
+Until 2026-11-11 the map did not hold the provider's names for MUN, ZAL, RED, BAR and ASV, so games of these five clubs have no odds row before that date. The log is append-only, so those games stay without a market probability.
+
 Consensus row: `game_id, season, round, tipoff_utc, home, away, commence_utc, fetched_at_utc,
 bookmakers, p_home, spread_books, spread_home, total_books, total`.
 - `p_home` is the **median de-vigged P(home)** over bookmakers with an exact two-way
