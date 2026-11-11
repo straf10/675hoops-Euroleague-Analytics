@@ -35,11 +35,27 @@ function Write-Attempt([string]$Status, [int]$Rows, [string]$Sha) {
     Add-Content -Path $AttemptLog -Value $line -Encoding utf8
 }
 
+# The attempt log has no free field for error text, so a failed dispatch's gh message goes to
+# injury_dispatch_errors.log next to it. A failure here is only a warning.
+function Write-DispatchError([string]$Sha, [string]$Text) {
+    try {
+        $clean = $Text -replace "[\t\r\n]", " "
+        if ($clean.Length -gt 300) { $clean = $clean.Substring(0, 300) }
+        $stamp = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        $dir = Split-Path $AttemptLog -Parent
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+        Add-Content -Path (Join-Path $dir "injury_dispatch_errors.log") -Value "$stamp`t$Sha`t$clean" -Encoding utf8 -ErrorAction Stop
+    }
+    catch {
+        Write-Warning "could not write injury_dispatch_errors.log: $($_.Exception.Message)"
+    }
+}
+
 # After a pushed snapshot, asks daily.yml for a prediction run on it (injury_refresh=true: no odds
 # call). Never fails the recorder: the snapshot is already pushed, so every problem is a warning.
 function Request-DailyRun([string]$Sha) {
     if ($WhatIf) {
-        Write-Host "[WhatIf] gh workflow run daily.yml --ref main --json (injury_refresh=true)"
+        Write-Host "[WhatIf] gh workflow run daily.yml --ref main -f injury_refresh=true"
         return
     }
     $prev = $ErrorActionPreference
@@ -56,11 +72,12 @@ function Request-DailyRun([string]$Sha) {
             Write-Attempt "dispatch_skipped" 0 $Sha
             return
         }
-        # --json sends injury_refresh as a JSON boolean (-f would send the string "true").
-        $dOut = ('{"injury_refresh": true}' | gh workflow run daily.yml --ref main --json 2>&1 | ForEach-Object { "$_" }) -join " "
+        # gh workflow run --json accepts only string values, so the input goes as a raw field; GitHub turns "true" into the boolean of the typed input.
+        $dOut = (gh workflow run daily.yml --ref main -f injury_refresh=true 2>&1 | ForEach-Object { "$_" }) -join " "
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "gh workflow run failed (exit $LASTEXITCODE): $dOut"
             Write-Attempt "dispatch_failed" 0 $Sha
+            Write-DispatchError $Sha $dOut
             return
         }
         Write-Host "Triggered daily.yml (injury_refresh=true): $dOut"
@@ -69,6 +86,7 @@ function Request-DailyRun([string]$Sha) {
     catch {
         Write-Warning "daily prediction run not triggered: $($_.Exception.Message)"
         Write-Attempt "dispatch_failed" 0 $Sha
+        Write-DispatchError $Sha $_.Exception.Message
     }
     finally {
         $ErrorActionPreference = $prev
