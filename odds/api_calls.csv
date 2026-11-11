@@ -85,3 +85,4 @@ called_at_utc,status,cost,requests_used,requests_remaining,events,rows_written
 2026-11-09T17:50:41Z,200,3,33,467,10,5
 2026-11-10T15:49:40Z,200,3,36,464,10,5
 2026-11-10T19:58:39Z,200,3,39,461,10,5
+2026-11-11T15:39:40Z,200,3,42,458,10,10
