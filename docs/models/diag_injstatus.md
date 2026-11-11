@@ -1,6 +1,21 @@
 # Diagnostic: played rate by BasketNews status (B3)
 
-Status: diagnostic. Spec: `experiments/injstatus.md`. Results: none yet.
+Status: diagnostic. Spec: `experiments/injstatus.md`. Result: 2026-11-11 (rounds 1-10).
+
+## Results
+Played rate, EuroLeague 2026-27 (`reports/diag_injstatus.json`):
+
+| Status | Player-games (n) | Played | Rate | 95% CI |
+|---|---|---|---|---|
+| Out | 154 | 1 | 0.6% | 0.1% to 3.6% |
+| Uncertain | 167 | 35 | 21.0% | 15.5% to 27.7% |
+| Expected | 37 | 31 | 83.8% | 68.9% to 92.3% |
+
+Below 30 player-games, n only: Doubtful 18, Game-time 18, Ready 11.
+
+- Coverage: rounds 1-10, 100 games, 200 club sides. 92 of 200 club sides had a snapshot inside 24 hours before tip-off.
+- 65 of 470 listings (14%) did not match a roster player. They are not in the rates.
+- The numbers are descriptive and change no model.
 
 ## What it is
 This diagnostic asks one question. When BasketNews lists a player with a status, how often does he play in his club's next game?
