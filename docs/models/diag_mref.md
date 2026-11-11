@@ -17,10 +17,14 @@ The result of a game is noisy. This diagnostic scores each live shadow against t
 
 **Games.** Finished, non-forfeit games with a pre-tip odds row and a scored row in both the model log and the Elo log.
 
+**Logged rows.** The script takes each model's row, and Elo's, with `eval.forecasts._calls`: the rule of the public forecast record. That is the earliest model version's latest row stamped before tip-off. Late rows are dropped. `promote-check` (`promotion.pair_logs`) uses the latest model version instead, so the two can differ for a shadow whose version changed.
+
 ## Pass bar
-Scored only at the two checkpoints of CLAUDE.md rule 4: after EuroLeague round 19, and at season end. Look 1 uses rounds up to round 19.
+Scored only at the two checkpoints of CLAUDE.md rule 4: after EuroLeague round 19, and at season end. Look 1 uses regular-season rounds up to round 19. Look 2 covers the whole season, all phases, with forfeits excluded, as in `promotion.run_look`.
 
 A model "is closer to the market than Elo" when the mean paired gap is below 0, and the upper bound of the paired-bootstrap 97.5% CI (10,000 resamples) is below 0, with at least 100 shared games.
+
+"closer" is this diagnostic's own bar. It is not the standard promotion test of CLAUDE.md rule 4, which also needs a mean gap of -0.01 or lower on the result-based log loss. It promotes nothing.
 
 Before a checkpoint is complete, the report gives only `n` and the standard deviation of the gap.
 

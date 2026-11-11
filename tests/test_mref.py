@@ -5,6 +5,7 @@ Expected values are worked out by hand in the comments of each test.
 
 import math
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -73,17 +74,19 @@ def test_cross_entropy_clips_probabilities() -> None:
 
 
 def test_odds_row_fetched_at_or_after_tipoff_is_ignored(tmp_path: Path) -> None:
-    # G1 tips off at 17:00. Its 15:00 snapshot (0.6) is used; its 18:00 snapshot (0.9) is not.
+    # G1 tips off at 17:00. Its 15:00 snapshot (0.6) is used. Its 17:00 snapshot (0.95, exactly
+    # at tip-off) and its 18:00 snapshot (0.9) are both after the pre-tip cut, so they are not.
     # G2 has only a 18:00 snapshot, so it has no market row.
     games = games_frame([("G1", 1, True), ("G2", 1, True)])
     odds_path = tmp_path / "odds.csv"
     pd.DataFrame(
         {
-            "game_id": ["G1", "G1", "G2"],
+            "game_id": ["G1", "G1", "G1", "G2"],
             "season": SEASON,
-            "p_home": [0.6, 0.9, 0.7],
+            "p_home": [0.6, 0.95, 0.9, 0.7],
             "fetched_at_utc": [
                 "2026-10-01T15:00:00Z",
+                "2026-10-01T17:00:00Z",
                 "2026-10-01T18:00:00Z",
                 "2026-10-01T18:00:00Z",
             ],
@@ -164,3 +167,62 @@ def test_game_without_market_row_or_in_one_log_is_not_counted() -> None:
     elo = scored({"G1": 0.5, "G2": 0.5})
     table = paired_table(market, model, elo)
     assert list(table["game_id"]) == ["G1"]
+
+
+def test_look_one_caps_regular_season_at_round_19() -> None:
+    # G1 (round 1) gap 0; G2 (round 19) gap -ln 2; both count at look 1.
+    # G3 (round 20, regular season) gap about 6.21: excluded at look 1, counted at look 2.
+    # G4 (playoff, round 5) gap about 6.21: excluded at look 1 by phase, counted at look 2.
+    # Model p 0.5 / Elo p 0.5 on G1 gives gap 0. q = 1, so each cross-entropy is -ln p.
+    games = games_frame([("G1", 1, True), ("G2", 19, True), ("G3", 20, True), ("G4", 5, True)])
+    games.loc[games["game_id"] == "G4", "phase"] = "PO"
+    market = market_of(games, {"G1": 1.0, "G2": 1.0, "G3": 1.0, "G4": 1.0})
+    model = scored({"G1": 0.5, "G2": 0.5, "G3": 0.001, "G4": 0.001})
+    elo = scored({"G1": 0.5, "G2": 0.25, "G3": 0.5, "G4": 0.5})
+    look1 = build_report(games, SEASON, 1, market, {"m1": model}, elo)["models"]["m1"]
+    assert look1["n"] == 2
+    assert look1["gap_sd"] == pytest.approx(math.log(2) / math.sqrt(2))
+    look2 = build_report(games, SEASON, 2, market, {"m1": model}, elo)["models"]["m1"]
+    assert look2["n"] == 4
+
+
+def test_scored_path_complete_checkpoint_small_n_is_not_testable() -> None:
+    # q = 1, so each cross-entropy is -ln p. Gaps: G1 0 (0.5 vs 0.5); G2 -ln 2 (0.5 vs 0.25);
+    # G3 ln 2 - ln 8 = -2 ln 2 (0.5 vs 0.125). Mean = -3 ln 2 / 3 = -ln 2.
+    games = games_frame([("G1", 1, True), ("G2", 10, True), ("G3", 19, True)])
+    market = market_of(games, {"G1": 1.0, "G2": 1.0, "G3": 1.0})
+    model = scored({"G1": 0.5, "G2": 0.5, "G3": 0.5})
+    elo = scored({"G1": 0.5, "G2": 0.25, "G3": 0.125})
+    block = build_report(games, SEASON, 1, market, {"m1": model}, elo)["models"]["m1"]
+    assert block["n"] == 3
+    assert block["gap_mean"] == pytest.approx(-math.log(2))
+    assert len(block["ci"]) == 2
+    assert all(isinstance(x, float) for x in block["ci"])
+    assert block["ci"][0] <= block["gap_mean"] <= block["ci"][1]
+    assert block["verdict"] == "not testable"
+
+
+def _scored_path_block(model_p: float, elo_p: float) -> Any:
+    """A complete look 1 with 100 shared games, all in the same pair of probabilities (q = 1)."""
+    specs = [(f"G{i}", 1, True) for i in range(99)] + [("G99", 19, True)]
+    games = games_frame(specs)
+    ids = [s[0] for s in specs]
+    market = market_of(games, dict.fromkeys(ids, 1.0))
+    model = scored(dict.fromkeys(ids, model_p))
+    elo = scored(dict.fromkeys(ids, elo_p))
+    return build_report(games, SEASON, 1, market, {"m1": model}, elo)["models"]["m1"]
+
+
+def test_scored_path_closer_when_every_gap_is_negative() -> None:
+    # Model 0.5, Elo 0.25: every gap is -ln 2 < 0, so the CI is degenerate and below 0.
+    block = _scored_path_block(0.5, 0.25)
+    assert block["n"] == 100
+    assert block["verdict"] == "closer"
+
+
+def test_scored_path_not_closer_when_every_gap_is_positive() -> None:
+    # Model 0.25, Elo 0.5: every gap is +ln 2 > 0.
+    block = _scored_path_block(0.25, 0.5)
+    assert block["n"] == 100
+    assert block["verdict"] == "not closer"
+    assert block["gap_mean"] > 0
