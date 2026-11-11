@@ -1,0 +1,50 @@
+{
+  "season": 2026,
+  "totals": {
+    "games": 100,
+    "club_sides": 200,
+    "sides_without_box": 0,
+    "sides_with_snapshot": 92,
+    "sides_without_snapshot": 108,
+    "listed_matched": 405,
+    "listed_unmatched": 65
+  },
+  "statuses": {
+    "Doubtful": {
+      "n": 18
+    },
+    "Expected": {
+      "n": 37,
+      "played": 31,
+      "rate": 0.837838,
+      "ci95": [
+        0.688635,
+        0.923488
+      ]
+    },
+    "Game-time": {
+      "n": 18
+    },
+    "Out": {
+      "n": 154,
+      "played": 1,
+      "rate": 0.006494,
+      "ci95": [
+        0.001147,
+        0.035861
+      ]
+    },
+    "Ready": {
+      "n": 11
+    },
+    "Uncertain": {
+      "n": 167,
+      "played": 35,
+      "rate": 0.209581,
+      "ci95": [
+        0.154731,
+        0.277491
+      ]
+    }
+  }
+}
