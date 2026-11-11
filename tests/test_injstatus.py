@@ -139,7 +139,7 @@ def test_29_player_games_give_n_only_and_30_give_rate() -> None:
 
 def test_status_with_30_player_games_gives_rate_and_interval() -> None:
     # 30 games, Smith listed Out in each; he played in the first 12 of them.
-    # Wilson 95% for 12 of 30 by hand: centre 0.41135, half-width 0.16546, so [0.2459, 0.5768].
+    # Wilson 95% for 12 of 30 by hand: centre 0.41135, half-width 0.16545, so [0.2459, 0.5768].
     games = _games([(f"G{i}", True, False) for i in range(30)])
     matched = _matched([("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out")])
     box = _box([(f"G{i}", "P1", 300) for i in range(12)])
