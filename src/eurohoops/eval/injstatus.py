@@ -6,6 +6,7 @@ player minutes from ``stats.box.build_box_games``; nothing is read or written he
 """
 
 import math
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -42,6 +43,13 @@ def finished_sides(games: pd.DataFrame, season: int) -> pd.DataFrame:
     return pd.concat(sides, ignore_index=True).astype({"game_id": str, "club": str})
 
 
+def drop_without_box(sides: pd.DataFrame, missing_box: Collection[str]) -> tuple[pd.DataFrame, int]:
+    """The sides whose game has a cached box score, and how many sides were dropped. A game with no
+    box score has no minutes to read, so its sides are left out of every count."""
+    no_box = sides["game_id"].isin(set(missing_box))
+    return sides[~no_box], int(no_box.sum())
+
+
 def side_snapshot(matched: pd.DataFrame, tipoff: datetime) -> pd.Timestamp | None:
     """The snapshot a side uses: the latest one stamped strictly before tip-off, if it is at most
     24 hours before tip-off. None when there is none, or when it is older (no fallback)."""
@@ -70,6 +78,8 @@ def player_games(matched: pd.DataFrame, sides: pd.DataFrame, box: pd.DataFrame) 
         frames.append(rows)
     listed = pd.concat(frames, ignore_index=True) if frames else matched.iloc[:0].assign(game_id="")
     known = listed[listed["match"] == MATCHED]
+    if known.duplicated(["game_id", "player_id"]).any():
+        raise ValueError("duplicate listing: a snapshot lists one player twice for one club")
     seen = box[["game_id", "player_id", "sec"]].astype({"game_id": str, "player_id": str})
     table = known.merge(seen, on=["game_id", "player_id"], how="left")
     table["seconds"] = table["sec"].fillna(0).astype("int64")
@@ -111,16 +121,24 @@ def _status_summary(table: pd.DataFrame) -> dict[str, dict[str, Any]]:
 
 
 def build_report(
-    games: pd.DataFrame, matched: pd.DataFrame, box: pd.DataFrame, season: int
+    games: pd.DataFrame,
+    matched: pd.DataFrame,
+    box: pd.DataFrame,
+    season: int,
+    missing_box: Collection[str],
 ) -> dict[str, Any]:
-    """The diagnostic for one season: totals, then the played rate per BasketNews status."""
-    sides = finished_sides(games, season)
+    """The diagnostic for one season: totals, then the played rate per BasketNews status.
+
+    ``missing_box`` holds the game ids with no cached box score (``build_box_games`` ``missing``).
+    """
+    sides, without_box = drop_without_box(finished_sides(games, season), missing_box)
     found = player_games(matched, sides, box)
     return {
         "season": season,
         "totals": {
             "games": int(sides["game_id"].nunique()),
             "club_sides": len(sides),
+            "sides_without_box": without_box,
             "sides_with_snapshot": len(sides) - found.sides_without_snapshot,
             "sides_without_snapshot": found.sides_without_snapshot,
             "listed_matched": len(found.table),

@@ -30,7 +30,8 @@ def main() -> None:
     box = build_box_games(REPO / EUROLEAGUE.raw_dir, games[games["season"] == args.season])
     roster = read_roster_names(REPO / el_people_path(EUROLEAGUE.raw_dir, args.season))
     matched = match_injuries(read_injuries(REPO / INJURY_LOG), roster)
-    report = build_report(games, matched, box.players, args.season)
+    missing = set(box.missing["game_id"].astype(str))
+    report = build_report(games, matched, box.players, args.season, missing)
     write_json(args.out, report)
     print(f"wrote {args.out}")
 

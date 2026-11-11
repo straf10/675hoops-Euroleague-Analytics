@@ -5,6 +5,7 @@ import pytest
 
 from eurohoops.eval.injstatus import (
     build_report,
+    drop_without_box,
     finished_sides,
     player_games,
     side_snapshot,
@@ -123,20 +124,86 @@ def test_unmatched_row_is_excluded_and_counted() -> None:
 def test_status_under_30_player_games_gives_n_only() -> None:
     matched = _matched([("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out")])
     games = _games([("G1", True, False)])
-    report = build_report(games, matched, _box([("G1", "P1", 600)]), 2026)
+    report = build_report(games, matched, _box([("G1", "P1", 600)]), 2026, set())
     assert report["statuses"] == {"Out": {"n": 1}}
+
+
+def test_29_player_games_give_n_only_and_30_give_rate() -> None:
+    matched = _matched([("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out")])
+    games29 = _games([(f"G{i}", True, False) for i in range(29)])
+    box = _box([(f"G{i}", "P1", 300) for i in range(12)])
+    assert build_report(games29, matched, box, 2026, set())["statuses"] == {"Out": {"n": 29}}
+    games30 = _games([(f"G{i}", True, False) for i in range(30)])
+    assert "rate" in build_report(games30, matched, box, 2026, set())["statuses"]["Out"]
 
 
 def test_status_with_30_player_games_gives_rate_and_interval() -> None:
     # 30 games, Smith listed Out in each; he played in the first 12 of them.
+    # Wilson 95% for 12 of 30 by hand: centre 0.41135, half-width 0.16546, so [0.2459, 0.5768].
     games = _games([(f"G{i}", True, False) for i in range(30)])
     matched = _matched([("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out")])
     box = _box([(f"G{i}", "P1", 300) for i in range(12)])
-    out = build_report(games, matched, box, 2026)["statuses"]["Out"]
+    out = build_report(games, matched, box, 2026, set())["statuses"]["Out"]
     assert out["n"] == 30
     assert out["played"] == 12
     assert out["rate"] == pytest.approx(0.4)
-    assert out["ci95"][0] == pytest.approx(wilson(12, 30)[0], abs=1e-6)
+    assert out["ci95"][0] == pytest.approx(0.2459, abs=1e-4)
+    assert out["ci95"][1] == pytest.approx(0.5768, abs=1e-4)
+
+
+def test_club_absent_from_snapshot_gives_no_rows_but_counts_snapshot() -> None:
+    # Only ULK is listed; the PAM side of G1 has a snapshot with zero listed rows.
+    matched = _matched([("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out")])
+    games = _games([("G1", True, False)])
+    report = build_report(games, matched, _box([("G1", "P1", 600)]), 2026, set())
+    assert report["totals"]["sides_with_snapshot"] == 2
+    assert report["totals"]["listed_matched"] == 1
+
+
+def test_snapshot_exactly_at_tipoff_is_not_used() -> None:
+    matched = _matched(
+        [
+            ("2026-11-05T09:00:00Z", "ULK", "John Smith", "Out"),
+            ("2026-11-05T18:00:00Z", "ULK", "Al Jones", "Out"),
+        ]
+    )
+    assert side_snapshot(matched, TIPOFF) == pd.Timestamp("2026-11-05T09:00:00Z")
+    games = _games([("G1", True, False)])
+    found = player_games(matched, finished_sides(games, 2026), _box([("G1", "P1", 600)]))
+    assert list(found.table["player_id"]) == ["P1"]  # Jones, stamped at tip-off, is absent
+
+
+def test_game_without_box_score_is_excluded_before_snapshot_step() -> None:
+    # G1 has no cached box score: its two sides are dropped. G2 has one, and Jones has no row
+    # in it, so he counts as not played.
+    matched = _matched(
+        [
+            ("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out"),
+            ("2026-11-05T12:00:00Z", "ULK", "Al Jones", "Out"),
+        ]
+    )
+    games = _games([("G1", True, False), ("G2", True, False)])
+    box = _box([("G2", "P1", 600)])
+    report = build_report(games, matched, box, 2026, {"G1"})
+    assert report["totals"]["sides_without_box"] == 2
+    assert report["totals"]["games"] == 1
+    assert report["totals"]["sides_without_snapshot"] == 0
+    found = player_games(matched, drop_without_box(finished_sides(games, 2026), {"G1"})[0], box)
+    played = dict(zip(found.table["player_id"], found.table["played"], strict=True))
+    assert played == {"P1": True, "P2": False}
+    assert set(found.table["game_id"]) == {"G2"}
+
+
+def test_duplicate_listing_raises() -> None:
+    matched = _matched(
+        [
+            ("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out"),
+            ("2026-11-05T12:00:00Z", "ULK", "John Smith", "Out"),
+        ]
+    )
+    games = _games([("G1", True, False)])
+    with pytest.raises(ValueError, match="duplicate listing"):
+        player_games(matched, finished_sides(games, 2026), _box([("G1", "P1", 600)]))
 
 
 def test_wilson_matches_hand_value() -> None:
