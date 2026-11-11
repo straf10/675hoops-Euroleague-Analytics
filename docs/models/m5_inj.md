@@ -26,7 +26,7 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
 - Roster source: the cached 2026 people listing, `data/raw/euroleague/people/E2026.json.gz` (the cache read by `models/roster.py`). Only rows with `type == "J"` count. Player id: `"P" + person.code`, the box-score player id. Club: `club.code`.
 - Injury rows: the `team` column (source code, mapped from the BasketNews team name by `injuries.team_name_map`) and the `player` name (BasketNews, "First Last").
 - Key: `eurohoops.entity.translit.latin_key` of the name. It folds accents and case, keeps A-Z, drops generational suffixes (JR, SR, II, III, IV) and sorts the tokens. "Isaia Cordinier" and "CORDINIER, ISAIA" give the same key.
-- Aliases: `src/eurohoops/models/injury_aliases.csv` holds nine (club, BasketNews id) to roster name pairs. For these rows the alias name replaces the BasketNews name in the key. The club must still match.
+- Aliases: `src/eurohoops/models/injury_aliases.csv` holds eleven (club, BasketNews id) to roster name pairs. For these rows the alias name replaces the BasketNews name in the key. The club must still match.
   - ASV 6183 Patrick Mills to MILLS, PATTY
   - IST 40764 D. Karutasu to KARUTASU, DARIUS
   - IST 21746 P.J. Dozier to DOZIER, PJ
@@ -36,6 +36,8 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
   - PAN 24143 Nikos Rogkavopoulos to ROGKAVOPOULOS, NIKOLAOS
   - PRS 17092 T.J. Warren to WARREN, TJ
   - PAM 36114 Nate Reuvers to REUVERS, NATHAN (added 2026-11-03: the listing spells his first name in full; same club and surname, 7 games in the 2026 box scores. Owner-confirmed 2026-11-03.)
+  - TEL 24128 Gabriel Lundberg to LUNDBERG, IFFE (added 2026-11-11 by owner confirmation. Before that date M5-INJ did not apply his status.)
+  - BAR 21362 Aleksander Balcerowski to BALCEROWSKI, OLEK (added 2026-11-11 by owner confirmation. Before that date M5-INJ did not apply his status.)
 - Rule: an injury row matches a roster player if the roster player has the same club code and the same key (the alias name's key where an alias applies).
 - Ties: two or more roster players with the same club and key are unmatched (reason `ambiguous`).
 - Misses: no roster player with that club and key is unmatched (reason `no_roster_match`). No fuzzy match is used.
