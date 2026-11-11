@@ -54,7 +54,7 @@ M5 (`docs/models/m5.md`) projects minutes from recent box scores only, so it rea
 - Pass bar: unchanged. The standard promotion test (CLAUDE.md rule 4) on the games both logs share (M5-INJ vs M5), with no re-tuning.
 - The logged row keeps only the forecast. The matched status is recomputed from `injuries/` at the row's `predicted_at_utc` when needed.
 - The daily job uses the committed `injuries/` log, which may be some hours behind the latest snapshot.
-- After the owner's PC pushes a new snapshot, `record_injuries.ps1` runs `daily.yml` with `injury_refresh=true` (predict and publish, no odds call), so forecasts use it. The recorder never fails on this: without `gh` login it logs a warning and the snapshot stays.
+- After the owner's PC pushes a new snapshot, `record_injuries.ps1` runs `daily.yml` with `injury_refresh=true` (predict and publish, no odds call), so forecasts use it. The recorder never fails on this: without `gh` login it logs a warning and the snapshot stays. The dispatch failed on every snapshot from 2026-11-04 to 2026-11-11 (gh rejected the JSON boolean), so in that period M5-INJ rows came only from the scheduled daily run.
 
 ## Results
 Matching counts by BasketNews status (1,031 rows, 11 snapshots):
