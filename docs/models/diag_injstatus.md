@@ -21,5 +21,7 @@ Per status: `n` (player-games), then `played`, `rate` and a 95% Wilson interval.
 - Code: `src/eurohoops/eval/injstatus.py`, `scripts/diag_injstatus.py`.
 - Reused: `models/availability.py` (`match_injuries`, `latest_snapshot`, `read_injuries`, `read_roster_names`), `stats/box.py` (`build_box_games`), `marts.py` (`read_games`), `logs.py` (`write_json`).
 - Data read: `data/marts/eurohoops.duckdb` (games), `injuries/euroleague_2026-27.csv`, the cached people listing, the cached box scores.
+- Player seconds come from `stats.box.build_box_games` (the cached box scores), the same loader M5 uses, because no mart table holds per-player minutes. Games come from the games mart.
+- The injury log has no duplicate player rows in a snapshot (checked 2026-11-11: 0 of 3,628 rows), so the script does not deduplicate.
 - Output: `reports/diag_injstatus.json`.
 - Tests: `tests/test_injstatus.py`.

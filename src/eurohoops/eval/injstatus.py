@@ -70,7 +70,7 @@ def player_games(matched: pd.DataFrame, sides: pd.DataFrame, box: pd.DataFrame) 
         frames.append(rows)
     listed = pd.concat(frames, ignore_index=True) if frames else matched.iloc[:0].assign(game_id="")
     known = listed[listed["match"] == MATCHED]
-    seen = box[["game_id", "player_id", "sec"]]
+    seen = box[["game_id", "player_id", "sec"]].astype({"game_id": str, "player_id": str})
     table = known.merge(seen, on=["game_id", "player_id"], how="left")
     table["seconds"] = table["sec"].fillna(0).astype("int64")
     table["played"] = table["seconds"] > 0
