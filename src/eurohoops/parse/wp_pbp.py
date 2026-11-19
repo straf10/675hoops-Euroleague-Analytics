@@ -8,6 +8,8 @@ forward, home perspective). The file is never fetched here; the caller reads the
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
+from eurohoops.parse.periods import OT_END_MARKERS, OT_FIRST_MINUTE, period_from_minute
+
 # Section 2: every made field goal and made free throw. LAYUPMD and DUNK are the 2008-2014 coding
 # of two-point makes; a model without them drops 41,164 makes.
 SCORING_CODES = ("2FGM", "3FGM", "LAYUPMD", "DUNK", "FTM")
@@ -20,8 +22,6 @@ REG_BLOCKS = (
 )
 REG_PERIOD_SECONDS = 600
 OT_PERIOD_SECONDS = 300
-OT_FIRST_MINUTE = 41  # OT period k covers MINUTE 41 + 5(k - 1) to 45 + 5(k - 1)
-OT_MINUTES = 5
 GAME_SECONDS = 2400
 
 CLOCK_OK = "ok"
@@ -69,13 +69,6 @@ def read_clock(raw: str, maxc: int, ptype: str) -> tuple[float, str]:
     return float("nan"), CLOCK_ND
 
 
-def _overtime_index(minute: int, ptype: str) -> int:
-    """OT period index k (1, 2, ...). Period-end markers carry the next minute, so they map back."""
-    if ptype in ("EP", "EG"):
-        return max((minute - OT_FIRST_MINUTE) // OT_MINUTES, 1)
-    return (minute - OT_FIRST_MINUTE) // OT_MINUTES + 1
-
-
 def _score(value: Any, current: int) -> int:
     return current if value in (None, "") else int(value)
 
@@ -102,12 +95,9 @@ def parse_game(obj: dict[str, Any], mart_home: str, mart_away: str) -> ParsedGam
     for kind, block, event in items:
         ptype = event["PLAYTYPE"].strip()
         if kind == "X":
-            k = max(_overtime_index(int(event["MINUTE"]), ptype), 1)
-            period, maxc, base = (
-                4 + k,
-                OT_PERIOD_SECONDS,
-                GAME_SECONDS + (k - 1) * OT_PERIOD_SECONDS,
-            )
+            minute = max(int(event["MINUTE"]), OT_FIRST_MINUTE)
+            period = period_from_minute(minute, ptype in OT_END_MARKERS)
+            maxc, base = OT_PERIOD_SECONDS, GAME_SECONDS + (period - 5) * OT_PERIOD_SECONDS
         else:
             period, maxc, base = block, REG_PERIOD_SECONDS, (block - 1) * REG_PERIOD_SECONDS
         clock, status = read_clock(event["MARKERTIME"], maxc, ptype)

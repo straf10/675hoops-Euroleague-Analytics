@@ -20,6 +20,7 @@ import numpy as np
 
 from eurohoops.config import LIVE_SEASON
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parse.periods import OT_END_MARKERS, OT_FIRST_MINUTE, period_from_minute
 from eurohoops.parse.schemas import box_count
 
 QUARTERS = ("FirstQuarter", "SecondQuarter", "ThirdQuarter", "ForthQuarter")  # sic, API keys
@@ -85,15 +86,13 @@ def _clock(marker: str | None) -> int | None:
     return max(int(minutes) * 60 + int(seconds), 0)
 
 
-def _overtime_period(minute: int) -> int:
-    """PBP ``MINUTE`` counts on through overtime: 41-45 is the first, 46-50 the second, ..."""
-    return len(QUARTERS) + 1 + (max(minute, 41) - 41) // 5
-
-
 def events(pbp: dict[str, Any]) -> list[Event]:
     """Every PBP row in log order, with its period and game clock."""
     tagged = [(q + 1, row) for q, key in enumerate(QUARTERS) for row in pbp.get(key) or []]
-    tagged += [(_overtime_period(row["MINUTE"]), row) for row in pbp.get("ExtraTime") or []]
+    for row in pbp.get("ExtraTime") or []:
+        kind = (row.get("PLAYTYPE") or "").strip()
+        minute = max(row["MINUTE"], OT_FIRST_MINUTE)
+        tagged.append((period_from_minute(minute, kind in OT_END_MARKERS), row))
     out = []
     for period, row in tagged:
         remaining = _clock(row.get("MARKERTIME"))

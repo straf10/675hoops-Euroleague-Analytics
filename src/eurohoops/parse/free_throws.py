@@ -50,7 +50,8 @@ import pandas as pd
 
 from eurohoops.ingest.cache import read_cached
 from eurohoops.models.elo import FloatArray
-from eurohoops.parse.shot_table import BANDS, MADE_CODES, SHOT_VALUE, period_of
+from eurohoops.parse.periods import period_from_minute
+from eurohoops.parse.shot_table import BANDS, MADE_CODES, SHOT_VALUE
 from eurohoops.parse.stints import QUARTERS
 
 FT_CODES = frozenset({"FTM", "FTA"})
@@ -105,7 +106,7 @@ def trips(rows: Sequence[dict[str, Any]]) -> list[Trip]:
             if int(number) in logged:
                 continue
             logged.add(int(number))
-        key = (team, period_of(int(row["MINUTE"])), str(row.get("MARKERTIME") or ""))
+        key = (team, period_from_minute(int(row["MINUTE"])), str(row.get("MARKERTIME") or ""))
         if out and out[-1]["key"] == key:
             out[-1]["fta"] += 1
             out[-1]["ftm"] += kind == "FTM"
@@ -114,7 +115,8 @@ def trips(rows: Sequence[dict[str, Any]]) -> list[Trip]:
             last_fg is not None
             and str(last_fg.get("PLAYTYPE") or "").strip() in MADE_CODES
             and str(last_fg.get("CODETEAM") or "").strip() == team
-            and (period_of(int(last_fg["MINUTE"])), str(last_fg.get("MARKERTIME") or "")) == key[1:]
+            and (period_from_minute(int(last_fg["MINUTE"])), str(last_fg.get("MARKERTIME") or ""))
+            == key[1:]
         )
         out.append(
             {

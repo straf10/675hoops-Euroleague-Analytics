@@ -18,6 +18,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from eurohoops.eval.metrics import per_game_log_loss
+
 FloatArray = np.ndarray[Any, np.dtype[np.float64]]
 
 GAME_SECONDS = 2400.0
@@ -200,5 +202,4 @@ def displayed_wp(wp_model: FloatArray, gap: float, t: FloatArray, ot: FloatArray
 
 
 def log_loss(y: FloatArray, p: FloatArray) -> FloatArray:
-    clipped = np.clip(p, PROB_CLIP, 1.0 - PROB_CLIP)
-    return -(y * np.log(clipped) + (1.0 - y) * np.log(1.0 - clipped))
+    return per_game_log_loss(p, y, clip=PROB_CLIP)

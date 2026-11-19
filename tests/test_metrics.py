@@ -8,6 +8,7 @@ from eurohoops.eval.metrics import (
     ece,
     paired_bootstrap_ci,
     paired_bootstrap_ci_clustered,
+    per_game_log_loss,
     reliability,
     score,
 )
@@ -128,3 +129,12 @@ def test_clustered_mean_and_level_and_edge_cases() -> None:
     assert all(math.isnan(x) for x in empty)
     with pytest.raises(ValueError, match="cluster label"):
         paired_bootstrap_ci_clustered(diff, ["a"], 10, 1)
+
+
+def test_log_loss_is_clipped_so_a_certain_miss_stays_finite() -> None:
+    certain = per_game_log_loss(np.array([1.0]), np.array([0.0]))
+    assert certain[0] == pytest.approx(-math.log(1e-6))
+    assert np.isfinite(per_game_log_loss(np.array([0.0]), np.array([1.0]))).all()
+    assert np.isfinite(per_game_log_loss(np.array([0.0]), np.array([0.0]))).all()
+    tighter = per_game_log_loss(np.array([1.0]), np.array([0.0]), clip=1e-9)
+    assert tighter[0] == pytest.approx(-math.log(1e-9))

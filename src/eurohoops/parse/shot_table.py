@@ -31,6 +31,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parse.periods import OVERTIME_MINUTES, QUARTER_MINUTES, period_from_minute
 from eurohoops.parse.schemas import box_count
 from eurohoops.parse.schemas import validated as cast_and_validate
 from eurohoops.parse.shots import (
@@ -62,9 +63,6 @@ REASONS = ("unparseable", "zero_coordinates", "label_geometry")
 # Set only on made shots from 2015-16 on (>= 99.8% of flagged shots are makes; never set before
 # 2013-14): scoring tags, not shot context. Kept in the table, never used as M2 features.
 OUTCOME_CODED_FLAGS = ("fastbreak", "second_chance", "points_off_turnover")
-QUARTER_MINUTES = 10
-OVERTIME_MINUTES = 5
-REGULATION_MINUTES = 40
 # Reporting bands (F-f, F-e): by distance for 2s, split at 8 m for 3s.
 BANDS = ("rim", "short", "mid", "long2", "three", "deep3")
 RIM_M, SHORT_M, MID_M, DEEP3_M = 1.5, 3.0, 5.0, 8.0
@@ -137,13 +135,6 @@ class Game:
     neutral: bool
 
 
-def period_of(minute: int) -> int:
-    """``MINUTE`` 1-40 -> quarters 1-4; 41-45 -> 5 (first overtime), 46-50 -> 6, ..."""
-    if minute <= REGULATION_MINUTES:
-        return (max(minute, 1) - 1) // QUARTER_MINUTES + 1
-    return 5 + (minute - REGULATION_MINUTES - 1) // OVERTIME_MINUTES
-
-
 def seconds_left(console: str, period: int) -> int:
     """``CONSOLE`` ``mm:ss`` left in the period -> seconds, clipped to the period (``00:-1``: 0)."""
     minutes, seconds = console.split(":")
@@ -189,7 +180,7 @@ def _parse(row: dict[str, Any], game: Game) -> dict[str, Any]:
     minute, console = row.get("MINUTE"), str(row.get("CONSOLE") or "")
     if not isinstance(minute, int) or _CONSOLE.fullmatch(console.strip()) is None:
         raise _Unparseable(f"clock {minute!r} {console!r}")
-    period = period_of(minute)
+    period = period_from_minute(minute)
     own, opp = (after_home, after_away) if team == game.home else (after_away, after_home)
     coord_x, coord_y = row.get("COORD_X"), row.get("COORD_Y")
     if coord_x is None or coord_y is None:

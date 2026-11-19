@@ -11,9 +11,10 @@ const club: Continuity = {
 };
 
 test("a share reads as a whole percentage", () => {
-  assert.equal(percentOf(0.624), 62);
-  assert.equal(percentOf(1), 100);
-  assert.equal(percentOf(0), 0);
+  assert.equal(percentOf(0.624), "62%");
+  assert.equal(percentOf(1), "100%");
+  assert.equal(percentOf(0), "0%");
+  assert.equal(percentOf(0.9962), ">99%");
 });
 
 test("seconds read as whole minutes", () => {
@@ -22,6 +23,6 @@ test("seconds read as whole minutes", () => {
 });
 
 test("the headline figure is the club's rounded share, or nothing without a value", () => {
-  assert.equal(returningPercent(club), 62);
+  assert.equal(returningPercent(club), "62%");
   assert.equal(returningPercent(null), null);
 });

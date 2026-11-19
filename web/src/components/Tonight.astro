@@ -1,6 +1,6 @@
 ---
 import type { Competition } from "../lib/format";
-import { athensDay, athensTime, call, pct } from "../lib/format";
+import { athensDay, athensTime, call, pctPair } from "../lib/format";
 import { tip } from "../lib/tip";
 
 interface Props {
@@ -40,15 +40,15 @@ const rounds = [...new Set(games.map((g) => g.round))].sort((a, b) => a - b);
               <span
                 class="split"
                 tabindex="0"
-                data-tip={tip`<b>${g.home.name}</b> win chance ${pct(g.p_home)}<br>${g.away.name} ${pct(1 - g.p_home)}<br>Expected margin: ${fav.team.code} by ${margin}`}
-                aria-label={`${g.home.name} host ${g.away.name}. Home win chance ${pct(g.p_home)}. Expected margin ${fav.team.code} by ${margin} points.`}
+                data-tip={tip`<b>${g.home.name}</b> win chance ${pctPair(g.p_home)[0]}<br>${g.away.name} ${pctPair(g.p_home)[1]}<br>Expected margin: ${fav.team.code} by ${margin}`}
+                aria-label={`${g.home.name} host ${g.away.name}. Home win chance ${pctPair(g.p_home)[0]}. Expected margin ${fav.team.code} by ${margin} points.`}
               >
-                <span class="pa">{pct(1 - g.p_home)}</span>
+                <span class="pa">{pctPair(g.p_home)[1]}</span>
                 <span class="bars" aria-hidden="true">
                   <span class="seg-away" />
                   <span class="seg-home" />
                 </span>
-                <span class="ph">{pct(g.p_home)}</span>
+                <span class="ph">{pctPair(g.p_home)[0]}</span>
               </span>
               <span class:list={["team home", { fav: homeFav }]}>
                 <b>{g.home.code}</b>

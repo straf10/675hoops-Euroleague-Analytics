@@ -18,7 +18,7 @@ import pandas as pd
 import pytest
 import typer
 
-from eurohoops import config
+from eurohoops import config, shadow_log
 from eurohoops.cli import live as live_mod
 from eurohoops.cli._shared import Live
 from eurohoops.config import EUROLEAGUE
@@ -234,3 +234,39 @@ def test_backfill_skips_an_elo_row_whose_logged_p_home_disagrees(
     snapshotted = [r["game_id"] for r in _rows(comp.inputs_log)]
     assert tampered not in snapshotted
     assert sorted(snapshotted) == sorted(set(world["open_ids"]) - {tampered})
+
+
+def test_a_failed_elo_log_write_leaves_one_inputs_row_per_game(
+    world: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comp = world["comp"]
+    real_append = shadow_log.append_rows
+    failed: list[Path] = []
+
+    def fail_the_elo_log_once(path: Path, columns: Any, rows: Any) -> None:
+        if path == comp.prediction_log and not failed:
+            failed.append(path)
+            raise OSError("disk full")
+        real_append(path, columns, rows)
+
+    monkeypatch.setattr(shadow_log, "append_rows", fail_the_elo_log_once)
+
+    def run() -> int:
+        return predict_upcoming(
+            world["games"],
+            world["tuned"],
+            log_path=comp.prediction_log,
+            season=SEASON,
+            replay_from=REPLAY_FROM,
+            round_lead=timedelta(hours=48),
+            clock=lambda: world["now"],
+            inputs_log=comp.inputs_log,
+        )
+
+    with pytest.raises(OSError):
+        run()
+    assert sorted(r["game_id"] for r in _rows(comp.inputs_log)) == world["open_ids"]
+
+    assert run() == len(world["open_ids"])
+    assert sorted(r["game_id"] for r in _rows(comp.prediction_log)) == world["open_ids"]
+    assert sorted(r["game_id"] for r in _rows(comp.inputs_log)) == world["open_ids"]

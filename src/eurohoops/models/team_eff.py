@@ -33,7 +33,7 @@ import numpy.typing as npt
 import pandas as pd
 from scipy import optimize, special
 
-from eurohoops.eval.metrics import crps_normal, crps_student_t
+from eurohoops.eval.metrics import crps_normal, crps_student_t, per_game_log_loss
 from eurohoops.models.elo import FloatArray
 
 MINUTES_PER_GAME = 40.0
@@ -488,10 +488,6 @@ def _t_scale(residual: FloatArray, relative: FloatArray, df: float) -> float:
     return round(float(found.x), 6)
 
 
-def _log_loss(p: FloatArray, home_won: FloatArray) -> float:
-    return float(np.mean(-(home_won * np.log(p) + (1.0 - home_won) * np.log(1.0 - p))))
-
-
 def fit_margin_model(
     variant: str, margin: FloatArray, pace: FloatArray, actual: FloatArray
 ) -> MarginModel:
@@ -511,5 +507,5 @@ def fit_margin_model(
     candidates = [
         MarginModel(variant, _t_scale(residual, relative, df), df, ref) for df in T_DF_GRID
     ]
-    losses = [_log_loss(m.p_home(margin, pace), home_won) for m in candidates]
+    losses = [float(per_game_log_loss(m.p_home(margin, pace), home_won).mean()) for m in candidates]
     return candidates[int(np.argmin(losses))]

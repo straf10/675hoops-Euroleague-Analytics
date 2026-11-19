@@ -131,6 +131,13 @@ def test_overtime_adds_five_minutes() -> None:
     assert validate(stints, facts) == {check: [] for check in CHECKS}
 
 
+def test_overtime_end_marker_gets_the_period_it_ends() -> None:
+    pbp, _ = game(overtime=True)
+    pbp["ExtraTime"].append(row("EP", clock="00:00", minute=46))  # OT1 end, MINUTE 46
+    last = events(pbp)[-1]
+    assert (last.kind, last.period, last.elapsed) == ("EP", 5, 2700)
+
+
 def test_overtime_count_ignores_a_scoreless_placeholder() -> None:
     assert overtimes([{"Extra1": 0}, {"Extra1": 0}]) == 0
     assert overtimes([{"Extra1": 0, "Extra2": None}, {"Extra1": 3}]) == 1

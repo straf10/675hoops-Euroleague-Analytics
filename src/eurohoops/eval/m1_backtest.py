@@ -151,8 +151,8 @@ def prepare_data(games: pd.DataFrame, team_games: pd.DataFrame, spec: M1Backtest
 def _normal_log_loss(margin: FloatArray, data: Data, mask: BoolArray) -> float:
     residual = data.margin[mask] - margin[mask]
     sigma = float(np.sqrt(np.mean(residual**2)))
-    p = np.clip(special.ndtr(margin[mask] / sigma), 1e-9, 1 - 1e-9)
-    return float(per_game_log_loss(p, data.home_won[mask]).mean())
+    p = special.ndtr(margin[mask] / sigma)
+    return float(per_game_log_loss(p, data.home_won[mask], clip=1e-9).mean())
 
 
 @dataclass(frozen=True)

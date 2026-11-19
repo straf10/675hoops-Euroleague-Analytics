@@ -17,7 +17,7 @@ const named = (players: ContinuityPlayer[]) => players.map((p) => `${p.name} (${
 <section class="continuity" aria-labelledby="continuity-title">
   <p class="continuity-figure">
     <span id="continuity-title">Returning minutes:</span>
-    {pct === null ? <span class="muted">not available</span> : <strong>{pct}%</strong>}
+    {pct === null ? <span class="muted">not available</span> : <strong>{pct}</strong>}
     <InfoTip text={info} />
   </p>
   {

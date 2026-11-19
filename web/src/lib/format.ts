@@ -163,7 +163,14 @@ const time = new Intl.DateTimeFormat("en-GB", {
 export const athensDay = (iso: string) => day.format(new Date(iso));
 export const athensTime = (iso: string) => time.format(new Date(iso));
 
-export const pct = (p: number) => `${Math.round(p * 100)}%`;
+/** A share as whole percents, capped: "<1%" below one, ">99%" from 99.5 (Math.round would show 100%). */
+export const pct = (p: number) => (p > 0 && p < 0.005 ? "<1%" : p >= 0.995 && p < 1 ? ">99%" : `${Math.round(p * 100)}%`);
+
+/** Both sides of a pair as whole percents. The away side is 100 minus the home figure, so the two total 100. */
+export function pctPair(p: number): [string, string] {
+  const home = pct(p);
+  return [home, /^\d+%$/.test(home) ? `${100 - Number.parseInt(home, 10)}%` : pct(1 - p)];
+}
 
 /** The favourite and its win chance, as the model called it. */
 export function call(g: Game): { team: Team; p: number } {

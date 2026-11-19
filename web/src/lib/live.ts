@@ -63,6 +63,6 @@ export const sourceCode = (competition: string, shown: string) =>
 // ---- Formatting: one place, so every page rounds alike ----
 
 export const count = (n: number) => n.toLocaleString("en-GB");
-/** A simulated share: whole percents, "<1%" below one, ">99%" above (it is a count of simulations). */
-export const share = (x: number) => (x > 0 && x < 0.005 ? "<1%" : x > 0.995 && x < 1 ? ">99%" : `${Math.round(x * 100)}%`);
+/** A simulated share, same rule as format.ts `pct`. */
+export { pct as share } from "./format";
 export const plural = (n: number, word: string) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;

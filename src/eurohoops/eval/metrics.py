@@ -44,8 +44,14 @@ def _round(value: float | None) -> float | None:
     return None if value is None else round(value, 6)
 
 
-def per_game_log_loss(p_home: FloatArray, home_won: FloatArray) -> FloatArray:
-    loss: FloatArray = -(home_won * np.log(p_home) + (1.0 - home_won) * np.log(1.0 - p_home))
+LOG_LOSS_CLIP = 1e-6  # the programme's clip; p = 0 or 1 would give an infinite loss
+
+
+def per_game_log_loss(
+    p_home: FloatArray, home_won: FloatArray, clip: float = LOG_LOSS_CLIP
+) -> FloatArray:
+    p = np.clip(p_home, clip, 1.0 - clip)
+    loss: FloatArray = -(home_won * np.log(p) + (1.0 - home_won) * np.log(1.0 - p))
     return loss
 
 

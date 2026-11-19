@@ -87,7 +87,7 @@ def append_log(
     round_lead: timedelta,
     clock: Callable[[], datetime],
     as_of: datetime | None = None,
-    after_append: Callable[[list[Row]], None] | None = None,
+    before_append: Callable[[list[Row]], None] | None = None,
 ) -> int:
     """Append this model's rows for the due games to ``log_path``; return the rows added.
 
@@ -97,8 +97,9 @@ def append_log(
     right before writing. Rows are stamped with that second read, or with ``as_of`` for a model
     that forecasts as of an earlier instant (M5-INJ's injury cutoff). The write is refused if the
     stamp or the write-time read is at or after a tip-off, so a slow forecast that runs past a
-    tip-off is never written, whatever its stamp. ``after_append`` gets the rows just appended
-    (the Elo log's inputs snapshot).
+    tip-off is never written, whatever its stamp. ``before_append`` gets the rows about to be
+    appended (the Elo log's inputs snapshot), so it is written first: a failed row write never
+    leaves a game without it.
     """
     upcoming = upcoming_games(games, season, clock(), round_lead)
     logged = logged_keys(log_path)
@@ -133,10 +134,10 @@ def append_log(
         }
         for r in targets
     ]
+    if before_append is not None:
+        before_append(rows)
     append_rows(log_path, columns, rows)
     log.info("%s: %d rows appended to %s", label, len(rows), log_path)
-    if after_append is not None:
-        after_append(rows)
     return len(rows)
 
 
