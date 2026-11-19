@@ -36,12 +36,15 @@ class Scene:
     w: int = 1200
     h: int = 675
     fps: int = 12
+    static: bool = False  # one PNG instead of a GIF
 
 
 SCENES = {
     "hero": Scene("hero.html", seconds=17, still_at=15.8),
     "season": Scene("season.html", seconds=12, still_at=11),
     "players": Scene("players.html", seconds=12, still_at=11),
+    "record": Scene("record.html", seconds=1, still_at=0, h=540, static=True),
+    "pipeline": Scene("pipeline.html", seconds=15, still_at=14),
 }
 
 
@@ -83,6 +86,11 @@ def render(name: str, scene: Scene, check: list[float] | None) -> None:
             for t in check or (0.0, scene.still_at):
                 shoot(page, t).save(CHECK / f"{name}-check-{t:g}.png")
             browser.close()
+            return
+        if scene.static:
+            shoot(page, scene.still_at).save(OUT / f"{name}.png")
+            browser.close()
+            sys.stdout.write(f"{name}: {(OUT / f'{name}.png').stat().st_size / 1e3:.0f} kB\n")
             return
         n = round(scene.seconds * scene.fps)
         frames = [shoot(page, i / scene.fps) for i in range(n)]

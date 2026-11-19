@@ -10,70 +10,27 @@ Live site: https://675hoops.com/ · "6.75" is the FIBA three-point distance in m
 
 ## Live record
 
-Data through **8 November 2026**. **98 EuroLeague games** scored in the 2026-27 season.
+![Chart and totals for EuroLeague 2026-27, 118 games scored through 18 November 2026. A line chart shows log loss over the last 50 games: Elo stays well below the home-win baseline. Season totals: Elo has log loss 0.629, Brier score 0.220 and 61% called right. Always picking the home side has 0.707, 0.256 and 54%.](docs/assets/readme/record.png)
 
-| Forecaster | Games | Log loss (lower is better) | Brier (lower is better) | Called right |
-|---|---:|---:|---:|---:|
-| **Elo** (our published model) | 98 | 0.639 | 0.225 | 60% |
-| Home-win baseline (always the home side) | 98 | 0.718 | 0.262 | 52% |
+A snapshot of [`reports/live_scorecard.json`](reports/live_scorecard.json), which the daily run rebuilds. Current numbers are on https://675hoops.com/.
 
-The numbers come from [`reports/live_scorecard.json`](reports/live_scorecard.json), which the daily run rebuilds. The same figures are on the live site at https://675hoops.com/. The game count matches a local count of the scored rows in `predictions/euroleague_2026-27.csv` (100 games logged, 2 not scored because their forecast was not public before tip-off).
-
-## How it works
-
-The pipeline runs in this order:
-
-`ingest` → `build` → `backtest` → `predict` → `score` → `publish`
-
-- **Ingest** stores every raw EuroLeague response (and injury report) in a local cache. The cache is never fetched again.
-- **Build** parses the cache, checks each table with pandera, and loads DuckDB marts. Everything downstream reads the marts.
-- **Backtest** replays history offline. Its report fixes the settings the live models use.
-- **Predict** writes one forecast per model for each game in rounds starting within 48 hours. It appends rows to `predictions/`.
-- **Score** compares the forecasts with the results, using log loss, Brier score and calibration.
-- **Publish** writes the site data. The Astro site in `web/` then deploys to Cloudflare.
-
-![Daily pipeline: sources, raw cache, DuckDB marts, predict, append-only logs, score, site; the offline backtest feeds parameters and the promotion test picks the published model](docs/assets/readme/overview-light.svg)
-
-The daily workflow ([`daily.yml`](.github/workflows/daily.yml)) commits `predictions/`, `reports/` and `odds/` to `main`. The git history shows when each forecast was published, so anyone can check it came before its game.
-
-## Rigour rules
-
-These rules apply to every model and experiment. The experiment process is in [`workflow.md`](workflow.md).
-
-1. **Logs are append-only.** Rows in `predictions/`, `odds/` and `injuries/` are never edited or deleted.
-2. **Walk-forward only.** A forecast uses only data from before its game. Settings are chosen on earlier seasons than the ones scored.
-3. **Pass bar first.** Each experiment writes its pass bar in `experiments/<id>.md` and commits it before the result is computed.
-4. **Only live games promote.** A backtest can start a shadow model. A shadow replaces the published Elo model only after a paired bootstrap test on live games, run at fixed checkpoints (after EuroLeague round 19, and at season end). The test uses 10,000 resamples and a 97.5% interval. The shadow must have an interval upper bound below 0 and a mean log-loss gap of at most −0.01.
-
-![Promotion flow: write the pass bar, walk-forward backtest, live shadow log, checkpoint, paired bootstrap; promoted only if the CI upper bound is below 0 and the mean gap is at most -0.01](docs/assets/readme/promotion-light.svg)
-
-Log loss is the score used for every decision. It is a proper scoring rule, so the best long-run score comes from stating your true belief. A 0.65 call costs 0.431 if the home team wins and 1.050 if it loses. Always saying 0.5 costs 0.693.
-
-## Models
-
-| Name | What it is | Status |
-|---|---|---|
-| **Elo** | Margin-adjusted Elo rating, after FiveThirtyEight's NBA method. One rating per team, with a home-court advantage. | Published. The reference that every other model is compared with. ([card](docs/models/elo.md)) |
-| **M1** | Team efficiency model. It rates offence, defence and pace from box-score possessions. | Live shadow. ([card](docs/models/m1.md)) |
-| **M5** | Roster-aware model. It uses the players expected to play, with their player ratings from M3. | Live shadow. ([card](docs/models/m5.md)) |
-| **M5-INJ** | M5 with players marked "Out" in the injury report set to zero minutes. Nothing is re-tuned. | Live shadow. ([card](docs/models/m5_inj.md)) |
-| **ELOH** | Elo with a per-team home-court advantage, shrunk toward zero. | Live shadow. ([card](docs/models/eloh.md)) |
-| **SIM** (M7) | Season simulator. It plays out the rest of the season 10,000 times and gives playoff and title chances. | Published on the Standings page. ([card](docs/models/m7.md)) |
-| **MKT** | Bookmaker prices, with the margin removed, used as a benchmark. It is not a forecast we publish. | Benchmark. ([card](docs/models/mkt.md)) |
-
-Retired on 3 November 2026 by owner decision: **POOL**, **POOL3** and **ELOR**. Their logged rows stay in `predictions/`, and they no longer run.
-
-### Season simulator (M7)
+## Season simulator (M7)
 
 ![Animated fan chart of 10,000 simulated seasons for Olympiacos. A white line shows the real wins up to round 10. An orange density fan spreads to round 38 with median, 10th and 90th percentile lines, beside a histogram of final wins. Expected wins are 26.4, the chance of a top-6 finish is 85% and the chance of the title is 20.5%. A second view ranks the title odds of eight teams, with Olympiacos first.](docs/assets/readme/season.gif)
 
 Each simulation draws every team's strength from its rating posterior, then plays every remaining game with Student-t noise. The odds are counts over the 10,000 seasons. The picture uses the local data of 11 November 2026 (after round 10).
 
-### Player ratings (M3)
+## Player ratings (M3)
 
 ![Animated chart of EuroLeague 2025-26 player ratings. 335 players appear as dots on a map of offence against defence, and the six best are named. Then a range chart shows the ten best players with 500 or more minutes and the 90% range of each rating: wide ranges that overlap.](docs/assets/readme/players.gif)
 
 M3 rates each player in points per 100 possessions. It adjusts for the nine other players and for home court, and it pulls each rating toward a box-score estimate. M5 uses these ratings to forecast games.
+
+## How it works
+
+![Animated diagram of the six daily steps. Ingest: 21,761 EuroLeague responses fill a local cache. Build: games, shots and lineup stints pass schema checks and load into DuckDB marts. Backtest: seasons 2007 to 2025 are replayed in order, as warm-up, tuning, check and test, and the best settings are fixed before the live season. Predict: five models forecast each upcoming game. Score: log loss and Brier score compare Elo with the home-win baseline. Publish: the site data is rebuilt and the Astro site goes live on Cloudflare. A Cloudflare Worker starts the run every day at 05:17 UTC.](docs/assets/readme/pipeline.gif)
+
+The daily run is [`daily.yml`](.github/workflows/daily.yml). The experiment process is in [`workflow.md`](workflow.md).
 
 ## Quick start
 

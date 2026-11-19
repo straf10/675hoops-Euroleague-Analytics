@@ -227,6 +227,78 @@ def players() -> dict:
     return {"season": int(season), "median_sd": block["median_sd_total"], "rows": rows}
 
 
+def record() -> dict:
+    """The live scorecard that the daily run rebuilds: Elo against the home-win baseline."""
+    sc = json.loads((ROOT / "reports" / "live_scorecard.json").read_text(encoding="utf-8"))
+    series = sc["rolling"]["series"]
+
+    def pick(model: dict) -> dict:
+        keys = ("n", "log_loss", "brier", "accuracy")
+        return {k: round(model[k], 4) if isinstance(model[k], float) else model[k] for k in keys}
+
+    return {
+        "elo": pick(sc["elo"]),
+        "b0": pick(sc["b0"]),
+        "not_scored": len(sc["games_not_provable"]),
+        "window": sc["rolling"]["window"],
+        "through": series[-1]["tipoff_utc"][:10],
+        "series": [[p["n"], p["elo"], p["b0"]] for p in series],
+    }
+
+
+def pipeline(games: pd.DataFrame) -> dict:
+    """Real sizes of each pipeline step, plus one slice of the live forecast logs."""
+    con = duckdb.connect(str(MART_PATH), read_only=True)
+    count = lambda t: int(con.execute(f"select count(*) from {t}").fetchone()[0])  # noqa: E731
+    m1 = json.loads((ROOT / "reports" / "backtest_m1.json").read_text(encoding="utf-8"))
+    sp = m1["seasons"]
+    logs = {
+        "Elo": "euroleague_2026-27.csv",
+        "M1": "euroleague_m1_2026-27.csv",
+        "M5": "euroleague_m5_2026-27.csv",
+        "M5-INJ": "euroleague_m5inj_2026-27.csv",
+        "ELOH": "euroleague_eloh_2026-27.csv",
+    }
+    frames = {
+        name: pd.read_csv(ROOT / "predictions" / f).set_index("game_id")["p_home"]
+        for name, f in logs.items()
+    }
+    common = sorted(set.intersection(*(set(f.index) for f in frames.values())))
+    latest = (
+        pd.read_csv(ROOT / "predictions" / logs["Elo"])
+        .set_index("game_id")
+        .loc[common]
+        .sort_values("tipoff_utc")
+        .tail(5)
+    )
+    disp = DISPLAY_CODES["euroleague"]
+    rows = [
+        {
+            "home": disp.get(r.home, r.home),
+            "away": disp.get(r.away, r.away),
+            "p": {name: round(float(frames[name][gid]), 2) for name in logs},
+        }
+        for gid, r in latest.iterrows()
+    ]
+    return {
+        "raw_files": sum(1 for p in (ROOT / "data" / "raw").rglob("*") if p.is_file()),
+        "games": count("games"),
+        "shots": count("shots"),
+        "stints": count("stints"),
+        "seasons": [min(sp["warmup"]), max(sp["test"])],
+        "split": {k: [min(v), max(v)] for k, v in sp.items()},
+        "live_season": LIVE_SEASON,
+        "models": list(logs),
+        "rows": rows,
+        "elo_grid": int(
+            json.loads((ROOT / "reports" / "backtest_elo.json").read_text(encoding="utf-8"))[
+                "grid"
+            ]["size"]
+        ),
+        "m1_grid": int(m1["grid"]["rating"]["size"]),
+    }
+
+
 def main() -> None:
     games = read_games(MART_PATH, EUROLEAGUE.name)
     data = {
@@ -234,6 +306,8 @@ def main() -> None:
         "fit": fit(),
         "game": game(games),
         "players": players(),
+        "record": record(),
+        "pipeline": pipeline(games),
         "sim": sim(games),
     }
     OUT.write_text(
