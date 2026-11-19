@@ -30,7 +30,7 @@ M3 rates each player in points per 100 possessions. It adjusts for the nine othe
 
 ![Animated diagram of the six daily steps. Ingest: 21,761 EuroLeague responses fill a local cache. Build: games, shots and lineup stints pass schema checks and load into DuckDB marts. Backtest: seasons 2007 to 2025 are replayed in order, as warm-up, tuning, check and test, and the best settings are fixed before the live season. Predict: five models forecast each upcoming game. Score: log loss and Brier score compare Elo with the home-win baseline. Publish: the site data is rebuilt and the Astro site goes live on Cloudflare. A Cloudflare Worker starts the run every day at 05:17 UTC.](docs/assets/readme/pipeline.gif)
 
-The daily run is [`daily.yml`](.github/workflows/daily.yml). The experiment process is in [`workflow.md`](workflow.md).
+The daily run is [`daily.yml`](.github/workflows/daily.yml). The experiment process is in [`docs/workflow.md`](docs/workflow.md).
 
 ## Quick start
 

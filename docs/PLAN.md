@@ -145,7 +145,7 @@ EuroHoops-Analytics/
 ## 5. Modelling
 
 ### Evaluation and promotion rules
-Evaluation and promotion rules: CLAUDE.md. Experiment process: workflow.md.
+Evaluation and promotion rules: CLAUDE.md. Experiment process: docs/workflow.md.
 
 ### 5.1 M0 — Elo baseline
 - 538-style: MOV multiplier, home advantage, season-start reversion (R5); K tuned on tuning seasons. Separate ratings per competition (EuroLeague only since the GBL was removed on 2026-10-28; the shared rating for Greek clubs in both no longer applies).

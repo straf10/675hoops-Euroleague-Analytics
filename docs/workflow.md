@@ -95,7 +95,7 @@ Then the orchestrator decides:
 ## Subagent brief (copy for each spawn)
 ```
 Experiment <id>. Worktree: <path>, branch exp/<id>. Spec: experiments/<id>.md.
-Your step: <2 build | 3 review | 4 backtest | 6 checkpoint>, as written in workflow.md.
+Your step: <2 build | 3 review | 4 backtest | 6 checkpoint>, as written in docs/workflow.md.
 Rules: CLAUDE.md. Do not merge, push or touch main.
 Return: <the step's return list>.
 ```
