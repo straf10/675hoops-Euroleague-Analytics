@@ -1,4 +1,4 @@
-/* The match report dropdown under a Matchday row (lib/match_report.ts renders the markup into .report-body).
+/* The match report window, opened from a Matchday row (lib/match_report.ts renders the markup into .mr-dialog-body).
    Ink for text, hairlines for separation, colour never used here. Light and dark follow the page tokens. */
 
 .report-wrap {
@@ -19,6 +19,9 @@
   color: var(--ink-2);
   font: inherit;
   font-size: 0.8125rem;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
   cursor: pointer;
   border-radius: 6px;
   transition: transform 140ms var(--ease-out);
@@ -32,71 +35,129 @@
 @media (hover: hover) and (pointer: fine) {
   .report-toggle:hover {
     color: var(--ink);
+    text-decoration-color: var(--ink);
   }
 }
 .report-toggle:focus-visible {
   outline: 2px solid var(--data-1);
   outline-offset: 2px;
 }
-.report-toggle .chev {
-  display: inline-grid;
-  width: 12px;
-  height: 12px;
-  transition: transform 200ms var(--ease-out);
-}
-.report-toggle .chev svg {
-  display: block;
-  width: 12px;
-  height: 12px;
-}
-.report-toggle[aria-expanded="true"] .chev {
-  transform: rotate(180deg);
-}
 
-/* Height snaps (grid row); the reveal is a fade and a 4px move, so no layout property animates. Hidden from the tree when closed. */
-.report {
-  display: grid;
-  grid-template-rows: 0fr;
-  visibility: hidden;
-  transition: visibility 220ms;
-}
-.report.open {
-  grid-template-rows: 1fr;
-  visibility: visible;
-}
-.report-inner {
-  min-height: 0;
+/* Centered card over a dimmed page; the body scrolls inside, the head with the close button stays put. */
+.mr-dialog {
+  width: min(1000px, calc(100vw - 48px));
+  max-width: none;
+  max-height: 85vh;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-2);
   overflow: hidden;
 }
-.report-body {
+.mr-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: mr-in 200ms var(--ease-out);
+}
+.mr-dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+html:has(.mr-dialog[open]) {
+  overflow: hidden;
+}
+@keyframes mr-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+.mr-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 12px 24px;
+  border-bottom: 1px solid var(--rule);
+}
+.mr-dialog-head h3 {
+  margin: 0;
   min-width: 0;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition:
-    opacity 220ms var(--ease-out),
-    transform 220ms var(--ease-out);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
-.report.open .report-body {
-  opacity: 1;
-  transform: none;
+.mr-close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out);
 }
-/* The gap between the toggle and the report's first heading; inside the clipped inner, so it collapses with the panel. */
-.report.open .report-body {
-  padding-top: 16px;
+.mr-close svg {
+  width: 18px;
+  height: 18px;
+}
+.mr-close:active {
+  transform: scale(0.96);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mr-close:hover {
+    color: var(--ink);
+    background: var(--sunk);
+  }
+}
+.mr-close:focus-visible {
+  outline: 2px solid var(--data-1);
+  outline-offset: 2px;
+}
+.mr-dialog-body {
+  min-height: 0;
+  padding: 16px 24px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Phones: the window fills the screen. */
+@media (max-width: 600px) {
+  .mr-dialog {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .mr-dialog-head {
+    padding-left: 16px;
+  }
+  .mr-dialog-body {
+    padding-inline: 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .report,
-  .report-inner,
-  .report-body,
-  .report-toggle .chev {
+  .report-toggle,
+  .mr-close {
     transition: none;
+  }
+  .mr-dialog[open] {
+    animation: none;
   }
 }
 
 /* ---- The report itself ---- */
 
 .mr {
+  container-type: inline-size;
   min-width: 0;
   max-width: 100%;
   padding: 0 0 12px;
@@ -107,11 +168,11 @@
   overflow-wrap: anywhere;
 }
 .mr-sec + .mr-sec {
-  margin-top: 20px;
+  margin-top: 24px;
 }
 .mr-h {
   margin: 0 0 4px;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--rule-strong);
   color: var(--ink);
   font-size: 1rem;
@@ -119,7 +180,7 @@
   letter-spacing: -0.01em;
 }
 .mr-block {
-  margin-top: 14px;
+  margin-top: 12px;
 }
 .mr-title {
   margin: 0 0 6px;
@@ -134,7 +195,7 @@
   font-weight: 600;
 }
 .mr-sub {
-  margin: 10px 0 4px;
+  margin: 8px 0 4px;
   color: var(--muted);
   font-size: 0.8125rem;
 }
@@ -215,7 +276,7 @@
 .mr-model-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px 40px;
+  gap: 12px 28px;
   align-items: start;
   min-width: 0;
 }
@@ -225,9 +286,7 @@
 .mr-model-grid .mr-others .mr-sub {
   margin-top: 0;
 }
-.mr-block > .eq,
-.mr-model-main > .eq,
-.mr-others {
+.mr-block > .eq {
   max-width: 520px;
 }
 
@@ -267,8 +326,8 @@
 /* Team stats, form and head to head share one row on wide screens (.mr-row3). */
 .mr-row3 {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 32px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 24px;
   align-items: start;
   min-width: 0;
 }
@@ -423,8 +482,8 @@
   border-bottom: 1px solid var(--rule-strong);
 }
 
-/* Narrow: the three context blocks step down to two columns, then one. */
-@media (max-width: 1100px) {
+/* Narrow: the three context blocks step down to two columns, then one. Sized by the report's own width. */
+@container (max-width: 820px) {
   .mr-row3 {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -434,7 +493,7 @@
 }
 
 /* Phones: the two sides stack, the comparison table stays inside its own scroller. */
-@media (max-width: 600px) {
+@container (max-width: 560px) {
   .mr-model-grid {
     grid-template-columns: minmax(0, 1fr);
   }

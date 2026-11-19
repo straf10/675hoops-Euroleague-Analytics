@@ -4,7 +4,6 @@ import check from "@phosphor-icons/core/assets/bold/check-bold.svg?raw";
 import cross from "@phosphor-icons/core/assets/bold/x-bold.svg?raw";
 import { marginText, type MarginCheck, type MatchdayGame } from "../lib/matchday";
 import { athensDay, athensTime, pct, pctPair } from "../lib/format";
-import chevron from "@phosphor-icons/core/assets/regular/caret-down.svg?raw";
 import "../styles/match-report.css";
 
 interface Props {
@@ -89,22 +88,16 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
         <button
           type="button"
           class="report-toggle"
-          aria-expanded="false"
-          aria-controls={`report-${g.game_id}`}
+          aria-haspopup="dialog"
           data-report-toggle
           data-comp={comp}
           data-id={g.game_id}
           data-base={base}
+          data-title={`${g.away.name} at ${g.home.name}`}
           hidden
         >
           Match report
-          <span class="chev" set:html={chevron} aria-hidden="true" />
         </button>
-        <div class="report" id={`report-${g.game_id}`} role="region" aria-label={`Match report: ${g.away.name} at ${g.home.name}`}>
-          <div class="report-inner">
-            <div class="report-body" />
-          </div>
-        </div>
       </div>
     )
   }
@@ -132,33 +125,53 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
     return html;
   };
 
+  import close from "@phosphor-icons/core/assets/bold/x-bold.svg?raw";
+
   document.querySelectorAll<HTMLButtonElement>("[data-report-toggle]").forEach((b) => (b.hidden = false));
+
+  // One modal per page, built on the first open. Native <dialog>: focus trap, Esc and the top layer come free.
+  let dialog: HTMLDialogElement | null = null;
+  const getDialog = (): HTMLDialogElement => {
+    if (dialog) return dialog;
+    const d = document.createElement("dialog");
+    d.className = "mr-dialog";
+    d.setAttribute("aria-labelledby", "mr-dialog-title");
+    d.innerHTML = `<div class="mr-dialog-head">
+        <h3 id="mr-dialog-title"></h3>
+        <button type="button" class="mr-close" aria-label="Close the match report">${close}</button>
+      </div>
+      <div class="mr-dialog-body"></div>`;
+    d.querySelector(".mr-close")?.addEventListener("click", () => d.close());
+    // The dialog box has no padding, so a click whose target is the dialog itself landed on the backdrop.
+    d.addEventListener("click", (e) => {
+      if (e.target === d) d.close();
+    });
+    document.body.append(d);
+    return (dialog = d);
+  };
 
   document.addEventListener("click", (e) => {
     const target = e.target instanceof Element ? e.target : null;
     const btn = target?.closest("[data-report-toggle]") as HTMLButtonElement | null | undefined;
     if (!btn) return;
-    const panel = document.getElementById(btn.getAttribute("aria-controls") ?? "");
-    const body = panel?.querySelector<HTMLElement>(".report-body");
-    if (!panel || !body) return;
+    const d = getDialog();
+    const body = d.querySelector<HTMLElement>(".mr-dialog-body");
+    const title = d.querySelector<HTMLElement>("#mr-dialog-title");
+    if (!body || !title) return;
 
-    const open = btn.getAttribute("aria-expanded") !== "true";
-    btn.setAttribute("aria-expanded", String(open));
-    panel.classList.toggle("open", open);
-    if (!open || body.dataset.loaded === "1" || body.dataset.loading === "1") return;
-
-    body.dataset.loading = "1";
+    const key = `${btn.dataset.comp}/${btn.dataset.id}`;
+    d.dataset.key = key;
+    title.textContent = `Match report: ${btn.dataset.title ?? ""}`;
     body.innerHTML = `<p class="mr-note">Loading…</p>`;
+    d.showModal();
+    body.scrollTop = 0;
     load(btn.dataset.base ?? "", btn.dataset.comp ?? "", btn.dataset.id ?? "")
       .then((html) => {
-        body.innerHTML = html;
-        body.dataset.loaded = "1";
+        // A slower earlier load must not replace the report the reader opened since.
+        if (d.dataset.key === key) body.innerHTML = html;
       })
       .catch(() => {
-        body.innerHTML = `<p class="mr-note">The report could not be loaded. Close it and open it again to retry.</p>`;
-      })
-      .finally(() => {
-        delete body.dataset.loading;
+        if (d.dataset.key === key) body.innerHTML = `<p class="mr-note">The report could not be loaded. Close it and open it again to retry.</p>`;
       });
   });
 </script>
@@ -174,10 +187,6 @@ const when = g.tipoff_time_confirmed ? athensTime(g.tipoff_utc) : "time TBC";
     min-height: 56px;
     border-bottom: 1px solid var(--rule);
     list-style: none;
-  }
-  /* The stronger hairline closes a row whose match report is open. */
-  .row:has(.report.open) {
-    border-bottom: 2px solid var(--rule-strong);
   }
   .when {
     font-size: 0.875rem;
