@@ -23,9 +23,9 @@ import pandas as pd
 from scipy.special import expit
 
 from eurohoops.eval.forecasts import MKT_KEY, _calls, _market_calls
-from eurohoops.eval.metrics import paired_bootstrap_ci, per_game_log_loss
+from eurohoops.eval.metrics import LOG_LOSS_CLIP, paired_bootstrap_ci, per_game_log_loss
 
-CLIP = 1e-6  # the logit clip used across the programme
+CLIP = LOG_LOSS_CLIP  # the logit clip used across the programme
 Z95 = 1.959963984540054
 BOOTSTRAP_RESAMPLES = 10_000
 BOOTSTRAP_SEED = 2026

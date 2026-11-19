@@ -39,10 +39,10 @@ jobs:
             exit 1
           fi
           run=$(gh api "repos/$REPO/actions/runs/$run_id" \
-            -q '[.path, .event, (.head_repository.id | tostring), .head_branch] | join(" ")')
-          if [ "$run" != ".github/workflows/daily.yml schedule $REPO_ID main" ] \
-            && [ "$run" != ".github/workflows/daily.yml workflow_dispatch $REPO_ID main" ]; then
-            echo "::error::run $run_id is not a daily-predictions run on main of this repository ($run)"
+            -q '[.path, .event, (.head_repository.id | tostring), .head_branch, .conclusion] | join(" ")')
+          if [ "$run" != ".github/workflows/daily.yml schedule $REPO_ID main success" ] \
+            && [ "$run" != ".github/workflows/daily.yml workflow_dispatch $REPO_ID main success" ]; then
+            echo "::error::run $run_id is not a successful daily-predictions run on main of this repository ($run)"
             exit 1
           fi
           echo "Using site data from run $run_id"

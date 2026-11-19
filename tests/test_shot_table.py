@@ -9,6 +9,7 @@ import pytest
 
 from eurohoops.ingest.cache import write_atomic
 from eurohoops.parse.games import conform
+from eurohoops.parse.periods import period_from_minute
 from eurohoops.parse.shot_table import (
     REASONS,
     SHOT_VALUE,
@@ -17,7 +18,6 @@ from eurohoops.parse.shot_table import (
     build_shot_table,
     game_shots,
     label_contradicts_geometry,
-    period_of,
     reconcile,
     seconds_left,
     shot_band,
@@ -61,13 +61,13 @@ def test_overtime_minutes_and_console_give_period_and_seconds_left() -> None:
     rows = REAL["overtime"]["rows"]
     assert max(r["MINUTE"] for r in rows) > 45  # a double-overtime game
     for row in rows:
-        period = period_of(row["MINUTE"])
+        period = period_from_minute(row["MINUTE"])
         left = seconds_left(row["CONSOLE"], period)
         length = 600 if period <= 4 else 300
         start = (period - 1) * 600 if period <= 4 else 2400 + (period - 5) * 300
         elapsed_minute = (start + length - left) / 60
         assert row["MINUTE"] - 1 <= elapsed_minute <= row["MINUTE"]
-    assert [period_of(m) for m in (1, 10, 11, 40, 41, 45, 46, 50, 51)] == [
+    assert [period_from_minute(m) for m in (1, 10, 11, 40, 41, 45, 46, 50, 51)] == [
         1,
         1,
         2,
@@ -84,6 +84,13 @@ def test_buzzer_console_minus_one_second_reads_as_zero() -> None:
     assert seconds_left("00:-1", 4) == 0
     assert seconds_left("05:00", 5) == 300
     assert seconds_left("10:00", 1) == 600
+
+
+def test_a_malformed_console_clock_is_excluded_not_a_crash() -> None:
+    row = next(r for r in E2024_1 if r["ID_ACTION"].strip() != "FTM")  # every non-FTM row is a shot
+    shots, excluded = game_shots([dict(row, CONSOLE="12:")], BER_PAN)
+    assert shots == []
+    assert [e["reason"] for e in excluded] == ["unparseable"]
 
 
 def test_2011_codes_layups_dunks_and_blocked_attempts() -> None:

@@ -10,6 +10,7 @@ This is the PLAN §12 item 6 validation spike (D-h): the stints mart itself is M
 """
 
 import json
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +20,7 @@ import numpy as np
 
 from eurohoops.config import LIVE_SEASON
 from eurohoops.ingest.cache import read_cached
+from eurohoops.parse.periods import OT_END_MARKERS, OT_FIRST_MINUTE, period_from_minute
 from eurohoops.parse.schemas import box_count
 
 QUARTERS = ("FirstQuarter", "SecondQuarter", "ThirdQuarter", "ForthQuarter")  # sic, API keys
@@ -72,28 +74,31 @@ def period_length(period: int) -> int:
     return QUARTER_S if period <= len(QUARTERS) else OVERTIME_S
 
 
+_CLOCK = re.compile(r"(\d+):(-?\d+)")  # "00:-1" is the buzzer, read as 0 (as in shot_table)
+
+
 def _clock(marker: str | None) -> int | None:
     """``"mm:ss"`` remaining in the period -> seconds, or None when the row has no clock."""
-    if not marker or ":" not in marker:
+    match = _CLOCK.fullmatch((marker or "").strip())
+    if match is None:
         return None
-    minutes, seconds = marker.split(":")
-    return int(minutes) * 60 + int(seconds)
-
-
-def _overtime_period(minute: int) -> int:
-    """PBP ``MINUTE`` counts on through overtime: 41-45 is the first, 46-50 the second, ..."""
-    return len(QUARTERS) + 1 + (max(minute, 41) - 41) // 5
+    minutes, seconds = match.groups()
+    return max(int(minutes) * 60 + int(seconds), 0)
 
 
 def events(pbp: dict[str, Any]) -> list[Event]:
     """Every PBP row in log order, with its period and game clock."""
     tagged = [(q + 1, row) for q, key in enumerate(QUARTERS) for row in pbp.get(key) or []]
-    tagged += [(_overtime_period(row["MINUTE"]), row) for row in pbp.get("ExtraTime") or []]
+    for row in pbp.get("ExtraTime") or []:
+        kind = (row.get("PLAYTYPE") or "").strip()
+        minute = max(row["MINUTE"], OT_FIRST_MINUTE)
+        tagged.append((period_from_minute(minute, kind in OT_END_MARKERS), row))
     out = []
     for period, row in tagged:
         remaining = _clock(row.get("MARKERTIME"))
+        length = period_length(period)
         elapsed = (
-            None if remaining is None else period_start(period) + period_length(period) - remaining
+            None if remaining is None else period_start(period) + length - min(remaining, length)
         )
         out.append(
             Event(

@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from eurohoops.eval.metrics import per_game_log_loss
 from eurohoops.models.elo import FloatArray
 
 ECE_BINS = 20
@@ -17,9 +18,7 @@ PROB_FLOOR = 1e-6
 
 def shot_log_loss(p: FloatArray, y: FloatArray) -> FloatArray:
     """Per-shot log loss; p is clipped to [1e-6, 1 - 1e-6] (an isotonic step can reach 0 or 1)."""
-    q = np.clip(p, PROB_FLOOR, 1.0 - PROB_FLOOR)
-    loss: FloatArray = -(y * np.log(q) + (1.0 - y) * np.log(1.0 - q))
-    return loss
+    return per_game_log_loss(p, y, clip=PROB_FLOOR)
 
 
 def equal_count_bins(p: FloatArray, bins: int = ECE_BINS) -> npt.NDArray[np.int64]:

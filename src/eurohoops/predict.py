@@ -115,5 +115,5 @@ def predict_upcoming(
         season=season,
         round_lead=round_lead,
         clock=clock,
-        after_append=snapshot,
+        before_append=snapshot,
     )

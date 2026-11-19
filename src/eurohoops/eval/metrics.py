@@ -44,8 +44,14 @@ def _round(value: float | None) -> float | None:
     return None if value is None else round(value, 6)
 
 
-def per_game_log_loss(p_home: FloatArray, home_won: FloatArray) -> FloatArray:
-    loss: FloatArray = -(home_won * np.log(p_home) + (1.0 - home_won) * np.log(1.0 - p_home))
+LOG_LOSS_CLIP = 1e-6  # the programme's clip; p = 0 or 1 would give an infinite loss
+
+
+def per_game_log_loss(
+    p_home: FloatArray, home_won: FloatArray, clip: float = LOG_LOSS_CLIP
+) -> FloatArray:
+    p = np.clip(p_home, clip, 1.0 - clip)
+    loss: FloatArray = -(home_won * np.log(p) + (1.0 - home_won) * np.log(1.0 - p))
     return loss
 
 
@@ -137,7 +143,8 @@ def mean_absolute_error(predicted: FloatArray, actual: FloatArray) -> float | No
 def score(
     p_home: FloatArray, exp_margin: FloatArray, margin: FloatArray, sigma: float | None = None
 ) -> Metrics:
-    """Accuracy counts p_home >= 0.5 as a home pick. Empty input gives n=0 and null metrics.
+    """Accuracy: p_home > 0.5 picks home, p_home < 0.5 picks away, p_home == 0.5 scores half.
+    Empty input gives n=0 and null metrics.
 
     With ``sigma``, the margin forecast is Normal(exp_margin, sigma) and scored by mean CRPS.
     """
@@ -158,7 +165,7 @@ def score(
         n=n,
         log_loss=float(per_game_log_loss(p_home, home_won).mean()),
         brier=float(np.mean((p_home - home_won) ** 2)),
-        accuracy=float(np.mean((p_home >= 0.5) == (home_won == 1.0))),
+        accuracy=float(np.mean(np.where(p_home == 0.5, 0.5, (p_home > 0.5) == (home_won == 1.0)))),
         margin_mae=mean_absolute_error(exp_margin, margin),
         ece=ece(p_home, home_won),
         reliability=reliability(p_home, home_won),

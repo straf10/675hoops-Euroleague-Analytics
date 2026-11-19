@@ -65,7 +65,7 @@ import pandera.pandas as pa
 
 from eurohoops.config import M7Backtest
 from eurohoops.eval.common import data_sha256, round_finite, table_cell
-from eurohoops.eval.metrics import cluster_bootstrap_ci, reliability
+from eurohoops.eval.metrics import cluster_bootstrap_ci, per_game_log_loss, reliability
 from eurohoops.logs import TIME_FORMAT
 from eurohoops.models.elo import EloParams, FloatArray, prepare, season_ratings
 from eurohoops.models.team_eff import (
@@ -739,13 +739,12 @@ def _scores(rows: pd.DataFrame) -> dict[str, Any]:
         return dict.fromkeys(("brier", "rps", "log_loss", "brier_top10", "z"), None) | {"n": 0}
     p = rows["p_direct"].to_numpy(dtype=np.float64)
     y = rows["made_direct"].to_numpy(dtype=np.float64)
-    clipped = np.clip(p, LOG_CLIP, 1.0 - LOG_CLIP)
     top = rows.dropna(subset=["p_top10"])
     return {
         "n": n,
         "brier": float(np.mean((p - y) ** 2)),
         "rps": float(rows["rps"].mean()),
-        "log_loss": float(-np.mean(y * np.log(clipped) + (1.0 - y) * np.log(1.0 - clipped))),
+        "log_loss": float(per_game_log_loss(p, y, clip=LOG_CLIP).mean()),
         "brier_top10": (
             float(np.mean((top["p_top10"] - top["made_top10"].astype(float)) ** 2))
             if len(top)

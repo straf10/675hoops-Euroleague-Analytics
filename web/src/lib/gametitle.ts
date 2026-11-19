@@ -42,5 +42,5 @@ export function preGameHomeChance(rows: PreGameRow[], model: string, gameId: str
   return p === undefined ? null : p;
 }
 
-/** A probability as a whole percentage: 0.6517 reads 65%. */
-export const percent = (p: number): string => `${Math.round(p * 100)}%`;
+/** A probability as a whole percentage, capped (format.ts pct): 0.6517 reads 65%. */
+export { pct as percent } from "./format.ts";

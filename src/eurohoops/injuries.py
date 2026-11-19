@@ -88,7 +88,7 @@ def page_updated(tree: LexborHTMLParser) -> str:
 def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
     """``(page_updated_utc, rows)`` with ``team`` left empty (mapped later).
 
-    Raises ``InjuryReportError`` if the injury table is missing or a player row has no link.
+    Raises ``InjuryReportError`` if the injury table is missing or a player row is malformed.
     """
     tree = LexborHTMLParser(html)
     table = tree.css_first("table.table_02")
@@ -97,7 +97,7 @@ def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
     updated = page_updated(tree)
     rows: list[dict[str, str]] = []
     team_name = ""
-    unlinked = 0
+    malformed = 0
     for tr in table.css("tr"):
         classes = tr.attributes.get("class") or ""
         if "injury_reports__team-row" in classes:
@@ -105,11 +105,13 @@ def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
             continue
         cells = tr.css("td")
         link = tr.css_first("a[href*='/players/']")
-        if "injury_reports__head" in classes or len(cells) < 5:
+        if "injury_reports__head" in classes:
             continue
-        if link is None:
-            # a player row whose link changed: skipping it would drop that player from the snapshot
-            unlinked += 1
+        if link is None and len(cells) < 5:
+            continue  # spacer or other non-player row
+        if link is None or len(cells) < 5:
+            # a changed link or layout: skipping the row would drop that player from the snapshot
+            malformed += 1
             continue
         match = _PLAYER_ID.search(link.attributes.get("href") or "")
         rows.append(
@@ -125,8 +127,11 @@ def parse_report(html: bytes | str) -> tuple[str, list[dict[str, str]]]:
                 "comment": _text(cells[4]),
             }
         )
-    if unlinked:
-        raise InjuryReportError(f"{unlinked} player row(s) without a player link; nothing recorded")
+    if malformed:
+        raise InjuryReportError(
+            f"{malformed} player row(s) without a player link or with fewer than 5 cells;"
+            " nothing recorded"
+        )
     return updated, rows
 
 
@@ -182,10 +187,7 @@ def _is_challenge(response: httpx.Response) -> bool:
 def probe_report(client: httpx.Client) -> dict[str, Any]:
     """One fetch and parse; no cache or log. ``status`` is ``ok`` or ``failed``."""
     try:
-        html = fetch_report(client)
-        updated, parsed = parse_report(html)
-        if not parsed:
-            raise InjuryReportError("injury table has no player rows")
+        _, updated, parsed = _fetch_parsed(client)
     except InjuryReportError as exc:
         return {"status": "failed", "detail": str(exc)}
     return {
@@ -209,6 +211,15 @@ def fetch_report(client: httpx.Client) -> bytes:
     return response.content
 
 
+def _fetch_parsed(client: httpx.Client) -> tuple[bytes, str, list[dict[str, str]]]:
+    """``(html, page_updated_utc, rows)``; a page with no player rows raises."""
+    html = fetch_report(client)
+    updated, parsed = parse_report(html)
+    if not parsed:
+        raise InjuryReportError("injury table has no player rows")
+    return html, updated, parsed
+
+
 def record_injuries(
     client: httpx.Client,
     names: Mapping[str, str],
@@ -223,10 +234,7 @@ def record_injuries(
     require_terminated(paths.log)
     taken = clock()
     try:
-        html = fetch_report(client)
-        updated, parsed = parse_report(html)
-        if not parsed:
-            raise InjuryReportError("injury table has no player rows")
+        html, updated, parsed = _fetch_parsed(client)
     except InjuryReportError as exc:
         log.warning("injuries: %s; nothing recorded", exc)
         return {"status": "failed", "rows": 0, "teams": 0, "unmapped": []}

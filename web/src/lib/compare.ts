@@ -5,7 +5,7 @@
 import { careerAchievements, formatRate, REACHED_LABEL, seasonAchievement, seasonTitles, type AchEntry, type StatTitle } from "./achievement";
 import { betterOf } from "./better";
 import { uniquePlayers } from "./compare_picks";
-import { esc } from "./format";
+import { esc, text } from "./format";
 import { dataTip, tip } from "./tip";
 import { jerseySvg } from "./jersey";
 import { seasonLabel } from "./leaders";
@@ -89,14 +89,6 @@ function value(m: Measure, t: Totals, rate: CRate): number | null {
   return rated(m, t, rate);
 }
 
-function text(m: Measure, v: number | null, rate: CRate): string {
-  if (v === null || !Number.isFinite(v)) return "-";
-  const digits = m.kind === "count" && rate === "total" ? 0 : m.digits;
-  const body = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  if (v < 0 && Number(Math.abs(v).toFixed(digits)) !== 0) return `−${body}`;
-  return m.signed && v > 0 ? `+${body}` : body;
-}
-
 const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
 interface Cell {
@@ -135,7 +127,7 @@ export function grid(cols: Col[], rate: CRate): Grid {
       const cells = cols.map((_, i) => {
         const v = placed[i];
         const place = v === null || field.length < 2 ? 0 : 1 + field.filter((x) => x > v).length;
-        return { text: text(m, vals[i], rate), place, lead: place === 1, floor: floors[i] };
+        return { text: text(m, vals[i], rate === "total"), place, lead: place === 1, floor: floors[i] };
       });
       if (cells.some((c) => c.lead)) decided++;
       cells.forEach((c, i) => c.lead && led[i]++);

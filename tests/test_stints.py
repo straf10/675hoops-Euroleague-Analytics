@@ -11,6 +11,7 @@ from eurohoops.parse.stints import (
     SAMPLE_SEASONS,
     SAMPLE_SIZE,
     EmptyGameError,
+    _clock,
     box_facts,
     build_stints,
     events,
@@ -130,6 +131,13 @@ def test_overtime_adds_five_minutes() -> None:
     assert validate(stints, facts) == {check: [] for check in CHECKS}
 
 
+def test_overtime_end_marker_gets_the_period_it_ends() -> None:
+    pbp, _ = game(overtime=True)
+    pbp["ExtraTime"].append(row("EP", clock="00:00", minute=46))  # OT1 end, MINUTE 46
+    last = events(pbp)[-1]
+    assert (last.kind, last.period, last.elapsed) == ("EP", 5, 2700)
+
+
 def test_overtime_count_ignores_a_scoreless_placeholder() -> None:
     assert overtimes([{"Extra1": 0}, {"Extra1": 0}]) == 0
     assert overtimes([{"Extra1": 0, "Extra2": None}, {"Extra1": 3}]) == 1
@@ -145,6 +153,24 @@ def test_events_carry_period_and_game_clock() -> None:
     assert [(e.period, e.elapsed) for e in evs if e.kind == "DUNK"] == [(5, 2640)]
     assert all(e.elapsed is None for e in evs if e.kind in {"BP", "EP"})
     assert {e.kind for e in evs} >= {"2FGM"}  # padding stripped
+
+
+def test_clock_reads_the_buzzer_as_zero_and_malformed_clocks_as_none() -> None:
+    assert _clock("07:30") == 450
+    assert _clock("00:-1") == 0
+    assert _clock("12:") is None
+    assert _clock("ab:cd") is None
+    assert _clock("") is None
+    assert _clock(None) is None
+
+
+def test_a_buzzer_clock_never_makes_a_stint_end_before_it_starts() -> None:
+    pbp, box = game()
+    pbp["FirstQuarter"][2]["MARKERTIME"] = "00:-1"  # the OUT row, logged at 05:00 in game()
+    stints, _ = stints_of(pbp, box)
+    assert all(s.end >= s.start for s in stints)
+    first = next(s for s in stints if s.team == "AAA")
+    assert (first.period, first.start, first.end) == (1, 0, 600)
 
 
 def test_an_empty_box_score_is_refused() -> None:

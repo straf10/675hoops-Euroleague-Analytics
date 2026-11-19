@@ -66,10 +66,8 @@ def eloc_forecasts(games: pd.DataFrame, model: LiveEloc, season: int) -> pd.Data
     Elo's pre-game difference uses only games processed before each game. ``exp_margin`` is that
     difference over the margin scale fitted on earlier seasons (as ELOR's is); it is not scored.
     """
-    part = games[games["season"].between(model.first_season, season)]
-    part = part.sort_values("tipoff_utc", kind="stable").reset_index(drop=True)
+    part, live = elo.season_window(games, model.first_season, season)
     diff = elo.replay(elo.prepare(part), model.elo_params)
-    live = (part["season"] == season).to_numpy()
     scale = margin_scales(part, diff)[season]
     return pd.DataFrame(
         {

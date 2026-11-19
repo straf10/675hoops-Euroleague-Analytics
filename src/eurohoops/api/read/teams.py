@@ -76,11 +76,11 @@ def team_ratings(store: Store, competition: str, team: str) -> dict[str, Any]:
 
 
 @cached
-def _team_lines(store: Store, comp: Competition) -> tuple[pd.DataFrame | None, str]:
-    """Team box lines (``TEAM_LINES_SCHEMA``) of the EuroLeague, or None and why not."""
+def _team_lines(store: Store, comp: Competition) -> pd.DataFrame:
+    """Team box lines (``TEAM_LINES_SCHEMA``) of the EuroLeague."""
     teams = store.euroleague_box().teams
     lines = teams.assign(fga=teams["fg2a"] + teams["fg3a"])
-    return validated(lines[list(TEAM_LINES_SCHEMA.columns)], TEAM_LINES_SCHEMA), ""
+    return validated(lines[list(TEAM_LINES_SCHEMA.columns)], TEAM_LINES_SCHEMA)
 
 
 def _factor(numerator: float, denominator: float, what: str) -> dict[str, Any]:
@@ -209,18 +209,17 @@ def team_factors(store: Store, competition: str, team: str, season: int | None) 
     ``season`` is None); a missing input gives ``value: null`` and a ``reason``."""
     comp = store.competition(competition)
     info = _known_team(store, comp, team)
-    lines, why = _team_lines(store, comp)
-    own = None if lines is None else lines[lines["team"] == team]
-    seasons = [] if own is None else sorted(int(s) for s in own["season"].unique())
+    lines = _team_lines(store, comp)
+    own = lines[lines["team"] == team]
+    seasons = sorted(int(s) for s in own["season"].unique())
     chosen = season if season is not None else (seasons[-1] if seasons else LIVE_SEASON)
-    if own is None or chosen not in seasons:
-        reason = why or f"no box-score games for '{team}' in {chosen}"
+    if chosen not in seasons:
+        reason = f"no box-score games for '{team}' in {chosen}"
         factors = {
             name: _unavailable(reason) for name in ("efg_pct", "tov_pct", "orb_pct", "ft_rate")
         }
         box: dict[str, Any] = {"games": 0, "factors": factors}
     else:
-        assert lines is not None
         box = _four_factors(lines, team, chosen)
     return {
         "competition": comp.name,

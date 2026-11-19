@@ -78,6 +78,25 @@ def test_parse_report_without_a_table_raises() -> None:
         parse_report(b"<html><body><p>maintenance</p></body></html>")
 
 
+def test_linked_player_row_with_four_cells_raises_instead_of_being_dropped() -> None:
+    html = b"""<html><body><table class="table_02"><tbody>
+<tr class="injury_reports__head"><th>P</th><th>Player</th><th>Status</th></tr>
+<tr class="injury_reports__team-row">
+  <td colspan="5"><a href="/teams/583-x.html">Team X</a></td>
+</tr>
+<tr>
+  <td>PG</td><td><a href="/players/23741-a.html">Good Player</a></td>
+  <td>Out</td><td>Round 4</td><td>Ok</td>
+</tr>
+<tr>
+  <td>SF</td><td><a href="/players/14714-b.html">Short Row</a></td>
+  <td>Out</td><td>Round 5</td>
+</tr>
+</tbody></table></body></html>"""
+    with pytest.raises(InjuryReportError, match="without a player link or with fewer than 5 cells"):
+        parse_report(html)
+
+
 def test_team_name_map_uses_season_teams_and_the_sponsor_alias() -> None:
     teams = pd.DataFrame(
         {

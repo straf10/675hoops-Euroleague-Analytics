@@ -82,10 +82,14 @@ def test_daily_hands_the_downloads_and_validation_to_the_site_build() -> None:
     assert "web/src/data/stats/" in paths and "web/public/downloads/" in paths
 
 
-def test_a_failed_export_still_commits_the_logs() -> None:
+def test_a_failed_step_still_commits_the_logs_after_the_append_only_check() -> None:
+    check = DAILY.index("name: Check the logs are append-only")
     commit = DAILY.index("name: Commit predictions and reports if changed")
-    assert "id: export" in DAILY[: DAILY.index("name: site-data")]
-    assert "if: success() || steps.export.outcome == 'failure'" in DAILY[commit : commit + 200]
+    assert "if: ${{ !cancelled() }}" in DAILY[check : check + 200]
+    assert (
+        "if: ${{ !cancelled() && steps.append_only.outcome == 'success' }}"
+        in DAILY[commit : commit + 200]
+    )
 
 
 def test_daily_deploys_the_built_site_to_a_cloudflare_worker() -> None:
@@ -344,6 +348,7 @@ def test_deploy_site_takes_only_a_daily_run_of_this_repo_on_main() -> None:
     assert "actions/runs/$run_id" in find
     assert ".github/workflows/daily.yml schedule" in find
     assert ".github/workflows/daily.yml workflow_dispatch" in find
+    assert ".conclusion" in find and "main success" in find  # a run that pushed nothing is refused
 
 
 def setup_uv_pins() -> list[tuple[str, object]]:

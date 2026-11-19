@@ -215,7 +215,7 @@ def test_an_early_stamp_does_not_excuse_a_write_after_a_tipoff(tmp_path: Path) -
     assert not log.exists()
 
 
-def test_the_rows_just_appended_are_handed_on(tmp_path: Path) -> None:
+def test_the_rows_about_to_be_appended_are_handed_on(tmp_path: Path) -> None:
     log = tmp_path / "fake.csv"
     handed: list[list[str]] = []
     append_log(
@@ -229,7 +229,7 @@ def test_the_rows_just_appended_are_handed_on(tmp_path: Path) -> None:
         season=SEASON,
         round_lead=LEAD,
         clock=lambda: NOW,
-        after_append=lambda written: handed.append([str(r["game_id"]) for r in written]),
+        before_append=lambda written: handed.append([str(r["game_id"]) for r in written]),
     )
     assert handed == [["G1", "G2"]]
 

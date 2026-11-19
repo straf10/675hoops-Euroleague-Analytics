@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eurohoops.eval.common import round_finite
 from eurohoops.logs import pre_registered_rows
 from eurohoops.stats.coach_style import StyleIndex, coach_style
 
@@ -29,8 +30,8 @@ def utc(value: Any) -> pd.Timestamp:
     return stamp.tz_localize("UTC") if stamp.tzinfo is None else stamp.tz_convert("UTC")
 
 
-def _tips(frame: pd.DataFrame, column: str = "tipoff_utc") -> pd.Series:
-    values = frame[column]
+def _tips(frame: pd.DataFrame) -> pd.Series:
+    values = frame["tipoff_utc"]
     if isinstance(values.dtype, pd.DatetimeTZDtype):  # memoised frames: already parsed
         return values
     return pd.to_datetime(values, utc=True)
@@ -60,10 +61,6 @@ def _clean(value: Any) -> Any:
     return text or None
 
 
-def _round(value: float | None, digits: int) -> float | None:
-    return None if value is None or not np.isfinite(value) else round(float(value), digits)
-
-
 # ---- model ----
 
 
@@ -84,12 +81,12 @@ def model_block(inputs: pd.DataFrame | None, game_id: str) -> dict[str, Any]:
     return {
         "available": True,
         "reason": None,
-        "home_rating": _round(float(row["home_rating"]), 1),
-        "away_rating": _round(float(row["away_rating"]), 1),
-        "hca": _round(float(row["hca"]), 1),
+        "home_rating": round_finite(float(row["home_rating"]), 1),
+        "away_rating": round_finite(float(row["away_rating"]), 1),
+        "hca": round_finite(float(row["hca"]), 1),
         "neutral": bool(row["neutral"]),
-        "diff": _round(float(row["diff"]), 1),
-        "margin_scale": _round(float(row["margin_scale"]), 4),
+        "diff": round_finite(float(row["diff"]), 1),
+        "margin_scale": round_finite(float(row["margin_scale"]), 4),
         "p_home": float(row["p_home"]),
         "exp_margin": float(row["exp_margin"]),
         "model_version": str(row["model_version"]),
@@ -236,10 +233,10 @@ def team_stats(
         values = {}
         for side in sides:
             if key == "rest_days":
-                values[side] = _round(rest.get(side), 1)
+                values[side] = round_finite(rest.get(side), 1)
             else:
                 value = ratings[side].get(key)
-                values[side] = None if value is None else _round(value, _digits(fmt))
+                values[side] = None if value is None else round_finite(value, _digits(fmt))
         rows.append({"key": key, "label": label, **values, "better": better, "format": fmt})
     games = {side: ratings[side]["games"] for side in sides}
     if not any(games.values()):  # no game before tip-off for either side: nothing to compare
@@ -292,11 +289,11 @@ def top_players(
                 "name": names.get(str(pid), str(pid)),
                 "slug": slugs.get(str(pid), str(pid).lower()),
                 "gp": gp,
-                "min": _round(row["min_pg"], 1),
-                "pts": _round(row["pts"] / gp, 1),
-                "reb": _round(row["reb"] / gp, 1),
-                "ast": _round(row["ast"] / gp, 1),
-                "pir": _round(row["pir"] / gp, 1),
+                "min": round_finite(row["min_pg"], 1),
+                "pts": round_finite(row["pts"] / gp, 1),
+                "reb": round_finite(row["reb"] / gp, 1),
+                "ast": round_finite(row["ast"] / gp, 1),
+                "pir": round_finite(row["pir"] / gp, 1),
             }
         )
     return out
@@ -444,7 +441,7 @@ def _style_rows(
     rows = []
     for key, label, fmt in COACH_STYLE:
         values = {
-            side: None if block is None else _round(block[key], digits[key])
+            side: None if block is None else round_finite(block[key], digits[key])
             for side, block in (("home", home), ("away", away))
         }
         rows.append({"key": key, "label": label, **values, "format": fmt})

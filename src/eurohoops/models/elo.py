@@ -50,6 +50,15 @@ def prepare(games: pd.DataFrame) -> GameArrays:
     )
 
 
+def season_window(
+    games: pd.DataFrame, first_season: int, season: int
+) -> tuple[pd.DataFrame, np.ndarray]:
+    """Games from ``first_season`` to ``season`` by tip-off; the mask marks ``season``'s games."""
+    part = games[games["season"].between(first_season, season)]
+    part = part.sort_values("tipoff_utc", kind="stable").reset_index(drop=True)
+    return part, (part["season"] == season).to_numpy()
+
+
 def win_probability(diff: float) -> float:
     """P(home win) for a rating difference that already includes home-court advantage."""
     return float(1.0 / (1.0 + 10.0 ** (-diff / 400.0)))
