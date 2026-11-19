@@ -126,7 +126,7 @@ def _metrics(p: FloatArray, mu: FloatArray, won: FloatArray, margin: FloatArray)
         "n": len(won),
         "log_loss": round(float(per_game_log_loss(p, won).mean()), 6),
         "brier": round(float(np.mean((p - won) ** 2)), 6),
-        "accuracy": round(float(np.mean((p >= 0.5) == (won == 1.0))), 6),
+        "accuracy": round(float(np.mean(np.where(p == 0.5, 0.5, (p > 0.5) == (won == 1.0)))), 6),
         "margin_mae": round(float(np.mean(np.abs(mu - margin))), 6),
     }
 

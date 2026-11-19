@@ -3,7 +3,7 @@
 
 import { signClass } from "./delta";
 import { qualityHeat, type Lit } from "./heat";
-import { esc } from "./format";
+import { esc, signed } from "./format";
 import { dataTip, tip } from "./tip";
 import type { Bands, PlayerData, PlayerSeason } from "./stats";
 
@@ -120,9 +120,6 @@ export function qualityStripHtml(b: Bands, league: Bands): string {
     `<small>actual minus expected</small></div>`
   );
 }
-
-const signed = (x: number, digits = 1) =>
-  `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(digits)}`;
 
 /** Share and FG% per distance band against the league. `invert` for shots allowed: the caret
  *  turns orange where opponents shoot worse than the league. */

@@ -180,5 +180,14 @@ export function call(g: Game): { team: Team; p: number } {
 export const signed = (x: number, digits = 1) =>
   `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(digits)}`;
 
+/** A measure's value as a table cell: "-" without a value, a sign where the measure has one. */
+export function text(m: { kind: string; digits: number; signed?: boolean }, v: number | null, total: boolean): string {
+  if (v === null || !Number.isFinite(v)) return "-";
+  const digits = m.kind === "count" && total ? 0 : m.digits;
+  const body = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  if (v < 0 && Number(Math.abs(v).toFixed(digits)) !== 0) return `−${body}`;
+  return m.signed && v > 0 ? `+${body}` : body;
+}
+
 const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
 

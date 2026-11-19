@@ -44,4 +44,5 @@ test("no logged row, or no row for the headline model, gives no chance", () => {
 test("a probability reads as a whole percentage", () => {
   assert.equal(percent(0.6517), "65%");
   assert.equal(percent(0.5), "50%");
+  assert.equal(percent(0.996), ">99%");
 });

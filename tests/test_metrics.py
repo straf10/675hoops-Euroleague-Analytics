@@ -51,6 +51,11 @@ def test_score_carries_calibration() -> None:
     assert m.as_dict()["reliability"][7]["observed"] == 1.0
 
 
+def test_accuracy_scores_an_exact_half_as_half_right() -> None:
+    assert score(np.array([0.5]), np.zeros(1), np.array([5.0])).accuracy == 0.5
+    assert score(np.array([0.5]), np.zeros(1), np.array([-5.0])).accuracy == 0.5
+
+
 def test_empty_score_keeps_the_bins() -> None:
     empty = score(np.empty(0), np.empty(0), np.empty(0)).as_dict()
     assert empty["ece"] is None

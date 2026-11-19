@@ -41,7 +41,7 @@ def report_game_ids(store: Store, competition: str) -> list[str]:
 @cached
 def _inputs_frame(store: Store, comp: Competition) -> pd.DataFrame | None:
     """The model-input snapshot log (``predictions/<comp>_inputs_<season>.csv``), or None."""
-    relative = getattr(comp, "inputs_log", None)
+    relative = comp.inputs_log
     if relative is None or not store.path(relative).exists():
         return None
     return pd.read_csv(store.path(relative), dtype={"game_id": str})

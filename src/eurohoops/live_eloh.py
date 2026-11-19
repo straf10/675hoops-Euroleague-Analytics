@@ -66,10 +66,8 @@ def eloh_forecasts(games: pd.DataFrame, model: LiveEloh, season: int) -> pd.Data
     Ratings use only games processed before each game (``replay``), so a forecast cannot see its
     own result or anything later.
     """
-    part = games[games["season"].between(model.first_season, season)]
-    part = part.sort_values("tipoff_utc", kind="stable").reset_index(drop=True)
+    part, live = elo.season_window(games, model.first_season, season)
     diff = elo.replay(elo.prepare(part), model.params, eloh_hca(part, model))
-    live = (part["season"] == season).to_numpy()
     strings = [elo_strings(float(d), model.margin_scale) for d in diff[live]]
     return pd.DataFrame(
         {

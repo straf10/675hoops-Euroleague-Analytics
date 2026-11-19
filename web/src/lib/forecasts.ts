@@ -1,7 +1,7 @@
 // Types and formatters of the season forecast record (site.json `forecasts`, built by
 // eurohoops.eval.forecasts). Numbers arrive final; this only words them.
 
-import type { Team } from "./format";
+import { pct, type Team } from "./format.ts";
 
 export interface FcMetrics {
   n: number;
@@ -108,7 +108,7 @@ export const groupLabel = (phase: string, round: number | null) =>
 export const groupKey = (phase: string, round: number | null) => (round === null ? phase : `${phase}-${round}`);
 
 export const dash = "-";
-export const share = (x: number | null) => (x === null ? dash : `${Math.round(x * 100)}%`);
+export const share = (x: number | null) => (x === null ? dash : pct(x));
 
 /** "Round 3" -> "R3" for chart ticks; a postseason phase keeps a short name. */
 export const shortGroup = (phase: string, round: number | null) =>

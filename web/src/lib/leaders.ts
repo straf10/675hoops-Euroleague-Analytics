@@ -4,6 +4,7 @@
 // the browser when the season or the scope changes.
 
 import { betterOf } from "./better.ts";
+import { text } from "./format.ts";
 import { BY_KEY, format, rated, type Measure } from "./measures.ts";
 
 type Scope = "season" | "career" | "best";
@@ -98,15 +99,6 @@ export function valueOf(key: string, t: Totals, mode: Mode): number | null {
   return t.gp ? raw / t.gp : null;
 }
 
-function text(key: string, v: number | null, mode: Mode): string {
-  const m = measure(key);
-  if (v === null || !Number.isFinite(v)) return "-";
-  const digits = m.kind === "count" && mode === "total" ? 0 : m.digits;
-  const body = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  if (v < 0 && Number(Math.abs(v).toFixed(digits)) !== 0) return `−${body}`;
-  return m.signed && v > 0 ? `+${body}` : body;
-}
-
 const seasonFloor = (most: Record<string, number>, season: number) => Math.ceil((most[season] ?? 0) / 2);
 
 /** Whether a line is left unranked on the view's stat (too few games, minutes or attempts). */
@@ -129,7 +121,7 @@ interface Ranked {
 function rank(list: Entry[], view: View, most: Record<string, number>): Ranked[] {
   const rows = list.map((e) => {
     const value = valueOf(view.stat, e.t, view.mode);
-    return { e, value, text: text(view.stat, value, view.mode), rank: 0, floor: value === null || failsFloor(e, view, most) };
+    return { e, value, text: text(measure(view.stat), value, view.mode === "total"), rank: 0, floor: value === null || failsFloor(e, view, most) };
   });
   rows.sort((a, b) => {
     const qa = !a.floor, qb = !b.floor;
