@@ -1,19 +1,16 @@
 # 6.75 Analytics
 
-EuroLeague win forecasts, logged live before each game. Misses stay on the scorecard.
+EuroLeague forecasts built from team ratings, player impact and 10,000 simulated seasons.
 
 Live site: https://675hoops.com/ · "6.75" is the FIBA three-point distance in metres. The package and CLI are named `eurohoops`.
 
 [![ci](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/ci.yml) [![daily predictions](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/daily.yml/badge.svg)](https://github.com/straf10/675hoops-Euroleague-Analytics/actions/workflows/daily.yml)
 
+![Animated chart in three steps. First, a surface of Elo log loss over K and home-court edge builds up, then the view turns top-down into a contour map and marks the chosen setting, K 20 and home edge 90. Second, the real forecast errors of 732 test games are drawn over the spread that the model M1 expects: 11.7 points real, 12.3 points modelled. Third, 10,000 simulated games between Besiktas and Olympiacos fan out from tip-off. The model gives Olympiacos a 67% chance. The real result, Olympiacos by 8 points, lands inside the 10th to 90th percentile range.](docs/assets/readme/hero.gif)
+
 ## Live record
 
 Data through **8 November 2026**. **98 EuroLeague games** scored in the 2026-27 season.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/livecard-dark.svg">
-  <img src="docs/assets/readme/livecard-light.svg" width="560" height="300" alt="Bar chart of live scores. Elo: log loss 0.639, Brier 0.225. Home-win baseline: log loss 0.718, Brier 0.262. Lower is better.">
-</picture>
 
 | Forecaster | Games | Log loss (lower is better) | Brier (lower is better) | Called right |
 |---|---:|---:|---:|---:|
@@ -65,6 +62,18 @@ Log loss is the score used for every decision. It is a proper scoring rule, so t
 | **MKT** | Bookmaker prices, with the margin removed, used as a benchmark. It is not a forecast we publish. | Benchmark. ([card](docs/models/mkt.md)) |
 
 Retired on 3 November 2026 by owner decision: **POOL**, **POOL3** and **ELOR**. Their logged rows stay in `predictions/`, and they no longer run.
+
+### Season simulator (M7)
+
+![Animated fan chart of 10,000 simulated seasons for Olympiacos. A white line shows the real wins up to round 10. An orange density fan spreads to round 38 with median, 10th and 90th percentile lines, beside a histogram of final wins. Expected wins are 26.4, the chance of a top-6 finish is 85% and the chance of the title is 20.5%. A second view ranks the title odds of eight teams, with Olympiacos first.](docs/assets/readme/season.gif)
+
+Each simulation draws every team's strength from its rating posterior, then plays every remaining game with Student-t noise. The odds are counts over the 10,000 seasons. The picture uses the local data of 11 November 2026 (after round 10).
+
+### Player ratings (M3)
+
+![Animated chart of EuroLeague 2025-26 player ratings. 335 players appear as dots on a map of offence against defence, and the six best are named. Then a range chart shows the ten best players with 500 or more minutes and the 90% range of each rating: wide ranges that overlap.](docs/assets/readme/players.gif)
+
+M3 rates each player in points per 100 possessions. It adjusts for the nine other players and for home court, and it pulls each rating toward a box-score estimate. M5 uses these ratings to forecast games.
 
 ## Quick start
 
