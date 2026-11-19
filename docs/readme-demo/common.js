@@ -92,3 +92,19 @@ function start(draw) {
     }
   });
 }
+
+function wrap(ctx, s, maxW, size = 17, weight = 500) {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  const out = [];
+  let cur = "";
+  for (const word of s.split(" ")) {
+    const next = cur ? `${cur} ${word}` : word;
+    if (ctx.measureText(next).width > maxW && cur) {
+      out.push(cur);
+      cur = word;
+    } else cur = next;
+  }
+  out.push(cur);
+  return out;
+}
+const fmtInt = (n) => Math.round(n).toLocaleString("en-US");
