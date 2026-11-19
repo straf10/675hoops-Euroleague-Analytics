@@ -19,6 +19,7 @@ import pytest
 
 from eurohoops.api.read import forecasts as fc
 from eurohoops.api.read import players as pl
+from eurohoops.api.read import report as rp
 from eurohoops.api.read import simulation as sm
 from eurohoops.api.read import stats as st
 from eurohoops.api.read import store as sto
@@ -247,6 +248,19 @@ def test_prediction_lists_the_pre_registered_row_and_the_later_ones(store: Store
 def test_prediction_marks_a_row_stamped_after_tip_off_as_late(store: Store) -> None:
     only = fc.prediction(store, "E2026_3")["models"]["elo"]
     assert only["pre_registered"]["late"] is True and only["later"] == []
+
+
+def test_other_models_never_list_a_late_row_as_pre_registered(fresh: Path) -> None:
+    log = fresh / EUROLEAGUE.log_path("m1")
+    frame = pd.read_csv(log)
+    late = frame.iloc[[0]].assign(
+        game_id="E2026_5",
+        tipoff_utc="2026-10-08T18:15:00Z",
+        predicted_at_utc="2026-10-08T19:00:00Z",
+    )
+    pd.concat([frame, late]).to_csv(log, index=False)
+    rows = rp._pre_rows(Store(fresh), EUROLEAGUE, "m1")
+    assert "E2026_4" in rows and "E2026_5" not in rows
 
 
 def test_prediction_gathers_every_model_and_an_unplayed_game_has_no_result(

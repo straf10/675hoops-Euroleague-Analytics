@@ -19,6 +19,7 @@ fitting or scoring (F-a).
 """
 
 import json
+import re
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -168,6 +169,9 @@ class _Unparseable(ValueError):
     pass
 
 
+_CONSOLE = re.compile(r"\d+:-?\d+")  # a malformed clock such as "12:" would crash seconds_left
+
+
 def _parse(row: dict[str, Any], game: Game) -> dict[str, Any]:
     """One field-goal row -> shot fields; raises ``_Unparseable`` with the reason."""
     team = str(row.get("TEAM") or "").strip()
@@ -183,7 +187,7 @@ def _parse(row: dict[str, Any], game: Game) -> dict[str, Any]:
     if after_home is None or after_away is None:
         raise _Unparseable("no score")
     minute, console = row.get("MINUTE"), str(row.get("CONSOLE") or "")
-    if not isinstance(minute, int) or ":" not in console:
+    if not isinstance(minute, int) or _CONSOLE.fullmatch(console.strip()) is None:
         raise _Unparseable(f"clock {minute!r} {console!r}")
     period = period_of(minute)
     own, opp = (after_home, after_away) if team == game.home else (after_away, after_home)

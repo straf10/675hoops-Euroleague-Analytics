@@ -10,6 +10,7 @@ This is the PLAN §12 item 6 validation spike (D-h): the stints mart itself is M
 """
 
 import json
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -72,12 +73,16 @@ def period_length(period: int) -> int:
     return QUARTER_S if period <= len(QUARTERS) else OVERTIME_S
 
 
+_CLOCK = re.compile(r"(\d+):(-?\d+)")  # "00:-1" is the buzzer, read as 0 (as in shot_table)
+
+
 def _clock(marker: str | None) -> int | None:
     """``"mm:ss"`` remaining in the period -> seconds, or None when the row has no clock."""
-    if not marker or ":" not in marker:
+    match = _CLOCK.fullmatch((marker or "").strip())
+    if match is None:
         return None
-    minutes, seconds = marker.split(":")
-    return int(minutes) * 60 + int(seconds)
+    minutes, seconds = match.groups()
+    return max(int(minutes) * 60 + int(seconds), 0)
 
 
 def _overtime_period(minute: int) -> int:
@@ -92,8 +97,9 @@ def events(pbp: dict[str, Any]) -> list[Event]:
     out = []
     for period, row in tagged:
         remaining = _clock(row.get("MARKERTIME"))
+        length = period_length(period)
         elapsed = (
-            None if remaining is None else period_start(period) + period_length(period) - remaining
+            None if remaining is None else period_start(period) + length - min(remaining, length)
         )
         out.append(
             Event(

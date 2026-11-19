@@ -14,7 +14,7 @@ from eurohoops.config import (
     LIVE_SEASON,
     Competition,
 )
-from eurohoops.logs import displayed_rows
+from eurohoops.logs import pre_registered_rows
 from eurohoops.model_catalog import entry
 from eurohoops.publish import team_identity
 from eurohoops.stats.coach_style import StyleIndex, game_styles
@@ -51,7 +51,7 @@ def _inputs_frame(store: Store, comp: Competition) -> pd.DataFrame | None:
 def _pre_rows(store: Store, comp: Competition, model: str) -> dict[str, dict[str, Any]]:
     """The pre-registered row of each game in one team model's log (empty when not logged)."""
     relative = entry(model).log_path(comp)
-    log = displayed_rows(store.log(relative))
+    log = pre_registered_rows(store.log(relative))
     return {str(r["game_id"]): {str(k): v for k, v in r.items()} for r in log.to_dict("records")}
 
 

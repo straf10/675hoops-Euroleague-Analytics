@@ -86,6 +86,13 @@ def test_buzzer_console_minus_one_second_reads_as_zero() -> None:
     assert seconds_left("10:00", 1) == 600
 
 
+def test_a_malformed_console_clock_is_excluded_not_a_crash() -> None:
+    row = next(r for r in E2024_1 if r["ID_ACTION"].strip() != "FTM")  # every non-FTM row is a shot
+    shots, excluded = game_shots([dict(row, CONSOLE="12:")], BER_PAN)
+    assert shots == []
+    assert [e["reason"] for e in excluded] == ["unparseable"]
+
+
 def test_2011_codes_layups_dunks_and_blocked_attempts() -> None:
     """§3: 2011-12 logs layups/dunks with their own codes and blocked attempts as xFGAB."""
     block = REAL["codes_2011"]

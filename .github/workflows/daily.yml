@@ -145,13 +145,15 @@ jobs:
           retention-days: 7
       # Rule 1 (CLAUDE.md): the logs only grow. Fails the run before anything is committed if a row
       # of the checked-out commit was edited or removed, or a log file vanished.
+      # !cancelled(): a failed model or export must not drop the rows other steps already appended.
       - name: Check the logs are append-only
-        if: success() || steps.export.outcome == 'failure'
+        id: append_only
+        if: ${{ !cancelled() }}
         run: uv run --no-dev python scripts/checks/append_only.py HEAD
       # main may have moved during the run: replay the run's commit on top of it. A conflict (an
       # append-only log changed on both sides) is never resolved here: abort, fail, merge by hand.
       - name: Commit predictions and reports if changed
-        if: success() || steps.export.outcome == 'failure'
+        if: ${{ !cancelled() && steps.append_only.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
